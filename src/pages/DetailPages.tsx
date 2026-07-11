@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  Award,
   Coins,
   Dices,
   Eye,
@@ -29,7 +30,7 @@ import {
   getSubList,
   realImage,
 } from '../api'
-import type { Book, Creature, CreatureTrait, GameClass, Item, Race, Spell, Subclass, Subrace } from '../api'
+import type { Book, Creature, CreatureTrait, Feat, GameClass, Item, Race, Spell, Subclass, Subrace } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
 
@@ -603,6 +604,44 @@ export function SubraceDetailPage() {
           </div>
         </DetailSection>
       )}
+    </DetailShell>
+  )
+}
+
+/* ============================================================
+   ЧЕРТА
+   ============================================================ */
+
+export function FeatDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: f, error } = useOne<Feat>('feats', id)
+  const book = useBookRef(f?.book_source_id)
+  if (error) return <p className="status-line is-error">Черта не найдена: {error}</p>
+  if (!f) return <p className="status-line">Листаем свод дарований…</p>
+
+  const abilities = Object.entries(f.increase_ability_scores ?? {})
+    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
+    .join(', ')
+
+  return (
+    <DetailShell
+      backTo="/feats"
+      backLabel="к чертам"
+      kicker="черта"
+      title={f.feat_name}
+      image={realImage(f.image_gallery)}
+      imageIcon={Award}
+      chips={
+        <>
+          <SourceBadge book={book} />
+          {abilities && <Chip icon={Star}>{abilities}</Chip>}
+        </>
+      }
+    >
+      {f.prerequisite && <p className="detail-note">Требование: {f.prerequisite}</p>}
+      <DetailSection title="Описание">
+        <Rich text={f.description} />
+      </DetailSection>
     </DetailShell>
   )
 }

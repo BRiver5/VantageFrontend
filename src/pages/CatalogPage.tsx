@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowDownAZ,
+  Award,
   BookMarked,
   ChevronLeft,
   ChevronRight,
@@ -35,7 +36,7 @@ import {
   realImage,
   splitTitle,
 } from '../api'
-import type { Book, BookMap, Creature, GameClass, Item, Race, Spell } from '../api'
+import type { Book, BookMap, Creature, Feat, GameClass, Item, Race, Spell } from '../api'
 import { Divider } from '../ornaments'
 
 const PAGE_SIZE = 24
@@ -171,6 +172,23 @@ function raceCard(r: Race) {
         {abilities && <Chip icon={Star}>{abilities}</Chip>}
       </div>
       <p className="card-desc">{cleanDescription(r.description)}</p>
+    </article>
+  )
+}
+
+function featCard(f: Feat, bookMap: BookMap) {
+  const abilities = Object.entries(f.increase_ability_scores ?? {})
+    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
+    .join(', ')
+  return (
+    <article className="card">
+      <h3 className="card-name">{f.feat_name}</h3>
+      <div className="card-chips">
+        <SourceBadge book={f.book_source_id ? bookMap[f.book_source_id] : undefined} />
+        {f.prerequisite && <Chip icon={Shield}>треб.: {f.prerequisite}</Chip>}
+        {abilities && <Chip icon={Star}>{abilities}</Chip>}
+      </div>
+      <p className="card-desc">{cleanDescription(f.description)}</p>
     </article>
   )
 }
@@ -453,6 +471,19 @@ export const RacesPage = () => (
       sub: 'Народы и существа, населяющие миры мультивселенной',
       emptyIcon: VenetianMask,
       card: raceCard,
+    }}
+  />
+)
+
+export const FeatsPage = () => (
+  <CatalogPage<Feat>
+    cfg={{
+      resource: 'feats',
+      base: '/feats',
+      title: 'Черты',
+      sub: 'Особые таланты и способности, доступные при развитии персонажа',
+      emptyIcon: Award,
+      card: featCard,
     }}
   />
 )

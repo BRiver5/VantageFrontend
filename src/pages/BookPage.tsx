@@ -18,7 +18,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { displayName, getBookContents, getBookFull, splitTitle } from '../api'
 import type { BookContents, BookFull } from '../api'
-import { Corners, Divider } from '../ornaments'
+import { Corners, CoverImage, Divider } from '../ornaments'
 
 /** Разделы содержимого; base — маршрут детальной страницы, если она есть */
 const SECTIONS: { key: string; label: string; icon: LucideIcon; base?: string }[] = [
@@ -26,7 +26,7 @@ const SECTIONS: { key: string; label: string; icon: LucideIcon; base?: string }[
   { key: 'subclasses', label: 'Подклассы', icon: Shield },
   { key: 'races', label: 'Расы', icon: VenetianMask, base: '/races' },
   { key: 'subraces', label: 'Подрасы', icon: Users },
-  { key: 'feats', label: 'Черты', icon: Star },
+  { key: 'feats', label: 'Черты', icon: Star, base: '/feats' },
   { key: 'backgrounds', label: 'Предыстории', icon: Landmark },
   { key: 'spells', label: 'Заклинания', icon: Sparkles, base: '/spells' },
   { key: 'items', label: 'Предметы', icon: Gem, base: '/items' },
@@ -99,11 +99,9 @@ export default function BookPage() {
 
       <div className="book-hero">
         <Corners size={40} />
-        {book.book_cover_url && (
-          <div className="book-cover">
-            <img src={book.book_cover_url} alt={book.title} />
-          </div>
-        )}
+        <div className="book-cover">
+          <CoverImage src={book.book_cover_url} alt={book.title} />
+        </div>
         <div className="book-meta">
           <span className="setting-kicker">{book.book_code}</span>
           <h1 className="book-title gold-text">{ru}</h1>

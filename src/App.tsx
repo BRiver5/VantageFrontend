@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import {
+  Award,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -18,12 +19,13 @@ import {
 import { getBooks, getSettings, settingArt, splitTitle, totalsOf } from './api'
 import type { Book, ContentTotals, Setting } from './api'
 import { Corners, Divider, HexEmblem } from './ornaments'
-import { BestiaryPage, ClassesPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
+import { BestiaryPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import {
   ClassDetailPage,
   CreatureDetailPage,
+  FeatDetailPage,
   ItemDetailPage,
   RaceDetailPage,
   SpellDetailPage,
@@ -36,6 +38,7 @@ import {
 const CATEGORIES = [
   { path: '/classes', label: 'Классы', icon: Swords },
   { path: '/races', label: 'Расы и виды', icon: VenetianMask },
+  { path: '/feats', label: 'Черты', icon: Award },
   { path: '/spells', label: 'Заклинания', icon: Sparkles },
   { path: '/items', label: 'Магические предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
@@ -239,6 +242,27 @@ function LootBar({ realm }: { realm: Realm }) {
 
 /* ---------- Соты книг ---------- */
 
+/** Обложка книги в соте; если ссылки нет или она битая — книжная иконка вместо провала */
+function HexCover({ book }: { book: Book }) {
+  const [broken, setBroken] = useState(false)
+  if (!book.book_cover_url || broken) {
+    return (
+      <span className="hex-cover hex-cover--empty">
+        <BookOpen aria-hidden="true" />
+      </span>
+    )
+  }
+  return (
+    <img
+      className="hex-cover"
+      src={book.book_cover_url}
+      alt=""
+      loading="lazy"
+      onError={() => setBroken(true)}
+    />
+  )
+}
+
 function BookHex({ book, index }: { book: Book; index: number }) {
   const { ru } = splitTitle(book.title)
   const spells = book.new_spells?.length ?? 0
@@ -253,9 +277,7 @@ function BookHex({ book, index }: { book: Book; index: number }) {
       style={{ animationDelay: `${Math.min(index * 45, 700)}ms` }}
     >
       <span className="hex-inner">
-        {book.book_cover_url && (
-          <span className="hex-cover" style={{ backgroundImage: `url("${book.book_cover_url}")` }} />
-        )}
+        <HexCover book={book} />
         <span className="hex-shade" />
         <span className="hex-code">{book.book_code}</span>
         <span className="hex-body">
@@ -415,6 +437,8 @@ export default function App() {
           <Route path="/races" element={<RacesPage />} />
           <Route path="/races/:id" element={<RaceDetailPage />} />
           <Route path="/subraces/:id" element={<SubraceDetailPage />} />
+          <Route path="/feats" element={<FeatsPage />} />
+          <Route path="/feats/:id" element={<FeatDetailPage />} />
           <Route path="/spells" element={<SpellsPage />} />
           <Route path="/spells/:id" element={<SpellDetailPage />} />
           <Route path="/items" element={<ItemsPage />} />

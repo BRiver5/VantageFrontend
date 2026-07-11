@@ -175,6 +175,16 @@ export interface Creature {
   book_source_id: string | null
 }
 
+export interface Feat {
+  id: string
+  feat_name: string
+  description: string | null
+  prerequisite: string | null
+  increase_ability_scores: Record<string, number> | null
+  image_gallery: string[] | null
+  book_source_id: string | null
+}
+
 export interface Item {
   id: string
   item_name: string

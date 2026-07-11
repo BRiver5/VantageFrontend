@@ -10,7 +10,7 @@ import {
   totalsOf,
 } from '../api'
 import type { Book, BookContents, ContentTotals, Setting } from '../api'
-import { Corners, Divider } from '../ornaments'
+import { Corners, CoverImage, Divider } from '../ornaments'
 import { TomeSections } from './BookPage'
 import { LootChips } from '../App'
 
@@ -93,7 +93,7 @@ export default function SettingPage() {
           return (
             <Link key={b.id} to={`/books/${b.id}`} className="tome-card">
               <span className="tome-card-cover">
-                {b.book_cover_url && <img src={b.book_cover_url} alt={b.title} loading="lazy" />}
+                <CoverImage src={b.book_cover_url} alt={b.title} />
               </span>
               <span className="hex-code">{b.book_code}</span>
               <span className="tome-card-name">{t.ru}</span>

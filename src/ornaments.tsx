@@ -3,6 +3,24 @@
  * Все элементы — чистый SVG со штриховым золотым градиентом.
  */
 
+import { useState } from 'react'
+import { BookOpen } from 'lucide-react'
+
+/**
+ * Обложка книги с фолбэком: если картинки нет или она не загрузилась (битая
+ * ссылка на внешний сервис), вместо сломанной иконки браузера показывает
+ * книжную иконку на том же пергаментном фоне. Используется в BookPage и
+ * SettingPage — единое поведение для всех обложек и будущих тоже.
+ */
+export function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  return src && !broken ? (
+    <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+  ) : (
+    <BookOpen className="cover-fallback" aria-hidden="true" />
+  )
+}
+
 const GOLD_STOPS = (
   <>
     <stop offset="0%" stopColor="#8a6a2f" />
