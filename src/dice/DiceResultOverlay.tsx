@@ -185,16 +185,30 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
     }
 
     const item = items[visibleCount]
+    const isFinalSound =
+      item?.kind === 'equals' ||
+      (item?.kind === 'value' && visibleCount === items.length - 1)
+
+    let soundTimer: ReturnType<typeof setTimeout> | undefined
+
     if (item?.kind === 'value') {
       setBurstKey(item.key)
-      playAddResult()
-    } else if (item?.kind === 'equals') {
-      playAddResult()
+    }
+
+    if (item?.kind === 'value' || item?.kind === 'equals') {
+      if (isFinalSound) {
+        soundTimer = setTimeout(() => playAddResult(), 300)
+      } else {
+        playAddResult()
+      }
     }
 
     const delay = item?.kind === 'value' ? 700 : item?.kind === 'equals' ? 700 : 200
     const t = setTimeout(() => setVisibleCount((c) => c + 1), delay)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      if (soundTimer) clearTimeout(soundTimer)
+    }
   }, [visibleCount, items, onClose, reducedMotion, isClash, skipped])
 
   const cracking = clashPhase === 'resolve' || clashPhase === 'hold' || skipped

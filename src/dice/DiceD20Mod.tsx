@@ -12,7 +12,7 @@ export default function DiceD20Mod({ open, rolling, onToggleOpen, onRoll }: Dice
     <div className={`dice-d20-mod${open ? ' is-open' : ''}`}>
       <button
         type="button"
-        className="dice-d20-mod-toggle"
+        className="dice-d20-mod-toggle dice-hex-btn dice-hex-btn--sm"
         onClick={onToggleOpen}
         title={open ? 'Свернуть' : 'Преимущество / помеха'}
         aria-label={open ? 'Свернуть преимущество и помеху' : 'Развернуть преимущество и помеху'}
@@ -23,23 +23,23 @@ export default function DiceD20Mod({ open, rolling, onToggleOpen, onRoll }: Dice
       <div className="dice-d20-mod-drawer" aria-hidden={!open}>
         <button
           type="button"
-          className="dice-d20-mod-btn dice-d20-mod-btn--adv"
+          className="dice-d20-mod-btn dice-d20-mod-btn--adv dice-hex-btn dice-hex-btn--lg"
           onClick={() => onRoll('adv')}
           disabled={rolling}
           title="Преимущество — бросить 2к20"
           aria-label="Преимущество — бросить 2к20"
         >
-          <ChevronUp size={16} strokeWidth={2.8} aria-hidden="true" />
+          <ChevronUp size={20} strokeWidth={2.8} aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="dice-d20-mod-btn dice-d20-mod-btn--dis"
+          className="dice-d20-mod-btn dice-d20-mod-btn--dis dice-hex-btn dice-hex-btn--lg"
           onClick={() => onRoll('dis')}
           disabled={rolling}
           title="Помеха — бросить 2к20"
           aria-label="Помеха — бросить 2к20"
         >
-          <ChevronDown size={16} strokeWidth={2.8} aria-hidden="true" />
+          <ChevronDown size={20} strokeWidth={2.8} aria-hidden="true" />
         </button>
       </div>
     </div>

@@ -1933,8 +1933,8 @@ a.card-slot { text-decoration: none; color: inherit; }
 /* обёртка лотка: рамка + шапка с карандашом + редактор палитры + список */
 .dice-tray-wrap {
   box-sizing: border-box;
-  width: min(216px, calc(100vw - 44px));
-  padding: 10px 12px;
+  width: min(300px, calc(100vw - 44px));
+  padding: 14px 16px;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
     var(--silver-grad) border-box;
@@ -1978,36 +1978,269 @@ a.card-slot { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+.dice-tray-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .dice-tray-title {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--silver-3);
 }
-.dice-palette-btn {
+
+/* равносторонний гекс-кнопка с обводкой со всех сторон */
+.dice-hex-btn {
   box-sizing: border-box;
-  width: 26px;
-  height: 26px;
+  position: relative;
+  isolation: isolate;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  border: none;
+  flex-shrink: 0;
+  color: var(--text);
+  transition: filter 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.dice-hex-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  z-index: -1;
+}
+.dice-hex-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.dice-hex-btn:active:not(:disabled) { transform: scale(0.96); }
+.dice-hex-btn:disabled { opacity: 0.35; cursor: default; }
+
+.dice-hex-btn--xs {
+  width: 28px;
+  height: calc(28px * var(--hex-aspect));
+}
+.dice-hex-btn--sm {
+  width: 32px;
+  height: calc(32px * var(--hex-aspect));
+}
+.dice-hex-btn--md {
+  width: 38px;
+  height: calc(38px * var(--hex-aspect));
+}
+.dice-hex-btn--lg {
+  width: 44px;
+  height: calc(44px * var(--hex-aspect));
+}
+
+/* компактные иконки в шапке */
+.dice-icon-btn {
+  color: var(--silver-3);
+}
+.dice-icon-btn:hover:not(:disabled),
+.dice-icon-btn.is-active {
+  color: var(--gold-3);
+}
+
+/* панель настроек — громкость + цвета */
+.dice-tray-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.18);
+  animation: dice-cloud-in 0.22s ease;
+}
+
+.dice-settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+
+.dice-volume-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* слайдер громкости — ромб на ползунке */
+.dice-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--gold-3) 0%,
+    var(--gold-3) var(--vol-pct, 50%),
+    rgba(168, 175, 186, 0.25) var(--vol-pct, 50%),
+    rgba(168, 175, 186, 0.25) 100%
+  );
+  cursor: pointer;
+  outline: none;
+}
+
+.dice-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.dice-volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45);
+  transition: transform 0.12s ease;
+}
+
+.dice-volume-slider:hover::-webkit-slider-thumb,
+.dice-volume-slider:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  filter: brightness(1.1);
+}
+
+.dice-volume-slider:hover::-moz-range-thumb,
+.dice-volume-slider:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.dice-volume-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(168, 175, 186, 0.25);
+}
+
+.dice-settings-divider {
+  height: 1px;
+  background: rgba(168, 175, 186, 0.12);
+}
+
+.dice-colors-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dice-colors-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dice-colors-count {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.dice-palette-favs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dice-fav-slot {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.3);
+}
+
+.dice-fav-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  clip-path: var(--hex-chip);
+  border-radius: 50%;
+  background: var(--bg-3);
   color: var(--silver-3);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  transition: box-shadow 0.15s ease, color 0.15s ease;
+  font-size: 0.65rem;
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
 }
-.dice-palette-btn:hover,
-.dice-palette-btn.is-active { color: var(--gold-3); box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.65); }
+.dice-fav-remove:hover { background: #792c22; color: #fff; }
+
+.dice-color-input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
+}
+
+.dice-fav-add {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.dice-fav-add:hover { color: var(--gold-3); }
+
+.dice-palette-presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dice-preset {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.2);
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.dice-preset:hover:not(:disabled) {
+  transform: scale(1.15);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
+}
+.dice-preset:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@keyframes dice-cloud-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 
 .dice-tray {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 @keyframes dice-tray-rise {
@@ -2018,9 +2251,9 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-tray-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 2px 0;
+  gap: 10px;
+  min-height: 46px;
+  padding: 3px 0;
 }
 
 .dice-tray-row--d20 {
@@ -2033,27 +2266,16 @@ a.card-slot { text-decoration: none; color: inherit; }
   flex-direction: row-reverse;
   align-items: center;
   flex-shrink: 0;
-  height: 24px;
 }
 
 .dice-d20-mod-toggle {
-  box-sizing: border-box;
-  width: 22px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: var(--hex-chip);
   color: var(--silver-3);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  transition: box-shadow 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease;
   flex-shrink: 0;
 }
 
 .dice-d20-mod.is-open .dice-d20-mod-toggle {
   color: var(--gold-3);
-  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.55);
 }
 
 .dice-d20-mod-chevron {
@@ -2067,7 +2289,7 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-d20-mod-drawer {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   max-width: 0;
   opacity: 0;
   overflow: hidden;
@@ -2080,24 +2302,14 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 
 .dice-d20-mod.is-open .dice-d20-mod-drawer {
-  max-width: 52px;
+  max-width: 100px;
   opacity: 1;
   pointer-events: auto;
-  margin-right: 4px;
+  margin-right: 6px;
 }
 
 .dice-d20-mod-btn {
-  box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: var(--hex-chip);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
   flex-shrink: 0;
-  transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.12s ease;
 }
 
 .dice-d20-mod-btn--adv {
@@ -2108,35 +2320,26 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: #e05a4a;
 }
 
-.dice-d20-mod-btn--adv:hover {
+.dice-d20-mod-btn--adv:hover:not(:disabled) {
   color: #7dffa8;
-  box-shadow:
-    inset 0 0 0 1px rgba(78, 207, 122, 0.55),
-    0 0 10px rgba(78, 207, 122, 0.35);
+  filter: drop-shadow(0 0 8px rgba(78, 207, 122, 0.45)) brightness(1.12);
 }
 
-.dice-d20-mod-btn--dis:hover {
+.dice-d20-mod-btn--dis:hover:not(:disabled) {
   color: #ff7a6a;
-  box-shadow:
-    inset 0 0 0 1px rgba(224, 90, 74, 0.55),
-    0 0 10px rgba(224, 90, 74, 0.35);
+  filter: drop-shadow(0 0 8px rgba(224, 90, 74, 0.45)) brightness(1.12);
 }
 
 .dice-d20-mod-btn:disabled {
-  opacity: 0.4;
   pointer-events: none;
   transform: none;
-}
-
-.dice-d20-mod-btn:active:not(:disabled) {
-  transform: scale(0.96);
 }
 
 /* цветной чип расцветки кости — клик циклит по избранным */
 .dice-row-color {
   box-sizing: border-box;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   border-radius: 50%;
   cursor: pointer;
@@ -2148,97 +2351,12 @@ a.card-slot { text-decoration: none; color: inherit; }
   box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
 }
 
-/* редактор избранных расцветок */
-.dice-palette-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  margin-bottom: 8px;
-  border-radius: 9px;
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
-  animation: dice-cloud-in 0.2s ease;
-}
-
-@keyframes dice-cloud-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
-
-.dice-palette-caption {
-  margin: 0;
-  font-size: 0.68rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--silver-3);
-}
-.dice-palette-favs { display: flex; gap: 6px; flex-wrap: wrap; }
-.dice-fav-slot {
-  position: relative;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.35);
-}
-.dice-fav-remove {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 15px;
-  height: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--bg-3);
-  color: var(--silver-3);
-  font-size: 0.72rem;
-  line-height: 1;
-  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.4);
-}
-.dice-fav-remove:hover { background: #792c22; color: #fff; }
-.dice-palette-add { display: flex; align-items: center; gap: 6px; }
-.dice-color-input {
-  width: 32px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-.dice-palette-add-btn {
-  flex: 1;
-  height: 26px;
-  clip-path: var(--hex-chip);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.76rem;
-  color: var(--bg-0);
-  background: var(--silver-grad);
-  transition: filter 0.15s ease;
-}
-.dice-palette-add-btn:hover { filter: brightness(1.1); }
-.dice-palette-presets { display: flex; gap: 5px; flex-wrap: wrap; }
-.dice-preset {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.25);
-  transition: transform 0.1s ease, box-shadow 0.15s ease;
-}
-.dice-preset:hover {
-  transform: scale(1.2);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
-}
-
 .dice-shape-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 
@@ -2246,35 +2364,22 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-pool-counter {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   flex-shrink: 0;
   margin-left: auto;
 }
 
 .dice-qty-btn {
-  box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: var(--hex-chip);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  color: var(--text);
-  font-size: 1rem;
+  font-size: 1.35rem;
   line-height: 1;
-  transition: box-shadow 0.15s ease;
 }
-.dice-qty-btn:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.6); }
-.dice-qty-btn:disabled { opacity: 0.35; cursor: default; }
 
 .dice-qty-value {
-  min-width: 18px;
+  min-width: 26px;
   text-align: center;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.25rem;
   color: var(--gold-3);
 }
 
@@ -2972,7 +3077,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   }
   .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
   .dice-tray-wrap {
-    width: min(196px, calc(100vw - 28px));
+    width: min(280px, calc(100vw - 28px));
     max-height: 520px;
     overflow: hidden;
     transition:
@@ -3004,7 +3109,9 @@ a.card-slot { text-decoration: none; color: inherit; }
     margin: 0;
     padding: 0;
   }
-  .dice-shape-icon-wrap { width: 30px; height: 30px; }
+  .dice-shape-icon-wrap { width: 40px; height: 40px; }
+  .dice-qty-btn { font-size: 1.25rem; }
+  .dice-qty-value { font-size: 1.15rem; min-width: 24px; }
 }
 
 @media (min-width: 561px) {

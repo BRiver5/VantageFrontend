@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { Palette, RotateCcw, SlidersHorizontal } from 'lucide-react'
 import type DiceBoxType from '@3d-dice/dice-box'
 import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
 import DiceD20Mod from './DiceD20Mod'
-import { initDiceAudio, playDropsForRoll } from './diceSounds'
+import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from './diceSounds'
 import { DieImage } from './diceAssets'
 
 type DicePool = Record<DieType, number>
@@ -34,6 +34,22 @@ const PRESET_COLORS = [
 ]
 
 const EMPTY_POOL = Object.fromEntries(DIE_TYPES.map((t) => [t, 0])) as DicePool
+const D20_MOD_TOGGLE_HEIGHT = Math.round(32 * 1.1547)
+
+/** Смещение элемента внутри контейнера по layout-дереву — не зависит от CSS transform. */
+function getOffsetTopWithin(el: HTMLElement, container: HTMLElement): number {
+  let top = 0
+  let node: HTMLElement | null = el
+  while (node && node !== container) {
+    top += node.offsetTop
+    const offsetParent: Element | null = node.offsetParent
+    if (!(offsetParent instanceof HTMLElement) || !container.contains(offsetParent)) {
+      return el.getBoundingClientRect().top - container.getBoundingClientRect().top
+    }
+    node = offsetParent
+  }
+  return top
+}
 
 function loadFavorites(): string[] {
   try {
@@ -106,6 +122,7 @@ export default function DiceRoller() {
   const dockCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const trayClusterRef = useRef<HTMLDivElement | null>(null)
   const d20RowRef = useRef<HTMLDivElement | null>(null)
+  const d20ModOuterRef = useRef<HTMLDivElement | null>(null)
 
   const [open, setOpen] = useState(false)
   const [dockUi, setDockUi] = useState<'off' | 'on' | 'hiding'>('off')
@@ -127,6 +144,7 @@ export default function DiceRoller() {
   )
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [draftColor, setDraftColor] = useState('#c49a3c')
+  const [soundVolume, setSoundVolume] = useState(() => Math.round(getDiceVolume() * 100))
   const [d20ModOpen, setD20ModOpen] = useState(false)
   const [d20ModTop, setD20ModTop] = useState(0)
   const [revealClash, setRevealClash] = useState<'adv' | 'dis' | null>(null)
@@ -315,21 +333,26 @@ export default function DiceRoller() {
   const syncD20ModPosition = useCallback(() => {
     const cluster = trayClusterRef.current
     const row = d20RowRef.current
+    const modOuter = d20ModOuterRef.current
     if (!cluster || !row) return
-    const clusterRect = cluster.getBoundingClientRect()
-    const rowRect = row.getBoundingClientRect()
-    setD20ModTop(rowRect.top - clusterRect.top + (rowRect.height - 24) / 2)
+    const rowTop = getOffsetTopWithin(row, cluster)
+    const mod = modOuter?.querySelector<HTMLElement>('.dice-d20-mod')
+    const toggle = modOuter?.querySelector<HTMLElement>('.dice-d20-mod-toggle')
+    const modHeight = mod?.offsetHeight ?? toggle?.offsetHeight ?? D20_MOD_TOGGLE_HEIGHT
+    setD20ModTop(rowTop + (row.offsetHeight - modHeight) / 2)
   }, [])
 
   useLayoutEffect(() => {
-    if (!showDockTray) return
+    if (!showDockTray || !dockTrayShown) return
     syncD20ModPosition()
     const cluster = trayClusterRef.current
+    const modOuter = d20ModOuterRef.current
     if (!cluster) return
     const ro = new ResizeObserver(syncD20ModPosition)
     ro.observe(cluster)
+    if (modOuter) ro.observe(modOuter)
     return () => ro.disconnect()
-  }, [showDockTray, paletteOpen, dockTrayShown, syncD20ModPosition])
+  }, [showDockTray, paletteOpen, dockTrayShown, d20ModOpen, syncD20ModPosition])
 
   useEffect(() => () => clearDiceTimer(), [clearDiceTimer])
 
@@ -338,6 +361,13 @@ export default function DiceRoller() {
       ...prev,
       [type]: Math.max(0, Math.min(MAX_QTY, prev[type] + delta)),
     }))
+  }
+
+  const resetPool = () => setPool({ ...EMPTY_POOL })
+
+  const handleVolumeChange = (pct: number) => {
+    setSoundVolume(pct)
+    setDiceVolume(pct / 100)
   }
 
   // клик по цветному чипу кости — следующий избранный цвет
@@ -566,70 +596,109 @@ export default function DiceRoller() {
             >
             <div className="dice-tray-head">
                 <span className="dice-tray-title">Кубики</span>
-                <button
-                  type="button"
-                  className={`dice-palette-btn${paletteOpen ? ' is-active' : ''}`}
-                  onClick={() => setPaletteOpen((v) => !v)}
-                  title="Избранные расцветки"
-                  aria-label="Избранные расцветки"
-                  aria-expanded={paletteOpen}
-                >
-                  <Pencil size={15} aria-hidden="true" />
-                </button>
+                <div className="dice-tray-head-actions">
+                  <button
+                    type="button"
+                    className="dice-icon-btn dice-hex-btn dice-hex-btn--sm"
+                    onClick={resetPool}
+                    disabled={!hasDice}
+                    title="Сбросить"
+                    aria-label="Сбросить количество кубиков"
+                  >
+                    <RotateCcw size={15} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`dice-icon-btn dice-hex-btn dice-hex-btn--sm${paletteOpen ? ' is-active' : ''}`}
+                    onClick={() => setPaletteOpen((v) => !v)}
+                    title="Настройки"
+                    aria-label="Настройки звука и цветов"
+                    aria-expanded={paletteOpen}
+                  >
+                    <SlidersHorizontal size={15} aria-hidden="true" />
+                  </button>
+                </div>
               </div>
 
               {paletteOpen && (
-                <div className="dice-palette-editor">
-                  <p className="dice-palette-caption">Избранные расцветки · {favorites.length}/{MAX_FAVORITES}</p>
-                  <div className="dice-palette-favs">
-                    {favorites.map((c) => (
-                      <span key={c} className="dice-fav-slot" style={{ background: c }} title={c}>
-                        {favorites.length > 1 && (
+                <div className="dice-tray-settings">
+                  <label className="dice-volume-field">
+                    <span className="dice-settings-label">Громкость</span>
+                    <input
+                      type="range"
+                      className="dice-volume-slider"
+                      min={0}
+                      max={100}
+                      value={soundVolume}
+                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      aria-label="Громкость анимации"
+                      style={{ '--vol-pct': `${soundVolume}%` } as CSSProperties}
+                    />
+                  </label>
+
+                  <div className="dice-settings-divider" aria-hidden="true" />
+
+                  <div className="dice-colors-block">
+                    <div className="dice-colors-head">
+                      <span className="dice-settings-label">
+                        <Palette size={12} aria-hidden="true" />
+                        Цвета
+                      </span>
+                      <span className="dice-colors-count">{favorites.length}/{MAX_FAVORITES}</span>
+                    </div>
+
+                    <div className="dice-palette-favs">
+                      {favorites.map((c) => (
+                        <span key={c} className="dice-fav-slot" style={{ background: c }} title={c}>
+                          {favorites.length > 1 && (
+                            <button
+                              type="button"
+                              className="dice-fav-remove"
+                              onClick={() => removeFavorite(c)}
+                              title="Убрать"
+                              aria-label={`Убрать ${c}`}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {favorites.length < MAX_FAVORITES && (
+                        <>
+                          <input
+                            type="color"
+                            className="dice-color-input"
+                            value={draftColor}
+                            onChange={(e) => setDraftColor(e.target.value)}
+                            aria-label="Выбрать цвет"
+                          />
                           <button
                             type="button"
-                            className="dice-fav-remove"
-                            onClick={() => removeFavorite(c)}
-                            title="Убрать"
-                            aria-label={`Убрать ${c}`}
+                            className="dice-fav-add dice-hex-btn dice-hex-btn--xs"
+                            onClick={() => addFavorite(draftColor)}
+                            title="Добавить в избранное"
+                            aria-label="Добавить цвет"
                           >
-                            ×
+                            +
                           </button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-
-                  {favorites.length < MAX_FAVORITES && (
-                    <div className="dice-palette-add">
-                      <input
-                        type="color"
-                        className="dice-color-input"
-                        value={draftColor}
-                        onChange={(e) => setDraftColor(e.target.value)}
-                        aria-label="Выбрать цвет (RGB)"
-                      />
-                      <button
-                        type="button"
-                        className="dice-palette-add-btn"
-                        onClick={() => addFavorite(draftColor)}
-                      >
-                        + Добавить
-                      </button>
+                        </>
+                      )}
                     </div>
-                  )}
 
-                  <div className="dice-palette-presets">
-                    {PRESET_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        className="dice-preset"
-                        style={{ background: c }}
-                        title={c}
-                        aria-label={`Добавить ${c}`}
-                        onClick={() => addFavorite(c)}
-                      />
-                    ))}
+                    <div className="dice-palette-presets">
+                      {PRESET_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className="dice-preset"
+                          style={{ background: c }}
+                          title={c}
+                          aria-label={`Добавить ${c}`}
+                          onClick={() => addFavorite(c)}
+                          disabled={favorites.includes(c) || favorites.length >= MAX_FAVORITES}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -642,7 +711,7 @@ export default function DiceRoller() {
                     className={`dice-tray-row${type === 20 ? ' dice-tray-row--d20' : ''}`}
                   >
                     <div className="dice-shape-icon-wrap" title={`к${type}`}>
-                      <DiceShapeIcon type={type} />
+                      <DiceShapeIcon type={type} size={40} />
                     </div>
                     <button
                       type="button"
@@ -655,7 +724,7 @@ export default function DiceRoller() {
                     <div className="dice-pool-counter">
                       <button
                         type="button"
-                        className="dice-qty-btn"
+                        className="dice-qty-btn dice-hex-btn dice-hex-btn--md"
                         onClick={() => adjustQty(type, -1)}
                         disabled={pool[type] === 0}
                         aria-label={`Уменьшить к${type}`}
@@ -665,7 +734,7 @@ export default function DiceRoller() {
                       <span className="dice-qty-value">{pool[type]}</span>
                       <button
                         type="button"
-                        className="dice-qty-btn"
+                        className="dice-qty-btn dice-hex-btn dice-hex-btn--md"
                         onClick={() => adjustQty(type, 1)}
                         disabled={pool[type] >= MAX_QTY}
                         aria-label={`Увеличить к${type}`}
@@ -679,6 +748,7 @@ export default function DiceRoller() {
             </div>
 
             <div
+              ref={d20ModOuterRef}
               className={`dice-d20-mod-outer${dockTrayShown ? ' is-visible' : ''}${dockUi === 'hiding' ? ' is-hiding' : ''}${hideTrayOnMobile ? ' dice-d20-mod-outer--hidden-mobile' : ''}`}
               style={{ paddingTop: d20ModTop }}
             >
