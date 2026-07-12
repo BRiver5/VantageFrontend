@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@3d-dice/dice-box": "^1.1.4",
+    "@3d-dice/theme-gemstone": "^0.2.0",
+    "@3d-dice/theme-rust": "^0.2.0",
+    "@3d-dice/theme-wooden": "^0.2.0",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

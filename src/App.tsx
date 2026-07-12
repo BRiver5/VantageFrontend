@@ -16,9 +16,9 @@ import {
   Users,
   VenetianMask,
 } from 'lucide-react'
-import { getBooks, getSettings, settingArt, splitTitle, totalsOf } from './api'
-import type { Book, ContentTotals, Setting } from './api'
-import { Corners, Divider, HexEmblem } from './ornaments'
+import { getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
+import type { Book, ContentTotals, GameClass, Setting } from './api'
+import { Corners, D20Logo, Divider } from './ornaments'
 import { BestiaryPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
@@ -32,6 +32,7 @@ import {
   SubclassDetailPage,
   SubraceDetailPage,
 } from './pages/DetailPages'
+import DiceRoller from './dice/DiceRoller'
 
 /* ---------- Разделы каталога ---------- */
 
@@ -44,37 +45,74 @@ const CATEGORIES = [
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
 ] as const
 
+/**
+ * «Классы» в шапке — наведение раскрывает свиток со списком классов
+ * (можно выбрать конкретный класс, не заходя на страницу каталога).
+ */
+function ClassesNavItem() {
+  const [classes, setClasses] = useState<GameClass[]>([])
+
+  useEffect(() => {
+    getClasses().then(setClasses).catch(() => {})
+  }, [])
+
+  return (
+    <div className="nav-scroll">
+      <NavLink to="/classes" className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}>
+        <span className="cat-btn-inner">
+          <Swords aria-hidden="true" />
+          Классы
+        </span>
+      </NavLink>
+      <div className="nav-scroll-panel" role="menu" aria-label="Быстрый выбор класса">
+        <span className="nav-scroll-rod" aria-hidden="true" />
+        <div className="nav-scroll-list">
+          {classes.map((c) => (
+            <Link key={c.id} to={`/classes/${c.id}`} className="nav-scroll-item" role="menuitem">
+              {c.class_name}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Masthead() {
   return (
     <header className="masthead">
       <div className="masthead-inner">
         <Link to="/" className="brand">
-          <HexEmblem size={42} />
+          <D20Logo size={42} />
           <div>
             <span className="brand-name gold-text">VANTAGE</span>
             <span className="brand-tag">Кодекс приключений</span>
           </div>
         </Link>
         <nav className="cat-nav" aria-label="Разделы каталога">
-          {CATEGORIES.map(({ path, label, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}
-            >
-              <span className="cat-btn-inner">
-                <Icon aria-hidden="true" />
-                {label}
-              </span>
-            </NavLink>
-          ))}
+          {CATEGORIES.map(({ path, label, icon: Icon }) =>
+            path === '/classes' ? (
+              <ClassesNavItem key={path} />
+            ) : (
+              <NavLink
+                key={path}
+                to={path}
+                className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}
+              >
+                <span className="cat-btn-inner">
+                  <Icon aria-hidden="true" />
+                  {label}
+                </span>
+              </NavLink>
+            ),
+          )}
         </nav>
       </div>
     </header>
   )
 }
 
-/* ---------- Кнопка «Играть» — вытянутый гексагон ---------- */
+/* ---------- Кнопка «Играть» — вытянутый гексагон (бросок кубика — кнопка в углу, см. DiceRoller) ---------- */
 
 function PlayButton() {
   return (
@@ -294,6 +332,32 @@ function BookHex({ book, index }: { book: Book; index: number }) {
   )
 }
 
+/**
+ * Раскладывает произвольное число ячеек по рядам гексагонального улья с шахматным
+ * чередованием ширины (полный ряд / на одну соту короче), плюс решает, должен ли
+ * каждый ряд стыковаться внахлёст с предыдущим (гексагоны входят в вырезы) —
+ * это возможно, только если их количества отличаются на НЕЧЁТНОЕ число (тогда
+ * центрирование сдвигает ряд ровно на полсоты и рисунок совпадает). Если из-за
+ * остатка книг чередование на хвосте нарушается (соседние ряды получают
+ * одинаковую или отличающуюся на чётное число ширину), для этого перехода
+ * стыковка отключается и ряд просто получает обычный отступ — вместо того чтобы
+ * ломаться и наезжать на соседей. Благодаря этому функция устойчива к ЛЮБОМУ
+ * числу книг, в т.ч. будущим добавлениям.
+ */
+function layoutHive<T>(items: T[], cols: number): { items: T[]; nested: boolean }[] {
+  const c = Math.max(1, cols)
+  const rows: T[][] = []
+  for (let i = 0, r = 0; i < items.length; r++) {
+    const n = c <= 1 ? 1 : r % 2 === 0 ? c : Math.max(1, c - 1)
+    rows.push(items.slice(i, i + n))
+    i += n
+  }
+  return rows.map((row, i) => ({
+    items: row,
+    nested: i > 0 && Math.abs(row.length - rows[i - 1].length) % 2 === 1,
+  }))
+}
+
 function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState({ s: 196, cols: 5 })
@@ -317,18 +381,12 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
   }
 
   const cells: (Book | null)[] = loading ? Array.from({ length: 8 }, () => null) : books
-  // шахматные ряды улья: полный ряд, затем короче на одну соту
-  const rows: (Book | null)[][] = []
-  for (let i = 0, r = 0; i < cells.length; r++) {
-    const n = r % 2 === 0 ? layout.cols : Math.max(1, layout.cols - 1)
-    rows.push(cells.slice(i, i + n))
-    i += n
-  }
+  const rows = layoutHive(cells, layout.cols)
 
   return (
     <div className="hive" ref={ref} style={{ '--s': `${layout.s}px` } as React.CSSProperties}>
-      {rows.map((row, ri) => (
-        <div key={ri} className="hive-row">
+      {rows.map(({ items: row, nested }, ri) => (
+        <div key={ri} className={`hive-row${nested ? ' hive-row--nest' : ''}`}>
           {row.map((b, ci) =>
             b ? (
               <BookHex key={b.id} book={b} index={ri * layout.cols + ci} />
@@ -450,6 +508,7 @@ export default function App() {
         </Routes>
         <footer className="footer">Vantage · Codex Adventurae · MMXXVI</footer>
       </main>
+      <DiceRoller />
     </>
   )
 }

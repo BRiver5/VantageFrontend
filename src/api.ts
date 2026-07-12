@@ -224,6 +224,7 @@ async function fetchList<T>(resource: string, limit = 200): Promise<T[]> {
 
 export const getSettings = () => fetchList<Setting>('settings')
 export const getBooks = () => fetchList<Book>('books', 500)
+export const getClasses = () => fetchList<GameClass>('classes', 100)
 
 /** Карта книг по id — для отображения источника (аббревиатура + полное название) */
 export type BookMap = Record<string, Book>

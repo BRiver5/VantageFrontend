@@ -1,6 +1,7 @@
 /**
- * Декоративные золотые орнаменты в духе ар-деко / дорогих книжных окладов.
- * Все элементы — чистый SVG со штриховым золотым градиентом.
+ * Декоративные орнаменты в духе ар-деко / дорогих книжных окладов.
+ * Corners/Divider — серебряные (используются в основном контенте);
+ * D20Logo в шапке — золотой (единственное место, где золото остаётся).
  */
 
 import { useState } from 'react'
@@ -21,12 +22,12 @@ export function CoverImage({ src, alt }: { src: string | null | undefined; alt: 
   )
 }
 
-const GOLD_STOPS = (
+const SILVER_STOPS = (
   <>
-    <stop offset="0%" stopColor="#8a6a2f" />
-    <stop offset="45%" stopColor="#e3c46e" />
-    <stop offset="55%" stopColor="#f6e7b6" />
-    <stop offset="100%" stopColor="#9c7a35" />
+    <stop offset="0%" stopColor="#7c828b" />
+    <stop offset="45%" stopColor="#cdd3db" />
+    <stop offset="55%" stopColor="#f1f4f8" />
+    <stop offset="100%" stopColor="#8b919a" />
   </>
 )
 
@@ -43,7 +44,7 @@ export function Corner({ size = 44 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="og" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          {GOLD_STOPS}
+          {SILVER_STOPS}
         </linearGradient>
       </defs>
       {/* внешняя линия угла */}
@@ -79,11 +80,11 @@ export function Divider() {
       <svg viewBox="0 0 600 28" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <defs>
           <linearGradient id="dg" x1="0" y1="0" x2="600" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#8a6a2f" stopOpacity="0" />
-            <stop offset="20%" stopColor="#c49a3c" />
-            <stop offset="50%" stopColor="#f6e7b6" />
-            <stop offset="80%" stopColor="#c49a3c" />
-            <stop offset="100%" stopColor="#8a6a2f" stopOpacity="0" />
+            <stop offset="0%" stopColor="#7c828b" stopOpacity="0" />
+            <stop offset="20%" stopColor="#a8afba" />
+            <stop offset="50%" stopColor="#f1f4f8" />
+            <stop offset="80%" stopColor="#a8afba" />
+            <stop offset="100%" stopColor="#7c828b" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d="M20 14 H262 M338 14 H580" stroke="url(#dg)" strokeWidth="1.4" />
@@ -100,19 +101,40 @@ export function Divider() {
   )
 }
 
-/** Малый гексагональный медальон-эмблема (логотип) */
-export function HexEmblem({ size = 40 }: { size?: number }) {
+/** Логотип — гранёный д20. Единственное место, где остаётся золото (верх страницы). */
+export function D20Logo({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <defs>
-        <linearGradient id="eg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          {GOLD_STOPS}
+        <linearGradient id="d20g" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#8a6a2f" />
+          <stop offset="45%" stopColor="#e3c46e" />
+          <stop offset="55%" stopColor="#f6e7b6" />
+          <stop offset="100%" stopColor="#9c7a35" />
         </linearGradient>
       </defs>
-      <path d="M24 2 L43 13 V35 L24 46 L5 35 V13 Z" stroke="url(#eg)" strokeWidth="2" />
-      <path d="M24 8 L38 16 V32 L24 40 L10 32 V16 Z" stroke="url(#eg)" strokeWidth="1" opacity="0.8" />
-      <path d="M24 15 L31.5 19.5 V28.5 L24 33 L16.5 28.5 V19.5 Z" fill="url(#eg)" />
-      <circle cx="24" cy="24" r="2.2" fill="#1a1626" />
+      {/* внешний контур кости */}
+      <path d="M24 2 L43 13 V35 L24 46 L5 35 V13 Z" stroke="url(#d20g)" strokeWidth="1.8" />
+      {/* грани — рёбра от вершин к центру */}
+      <path
+        d="M24 2 L24 24 M43 13 L24 24 M43 35 L24 24 M24 46 L24 24 M5 35 L24 24 M5 13 L24 24"
+        stroke="url(#d20g)"
+        strokeWidth="1"
+        opacity="0.75"
+      />
+      <circle cx="24" cy="24" r="1.6" fill="#0d0e11" />
+      <text
+        x="24"
+        y="15"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontFamily="'Cormorant Unicase', serif"
+        fontWeight="700"
+        fontSize="8.5"
+        fill="url(#d20g)"
+      >
+        20
+      </text>
     </svg>
   )
 }
