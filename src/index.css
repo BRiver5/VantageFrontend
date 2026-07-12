@@ -1639,12 +1639,29 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 .dice-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
 
-/* плавающая кнопка — всегда в левом нижнем углу, поверх любой страницы */
-.dice-fab {
+/* ---------- Док: FAB / лоток / action bar ---------- */
+
+.dice-dock {
   position: fixed;
   left: 22px;
   bottom: 22px;
   z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dice-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* плавающая кнопка — гекс в закрытом состоянии */
+.dice-fab {
+  position: relative;
+  box-sizing: border-box;
   width: 58px;
   height: 58px;
   display: flex;
@@ -1674,114 +1691,16 @@ a.card-slot { text-decoration: none; color: inherit; }
   filter: drop-shadow(0 0 14px rgba(205, 211, 219, 0.5));
 }
 .dice-fab:active { transform: translateY(0) scale(0.98); }
-.dice-fab[aria-expanded='true'] { filter: drop-shadow(0 0 14px rgba(205, 211, 219, 0.6)); }
 
-@media (max-width: 560px) {
-  .dice-fab { left: 14px; bottom: 14px; width: 50px; height: 50px; }
-  .dice-fab-glyph { font-size: 1.3rem; }
-}
-
-/* ---------- Инлайн-панель выбора: тема, кость, количество ---------- */
-
-.dice-panel {
-  position: fixed;
-  left: 22px;
-  bottom: 92px;
-  z-index: 150;
-  width: min(300px, calc(100vw - 44px));
-  padding: 18px 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background:
-    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
-    var(--silver-grad) border-box;
-  border: 1.4px solid transparent;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-  animation: dice-panel-in 0.2s ease;
-}
-@keyframes dice-panel-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-
-@media (max-width: 560px) {
-  .dice-panel { left: 14px; bottom: 76px; }
-}
-
-.dice-panel-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
-
-.dice-theme-swatch {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.dice-theme-swatch:hover { transform: scale(1.1); }
-.dice-theme-swatch.is-active { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4), 0 0 0 2px var(--silver-3); }
-
-.dice-panel-sides { gap: 6px; }
-
-.dice-side-btn {
-  padding: 4px 11px;
-  clip-path: var(--hex-chip);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  color: var(--text-dim);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 0.84rem;
-  transition: color 0.15s ease, box-shadow 0.15s ease;
-}
-.dice-side-btn:hover { color: var(--text); }
-.dice-side-btn.is-active { color: var(--silver-4); box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.7); }
-
-.dice-qty-row { gap: 10px; }
-
-.dice-qty-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: var(--hex-chip);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  color: var(--text);
-  font-size: 1.1rem;
-  line-height: 1;
-}
-.dice-qty-btn:hover { box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.6); }
-
-.dice-qty-value {
-  min-width: 22px;
-  text-align: center;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--gold-3);
-}
-
-.dice-qty-label {
-  font-size: 0.84rem;
-  color: var(--text-dim);
-  letter-spacing: 0.03em;
-}
-
-.dice-formula-error {
-  font-size: 0.82rem;
-  font-style: italic;
-  color: #c96e5a;
-  text-align: center;
-}
-
-.dice-roll-btn {
-  flex: 1;
+/* морфинг FAB → вытянутая кнопка «Бросить» */
+.dice-roll-morph {
+  box-sizing: border-box;
+  min-width: 200px;
+  height: 58px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 18px;
+  padding: 0 28px;
   clip-path: var(--hex-wide);
   background: var(--silver-grad);
   font-family: var(--font-display);
@@ -1790,29 +1709,346 @@ a.card-slot { text-decoration: none; color: inherit; }
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--bg-0);
-  transition: filter 0.2s ease, transform 0.15s ease;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition: filter 0.2s ease, transform 0.15s ease, min-width 0.35s ease;
+  animation: dice-roll-morph-in 0.35s ease;
 }
-.dice-roll-btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
-.dice-roll-btn:disabled { opacity: 0.6; cursor: default; }
+.dice-roll-morph:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.dice-roll-morph:disabled { opacity: 0.6; cursor: default; }
 
-.dice-clear-btn {
-  padding: 10px 14px;
+@keyframes dice-roll-morph-in {
+  from { min-width: 58px; opacity: 0.7; }
+  to { min-width: 200px; opacity: 1; }
+}
+
+/* гекс-кнопка закрытия — box-sizing: border-box чтобы форма не смещалась */
+.dice-close-btn {
+  box-sizing: border-box;
+  position: relative;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  border: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition: transform 0.2s ease, filter 0.2s ease;
+  animation: dice-close-in 0.3s ease 0.1s backwards;
+}
+.dice-close-btn::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.dice-close-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.dice-close-btn:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 12px rgba(205, 211, 219, 0.45));
+}
+
+@keyframes dice-close-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Лоток кубиков — вертикальный список ---------- */
+
+.dice-panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: dice-tray-rise 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  width: min(200px, calc(100vw - 44px));
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    var(--silver-grad) border-box;
+  border: 1.4px solid transparent;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes dice-tray-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-tray-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 2px 0;
+}
+
+.dice-shape-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  color: var(--gold-3);
+}
+
+.dice-shape-svg {
+  display: block;
+}
+
+/* счётчик справа от каждого кубика */
+.dice-pool-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dice-qty-btn {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   clip-path: var(--hex-chip);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
   box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
-  color: var(--text-dim);
-  font-size: 0.86rem;
-  transition: color 0.15s ease;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1;
+  transition: box-shadow 0.15s ease;
 }
-.dice-clear-btn:hover { color: var(--text); }
+.dice-qty-btn:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.6); }
+.dice-qty-btn:disabled { opacity: 0.35; cursor: default; }
 
-.dice-result-line {
+.dice-qty-value {
+  min-width: 18px;
   text-align: center;
   font-family: var(--font-display);
-  font-size: 1rem;
-  color: var(--text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--gold-3);
 }
-.dice-result-line b { font-size: 1.3rem; color: var(--gold-3); }
+
+/* ---------- История бросков над меню ---------- */
+
+.dice-history-wrap {
+  position: relative;
+  width: min(200px, calc(100vw - 44px));
+  margin-bottom: -1px;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    var(--silver-grad) border-box;
+  border: 1.4px solid transparent;
+  border-bottom: none;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.dice-history-fade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.4em;
+  background: linear-gradient(to bottom, var(--bg-1) 10%, rgba(19, 21, 25, 0.85) 55%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dice-history {
+  max-height: calc(3 * 1.65rem + 16px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.35) transparent;
+}
+
+.dice-history::-webkit-scrollbar { width: 4px; }
+.dice-history::-webkit-scrollbar-thumb {
+  background: rgba(168, 175, 186, 0.35);
+  border-radius: 2px;
+}
+
+.dice-history-item {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gold-3);
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+
+/* последние 3 результата — полностью видны */
+.dice-history-item:nth-last-child(-n+3) {
+  opacity: 1;
+}
+
+.dice-history-item:last-child {
+  color: var(--gold-4);
+}
+
+.dice-formula-error {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #c96e5a;
+  text-align: left;
+  max-width: min(520px, calc(100vw - 44px));
+}
+
+/* ---------- Оверлей результатов ---------- */
+
+.dice-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  animation: dice-reveal-backdrop 0.4s ease forwards;
+  cursor: pointer;
+}
+
+@keyframes dice-reveal-backdrop {
+  to { background: rgba(0, 0, 0, 0.78); }
+}
+
+.dice-reveal-formula {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35em 0.5em;
+  padding: 24px;
+  font-family: var(--font-display);
+  cursor: default;
+}
+
+.dice-reveal-value-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dice-reveal-burst {
+  position: absolute;
+  inset: -28px;
+  pointer-events: none;
+}
+
+.dice-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 14px;
+  margin: -7px -2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff8c8, #ff8c20);
+  transform: rotate(var(--spark-angle)) translateY(-18px);
+  opacity: 0;
+  animation: dice-spark-burst 0.55s ease-out forwards;
+}
+
+@keyframes dice-spark-burst {
+  0% { opacity: 1; transform: rotate(var(--spark-angle)) translateY(0) scaleY(0.3); }
+  60% { opacity: 0.9; transform: rotate(var(--spark-angle)) translateY(-22px) scaleY(1); }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateY(-36px) scaleY(0.2); }
+}
+
+.dice-reveal-flash {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 200, 80, 0.4) 40%, transparent 70%);
+  opacity: 0;
+  animation: dice-reveal-flash 0.35s ease-out forwards;
+}
+
+@keyframes dice-reveal-flash {
+  0% { opacity: 0; transform: scale(0.4); }
+  30% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+.dice-reveal-value {
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 180, 60, 0.7), 0 0 48px rgba(255, 100, 20, 0.35);
+  animation: dice-reveal-value-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dice-reveal-value-in {
+  from { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dice-reveal-plus,
+.dice-reveal-equals {
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  animation: dice-reveal-plus-in 0.22s ease;
+}
+
+@keyframes dice-reveal-plus-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-reveal-equals-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  animation: dice-reveal-plus-in 0.3s ease;
+}
+
+.dice-reveal-total {
+  font-size: clamp(2.8rem, 10vw, 4rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 32px rgba(255, 200, 80, 0.8);
+}
+
+@media (max-width: 560px) {
+  .dice-dock { left: 14px; bottom: 14px; }
+  .dice-fab,
+  .dice-close-btn { width: 50px; height: 50px; }
+  .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
+  .dice-tray,
+  .dice-history-wrap { width: min(180px, calc(100vw - 28px)); }
+  .dice-shape-icon-wrap { width: 30px; height: 30px; }
+}
 
 /* ============================================================
    АДАПТИВ

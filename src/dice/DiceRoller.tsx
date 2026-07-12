@@ -1,44 +1,62 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type DiceBoxType from '@3d-dice/dice-box'
+import DiceResultOverlay from './DiceResultOverlay'
+import { DIE_TYPES, DiceShapeIcon, type DieType } from './DiceShapeIcons'
 
-/**
- * Кубики на @3d-dice/dice-box — рендерятся прямо на странице (полноэкранный
- * прозрачный канвас поверх контента), без модального окна. Кнопка в углу
- * раскрывает панель: тип кости, количество, тема — и бросок идёт тут же.
- */
+type DicePool = Record<DieType, number>
+type Phase = 'idle' | 'rolling' | 'reveal'
 
-const SIDES = [4, 6, 8, 10, 12, 20, 100] as const
-type Sides = (typeof SIDES)[number]
-
-interface ThemeOption {
-  key: string
+interface RollHistoryEntry {
+  id: number
   label: string
-  swatch: string
 }
 
-const THEMES: ThemeOption[] = [
-  { key: 'default', label: 'Обычная', swatch: 'linear-gradient(145deg, #6b7280, #1f2937)' },
-  { key: 'rust', label: 'Ржавчина', swatch: 'linear-gradient(145deg, #c97a5a, #6b2f1f)' },
-  { key: 'gemstone', label: 'Самоцвет', swatch: 'linear-gradient(145deg, #7fd8e0, #1f5f6e)' },
-  { key: 'wooden', label: 'Дерево', swatch: 'linear-gradient(145deg, #b98650, #5c3a1e)' },
-]
-
 const MAX_QTY = 10
+
+const EMPTY_POOL = Object.fromEntries(DIE_TYPES.map((t) => [t, 0])) as DicePool
+
+function buildNotation(pool: DicePool) {
+  return DIE_TYPES
+    .filter((sides) => pool[sides] > 0)
+    .map((sides) => ({ qty: pool[sides], sides }))
+}
+
+function formatRollLabel(values: number[]): string {
+  if (values.length === 0) return ''
+  const total = values.reduce((s, v) => s + v, 0)
+  if (values.length === 1) return String(total)
+  return `${values.join(' + ')} = ${total}`
+}
 
 export default function DiceRoller() {
   const boxRef = useRef<DiceBoxType | null>(null)
   const initPromise = useRef<Promise<void> | null>(null)
+  const diceClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const historyRef = useRef<HTMLDivElement | null>(null)
+  const historyId = useRef(0)
 
   const [open, setOpen] = useState(false)
   const [ready, setReady] = useState(false)
-  const [theme, setTheme] = useState('default')
-  const [sides, setSides] = useState<Sides>(20)
-  const [qty, setQty] = useState(1)
-  const [rolling, setRolling] = useState(false)
-  const [result, setResult] = useState<{ total: number; rolls: number[] } | null>(null)
+  const [pool, setPool] = useState<DicePool>({ ...EMPTY_POOL })
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [rollResults, setRollResults] = useState<number[]>([])
+  const [history, setHistory] = useState<RollHistoryEntry[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  // ленивая инициализация — тяжёлую библиотеку грузим только когда впервые открыли панель
+  const hasDice = DIE_TYPES.some((t) => pool[t] > 0)
+
+  const clearDiceTimer = useCallback(() => {
+    if (diceClearTimer.current) {
+      clearTimeout(diceClearTimer.current)
+      diceClearTimer.current = null
+    }
+  }, [])
+
+  const clear3DDice = useCallback(() => {
+    clearDiceTimer()
+    boxRef.current?.clear()
+  }, [clearDiceTimer])
+
   useEffect(() => {
     if (!open || initPromise.current) return
     initPromise.current = (async () => {
@@ -46,7 +64,8 @@ export default function DiceRoller() {
       const box = new DiceBox({
         container: '#dice-box-stage',
         assetPath: '/assets/',
-        theme: 'default',
+        theme: 'fire',
+        preloadThemes: ['fire'],
         scale: 8,
         gravity: 1,
         throwForce: 6,
@@ -59,101 +78,155 @@ export default function DiceRoller() {
     })().catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [open])
 
-  const roll = async () => {
-    const box = boxRef.current
-    if (!box || rolling) return
-    setRolling(true)
-    setError(null)
-    setResult(null)
-    try {
-      await box.updateConfig({ theme })
-      const dice = await box.roll(`${qty}d${sides}`)
-      const rolls = dice.map((d) => d.value)
-      const total = rolls.reduce((s, v) => s + v, 0)
-      setResult({ total, rolls })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setRolling(false)
-    }
+  useEffect(() => {
+    const el = historyRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [history])
+
+  useEffect(() => () => clearDiceTimer(), [clearDiceTimer])
+
+  const adjustQty = (type: DieType, delta: number) => {
+    setPool((prev) => ({
+      ...prev,
+      [type]: Math.max(0, Math.min(MAX_QTY, prev[type] + delta)),
+    }))
   }
 
-  const clear = () => {
-    boxRef.current?.clear()
-    setResult(null)
+  const close = useCallback(() => {
+    clear3DDice()
+    setOpen(false)
+    setPhase('idle')
+    setRollResults([])
+    setError(null)
+  }, [clear3DDice])
+
+  const closeReveal = useCallback(() => {
+    if (rollResults.length > 0) {
+      const label = formatRollLabel(rollResults)
+      setHistory((h) => [...h, { id: ++historyId.current, label }])
+    }
+    setPhase('idle')
+    setRollResults([])
+
+    clearDiceTimer()
+    diceClearTimer.current = setTimeout(() => {
+      boxRef.current?.clear()
+      diceClearTimer.current = null
+    }, 5000)
+  }, [rollResults, clearDiceTimer])
+
+  const roll = async () => {
+    const box = boxRef.current
+    const notation = buildNotation(pool)
+    if (!box || phase === 'rolling' || !notation.length) return
+
+    clear3DDice()
+    setPhase('rolling')
+    setError(null)
+    setRollResults([])
+
+    try {
+      await box.updateConfig({ theme: 'fire' })
+      const dice = await box.roll(notation)
+      setRollResults(dice.map((d) => d.value))
+      setPhase('reveal')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setPhase('idle')
+    }
   }
 
   return (
     <>
-      {/* прозрачная сцена на весь экран — кости катятся прямо по странице */}
-      <div id="dice-box-stage" className="dice-stage" aria-hidden={!open} />
+      <div id="dice-box-stage" className="dice-stage" aria-hidden={phase === 'idle' && !open} />
 
-      <button
-        type="button"
-        className="dice-fab"
-        onClick={() => setOpen((v) => !v)}
-        title="Бросить кубик"
-        aria-label="Бросить кубик"
-        aria-expanded={open}
-      >
-        <span className="dice-fab-glyph">⚄</span>
-      </button>
+      {phase === 'reveal' && rollResults.length > 0 && (
+        <DiceResultOverlay values={rollResults} onClose={closeReveal} />
+      )}
 
-      {open && (
-        <div className="dice-panel">
-          <div className="dice-panel-row">
-            {THEMES.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className={`dice-theme-swatch${theme === t.key ? ' is-active' : ''}`}
-                style={{ background: t.swatch }}
-                title={t.label}
-                aria-label={t.label}
-                onClick={() => setTheme(t.key)}
-              />
-            ))}
-          </div>
-
-          <div className="dice-panel-row dice-panel-sides">
-            {SIDES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`dice-side-btn${sides === s ? ' is-active' : ''}`}
-                onClick={() => setSides(s)}
-              >
-                к{s}
-              </button>
-            ))}
-          </div>
-
-          <div className="dice-panel-row dice-qty-row">
-            <button type="button" className="dice-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
-            <span className="dice-qty-value">{qty}</span>
-            <button type="button" className="dice-qty-btn" onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}>+</button>
-            <span className="dice-qty-label">× к{sides}</span>
-          </div>
-
-          {error && <p className="dice-formula-error">{error}</p>}
-
-          <div className="dice-panel-row">
-            <button type="button" className="dice-roll-btn" onClick={roll} disabled={rolling || !ready}>
-              {!ready ? 'Загрузка…' : rolling ? 'Бросаем…' : `Бросить ${qty}к${sides}`}
-            </button>
-            {result && (
-              <button type="button" className="dice-clear-btn" onClick={clear}>Убрать</button>
+      <div className={`dice-dock${open ? ' is-open' : ''}`}>
+        {open && (
+          <div className="dice-panel-stack">
+            {history.length > 0 && (
+              <div className="dice-history-wrap">
+                <div className="dice-history-fade" aria-hidden="true" />
+                <div className="dice-history" ref={historyRef} role="log" aria-label="История бросков">
+                  {history.map((entry) => (
+                    <p key={entry.id} className="dice-history-item">{entry.label}</p>
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
 
-          {result && (
-            <p className="dice-result-line">
-              {result.rolls.length > 1 ? `${result.rolls.join(' + ')} = ` : ''}
-              <b>{result.total}</b>
-            </p>
+            <div className="dice-tray" role="group" aria-label="Выбор кубиков">
+              {DIE_TYPES.map((type) => (
+                <div key={type} className="dice-tray-row">
+                  <div className="dice-shape-icon-wrap" title={`к${type}`}>
+                    <DiceShapeIcon type={type} />
+                  </div>
+                  <div className="dice-pool-counter">
+                    <button
+                      type="button"
+                      className="dice-qty-btn"
+                      onClick={() => adjustQty(type, -1)}
+                      disabled={pool[type] === 0}
+                      aria-label={`Уменьшить к${type}`}
+                    >
+                      −
+                    </button>
+                    <span className="dice-qty-value">{pool[type]}</span>
+                    <button
+                      type="button"
+                      className="dice-qty-btn"
+                      onClick={() => adjustQty(type, 1)}
+                      disabled={pool[type] >= MAX_QTY}
+                      aria-label={`Увеличить к${type}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && open && <p className="dice-formula-error">{error}</p>}
+
+        <div className="dice-action-bar">
+          {!open ? (
+            <button
+              type="button"
+              className="dice-fab"
+              onClick={() => setOpen(true)}
+              title="Бросить кубик"
+              aria-label="Бросить кубик"
+            >
+              <span className="dice-fab-glyph">⚄</span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="dice-roll-morph"
+                onClick={roll}
+                disabled={phase === 'rolling' || !ready || !hasDice}
+              >
+                {!ready ? 'Загрузка…' : phase === 'rolling' ? 'Бросаем…' : 'Бросить'}
+              </button>
+              <button
+                type="button"
+                className="dice-close-btn"
+                onClick={close}
+                aria-label="Закрыть"
+                title="Закрыть"
+              >
+                <span className="dice-close-glyph" aria-hidden="true">✕</span>
+              </button>
+            </>
           )}
         </div>
-      )}
+      </div>
     </>
   )
 }

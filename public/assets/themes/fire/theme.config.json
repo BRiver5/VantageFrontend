@@ -1,0 +1,21 @@
+{
+  "name": "Fire",
+  "systemName": "fire",
+  "author": "Vantage",
+  "version": 0.1,
+  "meshFile": "default.json",
+  "material": {
+    "type": "color",
+    "diffuseTexture": {
+      "light": "diffuse-light.jpg",
+      "dark": "diffuse-dark.jpg"
+    },
+    "diffuseLevel": 1,
+    "bumpTexture": "normal.png",
+    "bumpLevel": 0.5,
+    "specularTexture": "specular.jpg",
+    "specularPower": 1
+  },
+  "themeColor": "#ff6a00",
+  "diceAvailable": ["d4", "d6", "d8", "d10", "d12", "d20", "d100"]
+}
