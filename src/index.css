@@ -39,6 +39,7 @@
 
   /* Формы */
   --hex-point: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  --hex-aspect: 1.1547; /* 2/√3 — правильные пропорции pointy-top гекса */
   --hex-wide: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
   --hex-chip: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
 
@@ -1707,8 +1708,9 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-fab {
   position: relative;
   box-sizing: border-box;
+  flex-shrink: 0;
   width: 58px;
-  height: 58px;
+  height: calc(58px * var(--hex-aspect));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1806,8 +1808,9 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-close-btn {
   box-sizing: border-box;
   position: relative;
+  flex-shrink: 0;
   width: 58px;
-  height: 58px;
+  height: calc(58px * var(--hex-aspect));
   padding: 0;
   display: flex;
   align-items: center;
@@ -2412,10 +2415,14 @@ a.card-slot { text-decoration: none; color: inherit; }
   inset: 0;
   z-index: 160;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0);
   animation: dice-reveal-backdrop 0.4s ease forwards;
+}
+
+.dice-reveal-overlay.is-done {
   cursor: pointer;
 }
 
@@ -2423,56 +2430,91 @@ a.card-slot { text-decoration: none; color: inherit; }
   to { background: rgba(0, 0, 0, 0.78); }
 }
 
-/* плашка крита — только одиночный к20, нат 20 / нат 1 */
-.dice-crit-banner {
-  position: fixed;
-  top: clamp(48px, 10vh, 96px);
-  left: 50%;
+/* золотая фирменная окантовка */
+.dice-reveal-frame {
+  position: absolute;
+  inset: clamp(14px, 3.5vw, 42px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dice-reveal-frame .corner { opacity: 0.92; }
+.dice-reveal-frame .corner--tl { top: 0; left: 0; }
+.dice-reveal-frame .corner--tr { top: 0; right: 0; }
+.dice-reveal-frame .corner--bl { bottom: 0; left: 0; }
+.dice-reveal-frame .corner--br { bottom: 0; right: 0; }
+
+.dice-reveal-edge {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.55;
+  background: var(--gold-grad-h);
+}
+
+.dice-reveal-edge--top,
+.dice-reveal-edge--bottom {
+  left: 56px;
+  right: 56px;
+  height: 1px;
+}
+
+.dice-reveal-edge--top { top: 10px; }
+.dice-reveal-edge--bottom { bottom: 10px; }
+
+.dice-reveal-edge--left,
+.dice-reveal-edge--right {
+  top: 56px;
+  bottom: 56px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold-3) 18%, var(--gold-4) 50%, var(--gold-3) 82%, transparent);
+}
+
+.dice-reveal-edge--left { left: 10px; }
+.dice-reveal-edge--right { right: 10px; }
+
+.dice-reveal-content {
+  position: relative;
   z-index: 1;
-  transform: translateX(-50%);
-  padding: 14px 36px;
-  clip-path: var(--hex-wide);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vh, 36px);
+  max-width: min(92vw, 720px);
+  padding: 0 24px;
+}
+
+/* золотая надпись над результатом — без контейнера */
+.dice-reveal-title {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1rem, 3.2vw, 1.35rem);
-  letter-spacing: 0.14em;
+  font-size: clamp(1.1rem, 3.4vw, 1.55rem);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  text-align: center;
   white-space: nowrap;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
-  animation: dice-crit-banner-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  pointer-events: none;
+  animation: dice-reveal-title-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-.dice-crit-banner--success {
-  color: var(--bg-0);
-  background: var(--gold-grad);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-  filter: drop-shadow(0 0 22px rgba(228, 196, 110, 0.55));
+.dice-reveal-title--crit {
+  letter-spacing: 0.12em;
 }
 
-.dice-crit-banner--fail {
-  color: #f6e7b6;
-  background: linear-gradient(160deg, #4a2818 0%, #8a3a22 28%, #c07f3c 52%, #8a3a22 76%, #3a1e12 100%);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-  filter: drop-shadow(0 0 18px rgba(192, 127, 60, 0.45));
+.dice-reveal-title--success {
+  filter: drop-shadow(0 0 18px rgba(228, 196, 110, 0.45));
 }
 
-@keyframes dice-crit-banner-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-28px) scale(0.92);
-  }
-  70% {
-    transform: translateX(-50%) translateY(4px) scale(1.02);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
+.dice-reveal-title--fail {
+  background: linear-gradient(180deg, #f6e7b6 8%, #e3c46e 40%, #c07f3c 72%, #8a3a22 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(192, 127, 60, 0.4));
 }
 
-.dice-crit-banner--static {
-  animation: none;
+@keyframes dice-reveal-title-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: none; }
 }
 
 .dice-reveal-formula {
@@ -2481,9 +2523,43 @@ a.card-slot { text-decoration: none; color: inherit; }
   justify-content: center;
   flex-wrap: wrap;
   gap: 0.35em 0.5em;
-  padding: 24px;
+  padding: 0 8px;
   font-family: var(--font-display);
   cursor: default;
+}
+
+/* кнопка пропуска анимации */
+.dice-reveal-skip {
+  position: fixed;
+  bottom: clamp(28px, 6vh, 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 10px 28px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(var(--bg-2), var(--bg-2)) padding-box, var(--gold-grad) border-box;
+  border: 1.4px solid transparent;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  transition: color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
+  animation: dice-reveal-skip-in 0.35s ease 0.25s backwards;
+}
+
+.dice-reveal-skip:hover {
+  color: var(--gold-4);
+  filter: brightness(1.1);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+@keyframes dice-reveal-skip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .dice-reveal-value-wrap {
@@ -2835,13 +2911,16 @@ a.card-slot { text-decoration: none; color: inherit; }
   .dice-history-panel { width: min(196px, calc(100vw - 28px)); }
   .dice-fab {
     width: 72px;
-    height: 72px;
+    height: calc(72px * var(--hex-aspect));
   }
   .dice-fab .die-fab-icon {
     width: 40px !important;
     height: 40px !important;
   }
-  .dice-close-btn { width: 50px; height: 50px; }
+  .dice-close-btn {
+    width: 50px;
+    height: calc(50px * var(--hex-aspect));
+  }
   .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
   .dice-tray-wrap {
     width: min(196px, calc(100vw - 28px));

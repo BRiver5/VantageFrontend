@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Corners } from '../ornaments'
 import { critClass, type DieResult } from './DiceShapeIcons'
-import {
-  playClashImpact,
-  playCrackFall,
-  playRevealPop,
-  playWinnerChime,
-} from './diceSounds'
+import { playAddResult, playComparing } from './diceSounds'
 
 interface DiceResultOverlayProps {
   dice: DieResult[]
@@ -76,6 +72,7 @@ function ClashDie({
 
 export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOverlayProps) {
   const isClash = clash != null && dice.length === 2 && dice.every((d) => d.sides === 20)
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const winnerIdx = useMemo(
     () => (isClash && clash ? clashWinnerIndex(dice, clash) : 0),
@@ -92,6 +89,7 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
   const [visibleCount, setVisibleCount] = useState(0)
   const [burstKey, setBurstKey] = useState<string | null>(null)
   const [clashPhase, setClashPhase] = useState<ClashPhase>('enter')
+  const [skipped, setSkipped] = useState(false)
 
   const items: RevealItem[] = useMemo(() => {
     const seq: RevealItem[] = []
@@ -109,6 +107,39 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  const animationDone = isClash
+    ? clashPhase === 'hold' || skipped
+    : visibleCount >= items.length || skipped
+
+  const showCritTitle = Boolean(
+    d20Crit && (isClash ? clashPhase === 'resolve' || clashPhase === 'hold' || skipped : visibleCount >= 1 || skipped),
+  )
+
+  const titleText = showCritTitle
+    ? d20Crit === 'success'
+      ? 'Критический успех'
+      : 'Критический провал'
+    : 'Результат броска'
+
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach(clearTimeout)
+    timersRef.current = []
+  }, [])
+
+  const skip = useCallback(() => {
+    clearTimers()
+    setSkipped(true)
+    if (isClash) {
+      setClashPhase('hold')
+    } else {
+      setVisibleCount(items.length)
+    }
+    const t = setTimeout(onClose, 1200)
+    timersRef.current.push(t)
+  }, [clearTimers, isClash, items.length, onClose])
+
+  useEffect(() => () => clearTimers(), [clearTimers])
+
   useEffect(() => {
     if (!isClash) return
 
@@ -118,25 +149,29 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
       return () => clearTimeout(t)
     }
 
-    const timers: ReturnType<typeof setTimeout>[] = []
-    timers.push(setTimeout(() => setClashPhase('clash'), 520))
-    timers.push(setTimeout(() => setClashPhase('resolve'), 980))
-    timers.push(setTimeout(() => setClashPhase('hold'), 1680))
-    timers.push(setTimeout(onClose, 4300))
-    return () => timers.forEach(clearTimeout)
+    playAddResult()
+
+    const t1 = setTimeout(() => setClashPhase('clash'), 520)
+    const t2 = setTimeout(() => setClashPhase('resolve'), 980)
+    const t3 = setTimeout(() => setClashPhase('hold'), 1680)
+    const t4 = setTimeout(onClose, 4300)
+    timersRef.current.push(t1, t2, t3, t4)
+
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      clearTimeout(t4)
+    }
   }, [isClash, onClose, reducedMotion])
 
   useEffect(() => {
-    if (!isClash || reducedMotion) return
-    if (clashPhase === 'clash') playClashImpact()
-    if (clashPhase === 'resolve') {
-      playCrackFall()
-      playWinnerChime()
-    }
-  }, [clashPhase, isClash, reducedMotion])
+    if (!isClash || reducedMotion || skipped) return
+    if (clashPhase === 'clash') playComparing()
+  }, [clashPhase, isClash, reducedMotion, skipped])
 
   useEffect(() => {
-    if (isClash) return
+    if (isClash || skipped) return
 
     if (reducedMotion) {
       setVisibleCount(items.length)
@@ -152,116 +187,131 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
     const item = items[visibleCount]
     if (item?.kind === 'value') {
       setBurstKey(item.key)
-      playRevealPop()
+      playAddResult()
+    } else if (item?.kind === 'equals') {
+      playAddResult()
     }
 
-    const delay = item?.kind === 'value' ? 720 : item?.kind === 'equals' ? 500 : 280
+    const delay = item?.kind === 'value' ? 700 : item?.kind === 'equals' ? 700 : 200
     const t = setTimeout(() => setVisibleCount((c) => c + 1), delay)
     return () => clearTimeout(t)
-  }, [visibleCount, items, onClose, reducedMotion, isClash])
+  }, [visibleCount, items, onClose, reducedMotion, isClash, skipped])
 
-  const cracking = clashPhase === 'resolve' || clashPhase === 'hold'
+  const cracking = clashPhase === 'resolve' || clashPhase === 'hold' || skipped
+
+  const displayCount = skipped && !isClash ? items.length : visibleCount
+  const displayClashPhase = skipped ? 'hold' : clashPhase
 
   return (
     <div
-      className="dice-reveal-overlay"
+      className={`dice-reveal-overlay${animationDone ? ' is-done' : ''}`}
       role="dialog"
-      aria-label={
-        d20Crit === 'success'
-          ? 'Критический успех — 20'
-          : d20Crit === 'fail'
-            ? 'Критический провал — 1'
-            : isClash
-              ? clash === 'adv'
-                ? 'Преимущество — 2к20'
-                : 'Помеха — 2к20'
-              : 'Результат броска'
-      }
-      onClick={onClose}
+      aria-label={titleText}
+      onClick={animationDone ? onClose : undefined}
     >
-      {d20Crit && (isClash ? clashPhase === 'resolve' || clashPhase === 'hold' : visibleCount >= 1) && (
-        <div
-          className={`dice-crit-banner dice-crit-banner--${d20Crit}${reducedMotion ? ' dice-crit-banner--static' : ''}`}
+      <div className="dice-reveal-frame" aria-hidden="true">
+        <Corners size={52} gold />
+        <span className="dice-reveal-edge dice-reveal-edge--top" />
+        <span className="dice-reveal-edge dice-reveal-edge--bottom" />
+        <span className="dice-reveal-edge dice-reveal-edge--left" />
+        <span className="dice-reveal-edge dice-reveal-edge--right" />
+      </div>
+
+      <div className="dice-reveal-content" onClick={(e) => e.stopPropagation()}>
+        <p
+          className={`dice-reveal-title gold-text${showCritTitle ? ` dice-reveal-title--crit dice-reveal-title--${d20Crit}` : ''}`}
           role="status"
           aria-live="polite"
         >
-          {d20Crit === 'success' ? 'Критический успех' : 'Критический провал'}
-        </div>
-      )}
+          {titleText}
+        </p>
 
-      {isClash ? (
-        <div
-          className={`dice-reveal-formula dice-clash-arena dice-clash-arena--${clash}${reducedMotion ? ' dice-clash-arena--static' : ''} dice-clash-arena--${clashPhase}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ClashDie
-            die={dice[0]}
-            side="left"
-            isWinner={winnerIdx === 0}
-            cracking={cracking}
-          />
-          <span className="dice-clash-impact" aria-hidden="true" />
-          <ClashDie
-            die={dice[1]}
-            side="right"
-            isWinner={winnerIdx === 1}
-            cracking={cracking}
-          />
-          {(clashPhase === 'resolve' || clashPhase === 'hold') && !reducedMotion && (
-            <span className="dice-clash-burst" aria-hidden="true">
-              {SPARK_ANGLES.map((deg) => (
-                <span
-                  key={deg}
-                  className="dice-spark"
-                  style={{ '--spark-angle': `${deg}deg` } as CSSProperties}
-                />
-              ))}
-              <span className="dice-reveal-flash" />
-            </span>
-          )}
-        </div>
-      ) : (
-        <div className="dice-reveal-formula" onClick={(e) => e.stopPropagation()}>
-          {items.map((item, i) => {
-            if (i >= visibleCount) return null
-
-            if (item.kind === 'plus') {
-              return (
-                <span key={item.key} className="dice-reveal-plus" aria-hidden="true">
-                  +
-                </span>
-              )
-            }
-
-            if (item.kind === 'equals') {
-              return (
-                <span key={item.key} className="dice-reveal-equals-wrap">
-                  <span className="dice-reveal-equals" aria-hidden="true">=</span>
-                  <span className="dice-reveal-total">{item.total}</span>
-                </span>
-              )
-            }
-
-            const showBurst = burstKey === item.key && !reducedMotion
-            return (
-              <span key={item.key} className="dice-reveal-value-wrap">
-                {showBurst && (
-                  <span className="dice-reveal-burst" aria-hidden="true">
-                    {SPARK_ANGLES.map((deg) => (
-                      <span
-                        key={deg}
-                        className="dice-spark"
-                        style={{ '--spark-angle': `${deg}deg` } as CSSProperties}
-                      />
-                    ))}
-                    <span className="dice-reveal-flash" />
-                  </span>
-                )}
-                <span className={`dice-reveal-value ${critClass(item.die)}`}>{item.die.value}</span>
+        {isClash ? (
+          <div
+            className={`dice-reveal-formula dice-clash-arena dice-clash-arena--${clash}${reducedMotion || skipped ? ' dice-clash-arena--static' : ''} dice-clash-arena--${displayClashPhase}`}
+          >
+            <ClashDie
+              die={dice[0]}
+              side="left"
+              isWinner={winnerIdx === 0}
+              cracking={cracking}
+            />
+            <span className="dice-clash-impact" aria-hidden="true" />
+            <ClashDie
+              die={dice[1]}
+              side="right"
+              isWinner={winnerIdx === 1}
+              cracking={cracking}
+            />
+            {(displayClashPhase === 'resolve' || displayClashPhase === 'hold') && !reducedMotion && (
+              <span className="dice-clash-burst" aria-hidden="true">
+                {SPARK_ANGLES.map((deg) => (
+                  <span
+                    key={deg}
+                    className="dice-spark"
+                    style={{ '--spark-angle': `${deg}deg` } as CSSProperties}
+                  />
+                ))}
+                <span className="dice-reveal-flash" />
               </span>
-            )
-          })}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="dice-reveal-formula">
+            {items.map((item, i) => {
+              if (i >= displayCount) return null
+
+              if (item.kind === 'plus') {
+                return (
+                  <span key={item.key} className="dice-reveal-plus" aria-hidden="true">
+                    +
+                  </span>
+                )
+              }
+
+              if (item.kind === 'equals') {
+                return (
+                  <span key={item.key} className="dice-reveal-equals-wrap">
+                    <span className="dice-reveal-equals" aria-hidden="true">=</span>
+                    <span className="dice-reveal-total">{item.total}</span>
+                  </span>
+                )
+              }
+
+              const showBurst = burstKey === item.key && !reducedMotion && !skipped
+              return (
+                <span key={item.key} className="dice-reveal-value-wrap">
+                  {showBurst && (
+                    <span className="dice-reveal-burst" aria-hidden="true">
+                      {SPARK_ANGLES.map((deg) => (
+                        <span
+                          key={deg}
+                          className="dice-spark"
+                          style={{ '--spark-angle': `${deg}deg` } as CSSProperties}
+                        />
+                      ))}
+                      <span className="dice-reveal-flash" />
+                    </span>
+                  )}
+                  <span className={`dice-reveal-value ${critClass(item.die)}`}>{item.die.value}</span>
+                </span>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {!animationDone && (
+        <button
+          type="button"
+          className="dice-reveal-skip"
+          onClick={(e) => {
+            e.stopPropagation()
+            skip()
+          }}
+        >
+          Пропустить
+        </button>
       )}
     </div>
   )

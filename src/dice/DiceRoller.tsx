@@ -4,7 +4,7 @@ import type DiceBoxType from '@3d-dice/dice-box'
 import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
 import DiceD20Mod from './DiceD20Mod'
-import { initDiceAudio, playDiceLand, playDiceThrow } from './diceSounds'
+import { initDiceAudio, playDropsForRoll } from './diceSounds'
 import { DieImage } from './diceAssets'
 
 type DicePool = Record<DieType, number>
@@ -274,7 +274,6 @@ export default function DiceRoller() {
         settleTimeout: 6000,
       })
       await box.init()
-      box.onDieComplete = (die) => playDiceLand(parseSides(die.sides))
       boxRef.current = box
       setReady(true)
     })().catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -423,7 +422,7 @@ export default function DiceRoller() {
     if (!box || phase === 'rolling' || !ready) return
 
     initDiceAudio()
-    playDiceThrow(2)
+    playDropsForRoll(2)
 
     clear3DDice()
     setPhase('rolling')
@@ -452,7 +451,7 @@ export default function DiceRoller() {
 
     const totalDice = active.reduce((n, t) => n + pool[t], 0)
     initDiceAudio()
-    playDiceThrow(totalDice)
+    playDropsForRoll(totalDice)
 
     clear3DDice()
     setPhase('rolling')
