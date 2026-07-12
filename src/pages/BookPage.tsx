@@ -1,74 +1,35 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   BookOpen,
   Feather,
-  Gem,
-  Landmark,
   ScrollText,
-  Shield,
-  Skull,
-  Sparkles,
   Star,
-  Swords,
-  Users,
-  VenetianMask,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { displayName, getBookContents, getBookFull, splitTitle } from '../api'
-import type { BookContents, BookFull } from '../api'
+import { enrichBookContents, getBookContents, getBookFull, splitTitle } from '../api'
+import type { BookContents, BookFull, ContentTotals } from '../api'
+import { scrollToTomeSection } from '../contentSections'
 import { Corners, CoverImage, Divider } from '../ornaments'
+import { LootChips } from '../App'
+import { TomeSections } from './bookContentsUi'
 
-/** Разделы содержимого; base — маршрут детальной страницы, если она есть */
-const SECTIONS: { key: string; label: string; icon: LucideIcon; base?: string }[] = [
-  { key: 'classes', label: 'Классы', icon: Swords, base: '/classes' },
-  { key: 'subclasses', label: 'Подклассы', icon: Shield },
-  { key: 'races', label: 'Расы', icon: VenetianMask, base: '/races' },
-  { key: 'subraces', label: 'Подрасы', icon: Users },
-  { key: 'feats', label: 'Черты', icon: Star, base: '/feats' },
-  { key: 'backgrounds', label: 'Предыстории', icon: Landmark },
-  { key: 'spells', label: 'Заклинания', icon: Sparkles, base: '/spells' },
-  { key: 'items', label: 'Предметы', icon: Gem, base: '/items' },
-  { key: 'creatures', label: 'Существа', icon: Skull, base: '/bestiary' },
-]
-
-/** Раскрывающиеся разделы содержимого книги/сеттинга с ссылками на записи */
-export function TomeSections({ contents }: { contents: BookContents }) {
-  return (
-    <div className="book-sections">
-      {SECTIONS.map(({ key, label, icon: Icon, base }) => {
-        const list = contents[key] ?? []
-        if (list.length === 0) return null
-        return (
-          <details key={key} className="tome-section" open={list.length <= 30}>
-            <summary>
-              <Icon aria-hidden="true" />
-              <span className="tome-section-name">{label}</span>
-              <b className="loot-num">{list.length}</b>
-            </summary>
-            <div className="tome-entries">
-              {list.map((entry, i) => {
-                const eid = entry.id as string | undefined
-                const name = displayName(entry)
-                return base && eid ? (
-                  <Link key={eid} className="tome-entry tome-entry--link" to={`${base}/${eid}`}>
-                    {name}
-                  </Link>
-                ) : (
-                  <span key={eid ?? i} className="tome-entry">{name}</span>
-                )
-              })}
-            </div>
-          </details>
-        )
-      })}
-    </div>
-  )
+function totalsFromContents(contents: BookContents): ContentTotals {
+  return {
+    classes: contents.classes?.length ?? 0,
+    subclasses: contents.subclasses?.length ?? 0,
+    races: contents.races?.length ?? 0,
+    subraces: contents.subraces?.length ?? 0,
+    feats: contents.feats?.length ?? 0,
+    backgrounds: contents.backgrounds?.length ?? 0,
+    spells: contents.spells?.length ?? 0,
+    items: contents.items?.length ?? 0,
+  }
 }
 
 export default function BookPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const [book, setBook] = useState<BookFull | null>(null)
   const [contents, setContents] = useState<BookContents | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -78,12 +39,22 @@ export default function BookPage() {
     setBook(null)
     setContents(null)
     Promise.all([getBookFull(id), getBookContents(id)])
-      .then(([b, c]) => {
+      .then(async ([b, c]) => {
         setBook(b)
-        setContents(c)
+        setContents(await enrichBookContents(c, b))
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [id])
+
+  const totals = useMemo(() => (contents ? totalsFromContents(contents) : null), [contents])
+
+  useEffect(() => {
+    if (!contents) return
+    const hash = location.hash.replace(/^#/, '')
+    if (!hash.startsWith('tome-')) return
+    const key = hash.slice(5)
+    requestAnimationFrame(() => scrollToTomeSection(key))
+  }, [contents, location.hash])
 
   if (error) return <p className="status-line is-error">Том не найден: {error}</p>
   if (!book) return <p className="status-line">Разворачиваем свиток…</p>
@@ -118,6 +89,14 @@ export default function BookPage() {
       </div>
 
       <Divider />
+
+      {totals && (
+        <div className="loot-bar">
+          <Corners size={38} />
+          <div className="loot-title">Нововведения тома — {ru}</div>
+          <LootChips totals={totals} onSelect={(key) => scrollToTomeSection(key)} />
+        </div>
+      )}
 
       {contents && <TomeSections contents={contents} />}
     </section>

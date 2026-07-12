@@ -198,6 +198,20 @@ export interface Item {
   item_source: string | null
 }
 
+export interface Background {
+  id: string
+  background_name: string
+  description: string | null
+  skill_proficiencies: string[] | null
+  tool_proficiencies: string[] | null
+  languages: string[] | null
+  equipment: string | null
+  feature_name: string | null
+  feature_description: string | null
+  image_gallery: string[] | null
+  book_source_id: string | null
+}
+
 export interface Paged<T> {
   items: T[]
   total: number
@@ -257,6 +271,49 @@ export async function getOne<T>(resource: string, id: string): Promise<T> {
   const res = await fetch(`${API_BASE}/${resource}/${id}`)
   if (!res.ok) throw new Error(`${resource}: ${res.status}`)
   return res.json()
+}
+
+/** Несколько записей по id (для предысторий книги — API не отдаёт их в /contents) */
+export async function getManyByIds<T>(resource: string, ids: string[]): Promise<T[]> {
+  const unique = [...new Set(ids)]
+  const out: T[] = []
+  for (const id of unique) {
+    try {
+      out.push(await getOne<T>(resource, id))
+    } catch {
+      /* skip missing */
+    }
+  }
+  return out
+}
+
+/** Дополняет contents предысториями из book.new_backgrounds */
+export async function enrichBookContents(
+  contents: BookContents,
+  book: Pick<Book, 'new_backgrounds'>,
+): Promise<BookContents> {
+  if ((contents.backgrounds?.length ?? 0) > 0) return contents
+  const ids = book.new_backgrounds ?? []
+  if (ids.length === 0) return contents
+  const backgrounds = await getManyByIds<Background>('backgrounds', ids)
+  return { ...contents, backgrounds: backgrounds as unknown as Record<string, unknown>[] }
+}
+
+/** Сводит предыстории нескольких книг в общий contents */
+export async function enrichBooksBackgrounds(contents: BookContents, books: Book[]): Promise<BookContents> {
+  const ids = [...new Set(books.flatMap((b) => b.new_backgrounds ?? []))]
+  if (ids.length === 0) return contents
+  const fetched = await getManyByIds<Background>('backgrounds', ids)
+  const merged = { ...contents }
+  const list = [...(merged.backgrounds ?? [])]
+  const seen = new Set(list.map((e) => String(e.id)))
+  for (const bg of fetched) {
+    if (seen.has(bg.id)) continue
+    seen.add(bg.id)
+    list.push(bg as unknown as Record<string, unknown>)
+  }
+  merged.backgrounds = list
+  return merged
 }
 
 /** Вспомогательные под-списки: /classes/{id}/subclasses, /races/{id}/subraces */

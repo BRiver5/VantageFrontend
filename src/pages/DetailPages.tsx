@@ -9,6 +9,7 @@ import {
   Footprints,
   Gem,
   Hourglass,
+  Landmark,
   Ruler,
   Scale,
   Shield,
@@ -29,7 +30,7 @@ import {
   getSubList,
   realImage,
 } from '../api'
-import type { Book, Creature, CreatureTrait, Feat, GameClass, Item, Race, Spell, Subclass, Subrace } from '../api'
+import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
 import { DieChipIcon, hitDieType } from '../dice/diceAssets'
@@ -606,6 +607,59 @@ export function SubraceDetailPage() {
           <div className="card-chips">
             {sr.extra_languages.map((l) => <Chip key={l} icon={Users}>{l}</Chip>)}
           </div>
+        </DetailSection>
+      )}
+    </DetailShell>
+  )
+}
+
+/* ============================================================
+   ПРЕДЫСТОРИЯ
+   ============================================================ */
+
+export function BackgroundDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: bg, error } = useOne<Background>('backgrounds', id)
+  const book = useBookRef(bg?.book_source_id)
+  if (error) return <p className="status-line is-error">Предыстория не найдена: {error}</p>
+  if (!bg) return <p className="status-line">Листаем летопись…</p>
+
+  return (
+    <DetailShell
+      backTo="/backgrounds"
+      backLabel="к предысториям"
+      kicker="предыстория"
+      title={bg.background_name}
+      image={realImage(bg.image_gallery)}
+      imageIcon={Landmark}
+      chips={
+        <>
+          <SourceBadge book={book} />
+          {bg.skill_proficiencies?.map((s) => <Chip key={s} icon={Star}>{s}</Chip>)}
+          {bg.tool_proficiencies?.map((t) => <Chip key={t} icon={Shield}>{t}</Chip>)}
+        </>
+      }
+    >
+      {bg.languages && bg.languages.length > 0 && (
+        <DetailSection title="Языки">
+          <div className="card-chips">
+            {bg.languages.map((l) => <Chip key={l} icon={Users}>{l}</Chip>)}
+          </div>
+        </DetailSection>
+      )}
+      {bg.equipment && (
+        <DetailSection title="Снаряжение">
+          <Rich text={bg.equipment} />
+        </DetailSection>
+      )}
+      {bg.feature_name && (
+        <DetailSection title={bg.feature_name}>
+          <Rich text={bg.feature_description ?? bg.description} />
+        </DetailSection>
+      )}
+      {bg.description && (
+        <DetailSection title="Описание">
+          <Rich text={bg.description} />
         </DetailSection>
       )}
     </DetailShell>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Landmark } from 'lucide-react'
 import {
+  enrichBooksBackgrounds,
   getBookContents,
   getBooks,
   getOne,
@@ -11,8 +12,9 @@ import {
 } from '../api'
 import type { Book, BookContents, ContentTotals, Setting } from '../api'
 import { Corners, CoverImage, Divider } from '../ornaments'
-import { TomeSections } from './BookPage'
+import { TomeSections } from './bookContentsUi'
 import { LootChips } from '../App'
+import { scrollToTomeSection } from '../contentSections'
 
 export default function SettingPage() {
   const { id } = useParams<{ id: string }>()
@@ -47,7 +49,7 @@ export default function SettingPage() {
             }
           }
         }
-        setContents(merged)
+        setContents(await enrichBooksBackgrounds(merged, own))
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [id])
@@ -107,7 +109,7 @@ export default function SettingPage() {
       <div className="loot-bar">
         <Corners size={38} />
         <div className="loot-title">Нововведения мира — {ru}</div>
-        <LootChips totals={totals} />
+        <LootChips totals={totals} onSelect={(key) => scrollToTomeSection(key)} />
       </div>
 
       {contents ? (

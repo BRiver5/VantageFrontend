@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import {
   Award,
   BookOpen,
@@ -7,22 +7,20 @@ import {
   ChevronRight,
   Gem,
   Landmark,
-  Shield,
-  Skull,
   Sparkles,
-  Star,
+  Skull,
   Swords,
-  Users,
   VenetianMask,
 } from 'lucide-react'
 import { getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
 import type { Book, ContentTotals, GameClass, Setting } from './api'
 import { Corners, D20Logo, Divider } from './ornaments'
 import { DieImage } from './dice/diceAssets'
-import { BestiaryPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
+import { BestiaryPage, BackgroundsPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import {
+  BackgroundDetailPage,
   ClassDetailPage,
   CreatureDetailPage,
   FeatDetailPage,
@@ -34,12 +32,14 @@ import {
 } from './pages/DetailPages'
 import DiceRoller from './dice/DiceRoller'
 import RouteReadyGate from './RouteReadyGate'
+import { contentEntryLink, LOOT_CHIP_ROWS } from './contentSections'
 
 /* ---------- Разделы каталога ---------- */
 
 const CATEGORIES = [
   { path: '/classes', label: 'Классы', icon: Swords },
   { path: '/races', label: 'Расы и виды', icon: VenetianMask },
+  { path: '/backgrounds', label: 'Предыстории', icon: Landmark },
   { path: '/feats', label: 'Черты', icon: Award },
   { path: '/spells', label: 'Заклинания', icon: Sparkles },
   { path: '/items', label: 'Магические предметы', icon: Gem },
@@ -243,27 +243,35 @@ function SettingsCarousel({
 
 /* ---------- Сводка нововведений выбранного сеттинга ---------- */
 
-const LOOT_ROWS: { key: keyof ContentTotals; label: string; icon: typeof Swords }[] = [
-  { key: 'classes', label: 'классов', icon: Swords },
-  { key: 'subclasses', label: 'подклассов', icon: Shield },
-  { key: 'races', label: 'рас', icon: VenetianMask },
-  { key: 'subraces', label: 'подрас', icon: Users },
-  { key: 'feats', label: 'черт', icon: Star },
-  { key: 'backgrounds', label: 'предысторий', icon: Landmark },
-  { key: 'spells', label: 'заклинаний', icon: Sparkles },
-  { key: 'items', label: 'предметов', icon: Gem },
-]
+const LOOT_ROWS = LOOT_CHIP_ROWS
 
 /** Сетка жетонов со счётчиками нововведений (используется и на странице сеттинга) */
-export function LootChips({ totals }: { totals: ContentTotals }) {
+export function LootChips({
+  totals,
+  onSelect,
+}: {
+  totals: ContentTotals
+  onSelect?: (key: keyof ContentTotals) => void
+}) {
   return (
     <div className="loot-grid">
-      {LOOT_ROWS.map(({ key, label, icon: Icon }) => (
-        <span key={key} className={`loot-chip${totals[key] === 0 ? ' is-zero' : ''}`}>
-          <Icon aria-hidden="true" />
-          <span className="loot-num">{totals[key]}</span> {label}
-        </span>
-      ))}
+      {LOOT_ROWS.map(({ key, label, icon: Icon }) => {
+        const count = totals[key]
+        const clickable = !!onSelect && count > 0
+        const Tag = clickable ? 'button' : 'span'
+        return (
+          <Tag
+            key={key}
+            type={clickable ? 'button' : undefined}
+            className={`loot-chip${count === 0 ? ' is-zero' : ''}${clickable ? ' loot-chip--clickable' : ''}`}
+            onClick={clickable ? () => onSelect(key) : undefined}
+            title={clickable ? `Показать: ${label}` : undefined}
+          >
+            <Icon aria-hidden="true" />
+            <span className="loot-num">{count}</span> {label}
+          </Tag>
+        )
+      })}
     </div>
   )
 }
@@ -303,17 +311,30 @@ function HexCover({ book }: { book: Book }) {
 }
 
 function BookHex({ book, index }: { book: Book; index: number }) {
+  const navigate = useNavigate()
   const { ru } = splitTitle(book.title)
-  const spells = book.new_spells?.length ?? 0
-  const items = book.new_items?.length ?? 0
-  const classes = book.new_classes?.length ?? 0
-  const races = book.new_races?.length ?? 0
+  const lootBadges = [
+    { key: 'classes', ids: book.new_classes, icon: Swords, base: '/classes' },
+    { key: 'races', ids: book.new_races, icon: VenetianMask, base: '/races' },
+    { key: 'spells', ids: book.new_spells, icon: Sparkles, base: '/spells' },
+    { key: 'items', ids: book.new_items, icon: Gem, base: '/items' },
+  ] as const
+
+  const openBook = () => navigate(`/books/${book.id}`)
 
   return (
-    <Link
-      to={`/books/${book.id}`}
+    <div
       className="hex-cell"
       style={{ animationDelay: `${Math.min(index * 45, 700)}ms` }}
+      role="link"
+      tabIndex={0}
+      onClick={openBook}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          openBook()
+        }
+      }}
     >
       <span className="hex-inner">
         <HexCover book={book} />
@@ -321,16 +342,39 @@ function BookHex({ book, index }: { book: Book; index: number }) {
         <span className="hex-code">{book.book_code}</span>
         <span className="hex-body">
           <span className="hex-title" title={book.title}>{ru}</span>
-          <span className="hex-loot">
-            {classes > 0 && <span><Swords aria-hidden="true" />{classes}</span>}
-            {races > 0 && <span><VenetianMask aria-hidden="true" />{races}</span>}
-            {spells > 0 && <span><Sparkles aria-hidden="true" />{spells}</span>}
-            {items > 0 && <span><Gem aria-hidden="true" />{items}</span>}
+          <span className="hex-loot" onClick={(e) => e.stopPropagation()}>
+            {lootBadges.map(({ key, ids, icon: Icon, base }) => {
+              const count = ids?.length ?? 0
+              if (count === 0) return null
+              const href = contentEntryLink(book.id, key, base, ids)
+              if (!href) return null
+              return (
+                <Link
+                  key={key}
+                  to={href}
+                  className="hex-loot-link"
+                  title={`Открыть: ${labelForLoot(key)}`}
+                >
+                  <Icon aria-hidden="true" />
+                  {count}
+                </Link>
+              )
+            })}
           </span>
         </span>
       </span>
-    </Link>
+    </div>
   )
+}
+
+function labelForLoot(key: string): string {
+  const labels: Record<string, string> = {
+    classes: 'классы',
+    races: 'расы',
+    spells: 'заклинания',
+    items: 'предметы',
+  }
+  return labels[key] ?? key
 }
 
 /**
@@ -507,6 +551,8 @@ export default function App() {
             <Route path="/races" element={<RacesPage />} />
             <Route path="/races/:id" element={<RaceDetailPage />} />
             <Route path="/subraces/:id" element={<SubraceDetailPage />} />
+            <Route path="/backgrounds" element={<BackgroundsPage />} />
+            <Route path="/backgrounds/:id" element={<BackgroundDetailPage />} />
             <Route path="/feats" element={<FeatsPage />} />
             <Route path="/feats/:id" element={<FeatDetailPage />} />
             <Route path="/spells" element={<SpellsPage />} />

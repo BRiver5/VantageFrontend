@@ -14,6 +14,7 @@ import {
   Gem,
   Heart,
   Hourglass,
+  Landmark,
   Ruler,
   Search,
   Shield,
@@ -35,7 +36,7 @@ import {
   realImage,
   splitTitle,
 } from '../api'
-import type { Book, BookMap, Creature, Feat, GameClass, Item, Race, Spell } from '../api'
+import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell } from '../api'
 import { Divider } from '../ornaments'
 import { DieChipIcon, hitDieType } from '../dice/diceAssets'
 
@@ -194,6 +195,22 @@ function featCard(f: Feat, bookMap: BookMap) {
         {abilities && <Chip icon={Star}>{abilities}</Chip>}
       </div>
       <p className="card-desc">{cleanDescription(f.description)}</p>
+    </article>
+  )
+}
+
+function backgroundCard(bg: Background, bookMap: BookMap) {
+  const skills = bg.skill_proficiencies?.slice(0, 3).join(', ')
+  return (
+    <article className="card">
+      <CardImage src={realImage(bg.image_gallery)} alt={bg.background_name} fallback={Landmark} />
+      <h3 className="card-name">{bg.background_name}</h3>
+      <div className="card-chips">
+        <SourceBadge book={bg.book_source_id ? bookMap[bg.book_source_id] : undefined} />
+        {skills && <Chip icon={Star}>{skills}</Chip>}
+        {bg.feature_name && <Chip icon={Landmark}>{bg.feature_name}</Chip>}
+      </div>
+      <p className="card-desc">{cleanDescription(bg.description)}</p>
     </article>
   )
 }
@@ -489,6 +506,19 @@ export const FeatsPage = () => (
       sub: 'Особые таланты и способности, доступные при развитии персонажа',
       emptyIcon: Award,
       card: featCard,
+    }}
+  />
+)
+
+export const BackgroundsPage = () => (
+  <CatalogPage<Background>
+    cfg={{
+      resource: 'backgrounds',
+      base: '/backgrounds',
+      title: 'Предыстории',
+      sub: 'Прошлое героя — навыки, инструменты и особая черта',
+      emptyIcon: Landmark,
+      card: backgroundCard,
     }}
   />
 )

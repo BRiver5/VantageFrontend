@@ -758,6 +758,27 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 
 .loot-chip.is-zero { opacity: 0.38; }
 
+button.loot-chip {
+  font: inherit;
+  border: none;
+  cursor: default;
+}
+
+.loot-chip--clickable {
+  cursor: pointer;
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.loot-chip--clickable:hover {
+  color: var(--gold-4);
+  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.55);
+  transform: translateY(-1px);
+}
+
+.loot-chip--clickable:active {
+  transform: translateY(0);
+}
+
 /* ============================================================
    СОТЫ КНИГ (адаптивный honeycomb)
    ============================================================ */
@@ -801,13 +822,13 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   display: inline-block;
   font-size: 1rem;
   text-align: center;
-  text-decoration: none;
   color: inherit;
   clip-path: var(--hex-point);
   background: var(--silver-grad);
   padding: 2px;
   vertical-align: top;
   transition: transform 0.25s ease, filter 0.25s ease;
+  cursor: pointer;
 }
 
 .hex-cell:hover {
@@ -922,8 +943,24 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   color: var(--gold-3);
   letter-spacing: 0.02em;
 }
-.hex-loot span { display: inline-flex; align-items: center; gap: 3px; }
+.hex-loot span,
+.hex-loot-link { display: inline-flex; align-items: center; gap: 3px; }
 .hex-loot svg { width: 12px; height: 12px; stroke-width: 1.7; }
+
+.hex-loot-link {
+  position: relative;
+  z-index: 4;
+  text-decoration: none;
+  color: var(--gold-3);
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.hex-loot-link:hover {
+  color: var(--gold-4);
+  background: rgba(228, 196, 110, 0.14);
+}
 
 /* пустая сота-заглушка при загрузке */
 .hex-cell.is-ghost { background: linear-gradient(160deg, rgba(124, 130, 139, 0.3), rgba(124, 130, 139, 0.08)); }
@@ -1474,6 +1511,18 @@ a.card-slot { text-decoration: none; color: inherit; }
 .tome-entry--link:hover {
   color: var(--gold-4);
   box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.7);
+}
+
+.tome-entry--btn {
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.tome-entry--btn:hover {
+  transform: translateY(-1px);
+}
+
+.tome-entry--btn:active {
+  transform: translateY(0);
 }
 
 .detail-title-row { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
