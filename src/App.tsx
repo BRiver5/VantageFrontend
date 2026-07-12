@@ -33,6 +33,7 @@ import {
   SubraceDetailPage,
 } from './pages/DetailPages'
 import DiceRoller from './dice/DiceRoller'
+import RouteReadyGate from './RouteReadyGate'
 
 /* ---------- Разделы каталога ---------- */
 
@@ -334,27 +335,32 @@ function BookHex({ book, index }: { book: Book; index: number }) {
 
 /**
  * Раскладывает произвольное число ячеек по рядам гексагонального улья с шахматным
- * чередованием ширины (полный ряд / на одну соту короче), плюс решает, должен ли
- * каждый ряд стыковаться внахлёст с предыдущим (гексагоны входят в вырезы) —
- * это возможно, только если их количества отличаются на НЕЧЁТНОЕ число (тогда
- * центрирование сдвигает ряд ровно на полсоты и рисунок совпадает). Если из-за
- * остатка книг чередование на хвосте нарушается (соседние ряды получают
- * одинаковую или отличающуюся на чётное число ширину), для этого перехода
- * стыковка отключается и ряд просто получает обычный отступ — вместо того чтобы
- * ломаться и наезжать на соседей. Благодаря этому функция устойчива к ЛЮБОМУ
- * числу книг, в т.ч. будущим добавлениям.
+ * чередованием ширины (полный ряд / на одну соту короче). Каждый ряд после первого
+ * стыкуется внахлёст с предыдущим (гексагоны входят в вырезы). Чтобы стыковка
+ * работала при ЛЮБОМ числе книг (в т.ч. на «хвосте», где остаток не заполняет ряд
+ * целиком), короткие ряды добиваются НЕВИДИМЫМИ ячейками-распорками (`pad`) до
+ * своей целевой ширины. Тогда центрирование всегда сдвигает ряд ровно на полсоты
+ * относительно соседа, и вырезы совпадают — без «висящих» ровно снизу рядов, как
+ * было раньше, когда стыковку отключали при равной/чётно-отличной ширине.
  */
-function layoutHive<T>(items: T[], cols: number): { items: T[]; nested: boolean }[] {
+function layoutHive<T>(
+  items: T[],
+  cols: number,
+): { items: T[]; pad: number; nested: boolean }[] {
   const c = Math.max(1, cols)
+  const target = (r: number) => (c <= 1 ? 1 : r % 2 === 0 ? c : c - 1)
   const rows: T[][] = []
   for (let i = 0, r = 0; i < items.length; r++) {
-    const n = c <= 1 ? 1 : r % 2 === 0 ? c : Math.max(1, c - 1)
+    const n = target(r)
     rows.push(items.slice(i, i + n))
     i += n
   }
   return rows.map((row, i) => ({
     items: row,
-    nested: i > 0 && Math.abs(row.length - rows[i - 1].length) % 2 === 1,
+    // первый ряд не добиваем (стыковать сверху нечего); остальные добиваем
+    // распорками до целевой ширины — так центрирование даёт верный полусотовый сдвиг
+    pad: i === 0 ? 0 : Math.max(0, target(i) - row.length),
+    nested: i > 0 && c > 1,
   }))
 }
 
@@ -385,7 +391,7 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
 
   return (
     <div className="hive" ref={ref} style={{ '--s': `${layout.s}px` } as React.CSSProperties}>
-      {rows.map(({ items: row, nested }, ri) => (
+      {rows.map(({ items: row, pad, nested }, ri) => (
         <div key={ri} className={`hive-row${nested ? ' hive-row--nest' : ''}`}>
           {row.map((b, ci) =>
             b ? (
@@ -394,6 +400,11 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
               <span key={ci} className="hex-cell is-ghost"><span className="hex-inner" /></span>
             ),
           )}
+          {/* невидимые распорки добивают короткий ряд до целевой ширины,
+              чтобы центрирование дало верный сдвиг и ряд вклинился в вырезы */}
+          {Array.from({ length: pad }, (_, pi) => (
+            <span key={`pad-${pi}`} className="hex-cell hex-cell--spacer" aria-hidden="true" />
+          ))}
         </div>
       ))}
     </div>
@@ -487,25 +498,27 @@ export default function App() {
       <ScrollToTop />
       <Masthead />
       <main className="page">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/classes" element={<ClassesPage />} />
-          <Route path="/classes/:id" element={<ClassDetailPage />} />
-          <Route path="/subclasses/:id" element={<SubclassDetailPage />} />
-          <Route path="/races" element={<RacesPage />} />
-          <Route path="/races/:id" element={<RaceDetailPage />} />
-          <Route path="/subraces/:id" element={<SubraceDetailPage />} />
-          <Route path="/feats" element={<FeatsPage />} />
-          <Route path="/feats/:id" element={<FeatDetailPage />} />
-          <Route path="/spells" element={<SpellsPage />} />
-          <Route path="/spells/:id" element={<SpellDetailPage />} />
-          <Route path="/items" element={<ItemsPage />} />
-          <Route path="/items/:id" element={<ItemDetailPage />} />
-          <Route path="/bestiary" element={<BestiaryPage />} />
-          <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
-          <Route path="/books/:id" element={<BookPage />} />
-          <Route path="/settings/:id" element={<SettingPage />} />
-        </Routes>
+        <RouteReadyGate>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/classes" element={<ClassesPage />} />
+            <Route path="/classes/:id" element={<ClassDetailPage />} />
+            <Route path="/subclasses/:id" element={<SubclassDetailPage />} />
+            <Route path="/races" element={<RacesPage />} />
+            <Route path="/races/:id" element={<RaceDetailPage />} />
+            <Route path="/subraces/:id" element={<SubraceDetailPage />} />
+            <Route path="/feats" element={<FeatsPage />} />
+            <Route path="/feats/:id" element={<FeatDetailPage />} />
+            <Route path="/spells" element={<SpellsPage />} />
+            <Route path="/spells/:id" element={<SpellDetailPage />} />
+            <Route path="/items" element={<ItemsPage />} />
+            <Route path="/items/:id" element={<ItemDetailPage />} />
+            <Route path="/bestiary" element={<BestiaryPage />} />
+            <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
+            <Route path="/books/:id" element={<BookPage />} />
+            <Route path="/settings/:id" element={<SettingPage />} />
+          </Routes>
+        </RouteReadyGate>
         <footer className="footer">Vantage · Codex Adventurae · MMXXVI</footer>
       </main>
       <DiceRoller />

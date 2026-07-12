@@ -496,7 +496,11 @@ export default function DiceRoller() {
 
   return (
     <>
-      <div id="dice-box-stage" className="dice-stage" aria-hidden={phase === 'idle' && !open} />
+      <div
+        id="dice-box-stage"
+        className={`dice-stage${phase !== 'idle' ? ' is-active' : ''}`}
+        aria-hidden={phase === 'idle'}
+      />
 
       {phase === 'reveal' && rollResults.length > 0 && (
         <DiceResultOverlay dice={rollResults} clash={revealClash} onClose={closeReveal} />

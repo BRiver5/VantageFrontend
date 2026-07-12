@@ -130,6 +130,43 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   padding: 0 clamp(12px, 3vw, 36px) 90px;
 }
 
+.page-routes.is-pending {
+  visibility: hidden;
+  pointer-events: none;
+  min-height: 40vh;
+}
+
+.page-routes.is-ready {
+  visibility: visible;
+  animation: page-route-in 0.35s ease forwards;
+}
+
+@keyframes page-route-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.page-boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  padding: 48px 24px;
+}
+
+.page-boot-text {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 3vw, 1.35rem);
+  letter-spacing: 0.12em;
+  color: var(--silver-3);
+  animation: page-boot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes page-boot-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
 .divider {
   display: flex;
   justify-content: center;
@@ -482,10 +519,10 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   z-index: 0;
   background-size: cover;
   background-position: center 18%;
-  /* multiply глушит белые поля миниатюр до серого камня */
-  background-color: #6f747d;
+  /* лёгкий multiply глушит белые поля миниатюр, но не затемняет арт в ноль */
+  background-color: #a6aab2;
   background-blend-mode: multiply;
-  filter: saturate(0.85) contrast(1.04);
+  filter: saturate(0.92) contrast(1.03);
 }
 .setting-art::after {
   content: '';
@@ -743,11 +780,18 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   margin-top: var(--m);                 /* обычный отступ по умолчанию */
 }
 .hive-row:first-child { margin-top: 0; }
-/* ряд вклинивается в вырезы предыдущего — только когда это математически
-   даёт верную стыковку (см. layoutHive в App.tsx); иначе остаётся обычный отступ,
-   чтобы соты не наезжали друг на друга при нечётном хвосте списка */
+/* каждый ряд после первого вклинивается в вырезы предыдущего; короткие ряды
+   добиты невидимыми распорками (см. layoutHive) — стыковка верна при любом числе книг */
 .hive-row--nest { margin-top: calc(var(--s) * -0.2887 + var(--m)); }
 .hive-row:hover { z-index: 5; }
+
+/* невидимая ячейка-распорка: держит ширину соты, но ничего не рисует */
+.hex-cell--spacer {
+  visibility: hidden;
+  pointer-events: none;
+  background: none;
+  animation: none;
+}
 
 .hex-cell {
   position: relative;
@@ -790,12 +834,9 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   inset: 0;
   width: 100%;
   height: 100%;
-  /* contain — обложка видна целиком и всегда отцентрована, никогда не обрезается сбоку */
-  object-fit: contain;
-  /* приглушаем белые поля сканов под тон старого пергамента */
-  background-color: #b7a888;
-  mix-blend-mode: multiply;
-  filter: saturate(0.92) contrast(1.04);
+  /* cover — обложка (≈2:3) заполняет гекс без зазоров и всегда отцентрована */
+  object-fit: cover;
+  object-position: center;
   transition: transform 0.4s ease, filter 0.3s ease;
 }
 
@@ -1105,10 +1146,9 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   height: auto;
   max-width: 100%;
   max-height: 100%;
+  /* contain — портреты произвольных пропорций видны целиком и отцентрованы, без обрезки */
   object-fit: contain;
-  /* старим картинку под пергамент */
-  mix-blend-mode: multiply;
-  filter: saturate(0.92) contrast(1.04);
+  object-position: center;
 }
 .card-img-fallback { width: 52px; height: 52px; stroke-width: 1; color: rgba(92, 69, 28, 0.55); }
 
@@ -1338,8 +1378,6 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   height: 100%;
   object-fit: cover;
   object-position: center;
-  mix-blend-mode: multiply;
-  filter: saturate(0.92) contrast(1.05);
 }
 
 .book-meta { flex: 1; min-width: 240px; }
@@ -1551,9 +1589,9 @@ a.card-slot { text-decoration: none; color: inherit; }
   inset: 1px;
   background-size: cover;
   background-position: center 25%;
-  background-color: #767b84;
+  background-color: #a6aab2;
   background-blend-mode: multiply;
-  filter: saturate(0.85);
+  filter: saturate(0.92);
 }
 .setting-hero-art::after {
   content: '';
@@ -1604,8 +1642,6 @@ a.card-slot { text-decoration: none; color: inherit; }
   height: 100%;
   object-fit: cover;
   object-position: center;
-  mix-blend-mode: multiply;
-  filter: saturate(0.92) contrast(1.05);
 }
 
 .tome-card .hex-code {
@@ -1632,13 +1668,20 @@ a.card-slot { text-decoration: none; color: inherit; }
    БРОСОК КУБИКА — рендерится прямо на странице (dice-box), без модалки
    ============================================================ */
 
-/* прозрачная 3D-сцена на весь экран — кости катятся поверх текущей страницы */
+/* 3D-сцена на весь экран — в простое opacity:0, иначе чёрный canvas перекрывает страницу */
 .dice-stage {
   position: fixed;
   inset: 0;
   z-index: 140;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
+
+.dice-stage.is-active {
+  opacity: 1;
+}
+
 .dice-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
 
 /* ---------- Док: FAB / лоток / action bar ---------- */

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { isValidElement, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -44,12 +44,14 @@ const PAGE_SIZE = 24
 /* ---------- Мелкие детали карточек ---------- */
 
 function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: ReactNode }) {
+  // icon может быть готовым элементом (<DieChipIcon/>) ИЛИ компонентом-иконкой.
+  // lucide-иконки — это forwardRef-объекты (typeof === 'object', НЕ 'function'),
+  // поэтому различаем по isValidElement, а не по typeof — иначе объект уходит в
+  // дети и React падает: «Objects are not valid as a React child».
+  const Icon = icon as LucideIcon
   return (
     <span className="chip">
-      {typeof icon === 'function' ? (() => {
-        const Icon = icon
-        return <Icon aria-hidden="true" />
-      })() : icon}
+      {isValidElement(icon) ? icon : <Icon aria-hidden="true" />}
       {children}
     </span>
   )
