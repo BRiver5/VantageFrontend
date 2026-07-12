@@ -9,7 +9,7 @@ import {
   Users,
   VenetianMask,
 } from 'lucide-react'
-import type { ContentTotals } from './api'
+import type { Book, BookContents, ContentTotals } from './api'
 
 /** Разделы содержимого книги; base — маршрут детальной страницы */
 export const CONTENT_SECTIONS = [
@@ -30,6 +30,42 @@ export type LootTotalsKey = keyof ContentTotals | 'creatures'
 export const LOOT_CHIP_ROWS = CONTENT_SECTIONS.filter(
   (s): s is typeof s & { totalsKey: keyof ContentTotals } => s.totalsKey !== 'creatures',
 )
+
+/** Все разделы для раскрывающейся соты книги (включая существ из contents) */
+export const HEX_EXPAND_ROWS = CONTENT_SECTIONS
+
+/** Поле книги с id нововведений раздела */
+export const BOOK_NEW_FIELDS = {
+  classes: 'new_classes',
+  subclasses: 'new_subclasses',
+  races: 'new_races',
+  subraces: 'new_subraces',
+  feats: 'new_feats',
+  backgrounds: 'new_backgrounds',
+  spells: 'new_spells',
+  items: 'new_items',
+} as const satisfies Record<Exclude<ContentSectionKey, 'creatures'>, keyof Book>
+
+export type BookContentKey = keyof typeof BOOK_NEW_FIELDS
+
+export function bookNewIds(book: Book, key: BookContentKey): string[] | null | undefined {
+  return book[BOOK_NEW_FIELDS[key]] as string[] | null | undefined
+}
+
+/** Записи раздела книги: из полей book или из /contents (существа) */
+export function bookSectionEntries(
+  book: Book,
+  key: ContentSectionKey,
+  contents: BookContents | null,
+): { ids: string[]; count: number } {
+  if (key === 'creatures') {
+    const list = contents?.creatures ?? []
+    const ids = list.map((e) => String(e.id))
+    return { ids, count: ids.length }
+  }
+  const raw = bookNewIds(book, key) ?? []
+  return { ids: [...raw], count: raw.length }
+}
 
 export function scrollToTomeSection(sectionKey: string) {
   const el = document.getElementById(`tome-${sectionKey}`)

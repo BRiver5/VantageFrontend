@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Award,
+  BookOpen,
   Coins,
   Eye,
   Footprints,
@@ -24,16 +25,16 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
-  cleanDescription,
   formatCR,
   getOne,
   getSubList,
   realImage,
 } from '../api'
-import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace } from '../api'
+import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace, Termin } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
 import { DieChipIcon, hitDieType } from '../dice/diceAssets'
+import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 
 /* ---------- Общие детали ---------- */
 
@@ -62,21 +63,9 @@ function useOne<T>(resource: string, id: string | undefined) {
   return { data, error }
 }
 
-/** Лёгкая разметка описаний: абзацы + **жирный** / ***жирный*** */
+/** Лёгкая разметка описаний: абзацы + **жирный** / ***жирный*** + ссылки на термины */
 function Rich({ text }: { text: string | null | undefined }) {
-  const clean = cleanDescription(text)
-  if (!clean) return null
-  return (
-    <div className="rich">
-      {clean.split(/\n+/).map((para, i) => (
-        <p key={i}>
-          {para.split(/\*{2,3}([^*]+)\*{2,3}/g).map((part, j) =>
-            j % 2 ? <b key={j}>{part}</b> : part,
-          )}
-        </p>
-      ))}
-    </div>
-  )
+  return <RichText text={text} />
 }
 
 function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: ReactNode }) {
@@ -177,6 +166,7 @@ function StatRow({ label, value }: { label: string; value: ReactNode }) {
 
 /** Список черт/действий существа: пары «название — описание» */
 function Traits({ list }: { list: CreatureTrait[] | null | undefined }) {
+  const index = useTermIndex()
   if (!list || list.length === 0) return null
   return (
     <div className="trait-list">
@@ -185,7 +175,7 @@ function Traits({ list }: { list: CreatureTrait[] | null | undefined }) {
         const desc = (t.description ?? t.desc ?? Object.values(t)[1] ?? '') as string
         return (
           <div key={i} className="trait">
-            <b>{name}.</b> {desc}
+            <b>{name}.</b> {highlightTerms(desc, index, `trait-${i}-`)}
           </div>
         )
       })}
@@ -420,7 +410,7 @@ export function ClassDetailPage() {
                     {sc.level_available != null && <Chip icon={Star}>с {sc.level_available} уровня</Chip>}
                     {sc.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
                   </div>
-                  <p className="card-desc">{cleanDescription(sc.description)}</p>
+                  <TermDesc text={sc.description} />
                 </article>
               </Link>
             ))}
@@ -505,7 +495,7 @@ export function RaceDetailPage() {
                       {subAbilities && <Chip icon={Star}>{subAbilities}</Chip>}
                       {sr.darkvision_override != null && <Chip icon={Eye}>тьма {sr.darkvision_override} фт.</Chip>}
                     </div>
-                    <p className="card-desc">{cleanDescription(sr.traits ?? sr.description)}</p>
+                    <TermDesc text={sr.traits ?? sr.description} />
                   </article>
                 </Link>
               )
@@ -737,6 +727,34 @@ export function ItemDetailPage() {
     >
       <DetailSection title="Описание">
         <Rich text={it.description} />
+      </DetailSection>
+    </DetailShell>
+  )
+}
+
+/* ============================================================
+   ТЕРМИН
+   ============================================================ */
+
+export function TerminDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: t, error } = useOne<Termin>('termins', id)
+  const book = useBookRef(t?.book_source_id)
+  if (error) return <p className="status-line is-error">Термин не найден: {error}</p>
+  if (!t) return <p className="status-line">Ищем в глоссарии…</p>
+
+  return (
+    <DetailShell
+      backTo="/termins"
+      backLabel="к терминам"
+      kicker="термин"
+      title={t.name}
+      image={realImage(t.image_gallery)}
+      imageIcon={BookOpen}
+      chips={<SourceBadge book={book} />}
+    >
+      <DetailSection title="Определение">
+        <Rich text={t.description} />
       </DetailSection>
     </DetailShell>
   )

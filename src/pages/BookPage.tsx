@@ -7,8 +7,8 @@ import {
   ScrollText,
   Star,
 } from 'lucide-react'
-import { enrichBookContents, getBookContents, getBookFull, splitTitle } from '../api'
-import type { BookContents, BookFull, ContentTotals } from '../api'
+import { enrichBookContents, getBookContents, getBookFull, getOne, settingPictureUrl, splitTitle } from '../api'
+import type { BookContents, BookFull, ContentTotals, Setting } from '../api'
 import { scrollToTomeSection } from '../contentSections'
 import { Corners, CoverImage, Divider } from '../ornaments'
 import { LootChips } from '../App'
@@ -32,16 +32,22 @@ export default function BookPage() {
   const location = useLocation()
   const [book, setBook] = useState<BookFull | null>(null)
   const [contents, setContents] = useState<BookContents | null>(null)
+  const [setting, setSetting] = useState<Setting | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     setBook(null)
     setContents(null)
+    setSetting(null)
     Promise.all([getBookFull(id), getBookContents(id)])
       .then(async ([b, c]) => {
         setBook(b)
         setContents(await enrichBookContents(c, b))
+        // обои мира книги — для hero-фона
+        if (b.settings_id) {
+          getOne<Setting>('settings', b.settings_id).then(setSetting).catch(() => {})
+        }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [id])
@@ -61,6 +67,8 @@ export default function BookPage() {
 
   const { ru, en } = splitTitle(book.title)
   const year = book.published_date ? new Date(book.published_date).getFullYear() : null
+  const hasWorld = Boolean(book.settings_id)
+  const heroArt = setting ? settingPictureUrl(setting, 1600, 720) : null
 
   return (
     <section className="book-page">
@@ -68,22 +76,26 @@ export default function BookPage() {
         <ArrowLeft aria-hidden="true" /> {book.settings_id ? 'к миру' : 'к сотам архива'}
       </Link>
 
-      <div className="book-hero">
-        <Corners size={40} />
-        <div className="book-cover">
-          <CoverImage src={book.book_cover_url} alt={book.title} />
-        </div>
-        <div className="book-meta">
-          <span className="setting-kicker">{book.book_code}</span>
-          <h1 className="book-title gold-text">{ru}</h1>
-          {en && <span className="setting-name-en">{en}</span>}
-          <div className="card-chips" style={{ marginTop: 14 }}>
-            <span className="chip"><Feather aria-hidden="true" />{book.author}</span>
-            {book.pages_count > 0 && <span className="chip"><BookOpen aria-hidden="true" />{book.pages_count} стр.</span>}
-            {year && <span className="chip"><ScrollText aria-hidden="true" />{year}</span>}
-            {book.supported_versions?.map((v) => (
-              <span key={v} className="chip"><Star aria-hidden="true" />{v}</span>
-            ))}
+      <div className={`world-hero${hasWorld ? '' : ' world-hero--plain'}`}>
+        {heroArt && (
+          <span className="world-hero-bg" style={{ backgroundImage: `url("${heroArt}")` }} aria-hidden="true" />
+        )}
+        <div className="world-hero-inner book-hero-inner">
+          <div className="book-cover">
+            <CoverImage src={book.book_cover_url} alt={book.title} />
+          </div>
+          <div className="book-meta">
+            <span className="setting-kicker">{book.book_code}</span>
+            <h1 className="book-title gold-text">{ru}</h1>
+            {en && <span className="setting-name-en">{en}</span>}
+            <div className="card-chips" style={{ marginTop: 14 }}>
+              <span className="chip"><Feather aria-hidden="true" />{book.author}</span>
+              {book.pages_count > 0 && <span className="chip"><BookOpen aria-hidden="true" />{book.pages_count} стр.</span>}
+              {year && <span className="chip"><ScrollText aria-hidden="true" />{year}</span>}
+              {book.supported_versions?.map((v) => (
+                <span key={v} className="chip"><Star aria-hidden="true" />{v}</span>
+              ))}
+            </div>
           </div>
         </div>
       </div>

@@ -198,6 +198,14 @@ export interface Item {
   item_source: string | null
 }
 
+export interface Termin {
+  id: string
+  name: string
+  description: string | null
+  image_gallery: string[] | null
+  book_source_id: string | null
+}
+
 export interface Background {
   id: string
   background_name: string
@@ -325,13 +333,23 @@ export async function getSubList<T>(resource: string, id: string, sub: string): 
 }
 
 /**
- * Арт для баннера сеттинга. У API нет картинок сеттингов
- * (settings_picture_urls пустые), поэтому строим URL миниатюры Bing —
- * тем же способом, каким бэкенд формирует book_cover_url у книг.
+ * Запасной арт баннера, если у сеттинга нет settings_picture_urls.
  */
 export function settingArt(titleEn: string | null, titleRu: string, w = 420, h = 800): string {
   const q = encodeURIComponent(`Dungeons and Dragons ${titleEn ?? titleRu} setting fantasy art`)
   return `https://tse1.mm.bing.net/th?q=${q}&w=${w}&h=${h}&c=7&pid=Api`
+}
+
+/** Картинка баннера сеттинга: сначала media из API, иначе settingArt. */
+export function settingPictureUrl(
+  setting: Pick<Setting, 'settings_picture_urls' | 'settings_title'>,
+  w = 420,
+  h = 800,
+): string {
+  const url = setting.settings_picture_urls?.[0]
+  if (url) return url
+  const { ru, en } = splitTitle(setting.settings_title)
+  return settingArt(en, ru, w, h)
 }
 
 export async function getBookFull(id: string): Promise<BookFull> {

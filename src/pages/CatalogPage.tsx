@@ -5,6 +5,7 @@ import {
   ArrowDownAZ,
   Award,
   BookMarked,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -28,7 +29,6 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
-  cleanDescription,
   fetchAll,
   fetchPage,
   formatCR,
@@ -36,9 +36,10 @@ import {
   realImage,
   splitTitle,
 } from '../api'
-import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell } from '../api'
+import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell, Termin } from '../api'
 import { Divider } from '../ornaments'
 import { DieChipIcon, hitDieType } from '../dice/diceAssets'
+import { TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
 
@@ -158,7 +159,7 @@ function classCard(c: GameClass) {
           <Chip icon={Shield}>{c.saving_throw_proficiencies.join(', ')}</Chip>
         )}
       </div>
-      <p className="card-desc">{cleanDescription(c.description)}</p>
+      <TermDesc text={c.description} />
     </article>
   )
 }
@@ -177,7 +178,7 @@ function raceCard(r: Race) {
         {r.darkvision > 0 && <Chip icon={Eye}>тьма {r.darkvision} фт.</Chip>}
         {abilities && <Chip icon={Star}>{abilities}</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(r.description)}</p>
+      <TermDesc text={r.description} />
     </article>
   )
 }
@@ -194,7 +195,7 @@ function featCard(f: Feat, bookMap: BookMap) {
         {f.prerequisite && <Chip icon={Shield}>треб.: {f.prerequisite}</Chip>}
         {abilities && <Chip icon={Star}>{abilities}</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(f.description)}</p>
+      <TermDesc text={f.description} />
     </article>
   )
 }
@@ -210,7 +211,7 @@ function backgroundCard(bg: Background, bookMap: BookMap) {
         {skills && <Chip icon={Star}>{skills}</Chip>}
         {bg.feature_name && <Chip icon={Landmark}>{bg.feature_name}</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(bg.description)}</p>
+      <TermDesc text={bg.description} />
     </article>
   )
 }
@@ -232,7 +233,7 @@ function spellCard(s: Spell, bookMap: BookMap) {
         {s.concentration && <Chip icon={Eye}>концентрация</Chip>}
         {s.ritual && <Chip icon={Star}>ритуал</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(s.description)}</p>
+      <TermDesc text={s.description} />
       {s.available_classes && s.available_classes.length > 0 && (
         <span className="card-foot">
           <Swords aria-hidden="true" /> {s.available_classes.join(', ')}
@@ -260,7 +261,19 @@ function creatureCard(c: Creature, bookMap: BookMap) {
         <Chip icon={Heart}>{c.hp} хп</Chip>
         {c.speed != null && <Chip icon={Footprints}>{c.speed} фт.</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(c.description ?? c.creature_description)}</p>
+      <TermDesc text={c.description ?? c.creature_description} />
+    </article>
+  )
+}
+
+function terminCard(t: Termin, bookMap: BookMap) {
+  return (
+    <article className="card card--compact">
+      <h3 className="card-name">{t.name}</h3>
+      <div className="card-chips">
+        <SourceBadge book={t.book_source_id ? bookMap[t.book_source_id] : undefined} />
+      </div>
+      <TermDesc text={t.description} />
     </article>
   )
 }
@@ -283,7 +296,7 @@ function itemCard(it: Item, bookMap: BookMap) {
         {it.attunement_required && <Chip icon={Sparkles}>настройка</Chip>}
         {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
       </div>
-      <p className="card-desc">{cleanDescription(it.description)}</p>
+      <TermDesc text={it.description} />
     </article>
   )
 }
@@ -547,6 +560,19 @@ export const BestiaryPage = () => (
       emptyIcon: Skull,
       card: creatureCard,
       sorts: creatureSorts,
+    }}
+  />
+)
+
+export const TerminsPage = () => (
+  <CatalogPage<Termin>
+    cfg={{
+      resource: 'termins',
+      base: '/termins',
+      title: 'Термины',
+      sub: 'Ключевые понятия правил — действия, броски, освещение и другое',
+      emptyIcon: BookOpen,
+      card: terminCard,
     }}
   />
 )

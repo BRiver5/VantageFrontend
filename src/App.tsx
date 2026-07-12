@@ -7,16 +7,18 @@ import {
   ChevronRight,
   Gem,
   Landmark,
+  Menu,
   Sparkles,
   Skull,
   Swords,
   VenetianMask,
+  X,
 } from 'lucide-react'
-import { getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
-import type { Book, ContentTotals, GameClass, Setting } from './api'
-import { Corners, D20Logo, Divider } from './ornaments'
+import { getBookContents, getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
+import type { Book, BookContents, ContentTotals, GameClass, Setting } from './api'
+import { Corners, VantageLogo, Divider } from './ornaments'
 import { DieImage } from './dice/diceAssets'
-import { BestiaryPage, BackgroundsPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
+import { BestiaryPage, BackgroundsPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage, TerminsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import {
@@ -29,20 +31,21 @@ import {
   SpellDetailPage,
   SubclassDetailPage,
   SubraceDetailPage,
+  TerminDetailPage,
 } from './pages/DetailPages'
 import DiceRoller from './dice/DiceRoller'
 import RouteReadyGate from './RouteReadyGate'
-import { contentEntryLink, LOOT_CHIP_ROWS } from './contentSections'
+import { bookSectionEntries, contentEntryLink, HEX_EXPAND_ROWS, LOOT_CHIP_ROWS } from './contentSections'
 
 /* ---------- Разделы каталога ---------- */
 
 const CATEGORIES = [
   { path: '/classes', label: 'Классы', icon: Swords },
-  { path: '/races', label: 'Расы и виды', icon: VenetianMask },
+  { path: '/races', label: 'Расы', icon: VenetianMask },
   { path: '/backgrounds', label: 'Предыстории', icon: Landmark },
   { path: '/feats', label: 'Черты', icon: Award },
   { path: '/spells', label: 'Заклинания', icon: Sparkles },
-  { path: '/items', label: 'Магические предметы', icon: Gem },
+  { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
 ] as const
 
@@ -80,17 +83,34 @@ function ClassesNavItem() {
 }
 
 function Masthead() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+
+  // закрываем бургер-меню при переходе на другую страницу
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
   return (
     <header className="masthead">
       <div className="masthead-inner">
         <Link to="/" className="brand">
-          <D20Logo size={42} />
+          <VantageLogo size={42} />
           <div>
             <span className="brand-name gold-text">VANTAGE</span>
             <span className="brand-tag">Кодекс приключений</span>
           </div>
         </Link>
-        <nav className="cat-nav" aria-label="Разделы каталога">
+        <button
+          type="button"
+          className="nav-burger"
+          aria-label={menuOpen ? 'Закрыть меню' : 'Меню разделов'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+        </button>
+        <nav className={`cat-nav${menuOpen ? ' is-open' : ''}`} aria-label="Разделы каталога">
           {CATEGORIES.map(({ path, label, icon: Icon }) =>
             path === '/classes' ? (
               <ClassesNavItem key={path} />
@@ -134,11 +154,13 @@ function PlayButton() {
 
 /** Псевдо-сеттинг для книг без привязки */
 const BASIC_ID = '__basic'
+const CORE_RULES_ART = '/assets/covers/dnd_landskapes.jpg'
 
 interface Realm {
   id: string
   title: string
   desc: string | null
+  pictureUrl: string | null
   books: Book[]
 }
 
@@ -185,9 +207,8 @@ function SettingsCarousel({
         {realms.map((realm, i) => {
           const { ru, en } = splitTitle(realm.title)
           const art =
-            realm.id === BASIC_ID
-              ? settingArt('core rulebooks collection', ru)
-              : settingArt(en, ru)
+            realm.pictureUrl ??
+            (realm.id === BASIC_ID ? CORE_RULES_ART : settingArt(en, ru))
           return (
             <div
               key={realm.id}
@@ -310,71 +331,128 @@ function HexCover({ book }: { book: Book }) {
   )
 }
 
+function HexLootExpand({ book, contents }: { book: Book; contents: BookContents | null }) {
+  const rows = HEX_EXPAND_ROWS.map(({ key, label, icon: Icon, base }) => {
+    const { ids, count } = bookSectionEntries(book, key, contents)
+    const href = contentEntryLink(book.id, key, base, ids)
+    return { key, label, Icon, count, href }
+  })
+  const total = rows.reduce((s, r) => s + r.count, 0)
+
+  return (
+    <div
+      className="hex-expand"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <div className="hex-expand-inner">
+        <Corners size={20} />
+        <div className="hex-expand-title">
+          <span className="hex-expand-title-text">Нововведения</span>
+          <span className="hex-expand-total">{total}</span>
+        </div>
+        <ul className="hex-expand-list">
+          {rows.map(({ key, label, Icon, count, href }) => {
+            const inner = (
+              <>
+                <Icon aria-hidden="true" />
+                <span className="hex-expand-label">{label}</span>
+                <span className="hex-expand-count">{count}</span>
+              </>
+            )
+            return (
+              <li key={key} className={`hex-expand-row${count === 0 ? ' is-zero' : ''}`}>
+                {href ? (
+                  <Link to={href} className="hex-expand-link" title={`${label}: ${count}`}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <span className="hex-expand-link is-static">{inner}</span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// сколько курсор должен «задержаться» на соте, прежде чем она раскроется
+const HEX_DWELL_MS = 700
+
 function BookHex({ book, index }: { book: Book; index: number }) {
   const navigate = useNavigate()
   const { ru } = splitTitle(book.title)
-  const lootBadges = [
-    { key: 'classes', ids: book.new_classes, icon: Swords, base: '/classes' },
-    { key: 'races', ids: book.new_races, icon: VenetianMask, base: '/races' },
-    { key: 'spells', ids: book.new_spells, icon: Sparkles, base: '/spells' },
-    { key: 'items', ids: book.new_items, icon: Gem, base: '/items' },
-  ] as const
+  const [contents, setContents] = useState<BookContents | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const loadingContents = useRef(false)
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const ensureContents = () => {
+    if (contents || loadingContents.current) return
+    loadingContents.current = true
+    getBookContents(book.id)
+      .then(setContents)
+      .catch(() => {})
+      .finally(() => { loadingContents.current = false })
+  }
+
+  // раскрытие только если курсор задержался на соте HEX_DWELL_MS
+  const startDwell = () => {
+    ensureContents() // данные подгружаем сразу, чтобы к раскрытию были готовы
+    if (dwellTimer.current) clearTimeout(dwellTimer.current)
+    dwellTimer.current = setTimeout(() => setExpanded(true), HEX_DWELL_MS)
+  }
+  const cancelDwell = () => {
+    if (dwellTimer.current) {
+      clearTimeout(dwellTimer.current)
+      dwellTimer.current = null
+    }
+    setExpanded(false)
+  }
+  useEffect(() => () => {
+    if (dwellTimer.current) clearTimeout(dwellTimer.current)
+  }, [])
 
   const openBook = () => navigate(`/books/${book.id}`)
 
   return (
     <div
-      className="hex-cell"
+      className={`hex-cell-wrap${expanded ? ' is-expanded' : ''}`}
       style={{ animationDelay: `${Math.min(index * 45, 700)}ms` }}
-      role="link"
-      tabIndex={0}
-      onClick={openBook}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          openBook()
-        }
-      }}
+      onMouseEnter={startDwell}
+      onMouseLeave={cancelDwell}
+      onFocus={ensureContents}
     >
-      <span className="hex-inner">
-        <HexCover book={book} />
-        <span className="hex-shade" />
-        <span className="hex-code">{book.book_code}</span>
-        <span className="hex-body">
-          <span className="hex-title" title={book.title}>{ru}</span>
-          <span className="hex-loot" onClick={(e) => e.stopPropagation()}>
-            {lootBadges.map(({ key, ids, icon: Icon, base }) => {
-              const count = ids?.length ?? 0
-              if (count === 0) return null
-              const href = contentEntryLink(book.id, key, base, ids)
-              if (!href) return null
-              return (
-                <Link
-                  key={key}
-                  to={href}
-                  className="hex-loot-link"
-                  title={`Открыть: ${labelForLoot(key)}`}
-                >
-                  <Icon aria-hidden="true" />
-                  {count}
-                </Link>
-              )
-            })}
+      <div className="hex-unit">
+        <div className="hex-unit-fill">
+        <div
+          className="hex-cell"
+          role="link"
+          tabIndex={0}
+          onClick={openBook}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              openBook()
+            }
+          }}
+        >
+          <span className="hex-inner">
+            <HexCover book={book} />
+            <span className="hex-shade" />
+            <span className="hex-code">{book.book_code}</span>
+            <span className="hex-body">
+              <span className="hex-title" title={book.title}>{ru}</span>
+            </span>
           </span>
-        </span>
-      </span>
+        </div>
+        <HexLootExpand book={book} contents={contents} />
+        </div>
+      </div>
     </div>
   )
-}
-
-function labelForLoot(key: string): string {
-  const labels: Record<string, string> = {
-    classes: 'классы',
-    races: 'расы',
-    spells: 'заклинания',
-    items: 'предметы',
-  }
-  return labels[key] ?? key
 }
 
 /**
@@ -441,13 +519,17 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
             b ? (
               <BookHex key={b.id} book={b} index={ri * layout.cols + ci} />
             ) : (
-              <span key={ci} className="hex-cell is-ghost"><span className="hex-inner" /></span>
+              <span key={ci} className="hex-cell-wrap hex-cell-wrap--static">
+                <div className="hex-unit">
+                  <span className="hex-cell is-ghost"><span className="hex-inner" /></span>
+                </div>
+              </span>
             ),
           )}
           {/* невидимые распорки добивают короткий ряд до целевой ширины,
               чтобы центрирование дало верный сдвиг и ряд вклинился в вырезы */}
           {Array.from({ length: pad }, (_, pi) => (
-            <span key={`pad-${pi}`} className="hex-cell hex-cell--spacer" aria-hidden="true" />
+            <span key={`pad-${pi}`} className="hex-cell-wrap hex-cell-wrap--spacer" aria-hidden="true" />
           ))}
         </div>
       ))}
@@ -479,12 +561,14 @@ function HomePage() {
       id: BASIC_ID,
       title: 'Базовые правила [Core Rules]',
       desc: 'Общие тома мультивселенной: правила, монстры и сокровища, не привязанные к одному миру.',
+      pictureUrl: CORE_RULES_ART,
       books: books.filter((b) => !b.settings_id),
     }
     const rest = settings.map((s) => ({
       id: s.id,
       title: s.settings_title,
       desc: s.settings_description,
+      pictureUrl: s.settings_picture_urls[0] ?? null,
       books: books.filter((b) => b.settings_id === s.id),
     }))
     // миры с книгами — вперёд
@@ -561,6 +645,8 @@ export default function App() {
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/bestiary" element={<BestiaryPage />} />
             <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
+            <Route path="/termins" element={<TerminsPage />} />
+            <Route path="/termins/:id" element={<TerminDetailPage />} />
             <Route path="/books/:id" element={<BookPage />} />
             <Route path="/settings/:id" element={<SettingPage />} />
           </Routes>

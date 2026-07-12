@@ -1,8 +1,9 @@
 /**
  * Декоративные орнаменты в духе ар-деко / дорогих книжных окладов.
  * Corners/Divider — серебряные (используются в основном контенте);
- * D20Logo в шапке — золотой к20 из ассетов.
+ * D20Logo в шапке — к20 из ассетов.
  */
+import logoUrl from './assets/Logo_vantage.svg'
 
 import { useId, useState } from 'react'
 import { BookOpen } from 'lucide-react'
@@ -110,7 +111,21 @@ export function Divider() {
   )
 }
 
-/** Логотип — к20 из ассетов. Единственное место, где остаётся золото (верх страницы). */
+/** Логотип Vantage в шапке */
+export function VantageLogo({ size = 42 }: { size?: number }) {
+  return (
+    <img
+      src={logoUrl}
+      alt=""
+      className="brand-logo"
+      width={size}
+      height={Math.round(size * (220 / 199))}
+      aria-hidden="true"
+    />
+  )
+}
+
+/** @deprecated Используйте VantageLogo */
 export function D20Logo({ size = 40 }: { size?: number }) {
   return <D20LogoImage size={size} />
 }

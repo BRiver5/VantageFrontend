@@ -6,7 +6,7 @@ import {
   getBookContents,
   getBooks,
   getOne,
-  settingArt,
+  settingPictureUrl,
   splitTitle,
   totalsOf,
 } from '../api'
@@ -60,7 +60,7 @@ export default function SettingPage() {
   if (!setting) return <p className="status-line">Открываем портал…</p>
 
   const { ru, en } = splitTitle(setting.settings_title)
-  const art = setting.settings_picture_urls[0] ?? settingArt(en, ru, 900, 500)
+  const art = settingPictureUrl(setting, 1600, 720)
 
   return (
     <section className="book-page">
@@ -68,10 +68,9 @@ export default function SettingPage() {
         <ArrowLeft aria-hidden="true" /> ко всем мирам
       </Link>
 
-      <div className="book-hero setting-hero">
-        <span className="setting-hero-art" style={{ backgroundImage: `url("${art}")` }} />
-        <Corners size={40} />
-        <div className="book-meta">
+      <div className="world-hero">
+        <span className="world-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />
+        <div className="world-hero-inner">
           <span className="setting-kicker">Сеттинг</span>
           <h1 className="book-title gold-text">{ru}</h1>
           {en && <span className="setting-name-en">{en}</span>}

@@ -198,13 +198,13 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 }
 
 .masthead-inner {
-  max-width: 1280px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 10px clamp(12px, 3vw, 36px);
   display: flex;
   align-items: center;
-  gap: clamp(12px, 3vw, 40px);
-  flex-wrap: wrap;
+  gap: clamp(12px, 2.4vw, 32px);
+  flex-wrap: nowrap;
 }
 
 .brand {
@@ -212,6 +212,12 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   align-items: center;
   gap: 12px;
   user-select: none;
+}
+
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.22));
 }
 
 .brand-name {
@@ -237,11 +243,43 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 
 .cat-nav {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
   margin-left: auto;
   justify-content: center;
 }
+
+/* бургер-кнопка — гекс-фишка в золотой оконтовке, видна только на узких экранах */
+.nav-burger {
+  display: none;
+  position: relative;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0;
+  clip-path: var(--hex-chip);
+  background: var(--gold-grad);
+  cursor: pointer;
+}
+.nav-burger::before {
+  content: '';
+  position: absolute;
+  inset: 1.4px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.nav-burger svg {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  color: var(--gold-3);
+}
+.nav-burger:hover { filter: brightness(1.2); }
 
 .cat-btn {
   display: inline-block;                /* без этого <a> внутри .nav-scroll рендерится как inline и теряет форму */
@@ -256,22 +294,22 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   clip-path: var(--hex-chip);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 24px;
+  gap: 5px;
+  padding: 8px 13px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%),
     linear-gradient(180deg, var(--bg-3), var(--bg-1));
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.06em;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--gold-3);
   white-space: nowrap;
   transition: background 0.25s ease, color 0.25s ease;
 }
 
-.cat-btn svg { width: 17px; height: 17px; stroke-width: 1.5; flex-shrink: 0; }
+.cat-btn svg { width: 15px; height: 15px; stroke-width: 1.5; flex-shrink: 0; }
 
 .cat-btn:hover { filter: brightness(1.25) drop-shadow(0 0 10px rgba(228, 196, 110, 0.35)); transform: translateY(-1px); }
 .cat-btn:active { transform: translateY(0); }
@@ -789,53 +827,153 @@ button.loot-chip {
 .hive {
   --s: 196px;                              /* ширина соты (задаёт JS по ширине экрана) */
   --m: 7px;                                /* зазор между сотами */
+  --hex-h: calc(var(--s) * 1.1547);        /* высота гекса */
+  --hex-gap: calc(var(--m) * 2);           /* зазор между кромками сот (как по горизонтали) */
+  --hex-tip: calc(var(--hex-h) * 0.25);    /* высота нижнего/верхнего остря гекса */
+  /* «голова» соты в раскрытом виде: остриё сверху (как у соты), но НИЗ ПЛОСКИЙ —
+     обложка ровно стыкуется со списком, без острого выступа-«верхушки».
+     6 точек (как у --hex-point) — форма плавно морфится из гекса при раскрытии. */
+  --hex-clip-head: polygon(50% 0, 100% 25%, 100% 100%, 50% 100%, 0 100%, 0 25%);
+  --hex-clip-elongated: polygon(
+    50% 0,
+    100% calc(var(--hex-h) * 0.25),
+    100% calc(100% - var(--hex-tip)),
+    50% 100%,
+    0 calc(100% - var(--hex-tip)),
+    0 calc(var(--hex-h) * 0.25)
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0 40px;
+  padding: 10px 0 56px;
 }
 
 .hive-row {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   position: relative;
-  margin-top: var(--m);                 /* обычный отступ по умолчанию */
+  margin-top: calc(var(--m) * 2);
 }
 .hive-row:first-child { margin-top: 0; }
-/* каждый ряд после первого вклинивается в вырезы предыдущего; короткие ряды
-   добиты невидимыми распорками (см. layoutHive) — стыковка верна при любом числе книг */
-.hive-row--nest { margin-top: calc(var(--s) * -0.2887 + var(--m)); }
+/* внахлёст рядов: 25% высоты гекса + такой же зазор, как по горизонтали (2×m) */
+.hive-row--nest { margin-top: calc(var(--hex-h) * -0.25 + var(--m) * 2); }
 .hive-row:hover { z-index: 5; }
 
-/* невидимая ячейка-распорка: держит ширину соты, но ничего не рисует */
-.hex-cell--spacer {
+/* невидимая ячейка-распорка и заглушка — тот же каркас, что у книги */
+.hex-cell-wrap--spacer {
   visibility: hidden;
   pointer-events: none;
-  background: none;
-  animation: none;
+}
+
+.hex-cell-wrap--static,
+.hex-cell-wrap--spacer {
+  min-height: var(--hex-h);
+}
+
+.hex-cell.is-ghost {
+  width: 100%;
+  height: var(--hex-h);
+}
+
+.hex-cell-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  vertical-align: top;
+  width: var(--s);
+  min-height: var(--hex-h);
+  margin: 0 var(--m);
+  animation: rise 0.5s ease backwards;
+}
+
+.hex-cell-wrap.is-expanded,
+.hex-cell-wrap:focus-within {
+  z-index: 12;
+  overflow: visible;
+}
+
+.hex-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  /* высота ВСЕГДА по содержимому (не фиксируем hex-h) — тогда рост/схлопывание
+     списка (grid-rows) плавно тянет высоту соты и на раскрытии, И на закрытии.
+     Раньше свёрнутая высота была фиксированной → при уводе курсора она мгновенно
+     защёлкивалась, и закрытие выглядело резким. */
+  height: auto;
+  min-height: var(--hex-h);
+  overflow: hidden;
+  background: transparent;
+  padding: 0;
+  /* та же форма и в свёрнутом виде (при высоте гекса ≈ обычная сота) — тогда
+     при росте высоты она ПЛАВНО удлиняется, а не прыгает с none на polygon */
+  clip-path: var(--hex-clip-elongated);
+  /* единая длительность/кривая для всех свойств — раскрытие идёт синхронно,
+     без «раскрылось наполовину и ждём» */
+  transition:
+    background 0.85s cubic-bezier(0.6, 0, 0.4, 1),
+    padding 0.85s cubic-bezier(0.6, 0, 0.4, 1),
+    filter 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-unit,
+.hex-cell-wrap:focus-within .hex-unit {
+  position: relative;
+  height: auto;
+  background: var(--silver-grad);
+  padding: 2px;
+  clip-path: var(--hex-clip-elongated);
+  overflow: visible;
+  filter:
+    drop-shadow(0 0 22px rgba(205, 211, 219, 0.7))
+    drop-shadow(0 0 6px rgba(241, 244, 248, 0.55))
+    drop-shadow(0 12px 30px rgba(0, 0, 0, 0.5));
+}
+
+.hex-unit-fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: transparent;
+  /* та же форма всегда — серебряная обводка появляется плавно (через padding
+     оклада), без резкого щелчка clip-path при раскрытии */
+  clip-path: var(--hex-clip-elongated);
+}
+
+.hex-cell-wrap.is-expanded .hex-unit-fill,
+.hex-cell-wrap:focus-within .hex-unit-fill {
+  background: linear-gradient(180deg, var(--bg-3) 0%, var(--bg-1) 42%, var(--bg-0) 100%);
+  /* та же вытянутая форма, что у оклада — тогда серебряная обводка ровная
+     по всему периметру, включая верхний и нижний острые концы (а не только бока) */
+  clip-path: var(--hex-clip-elongated);
 }
 
 .hex-cell {
   position: relative;
-  width: var(--s);
-  height: calc(var(--s) * 1.1547);
-  margin: 0 var(--m);
-  display: inline-block;
+  width: 100%;
+  height: var(--hex-h);
+  flex-shrink: 0;
+  display: block;
   font-size: 1rem;
   text-align: center;
   color: inherit;
   clip-path: var(--hex-point);
   background: var(--silver-grad);
   padding: 2px;
-  vertical-align: top;
-  transition: transform 0.25s ease, filter 0.25s ease;
   cursor: pointer;
+  transition: filter 0.85s cubic-bezier(0.6, 0, 0.4, 1), clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1), background 0.85s cubic-bezier(0.6, 0, 0.4, 1), padding 0.85s cubic-bezier(0.6, 0, 0.4, 1);
 }
 
-.hex-cell:hover {
-  transform: scale(1.045);
+.hex-cell-wrap.is-expanded .hex-cell,
+.hex-cell-wrap:focus-within .hex-cell {
   filter: drop-shadow(0 0 16px rgba(205, 211, 219, 0.55)) brightness(1.1);
-  z-index: 4;
+  /* плоский низ — обложка стыкуется со списком без острого выступа */
+  clip-path: var(--hex-clip-head);
+  background: transparent;
+  padding: 0;
 }
 
 .hex-inner {
@@ -849,6 +987,12 @@ button.loot-chip {
   flex-direction: column;
   justify-content: flex-end;
   text-align: center;
+  transition: clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-inner,
+.hex-cell-wrap:focus-within .hex-inner {
+  clip-path: var(--hex-clip-head);
 }
 
 .hex-cover {
@@ -874,6 +1018,7 @@ button.loot-chip {
 .hex-cover--empty svg { width: 34%; height: 34%; color: rgba(228, 196, 110, 0.3); stroke-width: 1; }
 
 /* вторая, тонкая внутренняя грань оклада */
+/* внутренняя грань — только в свёрнутой соте */
 .hex-inner::after {
   content: '';
   position: absolute;
@@ -882,9 +1027,23 @@ button.loot-chip {
   box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.35);
   pointer-events: none;
   z-index: 3;
+  transition: opacity 0.28s ease;
 }
 
-.hex-cell:hover .hex-cover { transform: scale(1.07); filter: saturate(1.05); }
+/* внутренняя грань-рамка — только у свёрнутой соты; в раскрытой прячем,
+   иначе её гексагональный контур с острым низом торчит поверх плоской обложки */
+.hex-cell-wrap.is-expanded .hex-inner::after,
+.hex-cell-wrap:focus-within .hex-inner::after {
+  opacity: 0;
+}
+
+.hex-cell-wrap:not(:hover):not(:focus-within) .hex-inner::after {
+  opacity: 1;
+}
+
+/* обложка приближается СРАЗУ при наведении — мгновенный отклик,
+   раскрытие самой соты по-прежнему ждёт задержки курсора (1.5 с) */
+.hex-cell-wrap:hover .hex-cover { transform: scale(1.07); filter: saturate(1.05); }
 
 /* градиент затемнения под текст */
 .hex-shade {
@@ -963,8 +1122,161 @@ button.loot-chip {
   background: rgba(228, 196, 110, 0.14);
 }
 
-/* пустая сота-заглушка при загрузке */
-.hex-cell.is-ghost { background: linear-gradient(160deg, rgba(124, 130, 139, 0.3), rgba(124, 130, 139, 0.08)); }
+/* список нововведений — внутри той же соты, без отдельной рамки */
+.hex-expand {
+  display: grid;
+  /* minmax(0, …) — иначе 0fr упирается в min-content и не схлопывается в ноль,
+     из-за чего у свёрнутой соты снизу торчал бы кусок списка «НОВОВВЕДЕНИЯ …» */
+  grid-template-rows: minmax(0, 0fr);
+  flex-shrink: 0;
+  width: 100%;
+  overflow: hidden;
+  transition: grid-template-rows 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-expand,
+.hex-cell-wrap:focus-within .hex-expand {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.hex-expand-inner {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding:
+    var(--hex-gap)
+    10px
+    calc(var(--hex-gap) + var(--hex-tip));
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(196, 154, 60, 0.08), transparent 62%),
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 55%, var(--bg-0) 100%);
+}
+
+.hex-expand-inner::after {
+  display: none;
+}
+
+.hex-expand-inner .corner {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.hex-cell-wrap.is-expanded .hex-expand-inner .corner,
+.hex-cell-wrap:focus-within .hex-expand-inner .corner {
+  opacity: 1;
+}
+
+.hex-expand-inner .corner--tl,
+.hex-expand-inner .corner--tr { display: none; }
+.hex-expand-inner .corner--bl,
+.hex-expand-inner .corner--br { bottom: calc(var(--hex-tip) - 2px); }
+.hex-expand-inner .corner--bl { left: 0; }
+.hex-expand-inner .corner--br { right: 0; }
+
+.hex-expand-title {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+}
+
+.hex-expand-title::after {
+  content: '';
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 175, 186, 0.45) 20%, rgba(241, 244, 248, 0.65) 50%, rgba(168, 175, 186, 0.45) 80%, transparent);
+}
+
+.hex-expand-title-text {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+.hex-expand-total {
+  clip-path: var(--hex-chip);
+  padding: 1px 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  color: var(--gold-3);
+  background: rgba(13, 14, 18, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.5);
+}
+
+.hex-expand-list {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hex-expand-row.is-zero { opacity: 0.36; }
+
+.hex-expand-link {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px 5px 8px;
+  clip-path: var(--hex-chip);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background:
+    linear-gradient(180deg, rgba(241, 244, 248, 0.05), transparent 48%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.26);
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.hex-expand-link svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+  color: var(--gold-2);
+}
+
+.hex-expand-label { text-align: left; }
+
+.hex-expand-count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--gold-3);
+  min-width: 1.3em;
+  text-align: right;
+}
+
+a.hex-expand-link:hover {
+  color: var(--gold-4);
+  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.5);
+  transform: translateY(-1px);
+}
+
+a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
+
+.hex-expand-link.is-static { cursor: default; }
+
+/* пустая сота-заглушка при загрузке — серебряный оклад как у книг */
 .hex-cell.is-ghost .hex-inner {
   background: linear-gradient(110deg, var(--bg-2) 30%, var(--bg-3) 50%, var(--bg-2) 70%);
   background-size: 220% 100%;
@@ -981,7 +1293,6 @@ button.loot-chip {
 }
 
 /* появление сот */
-.hex-cell { animation: rise 0.5s ease backwards; }
 @keyframes rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
@@ -1578,6 +1889,18 @@ a.card-slot { text-decoration: none; color: inherit; }
 .rich p { margin-bottom: 0.85em; line-height: 1.6; font-size: 1.1rem; }
 .rich b { color: var(--parchment); font-weight: 600; }
 
+a.term-link {
+  color: var(--gold-2);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold-2) 45%, transparent);
+  text-underline-offset: 0.15em;
+  transition: color 0.15s, text-decoration-color 0.15s;
+}
+a.term-link:hover {
+  color: var(--gold-1);
+  text-decoration-color: var(--gold-1);
+}
+
 /* --- статблок существа --- */
 
 .ability-grid {
@@ -1659,6 +1982,73 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: var(--text);
   font-style: italic;
 }
+
+/* ---------- Полноширинная hero-секция мира: обои во всю ширину,
+   плавно перетекающие в фон страницы к низу ---------- */
+.world-hero {
+  position: relative;
+  /* вырываемся из центрированного .page на всю ширину вьюпорта */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  margin-bottom: clamp(14px, 3vw, 30px);
+  min-height: clamp(300px, 40vw, 520px);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  isolation: isolate;
+}
+.world-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 22%;
+}
+/* обои плавно растворяются в фоне страницы — к низу (до --bg-0) и слегка по краям */
+.world-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(13, 14, 17, 0.1) 0%,
+      rgba(13, 14, 17, 0.32) 44%,
+      rgba(13, 14, 17, 0.72) 74%,
+      rgba(13, 14, 17, 0.93) 90%,
+      var(--bg-0) 100%
+    ),
+    linear-gradient(90deg, rgba(13, 14, 17, 0.5) 0%, transparent 30%, transparent 70%, rgba(13, 14, 17, 0.5) 100%);
+}
+/* содержимое героя выровнено с остальной страницей (центр, макс. 1280) */
+.world-hero-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(48px, 9vw, 110px) clamp(16px, 3vw, 40px) clamp(24px, 4vw, 44px);
+}
+/* книга: обложка + мета в ряд поверх обоев мира */
+.book-hero-inner {
+  display: flex;
+  gap: clamp(20px, 4vw, 44px);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+/* книга без мира — простой герой без обоев */
+.world-hero--plain {
+  width: auto;
+  margin-left: 0;
+  margin-right: 0;
+  min-height: 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.85), rgba(124, 130, 139, 0.2) 35%, rgba(124, 130, 139, 0.2) 65%, rgba(124, 130, 139, 0.85)) border-box;
+}
+.world-hero--plain .world-hero-inner { padding: clamp(24px, 4vw, 44px); }
 
 /* карусель томов мира */
 .tome-carousel { padding-top: 18px; }
@@ -2647,7 +3037,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
-  animation: dice-reveal-title-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: dice-reveal-title-in 0.85s cubic-bezier(0.6, 0, 0.4, 1) backwards;
 }
 
 .dice-reveal-title--crit {
@@ -2859,11 +3249,11 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 
 .dice-clash-arena--enter .dice-clash-value-wrap--left {
-  animation: dice-clash-enter-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: dice-clash-enter-left 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
 }
 
 .dice-clash-arena--enter .dice-clash-value-wrap--right {
-  animation: dice-clash-enter-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: dice-clash-enter-right 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
 }
 
 @keyframes dice-clash-enter-left {
@@ -3124,9 +3514,52 @@ a.card-slot { text-decoration: none; color: inherit; }
    АДАПТИВ
    ============================================================ */
 
-@media (max-width: 900px) {
-  .cat-nav { margin-left: 0; width: 100%; }
-  .masthead-inner { justify-content: center; }
+/* узкие экраны (<1280): разделы прячем в бургер-меню (выпадает под шапкой) */
+@media (max-width: 1279px) {
+  .nav-burger { display: flex; }
+
+  .cat-nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 0 clamp(12px, 4vw, 28px);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(13, 14, 17, 0.98), rgba(13, 14, 17, 0.95));
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid transparent;
+    border-image: var(--gold-grad-h) 1;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    transition: max-height 0.32s ease, opacity 0.24s ease, padding 0.32s ease;
+  }
+  .cat-nav.is-open {
+    max-height: 82vh;
+    overflow-y: auto;
+    opacity: 1;
+    pointer-events: auto;
+    padding: 14px clamp(12px, 4vw, 28px) 18px;
+  }
+
+  /* каждый раздел — на всю ширину выпадающего меню */
+  .cat-nav .cat-btn,
+  .cat-nav .nav-scroll {
+    display: block;
+    width: 100%;
+  }
+  .cat-nav .cat-btn-inner {
+    justify-content: center;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+  }
+  /* hover-свиток «Классы» в бургере не нужен — просто ссылка на каталог */
+  .nav-scroll-panel { display: none; }
 }
 
 @media (max-width: 560px) {
