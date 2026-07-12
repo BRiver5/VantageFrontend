@@ -1771,17 +1771,52 @@ a.card-slot { text-decoration: none; color: inherit; }
   animation: dice-tray-rise 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dice-tray {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* обёртка лотка: рамка + шапка с карандашом + редактор палитры + список */
+.dice-tray-wrap {
+  box-sizing: border-box;
+  width: min(216px, calc(100vw - 44px));
   padding: 10px 12px;
-  width: min(200px, calc(100vw - 44px));
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
     var(--silver-grad) border-box;
   border: 1.4px solid transparent;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.dice-tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.dice-tray-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+.dice-palette-btn {
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-chip);
+  color: var(--silver-3);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  transition: box-shadow 0.15s ease, color 0.15s ease;
+}
+.dice-palette-btn:hover,
+.dice-palette-btn.is-active { color: var(--gold-3); box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.65); }
+
+.dice-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 @keyframes dice-tray-rise {
@@ -1792,10 +1827,104 @@ a.card-slot { text-decoration: none; color: inherit; }
 .dice-tray-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-height: 34px;
   padding: 2px 0;
+}
+
+/* цветной чип расцветки кости — клик циклит по избранным */
+.dice-row-color {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+.dice-row-color:hover {
+  transform: scale(1.15);
+  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
+}
+
+/* редактор избранных расцветок */
+.dice-palette-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+  animation: dice-cloud-in 0.2s ease;
+}
+.dice-palette-caption {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+.dice-palette-favs { display: flex; gap: 6px; flex-wrap: wrap; }
+.dice-fav-slot {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.35);
+}
+.dice-fav-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--silver-3);
+  font-size: 0.72rem;
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.4);
+}
+.dice-fav-remove:hover { background: #792c22; color: #fff; }
+.dice-palette-add { display: flex; align-items: center; gap: 6px; }
+.dice-color-input {
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.dice-palette-add-btn {
+  flex: 1;
+  height: 26px;
+  clip-path: var(--hex-chip);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.76rem;
+  color: var(--bg-0);
+  background: var(--silver-grad);
+  transition: filter 0.15s ease;
+}
+.dice-palette-add-btn:hover { filter: brightness(1.1); }
+.dice-palette-presets { display: flex; gap: 5px; flex-wrap: wrap; }
+.dice-preset {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.25);
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.dice-preset:hover {
+  transform: scale(1.2);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
 }
 
 .dice-shape-icon-wrap {
@@ -1818,6 +1947,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .dice-qty-btn {
@@ -1847,36 +1977,56 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: var(--gold-3);
 }
 
-/* ---------- История бросков над меню ---------- */
+/* ---------- История бросков — отдельное «облачко» над меню ---------- */
 
-.dice-history-wrap {
+.dice-history-cloud {
   position: relative;
-  width: min(200px, calc(100vw - 44px));
-  margin-bottom: -1px;
+  width: min(216px, calc(100vw - 44px));
+  margin-bottom: 14px;
+  border-radius: 14px;
   background:
-    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
     var(--silver-grad) border-box;
   border: 1.4px solid transparent;
-  border-bottom: none;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  animation: dice-cloud-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dice-cloud-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* хвостик-указатель облачка вниз, к меню */
+.dice-history-tail {
+  position: absolute;
+  left: 28px;
+  bottom: -8px;
+  width: 15px;
+  height: 15px;
+  background: var(--bg-1);
+  border-right: 1.4px solid rgba(168, 175, 186, 0.55);
+  border-bottom: 1.4px solid rgba(168, 175, 186, 0.55);
+  transform: rotate(45deg);
 }
 
 .dice-history-fade {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2.4em;
-  background: linear-gradient(to bottom, var(--bg-1) 10%, rgba(19, 21, 25, 0.85) 55%, transparent);
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 2.2em;
+  border-radius: 13px 13px 0 0;
+  background: linear-gradient(to bottom, var(--bg-2) 8%, rgba(24, 26, 31, 0.82) 55%, transparent);
   pointer-events: none;
   z-index: 2;
 }
 
 .dice-history {
-  max-height: calc(3 * 1.65rem + 16px);
+  max-height: calc(3 * 1.7rem + 16px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 12px 6px;
+  padding: 10px 14px 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1909,9 +2059,24 @@ a.card-slot { text-decoration: none; color: inherit; }
   opacity: 1;
 }
 
-.dice-history-item:last-child {
-  color: var(--gold-4);
+.dice-history-item:last-child .dice-hist-total {
+  filter: brightness(1.12);
 }
+
+.dice-hist-op {
+  color: rgba(205, 211, 219, 0.7);
+  font-weight: 500;
+}
+.dice-hist-total {
+  color: #f1f4f8;
+  font-weight: 700;
+}
+
+/* ---------- Цвет цифры по результату (крит-провал/успех) ---------- */
+/* минимум (1) — бронза, максимум грани — золото, всё между — серебро */
+.dice-crit-fail { color: #c07f3c; }
+.dice-crit-normal { color: #cdd3db; }
+.dice-crit-success { color: var(--gold-3); }
 
 .dice-formula-error {
   font-size: 0.82rem;
@@ -2012,6 +2177,20 @@ a.card-slot { text-decoration: none; color: inherit; }
   to { opacity: 1; transform: scale(1); }
 }
 
+/* цвет крупной цифры в оверлее по результату (перебивает базовый золотой) */
+.dice-reveal-value.dice-crit-fail {
+  color: #cc8845;
+  text-shadow: 0 0 22px rgba(204, 136, 69, 0.65), 0 0 44px rgba(150, 80, 30, 0.3);
+}
+.dice-reveal-value.dice-crit-normal {
+  color: #dfe4ec;
+  text-shadow: 0 0 22px rgba(205, 211, 219, 0.6), 0 0 44px rgba(140, 150, 165, 0.3);
+}
+.dice-reveal-value.dice-crit-success {
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 200, 80, 0.7), 0 0 48px rgba(255, 140, 30, 0.35);
+}
+
 .dice-reveal-plus,
 .dice-reveal-equals {
   font-size: clamp(1.8rem, 5vw, 2.4rem);
@@ -2045,8 +2224,8 @@ a.card-slot { text-decoration: none; color: inherit; }
   .dice-fab,
   .dice-close-btn { width: 50px; height: 50px; }
   .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
-  .dice-tray,
-  .dice-history-wrap { width: min(180px, calc(100vw - 28px)); }
+  .dice-tray-wrap,
+  .dice-history-cloud { width: min(196px, calc(100vw - 28px)); }
   .dice-shape-icon-wrap { width: 30px; height: 30px; }
 }
 
