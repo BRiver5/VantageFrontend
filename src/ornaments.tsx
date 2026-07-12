@@ -4,7 +4,7 @@
  * D20Logo в шапке — золотой к20 из ассетов.
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { BookOpen } from 'lucide-react'
 import { D20LogoImage } from './dice/diceAssets'
 
@@ -32,8 +32,20 @@ const SILVER_STOPS = (
   </>
 )
 
+const GOLD_STOPS = (
+  <>
+    <stop offset="0%" stopColor="#8a6a2f" />
+    <stop offset="45%" stopColor="#e3c46e" />
+    <stop offset="55%" stopColor="#f6e7b6" />
+    <stop offset="100%" stopColor="#c49a3c" />
+  </>
+)
+
 /** Угловой орнамент. Кладётся в углы рамок через .corner--tl/tr/bl/br */
-export function Corner({ size = 44 }: { size?: number }) {
+export function Corner({ size = 44, gold = false }: { size?: number; gold?: boolean }) {
+  const gradId = useId().replace(/:/g, '')
+  const stops = gold ? GOLD_STOPS : SILVER_STOPS
+
   return (
     <svg
       className="corner-svg"
@@ -44,32 +56,28 @@ export function Corner({ size = 44 }: { size?: number }) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="og" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          {SILVER_STOPS}
+        <linearGradient id={gradId} x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          {stops}
         </linearGradient>
       </defs>
-      {/* внешняя линия угла */}
-      <path d="M43 1.5 H10 M1.5 43 V10" stroke="url(#og)" strokeWidth="1.6" />
-      {/* внутренняя линия со ступенькой */}
-      <path d="M43 8 H16 Q8 8 8 16 V43" stroke="url(#og)" strokeWidth="1" />
-      {/* акцентные штрихи */}
-      <path d="M43 13 H26 M13 43 V26" stroke="url(#og)" strokeWidth="0.8" opacity="0.7" />
-      {/* ромб на сгибе */}
-      <rect x="4.6" y="4.6" width="6" height="6" transform="rotate(45 7.6 7.6)" stroke="url(#og)" strokeWidth="1" />
-      <circle cx="20" cy="10.5" r="1.4" fill="url(#og)" />
-      <circle cx="10.5" cy="20" r="1.4" fill="url(#og)" />
+      <path d="M43 1.5 H10 M1.5 43 V10" stroke={`url(#${gradId})`} strokeWidth="1.6" />
+      <path d="M43 8 H16 Q8 8 8 16 V43" stroke={`url(#${gradId})`} strokeWidth="1" />
+      <path d="M43 13 H26 M13 43 V26" stroke={`url(#${gradId})`} strokeWidth="0.8" opacity="0.7" />
+      <rect x="4.6" y="4.6" width="6" height="6" transform="rotate(45 7.6 7.6)" stroke={`url(#${gradId})`} strokeWidth="1" />
+      <circle cx="20" cy="10.5" r="1.4" fill={`url(#${gradId})`} />
+      <circle cx="10.5" cy="20" r="1.4" fill={`url(#${gradId})`} />
     </svg>
   )
 }
 
 /** Четыре угла сразу — для карточек и рамок */
-export function Corners({ size = 44 }: { size?: number }) {
+export function Corners({ size = 44, gold = false }: { size?: number; gold?: boolean }) {
   return (
     <>
-      <i className="corner corner--tl"><Corner size={size} /></i>
-      <i className="corner corner--tr"><Corner size={size} /></i>
-      <i className="corner corner--bl"><Corner size={size} /></i>
-      <i className="corner corner--br"><Corner size={size} /></i>
+      <i className="corner corner--tl"><Corner size={size} gold={gold} /></i>
+      <i className="corner corner--tr"><Corner size={size} gold={gold} /></i>
+      <i className="corner corner--bl"><Corner size={size} gold={gold} /></i>
+      <i className="corner corner--br"><Corner size={size} gold={gold} /></i>
     </>
   )
 }
