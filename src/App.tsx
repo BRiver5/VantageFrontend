@@ -5,7 +5,6 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Dices,
   Gem,
   Landmark,
   Shield,
@@ -19,6 +18,7 @@ import {
 import { getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
 import type { Book, ContentTotals, GameClass, Setting } from './api'
 import { Corners, D20Logo, Divider } from './ornaments'
+import { DieImage } from './dice/diceAssets'
 import { BestiaryPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
@@ -119,9 +119,9 @@ function PlayButton() {
     <div className="play-wrap">
       <button type="button" className="play-btn" title="Скоро в игре">
         <span className="play-btn-inner">
-          <Dices aria-hidden="true" />
+          <DieImage type={20} size={26} className="die-play-icon" />
           <span className="gold-text">Играть</span>
-          <Dices aria-hidden="true" style={{ transform: 'scaleX(-1)' }} />
+          <DieImage type={20} size={26} className="die-play-icon die-play-icon--flip" />
         </span>
       </button>
       <span className="play-hint">— врата откроются вскоре —</span>

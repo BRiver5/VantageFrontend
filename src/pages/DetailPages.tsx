@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Award,
   Coins,
-  Dices,
   Eye,
   Footprints,
   Gem,
@@ -33,6 +32,7 @@ import {
 import type { Book, Creature, CreatureTrait, Feat, GameClass, Item, Race, Spell, Subclass, Subrace } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
+import { DieChipIcon, hitDieType } from '../dice/diceAssets'
 
 /* ---------- Общие детали ---------- */
 
@@ -78,10 +78,13 @@ function Rich({ text }: { text: string | null | undefined }) {
   )
 }
 
-function Chip({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: ReactNode }) {
   return (
     <span className="chip">
-      <Icon aria-hidden="true" />
+      {typeof icon === 'function' ? (() => {
+        const Icon = icon
+        return <Icon aria-hidden="true" />
+      })() : icon}
       {children}
     </span>
   )
@@ -301,7 +304,7 @@ export function CreatureDetailPage() {
           <Chip icon={Shield}>КД {c.ac}{c.ac_source ? ` (${c.ac_source})` : ''}</Chip>
           <Chip icon={Star}>{c.hp} хитов{c.hp_formula ? ` (${c.hp_formula.trim()})` : ''}</Chip>
           {speeds && <Chip icon={Footprints}>{speeds}</Chip>}
-          {c.proficiency_bonus != null && <Chip icon={Dices}>бонус мастерства +{c.proficiency_bonus}</Chip>}
+          {c.proficiency_bonus != null && <Chip icon={<DieChipIcon type={20} />}>бонус мастерства +{c.proficiency_bonus}</Chip>}
           {c.is_unique && <Chip icon={Star}>уникальное</Chip>}
         </>
       }
@@ -388,7 +391,7 @@ export function ClassDetailPage() {
       imageIcon={Swords}
       chips={
         <>
-          <Chip icon={Dices}>кость хитов к{c.hit_dice}</Chip>
+          <Chip icon={<DieChipIcon type={hitDieType(c.hit_dice)} />}>кость хитов к{c.hit_dice}</Chip>
           {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
           {c.saving_throw_proficiencies?.length ? (
             <Chip icon={Shield}>спасброски: {c.saving_throw_proficiencies.join(', ')}</Chip>

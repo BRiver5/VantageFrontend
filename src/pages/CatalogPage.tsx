@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
-  Dices,
   Eye,
   Flame,
   Footprints,
@@ -38,15 +37,19 @@ import {
 } from '../api'
 import type { Book, BookMap, Creature, Feat, GameClass, Item, Race, Spell } from '../api'
 import { Divider } from '../ornaments'
+import { DieChipIcon, hitDieType } from '../dice/diceAssets'
 
 const PAGE_SIZE = 24
 
 /* ---------- Мелкие детали карточек ---------- */
 
-function Chip({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: ReactNode }) {
   return (
     <span className="chip">
-      <Icon aria-hidden="true" />
+      {typeof icon === 'function' ? (() => {
+        const Icon = icon
+        return <Icon aria-hidden="true" />
+      })() : icon}
       {children}
     </span>
   )
@@ -146,7 +149,7 @@ function classCard(c: GameClass) {
       <CardImage src={realImage(c.image_gallery)} alt={c.class_name} fallback={Swords} />
       <h3 className="card-name">{c.class_name}</h3>
       <div className="card-chips">
-        <Chip icon={Dices}>к{c.hit_dice} хитов</Chip>
+        <Chip icon={<DieChipIcon type={hitDieType(c.hit_dice)} />}>к{c.hit_dice} хитов</Chip>
         {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
         {c.saving_throw_proficiencies && c.saving_throw_proficiencies.length > 0 && (
           <Chip icon={Shield}>{c.saving_throw_proficiencies.join(', ')}</Chip>

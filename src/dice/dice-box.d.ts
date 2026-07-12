@@ -65,8 +65,8 @@ declare module '@3d-dice/dice-box' {
   export default class DiceBox {
     constructor(config: DiceBoxConfig)
     init(): Promise<void>
-    roll(notation: DiceNotation, options?: { theme?: string; newStartPoint?: boolean }): Promise<RollResult[]>
-    add(notation: DiceNotation, options?: { theme?: string; newStartPoint?: boolean }): Promise<RollResult[]>
+    roll(notation: DiceNotation, options?: { theme?: string; themeColor?: string; newStartPoint?: boolean }): Promise<RollResult[]>
+    add(notation: DiceNotation, options?: { theme?: string; themeColor?: string; newStartPoint?: boolean }): Promise<RollResult[]>
     reroll(notation: unknown, options?: { remove?: boolean; newStartPoint?: boolean }): Promise<RollResult[]>
     remove(notation: unknown): Promise<RollResult[]>
     clear(): void

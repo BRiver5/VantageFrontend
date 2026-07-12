@@ -397,6 +397,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 }
 
 .play-btn-inner svg { width: 26px; height: 26px; stroke-width: 1.6; color: var(--gold-3); }
+.play-btn-inner .die-play-icon { width: 26px; height: 26px; }
 
 /* блуждающий блик по кнопке */
 .play-btn-inner::after {
@@ -1131,6 +1132,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   text-overflow: ellipsis;
 }
 .chip svg { width: 14px; height: 14px; stroke-width: 1.6; color: var(--gold-2); flex-shrink: 0; }
+.chip .die-chip-icon { width: 14px; height: 14px; }
 
 /* бейдж книги-источника — аббревиатура, полное название всплывает через title */
 .source-chip {
@@ -1670,7 +1672,16 @@ a.card-slot { text-decoration: none; color: inherit; }
   clip-path: var(--hex-point);
   background: var(--silver-grad);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.2s ease;
+}
+.dice-fab:not(.is-visible) {
+  opacity: 0;
+  transform: scale(0.94);
 }
 .dice-fab::before {
   content: '';
@@ -1685,6 +1696,29 @@ a.card-slot { text-decoration: none; color: inherit; }
   font-size: 1.6rem;
   line-height: 1;
   color: var(--silver-3);
+}
+.die-asset-img {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+.die-fab-icon {
+  position: relative;
+  z-index: 1;
+}
+.die-logo-img {
+  display: block;
+}
+.die-chip-icon {
+  flex-shrink: 0;
+}
+.die-play-icon {
+  flex-shrink: 0;
+}
+.die-play-icon--flip {
+  transform: scaleX(-1);
 }
 .dice-fab:hover {
   transform: translateY(-2px) scale(1.05);
@@ -1710,7 +1744,11 @@ a.card-slot { text-decoration: none; color: inherit; }
   text-transform: uppercase;
   color: var(--bg-0);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
-  transition: filter 0.2s ease, transform 0.15s ease, min-width 0.35s ease;
+  transition:
+    filter 0.2s ease,
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.35s ease;
   animation: dice-roll-morph-in 0.35s ease;
 }
 .dice-roll-morph:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
@@ -1735,7 +1773,10 @@ a.card-slot { text-decoration: none; color: inherit; }
   background: var(--silver-grad);
   border: none;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
   animation: dice-close-in 0.3s ease 0.1s backwards;
 }
 .dice-close-btn::before {
@@ -1764,11 +1805,34 @@ a.card-slot { text-decoration: none; color: inherit; }
 
 /* ---------- Лоток кубиков — вертикальный список ---------- */
 
-.dice-panel-stack {
+.dice-tray-cluster {
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  animation: dice-tray-rise 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dice-d20-mod-outer {
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    padding-top 0.2s ease;
+  pointer-events: none;
+}
+
+.dice-d20-mod-outer.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.dice-d20-mod-outer.is-hiding {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
 }
 
 /* обёртка лотка: рамка + шапка с карандашом + редактор палитры + список */
@@ -1781,6 +1845,38 @@ a.card-slot { text-decoration: none; color: inherit; }
     var(--silver-grad) border-box;
   border: 1.4px solid transparent;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.dice-tray-wrap.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.dice-tray-wrap.is-hiding {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.dice-dock.is-hiding .dice-roll-morph,
+.dice-dock.is-hiding .dice-close-btn {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-dock.is-hiding .dice-roll-morph {
+  animation: none;
 }
 
 .dice-tray-head {
@@ -1832,6 +1928,115 @@ a.card-slot { text-decoration: none; color: inherit; }
   padding: 2px 0;
 }
 
+.dice-tray-row--d20 {
+  gap: 8px;
+}
+
+/* выдвижной блок преимущество / помеха — снаружи лотка, на уровне к20 */
+.dice-d20-mod {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  flex-shrink: 0;
+  height: 24px;
+}
+
+.dice-d20-mod-toggle {
+  box-sizing: border-box;
+  width: 22px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-chip);
+  color: var(--silver-3);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  transition: box-shadow 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-toggle {
+  color: var(--gold-3);
+  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.55);
+}
+
+.dice-d20-mod-chevron {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-chevron {
+  transform: rotate(180deg);
+}
+
+.dice-d20-mod-drawer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    margin 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  margin-left: 0;
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-drawer {
+  max-width: 52px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-right: 4px;
+}
+
+.dice-d20-mod-btn {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  flex-shrink: 0;
+  transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.12s ease;
+}
+
+.dice-d20-mod-btn--adv {
+  color: #4ecf7a;
+}
+
+.dice-d20-mod-btn--dis {
+  color: #e05a4a;
+}
+
+.dice-d20-mod-btn--adv:hover {
+  color: #7dffa8;
+  box-shadow:
+    inset 0 0 0 1px rgba(78, 207, 122, 0.55),
+    0 0 10px rgba(78, 207, 122, 0.35);
+}
+
+.dice-d20-mod-btn--dis:hover {
+  color: #ff7a6a;
+  box-shadow:
+    inset 0 0 0 1px rgba(224, 90, 74, 0.55),
+    0 0 10px rgba(224, 90, 74, 0.35);
+}
+
+.dice-d20-mod-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  transform: none;
+}
+
+.dice-d20-mod-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
 /* цветной чип расцветки кости — клик циклит по избранным */
 .dice-row-color {
   box-sizing: border-box;
@@ -1860,6 +2065,12 @@ a.card-slot { text-decoration: none; color: inherit; }
   box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
   animation: dice-cloud-in 0.2s ease;
 }
+
+@keyframes dice-cloud-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
 .dice-palette-caption {
   margin: 0;
   font-size: 0.68rem;
@@ -1934,11 +2145,6 @@ a.card-slot { text-decoration: none; color: inherit; }
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  color: var(--gold-3);
-}
-
-.dice-shape-svg {
-  display: block;
 }
 
 /* счётчик справа от каждого кубика */
@@ -1977,98 +2183,168 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: var(--gold-3);
 }
 
-/* ---------- История бросков — отдельное «облачко» над меню ---------- */
+/* ---------- История бросков — правый нижний угол ---------- */
 
-.dice-history-cloud {
+.dice-history-panel {
+  --dice-hist-card-h: 60px;
+  --dice-hist-gap: 8px;
+  --dice-hist-pad: 8px;
+  --dice-hist-dur: 1.2s;
   position: relative;
-  width: min(216px, calc(100vw - 44px));
-  margin-bottom: 14px;
-  border-radius: 14px;
-  background:
-    linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
-    var(--silver-grad) border-box;
-  border: 1.4px solid transparent;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
-  animation: dice-cloud-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes dice-cloud-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
-
-/* хвостик-указатель облачка вниз, к меню */
-.dice-history-tail {
-  position: absolute;
-  left: 28px;
-  bottom: -8px;
-  width: 15px;
-  height: 15px;
-  background: var(--bg-1);
-  border-right: 1.4px solid rgba(168, 175, 186, 0.55);
-  border-bottom: 1.4px solid rgba(168, 175, 186, 0.55);
-  transform: rotate(45deg);
-}
-
-.dice-history-fade {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  right: 1px;
-  height: 2.2em;
-  border-radius: 13px 13px 0 0;
-  background: linear-gradient(to bottom, var(--bg-2) 8%, rgba(24, 26, 31, 0.82) 55%, transparent);
+  width: min(272px, calc(100vw - 44px));
+  height: calc(3 * var(--dice-hist-card-h) + 2 * var(--dice-hist-gap) + 2 * var(--dice-hist-pad));
+  order: -1;
+  opacity: 0;
+  transform: translateX(-40px);
+  transition:
+    opacity var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
-  z-index: 2;
 }
 
-.dice-history {
-  max-height: calc(3 * 1.7rem + 16px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 10px 14px 8px;
+.dice-history-panel.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.dice-history-panel.is-hiding {
+  opacity: 0;
+  transform: translateX(-56px);
+  pointer-events: none;
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    order: unset;
+    transform: translateX(40px);
+  }
+
+  .dice-history-panel.is-visible {
+    transform: translateX(0);
+  }
+
+  .dice-history-panel.is-hiding {
+    transform: translateX(56px);
+  }
+}
+
+.dice-history-scroll {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(168, 175, 186, 0.35) transparent;
+  gap: var(--dice-hist-gap);
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--dice-hist-pad) 2px var(--dice-hist-pad);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.dice-history::-webkit-scrollbar { width: 4px; }
-.dice-history::-webkit-scrollbar-thumb {
-  background: rgba(168, 175, 186, 0.35);
+.dice-history-spacer {
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.dice-history-panel:hover .dice-history-scroll,
+.dice-history-panel:focus-within .dice-history-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.45) transparent;
+}
+
+.dice-history-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.dice-history-panel:hover .dice-history-scroll::-webkit-scrollbar,
+.dice-history-panel:focus-within .dice-history-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.dice-history-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 175, 186, 0.45);
   border-radius: 2px;
 }
 
-.dice-history-item {
-  margin: 0;
+/* вытянутый гекс — как кнопка «Играть» */
+.dice-history-card {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-height: var(--dice-hist-card-h);
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  padding: 2px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+  will-change: transform;
+}
+
+.dice-history-card-inner {
+  box-sizing: border-box;
+  min-height: calc(var(--dice-hist-card-h) - 4px);
+  padding: 7px 22px 8px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dice-history-card.is-shifting {
+  transition: transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-history-card.is-entering {
+  animation: dice-history-enter var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dice-history-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dice-hist-card-h) + var(--dice-hist-gap)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dice-history-formula {
+  margin: 0 0 3px;
   font-family: var(--font-display);
-  font-size: 0.88rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  color: var(--gold-3);
-  line-height: 1.45;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  opacity: 0.35;
-  transition: opacity 0.2s ease;
 }
 
-/* последние 3 результата — полностью видны */
-.dice-history-item:nth-last-child(-n+3) {
-  opacity: 1;
+.dice-history-result {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dice-history-item:last-child .dice-hist-total {
-  filter: brightness(1.12);
-}
+.dice-history-result .dice-crit-fail { color: #c07f3c; }
+.dice-history-result .dice-crit-normal { color: #cdd3db; }
+.dice-history-result .dice-crit-success { color: var(--gold-4); }
 
 .dice-hist-op {
   color: rgba(205, 211, 219, 0.7);
   font-weight: 500;
 }
 .dice-hist-total {
-  color: #f1f4f8;
+  color: var(--gold-4);
   font-weight: 700;
 }
 
@@ -2102,6 +2378,58 @@ a.card-slot { text-decoration: none; color: inherit; }
 
 @keyframes dice-reveal-backdrop {
   to { background: rgba(0, 0, 0, 0.78); }
+}
+
+/* плашка крита — только одиночный к20, нат 20 / нат 1 */
+.dice-crit-banner {
+  position: fixed;
+  top: clamp(48px, 10vh, 96px);
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 14px 36px;
+  clip-path: var(--hex-wide);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 3.2vw, 1.35rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+  animation: dice-crit-banner-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  pointer-events: none;
+}
+
+.dice-crit-banner--success {
+  color: var(--bg-0);
+  background: var(--gold-grad);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  filter: drop-shadow(0 0 22px rgba(228, 196, 110, 0.55));
+}
+
+.dice-crit-banner--fail {
+  color: #f6e7b6;
+  background: linear-gradient(160deg, #4a2818 0%, #8a3a22 28%, #c07f3c 52%, #8a3a22 76%, #3a1e12 100%);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  filter: drop-shadow(0 0 18px rgba(192, 127, 60, 0.45));
+}
+
+@keyframes dice-crit-banner-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-28px) scale(0.92);
+  }
+  70% {
+    transform: translateX(-50%) translateY(4px) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.dice-crit-banner--static {
+  animation: none;
 }
 
 .dice-reveal-formula {
@@ -2164,6 +2492,7 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 
 .dice-reveal-value {
+  font-family: var(--font-display);
   font-size: clamp(2.4rem, 8vw, 3.6rem);
   font-weight: 700;
   color: var(--gold-4);
@@ -2219,14 +2548,298 @@ a.card-slot { text-decoration: none; color: inherit; }
   text-shadow: 0 0 32px rgba(255, 200, 80, 0.8);
 }
 
+/* столкновение двух к20 — преимущество / помеха */
+.dice-clash-arena {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(92vw, 440px);
+  height: clamp(110px, 24vh, 160px);
+  padding: 24px;
+  font-family: var(--font-display);
+  cursor: default;
+  overflow: visible;
+}
+
+.dice-clash-value-wrap {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  will-change: transform, opacity, left, right;
+}
+
+.dice-clash-reveal-value,
+.dice-clash-arena .dice-reveal-value {
+  animation: none;
+}
+
+.dice-clash-value-wrap--left {
+  left: 8%;
+}
+
+.dice-clash-value-wrap--right {
+  right: 8%;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--left {
+  animation: dice-clash-enter-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--right {
+  animation: dice-clash-enter-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dice-clash-enter-left {
+  from { left: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { left: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+@keyframes dice-clash-enter-right {
+  from { right: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { right: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--left {
+  animation: dice-clash-rush-left 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--right {
+  animation: dice-clash-rush-right 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+@keyframes dice-clash-rush-left {
+  from { left: 26%; transform: translateY(-50%) scale(1); }
+  to { left: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+@keyframes dice-clash-rush-right {
+  from { right: 26%; transform: translateY(-50%) scale(1); }
+  to { right: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+.dice-clash-impact {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dice-clash-arena--clash .dice-clash-impact {
+  animation: dice-clash-impact-flash 0.44s ease forwards;
+}
+
+@keyframes dice-clash-impact-flash {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  45% {
+    opacity: 1;
+    transform: scale(1.8);
+    background: radial-gradient(circle, rgba(255, 248, 200, 0.95) 0%, rgba(255, 160, 60, 0.35) 45%, transparent 72%);
+  }
+}
+
+/* проигравшее число: трещина и падение двух половинок */
+.dice-clash-half {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-half--left {
+  clip-path: inset(0 50% 0 0);
+}
+
+.dice-clash-half--right {
+  clip-path: inset(0 0 0 50%);
+}
+
+.dice-clash-value-wrap.is-loser:not(.is-cracking) .dice-clash-half--right {
+  margin-left: 0;
+}
+
+.dice-clash-crack {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 115%;
+  margin: -57.5% 0 0 -1.5px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 240, 200, 0.95) 18%,
+    #fff 50%,
+    rgba(255, 200, 120, 0.9) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(255, 220, 140, 0.9), 0 0 24px rgba(255, 160, 60, 0.6);
+  transform: rotate(-8deg) scaleY(0);
+  animation: dice-clash-crack-in 0.22s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dice-clash-crack-in {
+  0% { transform: rotate(-8deg) scaleY(0); opacity: 0; }
+  60% { transform: rotate(-8deg) scaleY(1.15); opacity: 1; }
+  100% { transform: rotate(-8deg) scaleY(1); opacity: 0.85; }
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking {
+  left: 50% !important;
+  right: auto !important;
+  transform: translate(-50%, -50%);
+  animation: none;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--left {
+  animation: dice-clash-split-left 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--right {
+  animation: dice-clash-split-right 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+@keyframes dice-clash-split-left {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% - 3px), -50%) rotate(-3deg); }
+  100% {
+    transform: translate(calc(-50% - 5px), calc(-50% + 155px)) rotate(-5deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dice-clash-split-right {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% + 3px), -50%) rotate(3deg); }
+  100% {
+    transform: translate(calc(-50% + 5px), calc(-50% + 155px)) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  animation: dice-clash-winner-pop 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dice-clash-winner-pop {
+  0% { opacity: 1; transform: translateY(-50%); }
+  45% { transform: translate(-50%, -50%) scale(1.26); }
+  100% {
+    left: 50%;
+    right: auto;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  left: 50%;
+  right: auto;
+}
+
+.dice-clash-arena--adv .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(78, 207, 122, 0.55));
+}
+
+.dice-clash-arena--dis .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(224, 90, 74, 0.55));
+}
+
+.dice-clash-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130px;
+  height: 130px;
+  margin: -65px 0 0 -65px;
+  pointer-events: none;
+}
+
+.dice-clash-arena--static .dice-clash-value-wrap {
+  animation: none;
+}
+
+.dice-clash-arena--static .is-winner {
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-arena--static .is-loser {
+  display: none;
+}
+
+.dice-hist-clash-drop {
+  margin-left: 0.5em;
+  font-size: 0.84em;
+  color: var(--silver-4);
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
 @media (max-width: 560px) {
   .dice-dock { left: 14px; bottom: 14px; }
-  .dice-fab,
+  .dice-history-panel { width: min(196px, calc(100vw - 28px)); }
+  .dice-fab {
+    width: 72px;
+    height: 72px;
+  }
+  .dice-fab .die-fab-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
   .dice-close-btn { width: 50px; height: 50px; }
   .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
-  .dice-tray-wrap,
-  .dice-history-cloud { width: min(196px, calc(100vw - 28px)); }
+  .dice-tray-wrap {
+    width: min(196px, calc(100vw - 28px));
+    max-height: 520px;
+    overflow: hidden;
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s ease,
+      visibility 0.45s ease,
+      max-height 0.45s ease,
+      margin 0.45s ease,
+      padding 0.45s ease,
+      border-width 0.45s ease;
+  }
+  .dice-tray-wrap--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    transform: translateY(10px);
+  }
+  .dice-d20-mod-outer--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-width: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
   .dice-shape-icon-wrap { width: 30px; height: 30px; }
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    z-index: 150;
+  }
 }
 
 /* ============================================================

@@ -1,11 +1,12 @@
 /**
  * Декоративные орнаменты в духе ар-деко / дорогих книжных окладов.
  * Corners/Divider — серебряные (используются в основном контенте);
- * D20Logo в шапке — золотой (единственное место, где золото остаётся).
+ * D20Logo в шапке — золотой к20 из ассетов.
  */
 
 import { useState } from 'react'
 import { BookOpen } from 'lucide-react'
+import { D20LogoImage } from './dice/diceAssets'
 
 /**
  * Обложка книги с фолбэком: если картинки нет или она не загрузилась (битая
@@ -101,40 +102,7 @@ export function Divider() {
   )
 }
 
-/** Логотип — гранёный д20. Единственное место, где остаётся золото (верх страницы). */
+/** Логотип — к20 из ассетов. Единственное место, где остаётся золото (верх страницы). */
 export function D20Logo({ size = 40 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="d20g" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#8a6a2f" />
-          <stop offset="45%" stopColor="#e3c46e" />
-          <stop offset="55%" stopColor="#f6e7b6" />
-          <stop offset="100%" stopColor="#9c7a35" />
-        </linearGradient>
-      </defs>
-      {/* внешний контур кости */}
-      <path d="M24 2 L43 13 V35 L24 46 L5 35 V13 Z" stroke="url(#d20g)" strokeWidth="1.8" />
-      {/* грани — рёбра от вершин к центру */}
-      <path
-        d="M24 2 L24 24 M43 13 L24 24 M43 35 L24 24 M24 46 L24 24 M5 35 L24 24 M5 13 L24 24"
-        stroke="url(#d20g)"
-        strokeWidth="1"
-        opacity="0.75"
-      />
-      <circle cx="24" cy="24" r="1.6" fill="#0d0e11" />
-      <text
-        x="24"
-        y="15"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="'Cormorant Unicase', serif"
-        fontWeight="700"
-        fontSize="8.5"
-        fill="url(#d20g)"
-      >
-        20
-      </text>
-    </svg>
-  )
+  return <D20LogoImage size={size} />
 }
