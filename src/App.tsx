@@ -8,6 +8,7 @@ import {
   Gem,
   Landmark,
   Menu,
+  Search,
   Sparkles,
   Skull,
   Swords,
@@ -193,6 +194,27 @@ function SettingsCarousel({
   onSelect: (id: string) => void
 }) {
   const track = useRef<HTMLDivElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(false)
+
+  // следим, докручена ли карусель до края — чтобы гасить лишнюю стрелку
+  useEffect(() => {
+    const el = track.current
+    if (!el) return
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth
+      setAtStart(el.scrollLeft <= 1)
+      setAtEnd(max <= 1 || el.scrollLeft >= max - 1)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
+  }, [realms.length])
 
   const scroll = (dir: -1 | 1) => {
     track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' })
@@ -200,7 +222,13 @@ function SettingsCarousel({
 
   return (
     <div className="carousel-shell">
-      <button type="button" className="car-arrow car-arrow--left" onClick={() => scroll(-1)} aria-label="Назад">
+      <button
+        type="button"
+        className={`car-arrow car-arrow--left${atStart ? ' is-disabled' : ''}`}
+        onClick={() => scroll(-1)}
+        aria-label="Назад"
+        disabled={atStart}
+      >
         <span><ChevronLeft /></span>
       </button>
       <div className="carousel" ref={track}>
@@ -229,9 +257,6 @@ function SettingsCarousel({
               >
                 <span className="setting-art" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />
                 <span className="setting-kicker">{realm.id === BASIC_ID ? 'Основа' : 'Сеттинг'}</span>
-                <span className="setting-seal" aria-hidden="true">
-                  <span className="setting-seal-inner">{ru.charAt(0)}</span>
-                </span>
                 <span className="setting-name">
                   {ru}
                   {en && <span className="setting-name-en">{en}</span>}
@@ -255,7 +280,13 @@ function SettingsCarousel({
           )
         })}
       </div>
-      <button type="button" className="car-arrow car-arrow--right" onClick={() => scroll(1)} aria-label="Вперёд">
+      <button
+        type="button"
+        className={`car-arrow car-arrow--right${atEnd ? ' is-disabled' : ''}`}
+        onClick={() => scroll(1)}
+        aria-label="Вперёд"
+        disabled={atEnd}
+      >
         <span><ChevronRight /></span>
       </button>
     </div>
@@ -593,6 +624,13 @@ function HomePage() {
       <section aria-label="Сеттинги">
         <h2 className="section-title gold-text">Миры и Сеттинги</h2>
         <p className="section-sub">Изберите мир — и соты архива раскроют его тома</p>
+        <div className="setting-search-bar">
+          <label className="setting-search" title="Поиск миров появится позже">
+            <Search aria-hidden="true" />
+            <input type="search" placeholder="Искать мир…" readOnly aria-label="Поиск мира (скоро)" />
+            <span className="soon-badge">скоро</span>
+          </label>
+        </div>
         {error ? (
           <p className="status-line is-error">Архив недоступен: {error}</p>
         ) : (
