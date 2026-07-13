@@ -44,8 +44,18 @@ export function useTermIndex(): TermIndex {
   return useContext(TermsContext)
 }
 
-/** Оборачивает вхождения терминов в ссылки на статьи. */
-export function highlightTerms(text: string, index: TermIndex, keyPrefix = ''): ReactNode[] {
+/**
+ * Оборачивает вхождения терминов в ссылки на статьи.
+ * asLinks=false — рендерит термин как <span> (без <a>): нужно внутри карточек,
+ * которые сами являются ссылкой (<a>), иначе получаются вложенные <a> в <a> —
+ * невалидный HTML, браузер перестраивает DOM и ломает переходы React.
+ */
+export function highlightTerms(
+  text: string,
+  index: TermIndex,
+  keyPrefix = '',
+  asLinks = true,
+): ReactNode[] {
   if (!text) return []
   if (!index.regex) return [text]
   const parts = text.split(index.regex)
@@ -56,10 +66,17 @@ export function highlightTerms(text: string, index: TermIndex, keyPrefix = ''): 
     if (i % 2 === 1) {
       const id = index.byName.get(part)
       if (id) {
+        const key = `${keyPrefix}${i}-${part}`
         out.push(
-          <Link key={`${keyPrefix}${i}-${part}`} to={`/termins/${id}`} className="term-link">
-            {part}
-          </Link>,
+          asLinks ? (
+            <Link key={key} to={`/termins/${id}`} className="term-link">
+              {part}
+            </Link>
+          ) : (
+            <span key={key} className="term-link term-link--plain">
+              {part}
+            </span>
+          ),
         )
         continue
       }
@@ -99,5 +116,6 @@ export function TermDesc({
   const index = useTermIndex()
   const clean = cleanDescription(text)
   if (!clean) return null
-  return <p className={className}>{highlightTerms(clean, index)}</p>
+  // карточки каталога — сами ссылки, поэтому термины БЕЗ вложенных <a> (asLinks=false)
+  return <p className={className}>{highlightTerms(clean, index, '', false)}</p>
 }

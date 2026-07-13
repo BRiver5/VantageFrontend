@@ -616,7 +616,13 @@ function HomePage() {
 
 function ScrollToTop() {
   const { pathname } = useLocation()
-  useEffect(() => window.scrollTo(0, 0), [pathname])
+  useEffect(() => {
+    // ВАЖНО: тело в {} — иначе стрелка вернёт результат window.scrollTo, а React
+    // примет его за cleanup-функцию. В браузерах, где расширение/плагин плавного
+    // скролла заставляет scrollTo вернуть НЕ undefined, при следующей навигации
+    // React зовёт этот «cleanup» → "destroy is not a function" → чёрный экран.
+    window.scrollTo(0, 0)
+  }, [pathname])
   return null
 }
 
