@@ -1,11 +1,14 @@
 import { isValidElement, useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowDownAZ,
+  ArrowLeft,
   Award,
   BookMarked,
   BookOpen,
+  Bookmark,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -17,6 +20,7 @@ import {
   Hourglass,
   Landmark,
   Ruler,
+  Scale,
   Search,
   Shield,
   Skull,
@@ -37,9 +41,9 @@ import {
   splitTitle,
 } from '../api'
 import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell, Termin } from '../api'
-import { Divider } from '../ornaments'
+import { Divider, ParchmentScroll } from '../ornaments'
 import { DieChipIcon, hitDieType } from '../dice/diceAssets'
-import { TermDesc } from '../terms/terms'
+import { RichText, TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
 
@@ -96,6 +100,53 @@ function CardImage({ src, alt, fallback: Fallback }: { src: string | null; alt: 
   )
 }
 
+/**
+ * Ссылка-карточка с плавным переходом в детальную (View Transitions API).
+ * Пока идёт переход именно к ЭТОЙ карточке — вешаем на неё view-transition-name,
+ * и браузер морфит её в «герой» детальной страницы (у которого то же имя),
+ * а остальные карточки уезжают влево (см. ::view-transition-* в CSS).
+ */
+/**
+ * Карточка-ссылка. Если задан `onOpen` (для предметов) — по клику НЕ уходим на
+ * отдельную страницу, а раскрываем деталь ПРЯМО на этой странице: выбранная
+ * карточка морфится в «героя» предмета (view-transition-name), остальные уезжают
+ * влево (см. ::view-transition-* в CSS). href остаётся для средней/ctrl-кнопки.
+ */
+function CardLink({
+  to,
+  vtName,
+  onOpen,
+  children,
+}: {
+  to: string
+  vtName?: string
+  onOpen?: () => void
+  children: ReactNode
+}) {
+  const navigate = useNavigate()
+
+  const onClick = (e: ReactMouseEvent<HTMLAnchorElement>) => {
+    // модификаторы/средняя кнопка — обычное открытие ссылки (новая вкладка и т.п.)
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    const run = () => (onOpen ? onOpen() : navigate(to))
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+    if (doc.startViewTransition) doc.startViewTransition(() => flushSync(run))
+    else run()
+  }
+
+  return (
+    <Link
+      to={to}
+      className="card-slot"
+      style={vtName ? ({ viewTransitionName: vtName } as CSSProperties) : undefined}
+      onClick={onClick}
+    >
+      {children}
+    </Link>
+  )
+}
+
 /* ---------- Конфигурация раздела ---------- */
 
 interface SortOption<T> {
@@ -115,6 +166,14 @@ interface CatalogConfig<T> {
   card: (item: T, bookMap: BookMap) => ReactNode
   /** если задано — под поиском появляется переключатель сортировки */
   sorts?: SortOption<T>[]
+  /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
+  inlineDetail?: (ctx: {
+    selected: T
+    items: T[]
+    onSelect: (item: T) => void
+    onClose: () => void
+    bookMap: BookMap
+  }) => ReactNode
 }
 
 /* ---------- Вспомогательное для сортировок ---------- */
@@ -145,6 +204,194 @@ const RARITY_KEY: Record<string, string> = {
   'очень редкий': 'very-rare',
   'легендарный': 'legendary',
   'артефакт': 'artifact',
+}
+function rarityKeyOf(r: string | null | undefined): string {
+  return (r && RARITY_KEY[r.toLowerCase()]) || 'common'
+}
+
+const RARITY_FILTERS: { key: string; label: string }[] = [
+  { key: 'common', label: 'Обычный' },
+  { key: 'uncommon', label: 'Необычный' },
+  { key: 'rare', label: 'Редкий' },
+  { key: 'very-rare', label: 'Очень редкий' },
+  { key: 'legendary', label: 'Легендарный' },
+  { key: 'artifact', label: 'Артефакт' },
+]
+
+/** Одна карточка в правой ленте рекомендаций (с картинкой предмета). */
+function RecCard({ item, onSelect }: { item: Item; onSelect: (item: Item) => void }) {
+  const [broken, setBroken] = useState(false)
+  const image = realImage(item.item_image_gallery)
+  return (
+    <button
+      type="button"
+      className="rec-card"
+      data-rarity={rarityKeyOf(item.rarity)}
+      style={{ viewTransitionName: `card-${item.id}` } as CSSProperties}
+      onClick={() => onSelect(item)}
+    >
+      <span className="rec-thumb">
+        <span className="rec-thumb-glow" aria-hidden="true" />
+        {image && !broken ? (
+          <img src={image} alt="" loading="lazy" onError={() => setBroken(true)} />
+        ) : (
+          <Gem aria-hidden="true" />
+        )}
+      </span>
+      <span className="rec-info">
+        <span className="rec-name">{item.item_name}</span>
+        <span className="rec-type">{item.item_type ?? 'магический предмет'}</span>
+        {item.rarity && <span className="rec-rarity">{item.rarity}</span>}
+      </span>
+    </button>
+  )
+}
+
+/**
+ * Раскрытый предмет в стиле YouTube: слева — крупный «просматриваемый» предмет,
+ * его характеристики, сворачиваемое описание и заглушки оценок/комментариев;
+ * справа — длинная лента рекомендаций (остальные предметы карточками с картинками).
+ */
+function ItemSplitView({
+  selected,
+  items,
+  onSelect,
+  onClose,
+  bookMap,
+}: {
+  selected: Item
+  items: Item[]
+  onSelect: (item: Item) => void
+  onClose: () => void
+  bookMap: BookMap
+}) {
+  const [broken, setBroken] = useState(false)
+  const [recQ, setRecQ] = useState('')
+  const [recRarity, setRecRarity] = useState<string | null>(null)
+  // при смене предмета сбрасываем статус картинки
+  useEffect(() => {
+    setBroken(false)
+  }, [selected.id])
+
+  // выбранный предмет ушёл в «плеер» слева — в ленте справа его нет,
+  // остальные поднимаются, занимая место (FLIP через view-transition)
+  const rest = items.filter((it) => it.id !== selected.id)
+  const query = recQ.trim().toLowerCase()
+  const shown = rest.filter((it) => {
+    if (recRarity && rarityKeyOf(it.rarity) !== recRarity) return false
+    if (query && !it.item_name.toLowerCase().includes(query)) return false
+    return true
+  })
+  const gp = selected.cost_copper ? Math.round(selected.cost_copper / 100) : null
+  const rarity = rarityKeyOf(selected.rarity)
+  const image = realImage(selected.item_image_gallery)
+  const book = selected.item_source ? bookMap[selected.item_source] : undefined
+
+  return (
+    <div className="item-tube">
+      <div className="item-tube-main">
+        <button type="button" className="back-link back-link--btn item-tube-back" onClick={onClose}>
+          <ArrowLeft aria-hidden="true" /> к сокровищнице
+        </button>
+
+        {/* «плеер» — крупный предмет по центру */}
+        <div
+          className="item-hero item-tube-player"
+          data-rarity={rarity}
+          style={{ viewTransitionName: `card-${selected.id}` } as CSSProperties}
+        >
+          <div className="item-art">
+            <span className="item-glow" aria-hidden="true" />
+            {image && !broken ? (
+              <img src={image} alt={selected.item_name} onError={() => setBroken(true)} />
+            ) : (
+              <Gem className="item-art-fallback" aria-hidden="true" />
+            )}
+          </div>
+        </div>
+
+        {/* заголовок и характеристики — под «плеером», слева */}
+        <div className="item-tube-head">
+          <h1 className="book-title gold-text item-title">{selected.item_name}</h1>
+          <span className="setting-kicker item-kicker">{selected.item_type ?? 'магический предмет'}</span>
+          <div className="card-chips item-chips">
+            <SourceBadge book={book} />
+            {selected.rarity && <Chip icon={Gem}>{selected.rarity}</Chip>}
+            {selected.attunement_required && <Chip icon={Sparkles}>требует настройки</Chip>}
+            {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
+            {selected.weight != null && selected.weight > 0 && <Chip icon={Scale}>{selected.weight} фнт.</Chip>}
+          </div>
+        </div>
+
+        {selected.description?.trim() ? (
+          <ParchmentScroll key={selected.id} className="item-tube-scroll">
+            <RichText text={selected.description} />
+          </ParchmentScroll>
+        ) : null}
+
+        {/* оценка (5 звёзд) и избранное — под описанием */}
+        <div className="tube-actions">
+          <div className="tube-rate" aria-label="Оценка предмета">
+            <span className="tube-stars" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Star key={i} />
+              ))}
+            </span>
+            <span className="tube-rate-label">Оцените</span>
+            <span className="soon-badge">скоро</span>
+          </div>
+          <button type="button" className="tube-act-btn" disabled>
+            <Bookmark aria-hidden="true" /> В коллекцию
+          </button>
+        </div>
+
+        {/* заглушка обсуждения */}
+        <div className="tube-comments">
+          <h2 className="detail-subtitle gold-text">Обсуждение</h2>
+          <div className="tube-comment-input">
+            <span className="tube-avatar" aria-hidden="true">GG</span>
+            <input type="text" placeholder="Оставить комментарий…" readOnly />
+            <span className="soon-badge">скоро</span>
+          </div>
+        </div>
+      </div>
+
+      {/* длинная лента рекомендаций справа + поиск и фильтры */}
+      <aside className="item-tube-recs" aria-label="Другие предметы">
+        <div className="rec-head">
+          <label className="rec-search">
+            <Search aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Искать предмет…"
+              value={recQ}
+              onChange={(e) => setRecQ(e.target.value)}
+            />
+          </label>
+          <div className="rec-filters" role="group" aria-label="Фильтр по редкости">
+            {RARITY_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={`rec-filter${recRarity === f.key ? ' is-active' : ''}`}
+                data-rarity={f.key}
+                onClick={() => setRecRarity((cur) => (cur === f.key ? null : f.key))}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="rec-list">
+          {shown.length > 0 ? (
+            shown.map((it) => <RecCard key={it.id} item={it} onSelect={onSelect} />)
+          ) : (
+            <p className="rec-empty">Ничего не найдено на этой странице.</p>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
 }
 
 function classCard(c: GameClass) {
@@ -334,6 +581,46 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [error, setError] = useState<string | null>(null)
   const [bookMap, setBookMap] = useState<BookMap>({})
   const bookMapRef = useRef<BookMap>({})
+  // раскрытая деталь прямо в списке (для предметов), без ухода на страницу
+  const [selected, setSelected] = useState<T | null>(null)
+  // открытый предмет сохраняем в адресе (?open=id) — переживает перезагрузку
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialOpenRef = useRef(searchParams.get('open'))
+
+  const withVT = (fn: () => void) => {
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+    if (doc.startViewTransition) doc.startViewTransition(() => flushSync(fn))
+    else fn()
+  }
+  const selectItem = (item: T) => withVT(() => setSelected(item))
+  const closeSelected = () => withVT(() => setSelected(null))
+
+  // восстановление открытого предмета из адреса, когда список подгрузился
+  useEffect(() => {
+    if (!cfg.inlineDetail || selected) return
+    const openId = initialOpenRef.current
+    if (!openId) return
+    const found = items.find((it) => it.id === openId)
+    if (found) {
+      initialOpenRef.current = null
+      setSelected(found)
+    }
+  }, [items, cfg.inlineDetail, selected])
+
+  // выбранный предмет ⇄ адрес (?open=id); ждём восстановления, чтобы не стереть его
+  useEffect(() => {
+    if (!cfg.inlineDetail) return
+    if (initialOpenRef.current && !selected) return
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (selected) next.set('open', selected.id)
+        else next.delete('open')
+        return next
+      },
+      { replace: true },
+    )
+  }, [selected, cfg.inlineDetail, setSearchParams])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {
@@ -395,6 +682,15 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
 
+  // раскрытая деталь прямо на этой странице (предметы) — деталь слева, список справа
+  if (cfg.inlineDetail && selected) {
+    return (
+      <section className="catalog">
+        {cfg.inlineDetail({ selected, items, onSelect: selectItem, onClose: closeSelected, bookMap })}
+      </section>
+    )
+  }
+
   return (
     <section className="catalog">
       <h1 className="section-title gold-text">{cfg.title}</h1>
@@ -437,9 +733,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       {!error && (
         <div className="card-grid" data-loading={loading || undefined}>
           {items.map((item) => (
-            <Link key={item.id} to={`${cfg.base}/${item.id}`} className="card-slot">
+            <CardLink
+              key={item.id}
+              to={`${cfg.base}/${item.id}`}
+              vtName={cfg.inlineDetail ? `card-${item.id}` : undefined}
+              onOpen={cfg.inlineDetail ? () => setSelected(item) : undefined}
+            >
               {cfg.card(item, bookMap)}
-            </Link>
+            </CardLink>
           ))}
         </div>
       )}
@@ -587,6 +888,7 @@ export const ItemsPage = () => (
       emptyIcon: Gem,
       card: itemCard,
       sorts: itemSorts,
+      inlineDetail: (ctx) => <ItemSplitView {...ctx} />,
     }}
   />
 )

@@ -82,6 +82,19 @@ function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: Reac
 }
 
 /** Общая «обложка» детальной страницы */
+/** Русская редкость → ключ для цвета свечения (используется у предметов). */
+const RARITY_KEY: Record<string, string> = {
+  'обычный': 'common',
+  'необычный': 'uncommon',
+  'редкий': 'rare',
+  'очень редкий': 'very-rare',
+  'легендарный': 'legendary',
+  'артефакт': 'artifact',
+}
+export function rarityKeyOf(r: string | null | undefined): string {
+  return (r && RARITY_KEY[r.toLowerCase()]) || 'common'
+}
+
 function DetailShell({
   backTo,
   backLabel,
@@ -91,6 +104,7 @@ function DetailShell({
   imageIcon: ImageIcon,
   badge,
   chips,
+  rarity,
   children,
 }: {
   backTo: string
@@ -101,6 +115,8 @@ function DetailShell({
   imageIcon: LucideIcon
   badge?: ReactNode
   chips: ReactNode
+  /** ключ редкости — если задан, за артом предмета светится её цвет */
+  rarity?: string
   children: ReactNode
 }) {
   const [broken, setBroken] = useState(false)
@@ -111,7 +127,10 @@ function DetailShell({
       </Link>
       <div className="book-hero">
         <Corners size={40} />
-        <div className="book-cover detail-plate">
+        <div
+          className={`book-cover detail-plate${rarity ? ' detail-plate--glow' : ''}`}
+          data-rarity={rarity || undefined}
+        >
           {image && !broken ? (
             <img src={image} alt={title} onError={() => setBroken(true)} />
           ) : (
@@ -698,6 +717,20 @@ export function FeatDetailPage() {
    ПРЕДМЕТ
    ============================================================ */
 
+function ItemArt({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <div className="item-art">
+      <span className="item-glow" aria-hidden="true" />
+      {src && !broken ? (
+        <img src={src} alt={alt} onError={() => setBroken(true)} />
+      ) : (
+        <Gem className="item-art-fallback" aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
 export function ItemDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: it, error } = useOne<Item>('items', id)
@@ -706,29 +739,36 @@ export function ItemDetailPage() {
   if (!it) return <p className="status-line">Открываем сокровищницу…</p>
 
   const gp = it.cost_copper ? Math.round(it.cost_copper / 100) : null
+  const rarity = rarityKeyOf(it.rarity)
 
   return (
-    <DetailShell
-      backTo="/items"
-      backLabel="к сокровищнице"
-      kicker={it.item_type ?? 'магический предмет'}
-      title={it.item_name}
-      image={realImage(it.item_image_gallery)}
-      imageIcon={Gem}
-      chips={
-        <>
+    <section className="book-page item-page">
+      <Link to="/items" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к сокровищнице
+      </Link>
+
+      {/* центрированный герой: крупный арт со свечением редкости сзади и снизу */}
+      <div className="item-hero" data-rarity={rarity}>
+        <ItemArt src={realImage(it.item_image_gallery)} alt={it.item_name} />
+        <span className="setting-kicker item-kicker">{it.item_type ?? 'магический предмет'}</span>
+        <h1 className="book-title gold-text item-title">{it.item_name}</h1>
+        <div className="card-chips item-chips">
           <SourceBadge book={book} />
           {it.rarity && <Chip icon={Gem}>{it.rarity}</Chip>}
           {it.attunement_required && <Chip icon={Sparkles}>требует настройки</Chip>}
           {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
           {it.weight != null && it.weight > 0 && <Chip icon={Scale}>{it.weight} фнт.</Chip>}
-        </>
-      }
-    >
-      <DetailSection title="Описание">
-        <Rich text={it.description} />
-      </DetailSection>
-    </DetailShell>
+        </div>
+      </div>
+
+      <Divider />
+
+      <div className="item-body">
+        <DetailSection title="Описание">
+          <Rich text={it.description} />
+        </DetailSection>
+      </div>
+    </section>
   )
 }
 

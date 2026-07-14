@@ -1666,43 +1666,13 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
    при наведении/фокусе, не раздвигая сетку. Клик по-прежнему ведёт на полную страницу. */
 .card--compact { overflow: visible; }
 
-.card--compact .card-desc {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 8px);
-  margin: 0;
-  padding: 14px 18px;
-  max-height: none;
-  -webkit-line-clamp: unset;
-  /* непрозрачный фон — иначе карточка снизу просвечивает сквозь полупрозрачный --panel */
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.4), 0 16px 34px rgba(0, 0, 0, 0.6);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px);
-  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
-  pointer-events: none;
-  z-index: 20;
-}
+/* в списке описание НЕ показываем (в т.ч. по наведению) — оно на детальной странице */
+.card--compact .card-desc { display: none; }
 
 .card--compact .card-foot {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.card-slot:hover .card--compact,
-.card-slot:focus .card--compact {
-  z-index: 30;
-}
-
-.card-slot:hover .card--compact .card-desc,
-.card-slot:focus .card--compact .card-desc {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 /* гекс-жетон (круг заклинания, показатель опасности) */
@@ -1783,6 +1753,8 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 }
 .back-link svg { width: 16px; height: 16px; }
 .back-link:hover { color: var(--gold-4); }
+/* back-link как <button> (разворот предмета в списке) */
+.back-link--btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
 
 .book-hero {
   position: relative;
@@ -1948,6 +1920,650 @@ a.card-slot { text-decoration: none; color: inherit; }
 .detail-plate-fallback { width: 64px; height: 64px; stroke-width: 0.9; color: rgba(92, 69, 28, 0.55); }
 /* у заклинаний и предметов часто нет арта — узкая пластина не нужна */
 .book-cover.detail-plate:has(.detail-plate-fallback) { aspect-ratio: 1; width: clamp(120px, 15vw, 170px); }
+
+/* ---------- Свечение редкости за артом предмета ---------- */
+/* тёмная пластина + радиальное свечение цвета редкости — предметы без фона
+   (с прозрачным PNG) будто светятся, а не лежат простым квадратом */
+.detail-plate--glow {
+  background:
+    radial-gradient(56% 52% at 50% 47%, var(--rarity-glow, rgba(176, 182, 191, 0.45)), transparent 72%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0)) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--rarity-edge, rgba(176, 182, 191, 0.4)),
+    inset 0 0 40px -6px var(--rarity-glow, transparent),
+    0 0 34px -8px var(--rarity-glow, transparent),
+    var(--shadow-deep) !important;
+}
+.detail-plate--glow .detail-plate-fallback { color: var(--rarity-edge, rgba(176, 182, 191, 0.6)); }
+
+.detail-plate--glow[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.42); --rarity-edge: rgba(176, 182, 191, 0.45); }
+.detail-plate--glow[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.5); --rarity-edge: rgba(63, 174, 90, 0.55); }
+.detail-plate--glow[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.5); --rarity-edge: rgba(59, 130, 246, 0.55); }
+.detail-plate--glow[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.55); --rarity-edge: rgba(168, 85, 247, 0.6); }
+.detail-plate--glow[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.58); --rarity-edge: rgba(245, 158, 11, 0.6); }
+.detail-plate--glow[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.6); --rarity-edge: rgba(222, 66, 54, 0.62); }
+
+/* ============================================================
+   ДЕТАЛЬНАЯ ПРЕДМЕТА — центрированный герой без рамки,
+   крупный арт со свечением редкости сзади и снизу
+   ============================================================ */
+.item-page { max-width: 880px; margin: 0 auto; }
+
+.item-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: clamp(24px, 5vw, 56px) 0 clamp(14px, 3vw, 32px);
+  --rarity-glow: rgba(176, 182, 191, 0.34);
+}
+.item-hero[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.32); }
+.item-hero[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.36); }
+.item-hero[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.36); }
+.item-hero[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.38); }
+.item-hero[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.4); }
+.item-hero[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.4); }
+
+.item-hero > * { position: relative; z-index: 1; }
+
+.item-art {
+  position: relative;
+  width: min(360px, 62vw);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* свечение редкости за артом — мягкое, без выбеливания фона */
+.item-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 210%;
+  height: 210%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, var(--rarity-glow) 0%, transparent 68%);
+  opacity: 0.55;
+  filter: blur(14px);
+}
+.item-art img {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+}
+.item-art-fallback { position: relative; z-index: 1; width: 42%; height: 42%; color: var(--rarity-glow); stroke-width: 0.8; }
+
+.item-kicker { margin-top: 10px; }
+.item-title { margin-top: 6px; font-size: clamp(1.8rem, 4vw, 2.9rem); }
+.item-chips { justify-content: center; margin-top: 14px; }
+
+.item-body { max-width: 760px; margin: 0 auto; }
+
+/* ============================================================
+   Раскрытый предмет в стиле YouTube:
+   слева — крупный «просматриваемый» предмет + описание + заглушки,
+   справа — длинная лента рекомендаций с картинками
+   ============================================================ */
+.item-tube {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(22px, 3vw, 56px);
+  padding-top: clamp(8px, 2vw, 20px);
+  animation: item-split-in 0.5s ease;
+  /* раскрытый предмет выходит за границы обычной колонки (1280),
+     чтобы лента рекомендаций уезжала к правому краю экрана */
+  width: min(100vw - 34px, 1580px);
+  margin-left: calc((100% - min(100vw - 34px, 1580px)) / 2);
+}
+@keyframes item-split-in { from { opacity: 0; } to { opacity: 1; } }
+
+.item-tube-main { flex: 1 1 auto; min-width: 0; }
+.item-tube-back { margin-bottom: 10px; }
+
+/* «плеер» — крупный предмет по центру main-колонки, без контейнера:
+   только сам предмет со свечением редкости за ним */
+.item-tube-player {
+  align-items: center;
+  text-align: center;
+  padding: clamp(12px, 2.5vw, 30px) 0 clamp(8px, 2vw, 20px);
+}
+.item-tube-player .item-art { width: min(380px, 52vw); }
+
+/* заголовок и характеристики — под «плеером», слева */
+.item-tube-head { text-align: left; padding: 20px 4px 0; }
+.item-tube-head .item-title { margin-top: 0; }
+.item-tube-head .item-kicker { display: block; margin-top: 8px; }
+.item-tube-head .item-chips { justify-content: flex-start; margin-top: 14px; }
+
+/* оценка (звёзды) и избранное — под описанием */
+.tube-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 3vw, 32px);
+  flex-wrap: wrap;
+  margin: 22px 4px 4px;
+}
+.tube-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.tube-stars { display: inline-flex; gap: 5px; color: var(--silver-2); }
+.tube-stars svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke-width: 1.4;
+}
+.tube-rate-label {
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.tube-act-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  color: var(--silver-2);
+  border: none;
+  font-family: var(--font-display);
+  font-size: 0.94rem;
+  cursor: default;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+}
+.tube-act-btn svg { width: 17px; height: 17px; }
+
+/* ---------- Свиток описания (сворачиваемый текст) ---------- */
+
+.parchment-scroll {
+  margin-top: 18px;
+  max-width: 100%;
+}
+
+.parchment-scroll-assembly {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.42));
+}
+
+.parchment-scroll-rod {
+  position: relative;
+  z-index: 2;
+  display: block;
+  height: 8px;
+  margin: 0 14px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--silver-1), var(--silver-0) 52%, var(--silver-1));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 0.52s cubic-bezier(0.33, 1, 0.35, 1);
+}
+
+.parchment-scroll-rod::before,
+.parchment-scroll-rod::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 12px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--silver-2), var(--silver-0));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    0 2px 5px rgba(0, 0, 0, 0.38);
+}
+
+.parchment-scroll-rod::before { left: -7px; }
+.parchment-scroll-rod::after { right: -7px; }
+
+.parchment-scroll-rod--top { margin-bottom: -2px; }
+
+.parchment-scroll-rod--bottom {
+  margin-top: -2px;
+}
+
+.parchment-scroll-paper {
+  position: relative;
+  z-index: 1;
+  margin: 0 12px;
+  overflow: hidden;
+  max-height: 8.4em;
+  transition: max-height 0.52s cubic-bezier(0.33, 1, 0.35, 1);
+}
+
+.parchment-scroll.is-open .parchment-scroll-paper {
+  max-height: 4200px;
+}
+
+.parchment-scroll-paper-inner {
+  position: relative;
+  padding: 20px 22px 18px;
+  background:
+    radial-gradient(120% 65% at 50% 0%, rgba(196, 154, 60, 0.06), transparent 58%),
+    linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 52%, var(--bg-1) 100%);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.24);
+}
+
+.parchment-scroll-paper-inner .corner {
+  opacity: 0.85;
+}
+
+.parchment-scroll-paper::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.6em;
+  background: linear-gradient(180deg, transparent, var(--bg-1) 92%);
+  pointer-events: none;
+  transition: opacity 0.32s ease;
+}
+
+.parchment-scroll.is-open .parchment-scroll-paper::after {
+  opacity: 0;
+}
+
+.parchment-scroll-text {
+  position: relative;
+  z-index: 1;
+  color: var(--text);
+}
+
+.parchment-scroll-text .rich p {
+  margin-bottom: 0.85em;
+  line-height: 1.62;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.parchment-scroll-text .rich b {
+  color: var(--parchment);
+  font-weight: 600;
+}
+
+.parchment-scroll-text a.term-link {
+  color: var(--gold-2);
+  text-decoration-color: color-mix(in srgb, var(--gold-2) 45%, transparent);
+}
+
+.parchment-scroll-text a.term-link:hover {
+  color: var(--gold-3);
+}
+
+.parchment-scroll-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease, filter 0.18s ease;
+}
+
+.parchment-scroll-toggle::after {
+  content: '▾';
+  font-size: 0.82em;
+  transition: transform 0.32s ease;
+}
+
+.parchment-scroll.is-open .parchment-scroll-toggle::after {
+  transform: rotate(180deg);
+}
+
+.parchment-scroll-toggle:hover {
+  color: var(--gold-4);
+  filter: drop-shadow(0 0 8px rgba(228, 196, 110, 0.28));
+  transform: translateY(-1px);
+}
+
+.item-tube-scroll {
+  max-width: min(640px, 100%);
+}
+
+/* заглушка обсуждения */
+.tube-comments { margin-top: 28px; }
+.tube-comment-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tube-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  color: var(--bg-0);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+.tube-comment-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 2px;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.3);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+.tube-comment-input input::placeholder { color: var(--text-dim); }
+
+.soon-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  clip-path: var(--hex-chip);
+  background: rgba(196, 154, 60, 0.16);
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ---------- лента рекомендаций справа (карточки с картинками) ---------- */
+.item-tube-recs {
+  flex: 0 0 clamp(280px, 32%, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 2px 2px 0;
+  overflow: visible;
+}
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+  padding-left: 0;
+}
+
+/* поиск и фильтры над лентой — в нашем стиле */
+.rec-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.rec-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.75), rgba(124, 130, 139, 0.2) 50%, rgba(124, 130, 139, 0.75)) border-box;
+}
+.rec-search svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--text-dim); }
+.rec-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+.rec-search input::placeholder { color: var(--text-dim); }
+.rec-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  clip-path: var(--hex-chip);
+  color: var(--text-dim);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.16s ease, box-shadow 0.16s ease;
+  --rarity-dot: #b0b6bf;
+}
+.rec-filter[data-rarity='common'] { --rarity-dot: #b0b6bf; }
+.rec-filter[data-rarity='uncommon'] { --rarity-dot: #3fae5a; }
+.rec-filter[data-rarity='rare'] { --rarity-dot: #3b82f6; }
+.rec-filter[data-rarity='very-rare'] { --rarity-dot: #a855f7; }
+.rec-filter[data-rarity='legendary'] { --rarity-dot: #f59e0b; }
+.rec-filter[data-rarity='artifact'] { --rarity-dot: #de4234; }
+.rec-filter::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rarity-dot);
+}
+.rec-filter:hover { color: var(--silver-3); }
+.rec-filter.is-active {
+  color: var(--parchment);
+  box-shadow: inset 0 0 0 1px var(--gold-2);
+}
+.rec-empty {
+  padding: 12px 4px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* каждый предмет — укороченный контейнер; картинка целиком слева от рамки */
+.rec-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 104px;
+  margin-left: 78px;
+  padding: 10px 14px 10px 12px;
+  overflow: visible;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 38%, rgba(124, 130, 139, 0.22) 62%, rgba(124, 130, 139, 0.8)) border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  --rarity-dot: #b0b6bf;
+}
+.rec-card[data-rarity='common'] { --rarity-dot: #b0b6bf; }
+.rec-card[data-rarity='uncommon'] { --rarity-dot: #3fae5a; }
+.rec-card[data-rarity='rare'] { --rarity-dot: #3b82f6; }
+.rec-card[data-rarity='very-rare'] { --rarity-dot: #a855f7; }
+.rec-card[data-rarity='legendary'] { --rarity-dot: #f59e0b; }
+.rec-card[data-rarity='artifact'] { --rarity-dot: #de4234; }
+/* уголки-оклад (поверх выступающей картинки) */
+.rec-card::before,
+.rec-card::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border-color: var(--silver-2);
+  border-style: solid;
+  opacity: 0.8;
+}
+.rec-card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.rec-card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+.rec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 14px rgba(205, 211, 219, 0.14); }
+
+/* картинка предмета — полностью вне рамки, слева от контейнера */
+.rec-thumb {
+  position: absolute;
+  left: -112px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.rec-thumb-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 210%;
+  height: 210%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(50% 50% at 50% 50%, var(--rarity-dot) 0%, transparent 66%);
+  opacity: 0.24;
+  filter: blur(12px);
+  pointer-events: none;
+}
+.rec-thumb img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.6));
+}
+.rec-thumb > svg {
+  position: relative;
+  z-index: 1;
+  width: 40%;
+  height: 40%;
+  color: var(--silver-2);
+  opacity: 0.7;
+}
+.rec-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
+}
+.rec-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.04rem;
+  line-height: 1.22;
+  color: var(--parchment);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.18s ease;
+}
+.rec-type {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+/* редкость — маленькой сплошной точкой, БЕЗ свечения (свечение только за предметом) */
+.rec-rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 1px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.rec-rarity::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rarity-dot);
+}
+.rec-card:hover .rec-name { color: var(--gold-3); }
+
+@media (max-width: 900px) {
+  .item-tube { flex-direction: column; }
+  .item-tube-recs { flex-basis: auto; width: 100%; }
+  .item-tube-head { text-align: center; }
+  .item-tube-head .item-chips { justify-content: center; }
+  .rec-card {
+    margin-left: 64px;
+    min-height: 96px;
+  }
+  .rec-thumb {
+    left: -90px;
+    width: 72px;
+    height: 72px;
+  }
+}
+
+/* ---------- Анимация карточек через View Transitions API ----------
+   У каждой карточки своё имя card-<id>, у детали — имя выбранной карточки.
+   Браузер САМ перемещает/масштабирует каждую карточку между её старой и новой
+   позицией: выбранная летит из списка в левую деталь и растёт, прежняя деталь
+   летит обратно в список, остальные поднимаются, занимая место. Всё за 0.9 с. */
+.masthead { view-transition-name: masthead; }
+
+/* морф положения/размера каждой карточки и детали — 0.9 с, плавно */
+::view-transition-group(*) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.33, 1, 0.35, 1);
+}
+/* кросс-фейд содержимого (карточка ⇄ полная инфа) — тоже 0.9 с */
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.33, 1, 0.35, 1);
+}
+/* шапка не дёргается */
+::view-transition-group(masthead) { animation-duration: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation-duration: 0.01ms !important; }
+}
+
+/* крестик закрытия подробной карточки */
+.item-split-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  clip-path: var(--hex-chip);
+  color: var(--silver-3);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+  cursor: pointer;
+  transition: color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.item-split-close svg { width: 18px; height: 18px; }
+.item-split-close:hover { color: var(--gold-3); box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.65); transform: scale(1.06); }
 
 .detail-note {
   font-style: italic;

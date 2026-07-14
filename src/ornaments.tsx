@@ -5,7 +5,7 @@
  */
 import logoUrl from './assets/Logo_vantage.svg'
 
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { BookOpen } from 'lucide-react'
 import { D20LogoImage } from './dice/diceAssets'
 
@@ -80,6 +80,47 @@ export function Corners({ size = 44, gold = false }: { size?: number; gold?: boo
       <i className="corner corner--bl"><Corner size={size} gold={gold} /></i>
       <i className="corner corner--br"><Corner size={size} gold={gold} /></i>
     </>
+  )
+}
+
+/**
+ * Сворачиваемый блок в виде пергаментного свитка:
+ * верхний/нижний валик, золотые наконечники, раскрытие по клику.
+ */
+export function ParchmentScroll({
+  children,
+  className = '',
+  openLabel = 'Читать полностью',
+  closeLabel = 'Свернуть свиток',
+}: {
+  children: ReactNode
+  className?: string
+  openLabel?: string
+  closeLabel?: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className={`parchment-scroll${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
+      <div className="parchment-scroll-assembly">
+        <span className="parchment-scroll-rod parchment-scroll-rod--top" aria-hidden="true" />
+        <div className="parchment-scroll-paper">
+          <div className="parchment-scroll-paper-inner">
+            <Corners size={26} />
+            <div className="parchment-scroll-text">{children}</div>
+          </div>
+        </div>
+        <span className="parchment-scroll-rod parchment-scroll-rod--bottom" aria-hidden="true" />
+      </div>
+      <button
+        type="button"
+        className="parchment-scroll-toggle"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        {open ? closeLabel : openLabel}
+      </button>
+    </div>
   )
 }
 
