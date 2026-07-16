@@ -86,40 +86,55 @@ export function Corners({ size = 44, gold = false }: { size?: number; gold?: boo
 /**
  * Сворачиваемый блок в виде пергаментного свитка:
  * верхний/нижний валик, золотые наконечники, раскрытие по клику.
+ *
+ * Золотой заголовок живёт СНАРУЖИ сворачиваемой бумаги — поэтому у свёрнутого
+ * свитка остаётся подпись, и видно, что под валиком спрятано описание.
  */
 export function ParchmentScroll({
   children,
   className = '',
+  title = 'Манускрипт',
   openLabel = 'Читать полностью',
   closeLabel = 'Свернуть свиток',
 }: {
   children: ReactNode
   className?: string
+  title?: string
   openLabel?: string
   closeLabel?: string
 }) {
-  const [open, setOpen] = useState(false)
+  // свиток развёрнут по умолчанию — застёжка на нижнем валике его сворачивает
+  const [open, setOpen] = useState(true)
 
   return (
     <div className={`parchment-scroll${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
       <div className="parchment-scroll-assembly">
         <span className="parchment-scroll-rod parchment-scroll-rod--top" aria-hidden="true" />
-        <div className="parchment-scroll-paper">
-          <div className="parchment-scroll-paper-inner">
-            <Corners size={26} />
-            <div className="parchment-scroll-text">{children}</div>
+        {/* лист пергамента: шапка с надписью не сворачивается, тело — сворачивается */}
+        <div className="parchment-scroll-sheet">
+          <Corners size={26} />
+          <div className="parchment-scroll-head">
+            <p className="parchment-scroll-title">
+              <span className="parchment-scroll-title-text">{title}</span>
+            </p>
+          </div>
+          <div className="parchment-scroll-paper">
+            <div className="parchment-scroll-paper-inner">
+              <div className="parchment-scroll-text">{children}</div>
+            </div>
           </div>
         </div>
         <span className="parchment-scroll-rod parchment-scroll-rod--bottom" aria-hidden="true" />
+        {/* застёжка сидит НА нижнем валике, а не под свитком */}
+        <button
+          type="button"
+          className="parchment-scroll-toggle"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+        >
+          {open ? closeLabel : openLabel}
+        </button>
       </div>
-      <button
-        type="button"
-        className="parchment-scroll-toggle"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {open ? closeLabel : openLabel}
-      </button>
     </div>
   )
 }

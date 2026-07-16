@@ -24,11 +24,13 @@ import {
   Search,
   Shield,
   Skull,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Swords,
   Target,
   VenetianMask,
+  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -46,6 +48,17 @@ import { DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
+
+type VTDocument = Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } }
+
+/**
+ * Роли предметов на время перелёта.
+ * `incomingId` — предмет, чьи картинка и подпись летят на своё место в «плеере»
+ * (он же используется при закрытии — тогда они летят обратно в карточку).
+ * `outgoingId` — только при смене предмета: прежний улетает влево и возвращается
+ * карточкой справа. При открытии и закрытии его нет.
+ */
+type SwitchRoles = { incomingId: string; outgoingId: string | null } | null
 
 /* ---------- Мелкие детали карточек ---------- */
 
@@ -129,10 +142,14 @@ function CardLink({
     // модификаторы/средняя кнопка — обычное открытие ссылки (новая вкладка и т.п.)
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     e.preventDefault()
-    const run = () => (onOpen ? onOpen() : navigate(to))
+    // раскрытие на месте: onOpen сам заводит переход, расставив роли до снимка
+    if (onOpen) {
+      onOpen()
+      return
+    }
     const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
-    if (doc.startViewTransition) doc.startViewTransition(() => flushSync(run))
-    else run()
+    if (doc.startViewTransition) doc.startViewTransition(() => flushSync(() => navigate(to)))
+    else navigate(to)
   }
 
   return (
@@ -156,6 +173,25 @@ interface SortOption<T> {
   cmp: (a: T, b: T, bookMap: BookMap) => number
 }
 
+interface FilterOption {
+  key: string
+  label: string
+  /** цвет точки (редкость); без него вариант рисуется без точки */
+  color?: string
+  /** подсказка при наведении — например, полное название книги за её кодом */
+  hint?: string
+}
+
+/** Группа фильтров каталога. Внутри группы варианты складываются по ИЛИ, группы — по И. */
+interface FilterGroup<T> {
+  key: string
+  label: string
+  /** варианты могут зависеть от книг (например, список источников) */
+  options: (bookMap: BookMap) => FilterOption[]
+  /** подходит ли запись под выбранные варианты; пустой выбор группа не проверяет */
+  match: (item: T, selected: string[], bookMap: BookMap) => boolean
+}
+
 interface CatalogConfig<T> {
   resource: string
   /** базовый маршрут детальной страницы записи */
@@ -163,9 +199,14 @@ interface CatalogConfig<T> {
   title: string
   sub: string
   emptyIcon: LucideIcon
-  card: (item: T, bookMap: BookMap) => ReactNode
+  /** `role` = 'incoming' у карточки, которую сейчас раскрывают/закрывают */
+  card: (item: T, bookMap: BookMap, role?: RecRole) => ReactNode
   /** если задано — под поиском появляется переключатель сортировки */
   sorts?: SortOption<T>[]
+  /** если задано — рядом с поиском появляется кнопка «Фильтры» с меню */
+  filters?: FilterGroup<T>[]
+  /** раздел шире обычной колонки — сетка и подробный обзор одной ширины */
+  wide?: boolean
   /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
   inlineDetail?: (ctx: {
     selected: T
@@ -173,6 +214,7 @@ interface CatalogConfig<T> {
     onSelect: (item: T) => void
     onClose: () => void
     bookMap: BookMap
+    switching: SwitchRoles
   }) => ReactNode
 }
 
@@ -218,19 +260,194 @@ const RARITY_FILTERS: { key: string; label: string }[] = [
   { key: 'artifact', label: 'Артефакт' },
 ]
 
-/** Одна карточка в правой ленте рекомендаций (с картинкой предмета). */
-function RecCard({ item, onSelect }: { item: Item; onSelect: (item: Item) => void }) {
+const RARITY_COLOR: Record<string, string> = {
+  common: '#b0b6bf',
+  uncommon: '#3fae5a',
+  rare: '#3b82f6',
+  'very-rare': '#a855f7',
+  legendary: '#f59e0b',
+  artifact: '#de4234',
+}
+
+/** Ценовые вилки в золотых; max не включается. */
+const PRICE_BANDS: { key: string; label: string; min: number; max: number }[] = [
+  { key: 'lt100', label: 'до 100 зм', min: 0, max: 100 },
+  { key: '100-1k', label: '100 – 1 000 зм', min: 100, max: 1000 },
+  { key: '1k-10k', label: '1 000 – 10 000 зм', min: 1000, max: 10000 },
+  { key: 'gt10k', label: 'свыше 10 000 зм', min: 10000, max: Infinity },
+]
+
+/** Переключить вариант в выбранных фильтрах (пустая группа выкидывается). */
+function toggleIn(sel: Record<string, string[]>, groupKey: string, optKey: string) {
+  const cur = sel[groupKey] ?? []
+  const next = cur.includes(optKey) ? cur.filter((k) => k !== optKey) : [...cur, optKey]
+  const out = { ...sel }
+  if (next.length) out[groupKey] = next
+  else delete out[groupKey]
+  return out
+}
+
+/** Кнопка «Фильтры» с выпадающим меню. Одна на каталог и на подробный обзор. */
+function FilterMenu<T>({
+  groups,
+  sel,
+  onToggle,
+  onReset,
+  bookMap,
+}: {
+  groups: FilterGroup<T>[]
+  sel: Record<string, string[]>
+  onToggle: (groupKey: string, optKey: string) => void
+  onReset: () => void
+  bookMap: BookMap
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // закрывается по клику мимо и по Escape
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const count = Object.values(sel).reduce((n, v) => n + v.length, 0)
+
+  return (
+    <div className="quest-filter" ref={ref}>
+      <button
+        type="button"
+        className={`rec-filter-btn quest-filter-btn${open ? ' is-open' : ''}${count ? ' has-active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <SlidersHorizontal aria-hidden="true" />
+        Фильтры
+        {count > 0 && <span className="rec-filter-count">{count}</span>}
+      </button>
+
+      {open && (
+        <div className="quest-filter-panel">
+          <div className="rec-filter-panel-head">
+            <span>Фильтры</span>
+            {count > 0 && (
+              <button type="button" className="rec-filter-reset" onClick={onReset}>
+                Сбросить всё
+              </button>
+            )}
+          </div>
+          {groups.map((g) => {
+            const opts = g.options(bookMap)
+            if (opts.length === 0) return null
+            const s = sel[g.key] ?? []
+            return (
+              <div className="quest-filter-group" key={g.key}>
+                <span className="quest-filter-group-label">{g.label}</span>
+                <div className="rec-filters" role="group" aria-label={g.label}>
+                  {opts.map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      className={`rec-filter${o.color ? '' : ' rec-filter--plain'}${
+                        s.includes(o.key) ? ' is-active' : ''
+                      }`}
+                      style={o.color ? ({ '--rarity-dot': o.color } as CSSProperties) : undefined}
+                      title={o.hint}
+                      aria-pressed={s.includes(o.key)}
+                      onClick={() => onToggle(g.key, o.key)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const itemFilters: FilterGroup<Item>[] = [
+  {
+    key: 'rarity',
+    label: 'Редкость',
+    options: () => RARITY_FILTERS.map((f) => ({ ...f, color: RARITY_COLOR[f.key] })),
+    match: (it, sel) => sel.includes(rarityKeyOf(it.rarity)),
+  },
+  {
+    key: 'attunement',
+    label: 'Настройка',
+    options: () => [
+      { key: 'yes', label: 'Требует настройки' },
+      { key: 'no', label: 'Без настройки' },
+    ],
+    match: (it, sel) => sel.includes(it.attunement_required ? 'yes' : 'no'),
+  },
+  {
+    key: 'book',
+    label: 'Книга',
+    options: (bookMap) =>
+      Object.values(bookMap)
+        .map((b) => ({ key: b.id, label: b.book_code || b.title, hint: b.title }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'ru')),
+    match: (it, sel) => !!it.item_source && sel.includes(it.item_source),
+  },
+  {
+    key: 'price',
+    label: 'Цена',
+    options: () => PRICE_BANDS.map(({ key, label }) => ({ key, label })),
+    match: (it, sel) => {
+      const gp = it.cost_copper ? it.cost_copper / 100 : 0
+      return sel.some((k) => {
+        const band = PRICE_BANDS.find((x) => x.key === k)
+        return !!band && gp >= band.min && gp < band.max
+      })
+    },
+  },
+]
+
+/** Роль карточки на время перелёта. */
+type RecRole = 'incoming' | 'returning' | undefined
+
+/**
+ * Одна карточка в правой ленте рекомендаций (с картинкой предмета).
+ *
+ * Имена view-transition зависят от роли, и это главное в анимации переключения:
+ * - `incoming` — предмет, который выбрали: картинка и блок с названием получают
+ *   ОБЩИЕ с «плеером» имена, поэтому летят к нему отдельными объектами, а рамка
+ *   карточки остаётся безымянной и просто тает;
+ * - `returning` — предмет, который был открыт: имя есть ТОЛЬКО в новом кадре,
+ *   поэтому браузер не тянет его из «плеера», а даёт въехать справа из-за края;
+ * - без роли — обычный морф на новое место (лента раздвигается).
+ */
+function RecCard({ item, onSelect, role }: { item: Item; onSelect: (item: Item) => void; role?: RecRole }) {
   const [broken, setBroken] = useState(false)
   const image = realImage(item.item_image_gallery)
+  const cardName =
+    role === 'incoming' ? undefined : role === 'returning' ? 'returning-card' : `card-${item.id}`
+  const vt = (name: string | undefined) =>
+    name ? ({ viewTransitionName: name } as CSSProperties) : undefined
   return (
     <button
       type="button"
       className="rec-card"
       data-rarity={rarityKeyOf(item.rarity)}
-      style={{ viewTransitionName: `card-${item.id}` } as CSSProperties}
+      style={vt(cardName)}
       onClick={() => onSelect(item)}
     >
-      <span className="rec-thumb">
+      <span className="rec-thumb" style={vt(role === 'incoming' ? 'incoming-art' : undefined)}>
         <span className="rec-thumb-glow" aria-hidden="true" />
         {image && !broken ? (
           <img src={image} alt="" loading="lazy" onError={() => setBroken(true)} />
@@ -238,7 +455,7 @@ function RecCard({ item, onSelect }: { item: Item; onSelect: (item: Item) => voi
           <Gem aria-hidden="true" />
         )}
       </span>
-      <span className="rec-info">
+      <span className="rec-info" style={vt(role === 'incoming' ? 'incoming-info' : undefined)}>
         <span className="rec-name">{item.item_name}</span>
         <span className="rec-type">{item.item_type ?? 'магический предмет'}</span>
         {item.rarity && <span className="rec-rarity">{item.rarity}</span>}
@@ -258,16 +475,19 @@ function ItemSplitView({
   onSelect,
   onClose,
   bookMap,
+  switching,
 }: {
   selected: Item
   items: Item[]
   onSelect: (item: Item) => void
   onClose: () => void
   bookMap: BookMap
+  switching: SwitchRoles
 }) {
   const [broken, setBroken] = useState(false)
   const [recQ, setRecQ] = useState('')
-  const [recRarity, setRecRarity] = useState<string | null>(null)
+  // те же фильтры, что и в каталоге: ключ группы → выбранные варианты
+  const [recSel, setRecSel] = useState<Record<string, string[]>>({})
   // при смене предмета сбрасываем статус картинки
   useEffect(() => {
     setBroken(false)
@@ -278,14 +498,32 @@ function ItemSplitView({
   const rest = items.filter((it) => it.id !== selected.id)
   const query = recQ.trim().toLowerCase()
   const shown = rest.filter((it) => {
-    if (recRarity && rarityKeyOf(it.rarity) !== recRarity) return false
     if (query && !it.item_name.toLowerCase().includes(query)) return false
-    return true
+    // группы по И, варианты внутри группы по ИЛИ — как в каталоге
+    return itemFilters.every((g) => {
+      const s = recSel[g.key]
+      return !s || s.length === 0 || g.match(it, s, bookMap)
+    })
   })
   const gp = selected.cost_copper ? Math.round(selected.cost_copper / 100) : null
   const rarity = rarityKeyOf(selected.rarity)
   const image = realImage(selected.item_image_gallery)
   const book = selected.item_source ? bookMap[selected.item_source] : undefined
+
+  // На время перелёта «плеер» разбирается на части: картинка и заголовок живут
+  // своей жизнью (летят / улетают), поэтому общее имя героя снимается.
+  const incoming = switching?.incomingId === selected.id
+  const heroName = switching ? undefined : `card-${selected.id}`
+  const artName = switching ? (incoming ? 'incoming-art' : 'outgoing-art') : undefined
+  const infoName = switching ? (incoming ? 'incoming-info' : 'outgoing-info') : undefined
+  const vt = (name: string | undefined) =>
+    name ? ({ viewTransitionName: name } as CSSProperties) : undefined
+  const roleOf = (id: string): RecRole => {
+    if (!switching) return undefined
+    if (switching.incomingId === id) return 'incoming'
+    if (switching.outgoingId === id) return 'returning'
+    return undefined
+  }
 
   return (
     <div className="item-tube">
@@ -295,12 +533,8 @@ function ItemSplitView({
         </button>
 
         {/* «плеер» — крупный предмет по центру */}
-        <div
-          className="item-hero item-tube-player"
-          data-rarity={rarity}
-          style={{ viewTransitionName: `card-${selected.id}` } as CSSProperties}
-        >
-          <div className="item-art">
+        <div className="item-hero item-tube-player" data-rarity={rarity} style={vt(heroName)}>
+          <div className="item-art" style={vt(artName)}>
             <span className="item-glow" aria-hidden="true" />
             {image && !broken ? (
               <img src={image} alt={selected.item_name} onError={() => setBroken(true)} />
@@ -311,7 +545,7 @@ function ItemSplitView({
         </div>
 
         {/* заголовок и характеристики — под «плеером», слева */}
-        <div className="item-tube-head">
+        <div className="item-tube-head" style={vt(infoName)}>
           <h1 className="book-title gold-text item-title">{selected.item_name}</h1>
           <span className="setting-kicker item-kicker">{selected.item_type ?? 'магический предмет'}</span>
           <div className="card-chips item-chips">
@@ -324,7 +558,7 @@ function ItemSplitView({
         </div>
 
         {selected.description?.trim() ? (
-          <ParchmentScroll key={selected.id} className="item-tube-scroll">
+          <ParchmentScroll key={selected.id} className="item-tube-scroll" title="Манускрипт · описание">
             <RichText text={selected.description} />
           </ParchmentScroll>
         ) : null}
@@ -359,32 +593,38 @@ function ItemSplitView({
       {/* длинная лента рекомендаций справа + поиск и фильтры */}
       <aside className="item-tube-recs" aria-label="Другие предметы">
         <div className="rec-head">
-          <label className="rec-search">
-            <Search aria-hidden="true" />
-            <input
-              type="search"
-              placeholder="Искать предмет…"
-              value={recQ}
-              onChange={(e) => setRecQ(e.target.value)}
+          <div className="rec-tools">
+            <label className="rec-search">
+              <Search aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="Искать предмет…"
+                value={recQ}
+                onChange={(e) => setRecQ(e.target.value)}
+              />
+              {recQ && (
+                <button
+                  type="button"
+                  className="rec-search-clear"
+                  onClick={() => setRecQ('')}
+                  aria-label="Очистить поиск"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              )}
+            </label>
+            <FilterMenu
+              groups={itemFilters}
+              sel={recSel}
+              onToggle={(gk, ok) => setRecSel((cur) => toggleIn(cur, gk, ok))}
+              onReset={() => setRecSel({})}
+              bookMap={bookMap}
             />
-          </label>
-          <div className="rec-filters" role="group" aria-label="Фильтр по редкости">
-            {RARITY_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`rec-filter${recRarity === f.key ? ' is-active' : ''}`}
-                data-rarity={f.key}
-                onClick={() => setRecRarity((cur) => (cur === f.key ? null : f.key))}
-              >
-                {f.label}
-              </button>
-            ))}
           </div>
         </div>
         <div className="rec-list">
           {shown.length > 0 ? (
-            shown.map((it) => <RecCard key={it.id} item={it} onSelect={onSelect} />)
+            shown.map((it) => <RecCard key={it.id} item={it} onSelect={onSelect} role={roleOf(it.id)} />)
           ) : (
             <p className="rec-empty">Ничего не найдено на этой странице.</p>
           )}
@@ -525,25 +765,53 @@ function terminCard(t: Termin, bookMap: BookMap) {
   )
 }
 
-function itemCard(it: Item, bookMap: BookMap) {
+/** Арт предмета в карточке сетки: прозрачная картинка со свечением редкости за ней. */
+function ItemCardArt({ src, alt, vtName }: { src: string | null; alt: string; vtName?: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span
+      className="item-card-art"
+      style={vtName ? ({ viewTransitionName: vtName } as CSSProperties) : undefined}
+    >
+      <span className="item-card-glow" aria-hidden="true" />
+      {src && !broken ? (
+        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <Gem className="item-card-fallback" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
+
+function itemCard(it: Item, bookMap: BookMap, role?: RecRole) {
   const gp = it.cost_copper ? Math.round(it.cost_copper / 100) : null
   const rarityKey = it.rarity ? RARITY_KEY[it.rarity.toLowerCase()] : undefined
+  const incoming = role === 'incoming'
   return (
-    <article className="card card--compact">
-      <h3 className="card-name">{it.item_name}</h3>
-      {it.item_type && <span className="card-kicker">{it.item_type}</span>}
-      <div className="card-chips">
-        <SourceBadge book={it.item_source ? bookMap[it.item_source] : undefined} />
-        {it.rarity && (
-          <span className="chip" data-rarity={rarityKey}>
-            <Gem aria-hidden="true" />
-            {it.rarity}
-          </span>
-        )}
-        {it.attunement_required && <Chip icon={Sparkles}>настройка</Chip>}
-        {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
+    <article className="card card--item" data-rarity={rarityKeyOf(it.rarity)}>
+      <ItemCardArt
+        src={realImage(it.item_image_gallery)}
+        alt={it.item_name}
+        vtName={incoming ? 'incoming-art' : undefined}
+      />
+      <div
+        className="item-card-info"
+        style={incoming ? ({ viewTransitionName: 'incoming-info' } as CSSProperties) : undefined}
+      >
+        <h3 className="card-name">{it.item_name}</h3>
+        {it.item_type && <span className="card-kicker">{it.item_type}</span>}
+        <div className="card-chips">
+          <SourceBadge book={it.item_source ? bookMap[it.item_source] : undefined} />
+          {it.rarity && (
+            <span className="chip" data-rarity={rarityKey}>
+              <Gem aria-hidden="true" />
+              {it.rarity}
+            </span>
+          )}
+          {it.attunement_required && <Chip icon={Sparkles}>настройка</Chip>}
+          {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
+        </div>
       </div>
-      <TermDesc text={it.description} />
     </article>
   )
 }
@@ -577,23 +845,70 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState('none')
+  // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
+  const [filterSel, setFilterSel] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [bookMap, setBookMap] = useState<BookMap>({})
   const bookMapRef = useRef<BookMap>({})
   // раскрытая деталь прямо в списке (для предметов), без ухода на страницу
   const [selected, setSelected] = useState<T | null>(null)
+  // роли на время перелёта карточки: кто прилетает, кто улетает
+  const [switching, setSwitching] = useState<SwitchRoles>(null)
   // открытый предмет сохраняем в адресе (?open=id) — переживает перезагрузку
   const [searchParams, setSearchParams] = useSearchParams()
   const initialOpenRef = useRef(searchParams.get('open'))
 
   const withVT = (fn: () => void) => {
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+    const doc = document as VTDocument
     if (doc.startViewTransition) doc.startViewTransition(() => flushSync(fn))
     else fn()
   }
-  const selectItem = (item: T) => withVT(() => setSelected(item))
-  const closeSelected = () => withVT(() => setSelected(null))
+
+  /**
+   * Переключение на ДРУГОЙ предмет — особая хореография (см. CSS `tube-fly-left`):
+   * картинка входящего летит отдельным объектом и растёт на место большой,
+   * его название с тегами уезжает вниз в заголовок, а прежний предмет улетает
+   * влево за край и возвращается карточкой справа. Чтобы браузер снял «старый»
+   * снимок уже с нужными именами, помечаем роли ДО startViewTransition.
+   */
+  /**
+   * Переход с ролями. Роли надо расставить ДО снимка, иначе браузер снимет
+   * «старый» кадр со старыми именами: тогда карточка морфится целиком и её
+   * содержимое кросс-фейдится с новым — видно дубли названия и картинки.
+   */
+  const runVT = (roles: SwitchRoles, apply: () => void) => {
+    const doc = document as VTDocument
+    if (!doc.startViewTransition) {
+      apply()
+      return
+    }
+    flushSync(() => setSwitching(roles))
+    const t = doc.startViewTransition(() => flushSync(apply))
+    const done = () => setSwitching(null)
+    t.finished.then(done, done)
+  }
+
+  // Открытие, переключение и закрытие — одна хореография: картинка и блок с
+  // названием летят на свои места как отдельные объекты (общие имена
+  // incoming-art / incoming-info), рамка карточки остаётся безымянной и тает.
+  const selectItem = (item: T) => {
+    if (!cfg.inlineDetail) {
+      withVT(() => setSelected(item))
+      return
+    }
+    const prev = selected
+    const outgoingId = prev && prev.id !== item.id ? prev.id : null
+    runVT({ incomingId: item.id, outgoingId }, () => setSelected(item))
+  }
+
+  const closeSelected = () => {
+    if (!cfg.inlineDetail || !selected) {
+      withVT(() => setSelected(null))
+      return
+    }
+    runVT({ incomingId: selected.id, outgoingId: null }, () => setSelected(null))
+  }
 
   // восстановление открытого предмета из адреса, когда список подгрузился
   useEffect(() => {
@@ -645,12 +960,23 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     setPage(0)
   }, [sortKey])
 
+  // смена фильтров возвращает на первую страницу
+  useEffect(() => {
+    setPage(0)
+  }, [filterSel])
+
+  const activeFilterCount = Object.values(filterSel).reduce((n, v) => n + v.length, 0)
+  const toggleFilter = (groupKey: string, optKey: string) =>
+    setFilterSel((cur) => toggleIn(cur, groupKey, optKey))
+
   useEffect(() => {
     let stale = false
     setLoading(true)
     const activeSort = cfg.sorts?.find((s) => s.key === sortKey)
+    const groups = cfg.filters ?? []
+    const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
-    if (!activeSort) {
+    if (!activeSort && activeGroups.length === 0) {
       fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined })
         .then((res) => {
           if (stale) return
@@ -661,13 +987,19 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         .catch((e: unknown) => !stale && setError(e instanceof Error ? e.message : String(e)))
         .finally(() => !stale && setLoading(false))
     } else {
-      // сортировка не поддерживается сервером — тянем весь отфильтрованный список и сортируем на клиенте
+      // ни сортировка, ни фильтры не поддерживаются сервером — тянем весь список
+      // и обрабатываем на клиенте, иначе фильтр видел бы только текущую страницу
       fetchAll<T>(cfg.resource, { q: query || undefined })
         .then((all) => {
           if (stale) return
-          const sorted = [...all].sort((a, b) => activeSort.cmp(a, b, bookMapRef.current))
-          setTotal(sorted.length)
-          setItems(sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
+          const bm = bookMapRef.current
+          // группы складываются по И, варианты внутри группы — по ИЛИ
+          let list = activeGroups.length
+            ? all.filter((it) => activeGroups.every((g) => g.match(it, filterSel[g.key], bm)))
+            : all
+          if (activeSort) list = [...list].sort((a, b) => activeSort.cmp(a, b, bm))
+          setTotal(list.length)
+          setItems(list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
           setError(null)
         })
         .catch((e: unknown) => !stale && setError(e instanceof Error ? e.message : String(e)))
@@ -676,7 +1008,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     return () => {
       stale = true
     }
-  }, [cfg.resource, cfg.sorts, page, query, sortKey])
+  }, [cfg.resource, cfg.sorts, cfg.filters, page, query, sortKey, filterSel])
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const EmptyIcon = cfg.emptyIcon
@@ -685,16 +1017,19 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   // раскрытая деталь прямо на этой странице (предметы) — деталь слева, список справа
   if (cfg.inlineDetail && selected) {
     return (
-      <section className="catalog">
-        {cfg.inlineDetail({ selected, items, onSelect: selectItem, onClose: closeSelected, bookMap })}
+      <section className={`catalog${cfg.wide ? ' catalog--wide' : ''}`}>
+        {cfg.inlineDetail({ selected, items, onSelect: selectItem, onClose: closeSelected, bookMap, switching })}
       </section>
     )
   }
 
   return (
-    <section className="catalog">
-      <h1 className="section-title gold-text">{cfg.title}</h1>
-      <p className="section-sub">{cfg.sub}</p>
+    <section className={`catalog${cfg.wide ? ' catalog--wide' : ''}`}>
+      {/* шапка раздела уезжает под масthead при раскрытии предмета (см. CSS) */}
+      <div className="section-head">
+        <h1 className="section-title gold-text">{cfg.title}</h1>
+        <p className="section-sub">{cfg.sub}</p>
+      </div>
 
       <div className="quest-bar">
         <label className="quest-input">
@@ -705,9 +1040,31 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          {q && (
+            <button type="button" className="quest-clear" onClick={() => setQ('')} aria-label="Очистить поиск">
+              <X aria-hidden="true" />
+            </button>
+          )}
         </label>
+
+        {cfg.filters && cfg.filters.length > 0 && (
+          <FilterMenu
+            groups={cfg.filters}
+            sel={filterSel}
+            onToggle={toggleFilter}
+            onReset={() => setFilterSel({})}
+            bookMap={bookMap}
+          />
+        )}
+
         <span className="quest-total">
-          {loading ? (sorting ? 'сортируем архив…' : 'листаем страницы…') : `найдено записей: ${total.toLocaleString('ru')}`}
+          {loading
+            ? activeFilterCount > 0
+              ? 'просеиваем архив…'
+              : sorting
+                ? 'сортируем архив…'
+                : 'листаем страницы…'
+            : `найдено записей: ${total.toLocaleString('ru')}`}
         </span>
       </div>
 
@@ -736,10 +1093,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             <CardLink
               key={item.id}
               to={`${cfg.base}/${item.id}`}
-              vtName={cfg.inlineDetail ? `card-${item.id}` : undefined}
-              onOpen={cfg.inlineDetail ? () => setSelected(item) : undefined}
+              // у выбранной карточки рамка безымянная: летят только её картинка
+              // и подпись (внутри), а рамка просто тает
+              vtName={
+                cfg.inlineDetail && switching?.incomingId !== item.id ? `card-${item.id}` : undefined
+              }
+              onOpen={cfg.inlineDetail ? () => selectItem(item) : undefined}
             >
-              {cfg.card(item, bookMap)}
+              {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
             </CardLink>
           ))}
         </div>
@@ -887,6 +1248,8 @@ export const ItemsPage = () => (
       sub: 'Реликвии, артефакты и сокровища подземелий',
       emptyIcon: Gem,
       card: itemCard,
+      filters: itemFilters,
+      wide: true,
       sorts: itemSorts,
       inlineDetail: (ctx) => <ItemSplitView {...ctx} />,
     }}

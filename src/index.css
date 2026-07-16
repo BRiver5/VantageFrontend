@@ -1419,6 +1419,13 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 
 .catalog { padding-top: clamp(30px, 5vw, 54px); }
 
+/* Раздел шире обычной колонки (1280): выходим за неё симметрично, чтобы сетка
+   предметов и подробный обзор были одной ширины и не прыгали при раскрытии. */
+.catalog--wide {
+  width: min(100vw - 34px, 1580px);
+  margin-left: calc((100% - min(100vw - 34px, 1580px)) / 2);
+}
+
 /* поиск по архиву */
 .quest-bar {
   display: flex;
@@ -1429,18 +1436,49 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   margin: 30px 0 8px;
 }
 
+/* строка поиска — оклад: градиентная рамка, золотые уголки, свечение в фокусе */
 .quest-input {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 12px;
+  padding: 11px 18px;
   width: clamp(240px, 40vw, 400px);
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
     linear-gradient(160deg, rgba(168, 175, 186, 0.7), rgba(168, 175, 186, 0.25) 40%, rgba(168, 175, 186, 0.7)) border-box;
+  transition: box-shadow 0.18s ease;
 }
-.quest-input svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
+.quest-input > svg { width: 18px; height: 18px; color: var(--gold-2); flex-shrink: 0; }
+
+/* уголки-оклад — общий приём с карточками */
+.quest-input::before,
+.quest-input::after,
+.rec-search::before,
+.rec-search::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--gold-2);
+  border-style: solid;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.quest-input::before,
+.rec-search::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.quest-input::after,
+.rec-search::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+.quest-input:focus-within,
+.rec-search:focus-within {
+  box-shadow: 0 0 0 1px rgba(196, 154, 60, 0.5), 0 0 18px -4px rgba(196, 154, 60, 0.45);
+}
+.quest-input:focus-within::before,
+.quest-input:focus-within::after,
+.rec-search:focus-within::before,
+.rec-search:focus-within::after { opacity: 1; }
 .quest-input input {
   flex: 1;
   background: none;
@@ -1452,6 +1490,77 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   letter-spacing: 0.03em;
 }
 .quest-input input::placeholder { color: var(--text-dim); font-style: italic; }
+
+.quest-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.quest-clear svg { width: 14px; height: 14px; color: currentColor; }
+.quest-clear:hover { color: var(--gold-3); }
+
+/* кнопка «Фильтры» с выпадающим меню в шапке каталога */
+.quest-filter { position: relative; }
+.quest-filter-btn { height: 100%; padding: 9px 16px; }
+
+/* в общем меню каталога кнопка крупнее — под стать строке поиска */
+.quest-bar .quest-filter-btn {
+  padding: 12px 26px;
+  font-size: 1.02rem;
+  letter-spacing: 0.06em;
+}
+.quest-bar .quest-filter-btn svg { width: 19px; height: 19px; }
+.quest-bar .rec-filter-count { min-width: 18px; height: 18px; font-size: 0.72rem; }
+
+.quest-filter-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(560px, calc(100vw - 40px));
+  /* книг много — меню не должно уезжать за экран */
+  max-height: min(68vh, 560px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+  padding: 16px 18px 18px;
+  text-align: left;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.55), rgba(124, 130, 139, 0.22) 55%, rgba(196, 154, 60, 0.55)) border-box;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.62);
+  animation: quest-filter-drop 0.26s cubic-bezier(0.33, 1, 0.35, 1);
+}
+
+.quest-filter-group + .quest-filter-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(168, 175, 186, 0.14);
+}
+
+.quest-filter-group-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+/* вариант без цветной точки (настройка, книга, цена) */
+.rec-filter--plain::before { display: none; }
 
 .quest-total {
   color: var(--text-dim);
@@ -1546,6 +1655,64 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 }
 .card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
 .card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+/* ---------- Карточка предмета в сетке: арт со свечением редкости ---------- */
+.card--item {
+  gap: 8px;
+  --rarity-glow: rgba(176, 182, 191, 0.5);
+}
+.card--item[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.5); }
+.card--item[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.6); }
+.card--item[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.6); }
+.card--item[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.62); }
+.card--item[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.64); }
+.card--item[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.64); }
+
+/* подпись карточки — отдельным блоком: она летит в заголовок как один объект */
+.item-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-card-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  margin: 2px 0 6px;
+}
+.item-card-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 80%;
+  height: 80%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(46% 44% at 50% 50%, var(--rarity-glow), transparent 70%);
+  filter: blur(7px);
+  pointer-events: none;
+}
+.item-card-art img {
+  position: relative;
+  z-index: 1;
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 16px rgba(0, 0, 0, 0.62));
+  transition: transform 0.25s ease;
+}
+.card--item:hover .item-card-art img { transform: scale(1.07); }
+.item-card-fallback {
+  position: relative;
+  z-index: 1;
+  width: 32%;
+  height: 32%;
+  color: var(--rarity-glow);
+  stroke-width: 0.9;
+}
 
 .card-head { display: flex; align-items: center; gap: 14px; }
 
@@ -2017,10 +2184,6 @@ a.card-slot { text-decoration: none; color: inherit; }
   gap: clamp(22px, 3vw, 56px);
   padding-top: clamp(8px, 2vw, 20px);
   animation: item-split-in 0.5s ease;
-  /* раскрытый предмет выходит за границы обычной колонки (1280),
-     чтобы лента рекомендаций уезжала к правому краю экрана */
-  width: min(100vw - 34px, 1580px);
-  margin-left: calc((100% - min(100vw - 34px, 1580px)) / 2);
 }
 @keyframes item-split-in { from { opacity: 0; } to { opacity: 1; } }
 
@@ -2088,7 +2251,56 @@ a.card-slot { text-decoration: none; color: inherit; }
 
 .parchment-scroll {
   margin-top: 18px;
+  /* место под застёжку, свисающую с нижнего валика */
+  padding-bottom: 18px;
   max-width: 100%;
+}
+
+/* золотая надпись — внутри самого пергамента, в несворачиваемой шапке листа */
+.parchment-scroll-head {
+  position: relative;
+  z-index: 1;
+  padding: 16px 24px 14px;
+}
+
+.parchment-scroll-title {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0;
+}
+
+.parchment-scroll-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--gold-2);
+  box-shadow: 0 0 8px rgba(196, 154, 60, 0.55);
+}
+
+.parchment-scroll-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.5), rgba(196, 154, 60, 0.05));
+}
+
+.parchment-scroll-title-text {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 1.3vw, 1.18rem);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* тиснёное золото */
+  background: linear-gradient(180deg, var(--gold-4) 0%, var(--gold-3) 42%, var(--gold-2) 72%, #96702a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
 }
 
 .parchment-scroll-assembly {
@@ -2109,7 +2321,12 @@ a.card-slot { text-decoration: none; color: inherit; }
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
     0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.52s cubic-bezier(0.33, 1, 0.35, 1);
+  transition: transform 0.72s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* свёрнутый свиток толще — бумага намоталась на валики */
+.parchment-scroll:not(.is-open) .parchment-scroll-rod {
+  transform: scaleY(1.55);
 }
 
 .parchment-scroll-rod::before,
@@ -2136,32 +2353,44 @@ a.card-slot { text-decoration: none; color: inherit; }
   margin-top: -2px;
 }
 
-.parchment-scroll-paper {
+/* Бумага сворачивается ПОЛНОСТЬЮ. Анимируем настоящую высоту через grid-строку
+   (minmax(0, 0fr) ⇄ minmax(0, 1fr)): max-height так не годится — от 4200px до
+   реальной высоты текста ничего не происходит, и свиток «схлопывается» рывком
+   в самом конце. Здесь же скорость роллинга ровная от начала до конца. */
+/* лист пергамента — общий для шапки и тела, поэтому это один кусок бумаги */
+.parchment-scroll-sheet {
   position: relative;
   z-index: 1;
   margin: 0 12px;
-  overflow: hidden;
-  max-height: 8.4em;
-  transition: max-height 0.52s cubic-bezier(0.33, 1, 0.35, 1);
-}
-
-.parchment-scroll.is-open .parchment-scroll-paper {
-  max-height: 4200px;
-}
-
-.parchment-scroll-paper-inner {
-  position: relative;
-  padding: 20px 22px 18px;
   background:
     radial-gradient(120% 65% at 50% 0%, rgba(196, 154, 60, 0.06), transparent 58%),
     linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 52%, var(--bg-1) 100%);
   box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.24);
 }
 
-.parchment-scroll-paper-inner .corner {
+.parchment-scroll-sheet .corner {
   opacity: 0.85;
 }
 
+.parchment-scroll-paper {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  overflow: hidden;
+  transition: grid-template-rows 0.72s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.parchment-scroll.is-open .parchment-scroll-paper {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.parchment-scroll-paper-inner {
+  position: relative;
+  min-height: 0;
+  padding: 0 24px 18px;
+}
+
+/* тень скрутки: едет по нижнему краю бумаги, пока та наматывается на валик */
 .parchment-scroll-paper::after {
   content: '';
   position: absolute;
@@ -2169,7 +2398,8 @@ a.card-slot { text-decoration: none; color: inherit; }
   right: 0;
   bottom: 0;
   height: 3.6em;
-  background: linear-gradient(180deg, transparent, var(--bg-1) 92%);
+  background: linear-gradient(180deg, transparent, rgba(6, 7, 9, 0.72) 80%, rgba(6, 7, 9, 0.94) 100%);
+  box-shadow: inset 0 -1px 0 rgba(236, 220, 176, 0.16);
   pointer-events: none;
   transition: opacity 0.32s ease;
 }
@@ -2205,22 +2435,33 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: var(--gold-3);
 }
 
+/* застёжка свитка: сидит НА нижнем валике, из того же металла, что и валики */
 .parchment-scroll-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  z-index: 3;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
-  padding: 0;
-  background: none;
+  margin: 0;
+  padding: 5px 18px;
+  clip-path: var(--hex-chip);
   border: none;
-  color: var(--gold-3);
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--silver-1), var(--silver-0) 52%, var(--silver-1));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    0 3px 9px rgba(0, 0, 0, 0.5);
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 0.92rem;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color 0.18s ease, transform 0.18s ease, filter 0.18s ease;
+  transition: filter 0.18s ease, transform 0.18s ease;
 }
 
 .parchment-scroll-toggle::after {
@@ -2234,9 +2475,8 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 
 .parchment-scroll-toggle:hover {
-  color: var(--gold-4);
-  filter: drop-shadow(0 0 8px rgba(228, 196, 110, 0.28));
-  transform: translateY(-1px);
+  filter: brightness(1.14);
+  transform: translateX(-50%) translateY(-1px);
 }
 
 .item-tube-scroll {
@@ -2311,22 +2551,26 @@ a.card-slot { text-decoration: none; color: inherit; }
 
 /* поиск и фильтры над лентой — в нашем стиле */
 .rec-head {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  position: relative;
   margin-bottom: 2px;
 }
+.rec-tools { display: flex; align-items: stretch; gap: 8px; }
+
 .rec-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
+  gap: 11px;
+  padding: 10px 16px;
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
     linear-gradient(160deg, rgba(124, 130, 139, 0.75), rgba(124, 130, 139, 0.2) 50%, rgba(124, 130, 139, 0.75)) border-box;
+  transition: box-shadow 0.18s ease;
 }
-.rec-search svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--text-dim); }
+.rec-search > svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--gold-2); }
 .rec-search input {
   flex: 1 1 auto;
   min-width: 0;
@@ -2337,6 +2581,109 @@ a.card-slot { text-decoration: none; color: inherit; }
   font-size: 0.95rem;
 }
 .rec-search input::placeholder { color: var(--text-dim); }
+.rec-search input::-webkit-search-cancel-button { display: none; }
+
+.rec-search-clear {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.rec-search-clear svg { width: 14px; height: 14px; }
+.rec-search-clear:hover { color: var(--gold-3); }
+
+/* кнопка, открывающая фильтры */
+.rec-filter-btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  clip-path: var(--hex-chip);
+  border: none;
+  color: var(--silver-2);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.16s ease, box-shadow 0.16s ease;
+}
+.rec-filter-btn svg { width: 16px; height: 16px; }
+.rec-filter-btn:hover { color: var(--parchment); }
+.rec-filter-btn.is-open,
+.rec-filter-btn.has-active {
+  color: var(--parchment);
+  box-shadow: inset 0 0 0 1px var(--gold-2);
+}
+.rec-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--gold-2);
+  color: var(--bg-0);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* центрированная панель: в keyframes обязателен и translateX(-50%),
+   иначе на въезде её сносит вбок из-под кнопки */
+@keyframes quest-filter-drop {
+  from { opacity: 0; transform: translateX(-50%) translateY(-7px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* в узкой ленте меню прижато к правому краю, иначе уедет за экран */
+.rec-tools .quest-filter-panel {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: min(400px, calc(100vw - 40px));
+  animation-name: rec-filter-drop;
+}
+@keyframes rec-filter-drop {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rec-filter-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.rec-filter-reset {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.rec-filter-reset:hover { color: var(--gold-4); }
+
 .rec-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .rec-filter {
   display: inline-flex;
@@ -2535,13 +2882,113 @@ a.card-slot { text-decoration: none; color: inherit; }
   animation-duration: 0.9s;
   animation-timing-function: cubic-bezier(0.33, 1, 0.35, 1);
 }
-/* шапка не дёргается */
-::view-transition-group(masthead) { animation-duration: 0.4s; }
+/* шапка не дёргается; z-index — чтобы заголовок раздела уезжал ПОД неё */
+::view-transition-group(masthead) { animation-duration: 0.4s; z-index: 10; }
+
+/* ---------- Сетка ⇄ подробный обзор ----------
+   Поиск и кнопка фильтров есть в ОБОИХ кадрах (в сетке — сверху по центру, в
+   обзоре — над лентой справа), но никогда одновременно: раскрытый предмет
+   заменяет сетку. Поэтому одно имя на оба — браузер сам несёт их на новое место
+   и трансформирует по дороге. */
+.quest-input,
+.rec-search { view-transition-name: search-field; }
+.quest-filter { view-transition-name: search-filter; }
+
+/* летит только новый снимок: у поисков разные подписи («Искать в архивах…» и
+   «Искать предмет…»), и при кросс-фейде они читаются друг сквозь друга */
+::view-transition-old(search-field),
+::view-transition-old(search-filter) {
+  animation: none;
+  opacity: 0;
+}
+::view-transition-new(search-field),
+::view-transition-new(search-filter) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+/* заголовок раздела улетает вверх под шапку сайта и возвращается оттуда */
+.section-head { view-transition-name: section-head; }
+@keyframes section-head-up {
+  0% { transform: translateY(0); opacity: 1; }
+  55% { opacity: 1; }
+  100% { transform: translateY(-190%); opacity: 0; }
+}
+@keyframes section-head-down {
+  0% { transform: translateY(-190%); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+::view-transition-old(section-head) {
+  animation: section-head-up 0.9s cubic-bezier(0.5, 0, 0.35, 1) both;
+}
+::view-transition-new(section-head) {
+  animation: section-head-down 0.9s cubic-bezier(0.33, 1, 0.35, 1) both;
+}
+
+/* сортировка никуда не летит — просто исчезает и появляется */
+.sort-bar { view-transition-name: sort-bar; }
+::view-transition-old(sort-bar) { animation: none; opacity: 0; }
+::view-transition-new(sort-bar) { animation: none; opacity: 1; }
+
+/* ---------- Переключение предмета в ленте ----------
+   Роли расставляет JS (см. `selectItem`), а имена тут фиксированные:
+   - incoming-art / incoming-info есть в ОБОИХ кадрах → картинка отдельным
+     объектом летит и растёт на место большой, а название с тегами уезжает вниз;
+   - outgoing-art / outgoing-info есть ТОЛЬКО в старом → прежний предмет
+     улетает влево за край страницы;
+   - returning-card есть ТОЛЬКО в новом → его карточка въезжает справа из-за
+     края, а остальные (card-<id>) плавно раздвигаются, освобождая ей место. */
+@keyframes tube-fly-left {
+  0% { transform: translateX(0); opacity: 1; }
+  65% { opacity: 1; }
+  100% { transform: translateX(-62vw); opacity: 0; }
+}
+@keyframes tube-enter-right {
+  0% { transform: translateX(62vw); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+::view-transition-group(incoming-art),
+::view-transition-group(incoming-info),
+::view-transition-old(incoming-art),
+::view-transition-new(incoming-art) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.33, 1, 0.35, 1);
+}
+
+/* Название летит ОДНО.
+   По умолчанию браузер кросс-фейдит в группе два снимка: старый (строчка из
+   карточки) и новый (крупный заголовок). Вёрстка у них разная, поэтому видно
+   сразу ДВА названия — старое растягивается под новый размер и гаснет уже на
+   месте. Гасим старый снимок: летит и растёт только новый, его несёт группа.
+   Картинки это не касается — там оба снимка одинаковые, накладываются в одно. */
+::view-transition-old(incoming-info) {
+  animation: none;
+  opacity: 0;
+}
+
+::view-transition-new(incoming-info) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+::view-transition-old(outgoing-art),
+::view-transition-old(outgoing-info) {
+  animation: tube-fly-left 0.9s cubic-bezier(0.5, 0, 0.35, 1) both;
+}
+::view-transition-new(returning-card) {
+  animation: tube-enter-right 0.9s cubic-bezier(0.33, 1, 0.35, 1) both;
+}
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
-  ::view-transition-new(*) { animation-duration: 0.01ms !important; }
+  ::view-transition-new(*),
+  ::view-transition-old(outgoing-art),
+  ::view-transition-old(outgoing-info),
+  ::view-transition-new(returning-card) { animation-duration: 0.01ms !important; }
 }
 
 /* крестик закрытия подробной карточки */
