@@ -4728,3 +4728,276 @@ a.term-link:hover {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ============================================================
+   Лист персонажа (тестовый, /character)
+   ============================================================ */
+.cs { padding-top: clamp(24px, 4vw, 44px); }
+
+.cs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.cs-toolbar .section-title { margin: 0; }
+.cs-toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  clip-path: var(--hex-chip);
+  border: none;
+  cursor: pointer;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+.cs-btn svg { width: 16px; height: 16px; }
+.cs-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.cs-btn--ghost {
+  color: var(--silver-2);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+
+/* панель-пергамент с окладом */
+.cs-panel {
+  position: relative;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 40%, rgba(124, 130, 139, 0.8)) border-box;
+}
+
+/* общие поля ввода */
+.cs-input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 4px;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.32);
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  text-align: center;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.cs-input:focus {
+  outline: none;
+  border-bottom-color: var(--gold-2);
+  box-shadow: 0 1px 0 var(--gold-2);
+}
+.cs-input::placeholder { color: var(--text-dim); font-style: italic; }
+.cs-num { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--parchment); }
+.cs-num-sm { font-family: var(--font-display); font-weight: 700; }
+
+.cs-area {
+  width: 100%;
+  min-height: 100px;
+  flex: 1 1 auto;
+  resize: vertical;
+  padding: 8px 10px;
+  color: var(--text);
+  background: rgba(13, 14, 17, 0.35);
+  border: 1px solid rgba(168, 175, 186, 0.18);
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.cs-area:focus { outline: none; border-color: var(--gold-2); }
+.cs-area::placeholder { color: var(--text-dim); font-style: italic; }
+
+/* золотая подпись поля */
+.cs-labeled-cap {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--gold-2);
+}
+.cs-labeled { display: block; }
+
+/* заголовок панели-списка */
+.cs-list-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.cs-list-title svg { width: 15px; height: 15px; }
+
+/* флажок-ромб */
+.cs-check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--silver-2);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.cs-check.is-on {
+  background: linear-gradient(135deg, var(--gold-3), var(--gold-2));
+  border-color: var(--gold-3);
+  box-shadow: 0 0 8px rgba(196, 154, 60, 0.55);
+}
+
+/* шапка */
+.cs-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.cs-name { flex: 1 1 240px; }
+.cs-name .cs-input { text-align: left; font-family: var(--font-display); font-size: 1.5rem; color: var(--parchment); }
+.cs-head-grid {
+  flex: 2 1 420px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 18px;
+}
+
+/* три колонки */
+.cs-cols {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.cs-col { display: flex; flex-direction: column; gap: 14px; }
+
+.cs-col:first-child { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.cs-abilities { display: flex; flex-direction: column; gap: 12px; }
+.cs-col-right { display: flex; flex-direction: column; gap: 12px; }
+
+.cs-ability {
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 12px;
+  text-align: center;
+}
+.cs-ability-name {
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold-2);
+}
+.cs-ability-mod {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--parchment);
+  line-height: 1;
+}
+.cs-ability-score {
+  width: 52px;
+  padding: 3px;
+  text-align: center;
+  color: var(--text);
+  background: rgba(13, 14, 17, 0.4);
+  border: 1px solid rgba(168, 175, 186, 0.3);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.cs-ability-score:focus { outline: none; border-color: var(--gold-2); }
+
+.cs-inspiration { display: flex; align-items: center; gap: 12px; }
+.cs-inspiration span { font-family: var(--font-display); letter-spacing: 0.04em; color: var(--parchment); }
+.cs-profbonus, .cs-passive { text-align: center; }
+.cs-mini { display: block; }
+
+.cs-list-rows { display: flex; flex-direction: column; gap: 3px; }
+.cs-list-row { display: flex; align-items: center; gap: 9px; }
+.cs-list-row .cs-num-sm {
+  width: 34px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: none;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.3);
+}
+.cs-list-name { font-size: 0.9rem; color: var(--text); }
+.cs-abbr { color: var(--text-dim); font-style: normal; font-size: 0.8rem; }
+
+.cs-passive { display: flex; flex-direction: column; align-items: center; }
+.cs-passive .cs-num { width: 60px; }
+
+.cs-block { display: flex; flex-direction: column; }
+
+.cs-combat-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cs-stat { text-align: center; }
+.cs-stat .cs-num { width: 100%; }
+
+.cs-hp { display: flex; flex-direction: column; gap: 10px; }
+.cs-hp-row { display: flex; gap: 10px; }
+.cs-grow { flex: 1 1 auto; }
+.cs-hp-current .cs-input { font-family: var(--font-display); font-size: 1.3rem; color: var(--parchment); }
+
+.cs-hp-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cs-hd { display: flex; gap: 10px; align-items: flex-end; }
+.cs-hd .cs-mini { width: 52px; flex: 0 0 auto; }
+
+.cs-death-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cs-death-label { flex: 1 1 auto; font-size: 0.82rem; color: var(--text-dim); }
+
+.cs-attacks-head, .cs-attacks-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 1.2fr;
+  gap: 8px;
+  align-items: center;
+}
+.cs-attacks-head {
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  text-align: center;
+}
+.cs-attacks-row { margin-bottom: 3px; }
+.cs-attacks .cs-area { margin-top: 8px; min-height: 60px; }
+
+.cs-money { display: flex; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
+.cs-coin { flex: 1 1 0; text-align: center; }
+.cs-coin .cs-num-sm { width: 100%; }
+
+.cs-features .cs-area { min-height: 220px; }
+
+@media (max-width: 1080px) {
+  .cs-cols { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .cs-cols { grid-template-columns: 1fr; }
+  .cs-col:first-child { grid-template-columns: 1fr; }
+  .cs-abilities { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .cs-head-grid { grid-template-columns: repeat(2, 1fr); }
+}

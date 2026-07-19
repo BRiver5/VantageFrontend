@@ -8,6 +8,7 @@ import {
   Gem,
   Landmark,
   Menu,
+  ScrollText,
   Search,
   Sparkles,
   Skull,
@@ -22,6 +23,7 @@ import { DieImage } from './dice/diceAssets'
 import { BestiaryPage, BackgroundsPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage, TerminsPage } from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
+import CharacterSheet from './pages/CharacterSheet'
 import {
   BackgroundDetailPage,
   ClassDetailPage,
@@ -48,6 +50,7 @@ const CATEGORIES = [
   { path: '/spells', label: 'Заклинания', icon: Sparkles },
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
+  { path: '/character', label: 'Лист', icon: ScrollText },
 ] as const
 
 /**
@@ -691,6 +694,7 @@ export default function App() {
             <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
             <Route path="/termins" element={<TerminsPage />} />
             <Route path="/termins/:id" element={<TerminDetailPage />} />
+            <Route path="/character" element={<CharacterSheet />} />
             <Route path="/books/:id" element={<BookPage />} />
             <Route path="/settings/:id" element={<SettingPage />} />
           </Routes>
