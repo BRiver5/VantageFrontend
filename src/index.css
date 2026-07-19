@@ -5023,3 +5023,149 @@ a.term-link:hover {
   .cs-abilities { flex-direction: row; flex-wrap: wrap; justify-content: center; }
   .cs-head-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================================
+   Таблица развития класса
+   ============================================================ */
+.ctable-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.5), rgba(124, 130, 139, 0.28) 55%, rgba(196, 154, 60, 0.5)) border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+}
+.ctable-wrap::-webkit-scrollbar { height: 7px; }
+.ctable-wrap::-webkit-scrollbar-thumb { background: rgba(168, 175, 186, 0.3); border-radius: 4px; }
+
+.ctable {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+}
+
+.ctable thead th {
+  padding: 8px 10px;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  vertical-align: bottom;
+  border-bottom: 1.5px solid rgba(196, 154, 60, 0.45);
+  white-space: nowrap;
+}
+.ctable-feat-h { text-align: left; }
+.ctable-group-h { border-bottom-color: rgba(196, 154, 60, 0.3); }
+.ctable thead tr:last-child .ctable-num-h { font-size: 0.78rem; padding-top: 3px; padding-bottom: 5px; }
+
+.ctable tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.12);
+  vertical-align: top;
+}
+.ctable tbody tr:nth-child(even) { background: rgba(168, 175, 186, 0.035); }
+.ctable tbody tr:hover { background: rgba(196, 154, 60, 0.08); }
+.ctable tbody tr:last-child td { border-bottom: none; }
+
+.ctable-lvl {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--parchment);
+}
+.ctable-prof {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-3);
+}
+.ctable-num {
+  text-align: center;
+  font-family: var(--font-display);
+  color: var(--text);
+  white-space: nowrap;
+}
+.ctable-dash { color: var(--text-dim); }
+
+.ctable-feat { min-width: 220px; }
+.ctable-feat-item {
+  display: inline-block;
+  margin: 2px 5px 2px 0;
+  padding: 2px 9px;
+  border-radius: 3px;
+  color: var(--text);
+  background: rgba(168, 175, 186, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+/* умение-селектор подкласса в таблице — кликом уводит к сотам подклассов */
+.ctable-feat-link {
+  cursor: pointer;
+  color: var(--gold-3);
+  background: rgba(196, 154, 60, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  font-family: inherit;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+.ctable-feat-link:hover {
+  color: var(--gold-4);
+  background: rgba(196, 154, 60, 0.22);
+  box-shadow: inset 0 0 0 1px var(--gold-2);
+}
+
+/* меню соты подкласса: описание вместо кнопок */
+.hex-expand--sub { text-decoration: none; }
+.hex-expand-desc {
+  margin: 4px 2px 0;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.hex-expand--sub:hover .hex-expand-title-text { color: var(--gold-4); }
+
+/* кнопка перехода к заклинаниям класса/подкласса */
+.spell-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 4px 0 8px;
+  padding: 10px 22px;
+  clip-path: var(--hex-chip);
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+.spell-cta svg { width: 18px; height: 18px; }
+.spell-cta:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* кость хитов — между жёлтым фоном обложки и персонажем (картинка прозрачная) */
+.book-cover.detail-plate { position: relative; }
+.book-cover.detail-plate > img { position: relative; z-index: 1; }
+.detail-die-bg {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 86%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+  pointer-events: none;
+  filter: brightness(0.92) drop-shadow(0 3px 10px rgba(92, 69, 28, 0.4));
+}

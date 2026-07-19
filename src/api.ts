@@ -63,6 +63,7 @@ export interface Subclass {
   parent_class_id: string
   subclass_flavor: string | null
   description: string | null
+  image_gallery: string[] | null
   level_available: number | null
   is_caster: boolean
   book_source_id: string | null

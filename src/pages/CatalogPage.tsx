@@ -100,10 +100,21 @@ export function SourceBadge({ book }: { book: Book | undefined }) {
   )
 }
 
-function CardImage({ src, alt, fallback: Fallback }: { src: string | null; alt: string; fallback: LucideIcon }) {
+function CardImage({
+  src,
+  alt,
+  fallback: Fallback,
+  backdrop,
+}: {
+  src: string | null
+  alt: string
+  fallback: LucideIcon
+  backdrop?: ReactNode
+}) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="card-img">
+      {backdrop}
       {src && !broken ? (
         <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
@@ -415,6 +426,39 @@ const itemFilters: FilterGroup<Item>[] = [
         return !!band && gp >= band.min && gp < band.max
       })
     },
+  },
+]
+
+/* ---------- Фильтры заклинаний ---------- */
+
+const CLASS_NAMES = [
+  'бард', 'варвар', 'воин', 'волшебник', 'друид', 'жрец', 'изобретатель',
+  'колдун', 'монах', 'паладин', 'плут', 'следопыт', 'чародей',
+]
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+const spellFilters: FilterGroup<Spell>[] = [
+  {
+    // Значения группы складываются по ИЛИ. Обычное значение — класс (точное
+    // совпадение с available_classes). Значение вида `sub:<имя>` — подкласс
+    // (вхождение в available_subclasses). Поэтому кнопка со страницы подкласса
+    // передаёт И класс, И `sub:подкласс` — получается «спеллы класса ∪ подкласса».
+    key: 'class',
+    label: 'Класс',
+    options: () => CLASS_NAMES.map((n) => ({ key: n, label: cap(n) })),
+    match: (sp, sel) =>
+      sel.some((s) =>
+        s.startsWith('sub:')
+          ? !!sp.available_subclasses?.some((x) => x.toLowerCase().includes(s.slice(4).toLowerCase()))
+          : !!sp.available_classes?.some((c) => c.toLowerCase().trim() === s.toLowerCase()),
+      ),
+  },
+  {
+    key: 'level',
+    label: 'Круг',
+    options: () =>
+      Array.from({ length: 10 }, (_, i) => ({ key: String(i), label: i === 0 ? 'Заговор' : `${i} круг` })),
+    match: (sp, sel) => sel.includes(String(sp.spell_level)),
   },
 ]
 
@@ -862,6 +906,20 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialOpenRef = useRef(searchParams.get('open'))
 
+  // предзаполнение фильтров из адреса (переход со страницы класса/подкласса):
+  // /spells?class=колдун или ?subclass=…&level=1 — применяем один раз при входе
+  const filtersFromUrl = useRef(false)
+  useEffect(() => {
+    if (filtersFromUrl.current || !cfg.filters) return
+    filtersFromUrl.current = true
+    const next: Record<string, string[]> = {}
+    for (const g of cfg.filters) {
+      const vals = searchParams.getAll(g.key).flatMap((v) => v.split(',')).filter(Boolean)
+      if (vals.length) next[g.key] = vals
+    }
+    if (Object.keys(next).length) setFilterSel(next)
+  }, [cfg.filters, searchParams])
+
   const withVT = (fn: () => void) => {
     const doc = document as VTDocument
     if (doc.startViewTransition) doc.startViewTransition(() => flushSync(fn))
@@ -1214,6 +1272,7 @@ export const SpellsPage = () => (
       emptyIcon: Sparkles,
       card: spellCard,
       sorts: spellSorts,
+      filters: spellFilters,
     }}
   />
 )

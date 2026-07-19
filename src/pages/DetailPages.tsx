@@ -1,6 +1,6 @@
-import { isValidElement, useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Award,
@@ -33,8 +33,10 @@ import {
 import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace, Termin } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
-import { DieChipIcon, hitDieType } from '../dice/diceAssets'
+import { DIE_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
+import { parseClassTable, stripClassTable } from '../classTable'
+import type { ClassTable } from '../classTable'
 
 /* ---------- Общие детали ---------- */
 
@@ -105,6 +107,7 @@ function DetailShell({
   badge,
   chips,
   rarity,
+  backdrop,
   children,
 }: {
   backTo: string
@@ -117,6 +120,8 @@ function DetailShell({
   chips: ReactNode
   /** ключ редкости — если задан, за артом предмета светится её цвет */
   rarity?: string
+  /** декор за обложкой (напр. силуэт кости хитов у класса) */
+  backdrop?: ReactNode
   children: ReactNode
 }) {
   const [broken, setBroken] = useState(false)
@@ -131,6 +136,7 @@ function DetailShell({
           className={`book-cover detail-plate${rarity ? ' detail-plate--glow' : ''}`}
           data-rarity={rarity || undefined}
         >
+          {backdrop}
           {image && !broken ? (
             <img src={image} alt={title} onError={() => setBroken(true)} />
           ) : (
@@ -378,6 +384,242 @@ export function CreatureDetailPage() {
    КЛАСС
    ============================================================ */
 
+/* ---------- Таблица развития класса ---------- */
+
+/** Умения, дающие выбор подкласса — кликом уводим к сотам подклассов ниже. */
+const SUBCLASS_FEATURES = new Set([
+  'Коллегия бардов',
+  'Воинский архетип',
+  'Магические традиции',
+  'Круг друидов',
+  'Божественный домен',
+  'Специальность изобретателя',
+  'Вариант договора',
+  'Священная клятва',
+  'Архетип плута',
+  'Архетип следопыта',
+  'Происхождение чародея',
+  'Монастырская традиция',
+  'Путь дикости',
+])
+
+function ClassProgressionTable({ table, onOpenSubclasses }: { table: ClassTable; onOpenSubclasses?: () => void }) {
+  const nonSlot = table.columns.filter((c) => !c.slot)
+  const slots = table.columns.filter((c) => c.slot)
+  const span = slots.length ? 2 : 1
+  return (
+    <div className="ctable-wrap">
+      <table className="ctable">
+        <thead>
+          <tr>
+            {nonSlot.map((c) => (
+              <th
+                key={c.key}
+                rowSpan={span}
+                className={c.feat ? 'ctable-feat-h' : c.key === 'level' ? 'ctable-lvl-h' : 'ctable-num-h'}
+              >
+                {c.label}
+              </th>
+            ))}
+            {slots.length > 0 && (
+              <th colSpan={slots.length} className="ctable-group-h">Ячейки заклинаний</th>
+            )}
+          </tr>
+          {slots.length > 0 && (
+            <tr>
+              {slots.map((c) => (
+                <th key={c.key} className="ctable-num-h">{c.label}</th>
+              ))}
+            </tr>
+          )}
+        </thead>
+        <tbody>
+          {table.rows.map((r, ri) => (
+            <tr key={ri}>
+              {table.columns.map((c, ci) => {
+                const v = r.cells[ci]
+                if (c.feat) {
+                  const feats = Array.isArray(v) ? v : []
+                  return (
+                    <td key={c.key} className="ctable-feat">
+                      {feats.length ? (
+                        feats.map((f, fi) =>
+                          onOpenSubclasses && SUBCLASS_FEATURES.has(f) ? (
+                            <button key={fi} type="button" className="ctable-feat-item ctable-feat-link" onClick={onOpenSubclasses}>
+                              {f}
+                            </button>
+                          ) : (
+                            <span key={fi} className="ctable-feat-item">{f}</span>
+                          ),
+                        )
+                      ) : (
+                        <span className="ctable-dash">—</span>
+                      )}
+                    </td>
+                  )
+                }
+                const cls = c.key === 'level' ? 'ctable-lvl' : c.key === 'prof' ? 'ctable-prof' : 'ctable-num'
+                return <td key={c.key} className={cls}>{String(v ?? '—')}</td>
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ---------- Соты подклассов (как соты книг) ---------- */
+
+const HEX_DWELL_MS = 700
+
+/** Раскладка ячеек по рядам гексагонального улья (копия из BookHive). */
+function layoutHive<T>(items: T[], cols: number): { items: T[]; pad: number; nested: boolean }[] {
+  const c = Math.max(1, cols)
+  const target = (r: number) => (c <= 1 ? 1 : r % 2 === 0 ? c : c - 1)
+  const rows: T[][] = []
+  for (let i = 0, r = 0; i < items.length; r++) {
+    const n = target(r)
+    rows.push(items.slice(i, i + n))
+    i += n
+  }
+  return rows.map((row, i) => ({
+    items: row,
+    pad: i === 0 ? 0 : Math.max(0, target(i) - row.length),
+    nested: i > 0 && c > 1,
+  }))
+}
+
+/** Короткая выжимка описания подкласса для меню соты (первый осмысленный абзац). */
+function subclassPreview(text: string | null | undefined): string {
+  if (!text) return ''
+  // берём текст до первого ALL-CAPS заголовка умения и подрезаем
+  const cut = text.split(/[А-ЯЁ]{2,}(?:[ ]+[А-ЯЁ]+)+/)[0].trim() || text.trim()
+  return cut.length > 240 ? cut.slice(0, 237).trimEnd() + '…' : cut
+}
+
+function SubclassHexExpand({ sc }: { sc: Subclass }) {
+  return (
+    <Link to={`/subclasses/${sc.id}`} className="hex-expand hex-expand--sub">
+      <div className="hex-expand-inner">
+        <Corners size={20} />
+        <div className="hex-expand-title">
+          <span className="hex-expand-title-text">{sc.subclass_name}</span>
+        </div>
+        <p className="hex-expand-desc">{subclassPreview(sc.description) || sc.subclass_flavor || 'Открыть подкласс'}</p>
+      </div>
+    </Link>
+  )
+}
+
+/** Обложка подкласса: картинка из image_gallery, иначе щит-заглушка. */
+function SubclassCover({ sc }: { sc: Subclass }) {
+  const [broken, setBroken] = useState(false)
+  const src = realImage(sc.image_gallery)
+  if (!src || broken) {
+    return (
+      <span className="hex-cover hex-cover--empty">
+        <Shield aria-hidden="true" />
+      </span>
+    )
+  }
+  return <img className="hex-cover" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+}
+
+function SubclassHex({ sc, index }: { sc: Subclass; index: number }) {
+  const navigate = useNavigate()
+  const [expanded, setExpanded] = useState(false)
+  const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const start = () => {
+    if (dwell.current) clearTimeout(dwell.current)
+    dwell.current = setTimeout(() => setExpanded(true), HEX_DWELL_MS)
+  }
+  const cancel = () => {
+    if (dwell.current) {
+      clearTimeout(dwell.current)
+      dwell.current = null
+    }
+    setExpanded(false)
+  }
+  useEffect(() => () => {
+    if (dwell.current) clearTimeout(dwell.current)
+  }, [])
+
+  const open = () => navigate(`/subclasses/${sc.id}`)
+
+  return (
+    <div
+      className={`hex-cell-wrap${expanded ? ' is-expanded' : ''}`}
+      style={{ animationDelay: `${Math.min(index * 45, 700)}ms` }}
+      onMouseEnter={start}
+      onMouseLeave={cancel}
+    >
+      <div className="hex-unit">
+        <div className="hex-unit-fill">
+          <div
+            className="hex-cell"
+            role="link"
+            tabIndex={0}
+            onClick={open}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                open()
+              }
+            }}
+          >
+            <span className="hex-inner">
+              <SubclassCover sc={sc} />
+              <span className="hex-shade" />
+              <span className="hex-body">
+                <span className="hex-title" title={sc.subclass_name}>{sc.subclass_name}</span>
+              </span>
+            </span>
+          </div>
+          <SubclassHexExpand sc={sc} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SubclassHive({ subclasses }: { subclasses: Subclass[] }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [layout, setLayout] = useState({ s: 196, cols: 5 })
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth
+      if (w === 0) return
+      const s = w < 620 ? 150 : w < 980 ? 172 : 196
+      const cols = Math.max(1, Math.floor(w / (s + 14)))
+      setLayout((prev) => (prev.s === s && prev.cols === cols ? prev : { s, cols }))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const rows = layoutHive(subclasses, layout.cols)
+
+  return (
+    <div className="hive" ref={ref} style={{ '--s': `${layout.s}px` } as CSSProperties}>
+      {rows.map(({ items: row, pad, nested }, ri) => (
+        <div key={ri} className={`hive-row${nested ? ' hive-row--nest' : ''}`}>
+          {row.map((sc, ci) => (
+            <SubclassHex key={sc.id} sc={sc} index={ri * layout.cols + ci} />
+          ))}
+          {Array.from({ length: pad }, (_, pi) => (
+            <span key={`pad-${pi}`} className="hex-cell-wrap hex-cell-wrap--spacer" aria-hidden="true" />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function ClassDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: c, error } = useOne<GameClass>('classes', id)
@@ -388,6 +630,12 @@ export function ClassDetailPage() {
     setSubclasses([])
     getSubList<Subclass>('classes', id, 'subclasses').then(setSubclasses).catch(() => {})
   }, [id])
+
+  const table = useMemo(() => parseClassTable(c?.description), [c?.description])
+  const descText = useMemo(() => stripClassTable(c?.description), [c?.description])
+  const subsRef = useRef<HTMLDivElement>(null)
+  const scrollToSubclasses = () =>
+    subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
   if (!c) return <p className="status-line">Листаем хроники орденов…</p>
@@ -400,6 +648,15 @@ export function ClassDetailPage() {
       title={c.class_name}
       image={realImage(c.image_gallery)}
       imageIcon={Swords}
+      backdrop={
+        <img
+          className="detail-die-bg"
+          src={DIE_IMAGE_URLS[hitDieType(c.hit_dice)]}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      }
       chips={
         <>
           <Chip icon={<DieChipIcon type={hitDieType(c.hit_dice)} />}>кость хитов к{c.hit_dice}</Chip>
@@ -414,27 +671,29 @@ export function ClassDetailPage() {
         <StatRow label="Доспехи" value={c.armor_proficiencies?.join(', ')} />
         <StatRow label="Оружие" value={c.weapon_proficiencies?.join(', ')} />
       </div>
+      {c.is_caster && (
+        <Link to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`} className="spell-cta">
+          <Sparkles aria-hidden="true" />
+          Заклинания класса
+        </Link>
+      )}
       <DetailSection title="Описание">
-        <Rich text={c.description} />
+        <Rich text={descText} />
       </DetailSection>
-      {subclasses.length > 0 && (
-        <DetailSection title={`Подклассы — ${subclasses.length}`}>
-          <div className="subclass-grid">
-            {subclasses.map((sc) => (
-              <Link key={sc.id} to={`/subclasses/${sc.id}`} className="card-slot">
-                <article className="card">
-                  <h3 className="card-name">{sc.subclass_name}</h3>
-                  {sc.subclass_flavor && <span className="card-kicker">{sc.subclass_flavor}</span>}
-                  <div className="card-chips">
-                    {sc.level_available != null && <Chip icon={Star}>с {sc.level_available} уровня</Chip>}
-                    {sc.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
-                  </div>
-                  <TermDesc text={sc.description} />
-                </article>
-              </Link>
-            ))}
-          </div>
+      {table && (
+        <DetailSection title="Таблица развития">
+          <ClassProgressionTable
+            table={table}
+            onOpenSubclasses={subclasses.length > 0 ? scrollToSubclasses : undefined}
+          />
         </DetailSection>
+      )}
+      {subclasses.length > 0 && (
+        <div ref={subsRef}>
+          <DetailSection title={`Подклассы — ${subclasses.length}`}>
+            <SubclassHive subclasses={subclasses} />
+          </DetailSection>
+        </div>
       )}
     </DetailShell>
   )
@@ -554,6 +813,19 @@ export function SubclassDetailPage() {
         </>
       }
     >
+      {/* спеллы родительского класса ∪ спеллы этого подкласса */}
+      <Link
+        to={{
+          pathname: '/spells',
+          search:
+            (parent ? `class=${encodeURIComponent(parent.class_name.toLowerCase())}&` : '') +
+            `class=${encodeURIComponent('sub:' + sc.subclass_name.toLowerCase())}`,
+        }}
+        className="spell-cta"
+      >
+        <Sparkles aria-hidden="true" />
+        Заклинания подкласса
+      </Link>
       <DetailSection title="Описание">
         <Rich text={sc.description} />
       </DetailSection>
