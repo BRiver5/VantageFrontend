@@ -497,14 +497,17 @@ function ItemSplitView({
   // остальные поднимаются, занимая место (FLIP через view-transition)
   const rest = items.filter((it) => it.id !== selected.id)
   const query = recQ.trim().toLowerCase()
-  const shown = rest.filter((it) => {
-    if (query && !it.item_name.toLowerCase().includes(query)) return false
-    // группы по И, варианты внутри группы по ИЛИ — как в каталоге
-    return itemFilters.every((g) => {
-      const s = recSel[g.key]
-      return !s || s.length === 0 || g.match(it, s, bookMap)
+  const shown = rest
+    .filter((it) => {
+      if (query && !it.item_name.toLowerCase().includes(query)) return false
+      // группы по И, варианты внутри группы по ИЛИ — как в каталоге
+      return itemFilters.every((g) => {
+        const s = recSel[g.key]
+        return !s || s.length === 0 || g.match(it, s, bookMap)
+      })
     })
-  })
+    // лента показывает не больше 10 предметов
+    .slice(0, 10)
   const gp = selected.cost_copper ? Math.round(selected.cost_copper / 100) : null
   const rarity = rarityKeyOf(selected.rarity)
   const image = realImage(selected.item_image_gallery)
@@ -900,6 +903,9 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const prev = selected
     const outgoingId = prev && prev.id !== item.id ? prev.id : null
     runVT({ incomingId: item.id, outgoingId }, () => setSelected(item))
+    // при переключении окно уезжает вверх — чуть позже начала перелёта, чтобы
+    // прокрутка шла следом за анимацией, а не одновременно с ней
+    if (outgoingId) window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 260)
   }
 
   const closeSelected = () => {
