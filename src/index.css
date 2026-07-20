@@ -5519,3 +5519,44 @@ a.term-link:hover {
     font-size: 1.35rem;
   }
 }
+
+/* ============================================================
+   Анимация открытия/закрытия страницы класса (без View Transitions —
+   видно в любом браузере). Данные уже в кэше, поэтому деталь рисуется сразу.
+   ============================================================ */
+@keyframes cls-in-portrait {
+  from { opacity: 0; transform: translateY(38px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes cls-in-up {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes cls-in-die {
+  from { opacity: 0; transform: scale(0.8) rotate(-7deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes cls-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.class-detail-page .class-detail-portrait { animation: cls-in-portrait 0.75s cubic-bezier(0.33, 1, 0.35, 1) both; }
+.class-detail-page .class-detail-die { animation: cls-in-die 0.85s cubic-bezier(0.33, 1, 0.35, 1) 0.05s both; }
+.class-detail-page .class-detail-aura { animation: cls-fade 0.9s ease both; }
+.class-detail-page .class-detail-name-plate { animation: cls-in-up 0.62s cubic-bezier(0.33, 1, 0.35, 1) 0.18s both; }
+.class-detail-page .class-detail-chips { animation: cls-in-up 0.6s ease-out 0.3s both; }
+
+/* Уход назад — в обратную сторону: герой опускается и тает, страница гаснет */
+@keyframes cls-out-portrait {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(28px) scale(0.92); }
+}
+@keyframes cls-out-up {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(20px); }
+}
+@keyframes cls-page-out { from { opacity: 1; } to { opacity: 0.15; } }
+
+.class-detail-page.is-leaving { animation: cls-page-out 0.3s ease forwards; }
+.class-detail-page.is-leaving .class-detail-portrait,
+.class-detail-page.is-leaving .class-detail-die { animation: cls-out-portrait 0.3s ease-in both; }
+.class-detail-page.is-leaving .class-detail-name-plate,
+.class-detail-page.is-leaving .class-detail-chips { animation: cls-out-up 0.28s ease-in both; }

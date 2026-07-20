@@ -26,6 +26,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
   formatCR,
+  getCachedEntity,
   getOne,
   getSubList,
   realImage,
@@ -52,11 +53,13 @@ function useBookRef(sourceId: string | null | undefined) {
 }
 
 function useOne<T>(resource: string, id: string | undefined) {
-  const [data, setData] = useState<T | null>(null)
+  // старт из кэша (объект уже загружен каталогом) — деталь рисуется мгновенно,
+  // и переход-морф из карточки прилетает на готовый арт/заголовок, а не в загрузку
+  const [data, setData] = useState<T | null>(() => getCachedEntity<T>(resource, id))
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     if (!id) return
-    setData(null)
+    setData(getCachedEntity<T>(resource, id))
     setError(null)
     getOne<T>(resource, id)
       .then(setData)
@@ -108,6 +111,7 @@ function DetailShell({
   chips,
   rarity,
   backdrop,
+  heroNames,
   children,
 }: {
   backTo: string
@@ -122,6 +126,8 @@ function DetailShell({
   rarity?: string
   /** декор за обложкой (напр. силуэт кости хитов у класса) */
   backdrop?: ReactNode
+  /** общие view-transition-name для морфа из карточки каталога (арт + заголовок) */
+  heroNames?: { img?: string; title?: string }
   children: ReactNode
 }) {
   const [broken, setBroken] = useState(false)
@@ -138,7 +144,12 @@ function DetailShell({
         >
           {backdrop}
           {image && !broken ? (
-            <img src={image} alt={title} onError={() => setBroken(true)} />
+            <img
+              src={image}
+              alt={title}
+              style={heroNames?.img ? ({ viewTransitionName: heroNames.img } as CSSProperties) : undefined}
+              onError={() => setBroken(true)}
+            />
           ) : (
             <ImageIcon className="detail-plate-fallback" aria-hidden="true" />
           )}
@@ -147,7 +158,12 @@ function DetailShell({
           {kicker && <span className="setting-kicker">{kicker}</span>}
           <div className="detail-title-row">
             {badge}
-            <h1 className="book-title gold-text">{title}</h1>
+            <h1
+              className="book-title gold-text"
+              style={heroNames?.title ? ({ viewTransitionName: heroNames.title } as CSSProperties) : undefined}
+            >
+              {title}
+            </h1>
           </div>
           <div className="card-chips" style={{ marginTop: 14 }}>{chips}</div>
         </div>
@@ -647,8 +663,22 @@ export function ClassDetailPage() {
   const table = useMemo(() => parseClassTable(c?.description), [c?.description])
   const descText = useMemo(() => stripClassTable(c?.description), [c?.description])
   const subsRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const [leaving, setLeaving] = useState(false)
   const scrollToSubclasses = () =>
     subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  // назад — сначала проигрываем анимацию ухода, потом уходим
+  const goBack = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || (e as unknown as MouseEvent).button !== 0) return
+    e.preventDefault()
+    setLeaving(true)
+    document.documentElement.dataset.nav = '1'
+    window.setTimeout(() => {
+      navigate('/classes')
+      delete document.documentElement.dataset.nav
+    }, 300)
+  }
 
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
   if (!c) return <p className="status-line">Листаем хроники орденов…</p>
@@ -656,8 +686,8 @@ export function ClassDetailPage() {
   const dieType = hitDieType(c.hit_dice)
 
   return (
-    <section className="book-page">
-      <Link to="/classes" className="back-link">
+    <section className={`book-page class-detail-page${leaving ? ' is-leaving' : ''}`}>
+      <Link to="/classes" className="back-link" onClick={goBack}>
         <ArrowLeft aria-hidden="true" /> к классам
       </Link>
 

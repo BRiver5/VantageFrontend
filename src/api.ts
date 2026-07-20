@@ -276,10 +276,28 @@ export async function fetchAll<T>(resource: string, opts: { q?: string } = {}, c
   return all
 }
 
+/**
+ * Кэш записей по «resource:id». Каталог кладёт сюда объекты из списка, а деталь
+ * читает их МГНОВЕННО при монтировании — чтобы страница рисовалась сразу (арт и
+ * заголовок), а не заглушкой загрузки. Это критично для перехода-морфа: иначе в
+ * новом кадре нет элементов, к которым должна лететь карточка.
+ */
+const entityCache = new Map<string, unknown>()
+
+export function cacheEntity(resource: string, id: string, data: unknown): void {
+  entityCache.set(`${resource}:${id}`, data)
+}
+export function getCachedEntity<T>(resource: string, id: string | undefined): T | null {
+  if (!id) return null
+  return (entityCache.get(`${resource}:${id}`) as T) ?? null
+}
+
 export async function getOne<T>(resource: string, id: string): Promise<T> {
   const res = await fetch(`${API_BASE}/${resource}/${id}`)
   if (!res.ok) throw new Error(`${resource}: ${res.status}`)
-  return res.json()
+  const data = (await res.json()) as T
+  cacheEntity(resource, id, data)
+  return data
 }
 
 /** Несколько записей по id (для предысторий книги — API не отдаёт их в /contents) */

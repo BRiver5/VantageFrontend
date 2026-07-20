@@ -59,13 +59,23 @@ const CATEGORIES = [
  */
 function ClassesNavItem() {
   const [classes, setClasses] = useState<GameClass[]>([])
+  const ref = useRef<HTMLDivElement>(null)
+  const location = useLocation()
 
   useEffect(() => {
     getClasses().then(setClasses).catch(() => {})
   }, [])
 
+  // при переходе снимаем фокус изнутри свитка — иначе :focus-within держит его
+  // раскрытым, и он не сворачивается, когда уводишь курсор от «Классов»
+  useEffect(() => {
+    const el = ref.current
+    const active = document.activeElement as HTMLElement | null
+    if (el && active && el.contains(active)) active.blur()
+  }, [location.pathname])
+
   return (
-    <div className="nav-scroll">
+    <div className="nav-scroll" ref={ref}>
       <NavLink to="/classes" className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}>
         <span className="cat-btn-inner">
           <Swords aria-hidden="true" />

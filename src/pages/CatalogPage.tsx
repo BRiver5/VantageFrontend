@@ -35,6 +35,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
+  cacheEntity,
   fetchAll,
   fetchPage,
   formatCR,
@@ -140,11 +141,16 @@ function CardLink({
   to,
   vtName,
   onOpen,
+  entranceNav,
   children,
 }: {
   to: string
   vtName?: string
   onOpen?: () => void
+  /** у детали своя анимация появления — идём БЕЗ view-transition (иначе оверлей
+   *  перехода прячет entrance-анимацию), но помечаем флаг, чтобы RouteReadyGate
+   *  не гасил страницу (данные уже в кэше, деталь рисуется мгновенно) */
+  entranceNav?: boolean
   children: ReactNode
 }) {
   const navigate = useNavigate()
@@ -158,9 +164,22 @@ function CardLink({
       onOpen()
       return
     }
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
-    if (doc.startViewTransition) doc.startViewTransition(() => flushSync(() => navigate(to)))
-    else navigate(to)
+    if (entranceNav) {
+      document.documentElement.dataset.nav = '1'
+      navigate(to)
+      window.setTimeout(() => delete document.documentElement.dataset.nav, 200)
+      return
+    }
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished?: Promise<void> }
+    }
+    if (doc.startViewTransition) {
+      document.documentElement.dataset.nav = '1'
+      const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
+      const done = () => delete document.documentElement.dataset.nav
+      if (t.finished) t.finished.then(done, done)
+      else window.setTimeout(done, 1000)
+    } else navigate(to)
   }
 
   return (
@@ -218,6 +237,8 @@ interface CatalogConfig<T> {
   filters?: FilterGroup<T>[]
   /** раздел шире обычной колонки — сетка и подробный обзор одной ширины */
   wide?: boolean
+  /** у детали своя анимация появления — переход идёт без view-transition */
+  entranceNav?: boolean
   /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
   inlineDetail?: (ctx: {
     selected: T
@@ -1095,6 +1116,11 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     }
   }, [cfg.resource, cfg.sorts, cfg.filters, page, query, sortKey, filterSel])
 
+  // кладём загруженные записи в кэш — деталь откроется мгновенно (нужно морфу)
+  useEffect(() => {
+    items.forEach((it) => cacheEntity(cfg.resource, it.id, it))
+  }, [items, cfg.resource])
+
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
@@ -1184,6 +1210,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
                 cfg.inlineDetail && switching?.incomingId !== item.id ? `card-${item.id}` : undefined
               }
               onOpen={cfg.inlineDetail ? () => selectItem(item) : undefined}
+              entranceNav={cfg.entranceNav}
             >
               {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
             </CardLink>
@@ -1240,6 +1267,7 @@ export const ClassesPage = () => (
       sub: 'Пути воинов, магов и плутов — выбери своё призвание',
       emptyIcon: Swords,
       card: classCard,
+      entranceNav: true,
     }}
   />
 )

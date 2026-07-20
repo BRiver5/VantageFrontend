@@ -19,6 +19,14 @@ export default function RouteReadyGate({ children }: RouteReadyGateProps) {
 
   useEffect(() => {
     let alive = true
+    // навигация с собственной анимацией (entrance/морф) НЕ гасит страницу:
+    // данные в кэше, деталь рисуется мгновенно и анимируется сама
+    if (document.documentElement.dataset.nav) {
+      setReady(true)
+      return () => {
+        alive = false
+      }
+    }
     setReady(false)
 
     waitForPaint().then(() => {
