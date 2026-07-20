@@ -41,6 +41,7 @@
   --hex-point: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   --hex-aspect: 1.1547; /* 2/√3 — правильные пропорции pointy-top гекса */
   --hex-wide: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
+  --hex-wide-blunt: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
   --hex-chip: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
 
   --font-display: 'Cormorant Unicase', 'Cormorant', serif;
@@ -1675,8 +1676,8 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 
 /* ---------- Карточка класса: портрет, кость хитов, наслаивающаяся плашка ---------- */
 .card-grid:has(.card--class) {
-  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
-  gap: 28px 22px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px 24px;
 }
 .card-grid:has(.card--class) .card-slot {
   overflow: visible;
@@ -1759,11 +1760,12 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 
 .class-card-glow {
   position: absolute;
-  z-index: 3;
-  left: calc(var(--class-card-inset) + 1.5px);
-  right: calc(var(--class-card-inset) + 1.5px);
-  bottom: 0;
-  height: 52%;
+  z-index: 2;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 150px;
+  transform: translateY(-100%);
   background: linear-gradient(
     to top,
     rgba(196, 154, 60, 0.38) 0%,
@@ -1776,7 +1778,6 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 
 .class-card-lower {
   position: relative;
-  z-index: 4;
   margin-top: -52px;
   padding: 0 var(--class-card-inset);
 }
@@ -1785,7 +1786,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   position: relative;
   z-index: 4;
   margin: 0;
-  padding: 34px 20px 20px;
+  padding: 34px 20px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1806,7 +1807,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   box-sizing: border-box;
   width: min(calc(100% - 4px), 268px);
   padding: 12px 34px;
-  clip-path: var(--hex-wide);
+  clip-path: var(--hex-wide-blunt);
   background: var(--silver-grad);
   isolation: isolate;
   font-family: var(--font-display);
@@ -1823,7 +1824,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   content: '';
   position: absolute;
   inset: 1.5px;
-  clip-path: var(--hex-wide);
+  clip-path: var(--hex-wide-blunt);
   background: linear-gradient(168deg, rgba(36, 40, 52, 0.98), rgba(18, 20, 28, 0.99));
   z-index: -1;
 }
@@ -1851,32 +1852,16 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   line-height: 1.5;
 }
 
-.class-card-cta {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 2px;
-  padding: 9px 20px;
-  clip-path: var(--hex-chip);
-  color: var(--bg-0);
-  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
-  transition: filter 0.16s ease, transform 0.16s ease;
+@media (max-width: 960px) {
+  .card-grid:has(.card--class) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.class-card-cta svg {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2.4;
-}
-
-.card.card--class:hover .class-card-cta {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+@media (max-width: 560px) {
+  .card-grid:has(.card--class) {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Карточка предмета в сетке: арт со свечением редкости ---------- */

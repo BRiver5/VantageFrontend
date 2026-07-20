@@ -707,15 +707,11 @@ function classCard(c: GameClass) {
           draggable={false}
         />
         <ClassCardPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
-        <div className="class-card-glow" aria-hidden="true" />
       </div>
       <div className="class-card-lower">
+        <div className="class-card-glow" aria-hidden="true" />
         <div className="class-card-panel">
           <TermDesc text={c.description} className="card-desc class-card-desc" />
-          <span className="class-card-cta" aria-hidden="true">
-            Перейти
-            <ChevronRight aria-hidden="true" />
-          </span>
         </div>
         <h3 className="class-card-name-plate">{c.class_name}</h3>
       </div>
