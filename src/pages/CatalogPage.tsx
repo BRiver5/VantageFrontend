@@ -141,16 +141,15 @@ function CardLink({
   to,
   vtName,
   onOpen,
-  entranceNav,
+  heroNav,
   children,
 }: {
   to: string
   vtName?: string
   onOpen?: () => void
-  /** у детали своя анимация появления — идём БЕЗ view-transition (иначе оверлей
-   *  перехода прячет entrance-анимацию), но помечаем флаг, чтобы RouteReadyGate
-   *  не гасил страницу (данные уже в кэше, деталь рисуется мгновенно) */
-  entranceNav?: boolean
+  /** FLIP-переход на страницу: арт и имя выбранной карточки летят в деталь, а
+   *  остальные карточки разлетаются по сторонам (см. CSS ::view-transition-*) */
+  heroNav?: boolean
   children: ReactNode
 }) {
   const navigate = useNavigate()
@@ -164,14 +163,34 @@ function CardLink({
       onOpen()
       return
     }
-    if (entranceNav) {
+    const doc = document as VTDocument
+    if (heroNav && doc.startViewTransition) {
+      // РАЗМЕЧАЕМ ДО снимка: выбранной карточке — общие с деталью имена (арт/имя
+      // летят на страницу), остальным — имена fly-l/r по их стороне экрана
+      const slot = e.currentTarget
+      const grid = slot.closest('.card-grid')
+      const cx = window.innerWidth / 2
+      let li = 0
+      let ri = 0
+      grid?.querySelectorAll<HTMLElement>('.card-slot').forEach((s) => {
+        if (s === slot) {
+          const img = s.querySelector<HTMLElement>('.class-card-portrait img')
+          const nm = s.querySelector<HTMLElement>('.class-card-name-plate')
+          if (img) img.style.viewTransitionName = 'class-hero-img'
+          if (nm) nm.style.viewTransitionName = 'class-hero-title'
+        } else {
+          const r = s.getBoundingClientRect()
+          const left = r.left + r.width / 2 < cx
+          const n = left ? li++ : ri++
+          if (n < 16) s.style.viewTransitionName = `fly-${left ? 'l' : 'r'}-${n}`
+        }
+      })
       document.documentElement.dataset.nav = '1'
-      navigate(to)
-      window.setTimeout(() => delete document.documentElement.dataset.nav, 200)
+      const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
+      const done = () => delete document.documentElement.dataset.nav
+      if (t.finished) t.finished.then(done, done)
+      else window.setTimeout(done, 1500)
       return
-    }
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { finished?: Promise<void> }
     }
     if (doc.startViewTransition) {
       document.documentElement.dataset.nav = '1'
@@ -237,8 +256,8 @@ interface CatalogConfig<T> {
   filters?: FilterGroup<T>[]
   /** раздел шире обычной колонки — сетка и подробный обзор одной ширины */
   wide?: boolean
-  /** у детали своя анимация появления — переход идёт без view-transition */
-  entranceNav?: boolean
+  /** FLIP-переход: арт/имя карточки летят в деталь, остальные карточки разлетаются */
+  heroNav?: boolean
   /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
   inlineDetail?: (ctx: {
     selected: T
@@ -1210,7 +1229,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
                 cfg.inlineDetail && switching?.incomingId !== item.id ? `card-${item.id}` : undefined
               }
               onOpen={cfg.inlineDetail ? () => selectItem(item) : undefined}
-              entranceNav={cfg.entranceNav}
+              heroNav={cfg.heroNav}
             >
               {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
             </CardLink>
@@ -1267,7 +1286,7 @@ export const ClassesPage = () => (
       sub: 'Пути воинов, магов и плутов — выбери своё призвание',
       emptyIcon: Swords,
       card: classCard,
-      entranceNav: true,
+      heroNav: true,
     }}
   />
 )

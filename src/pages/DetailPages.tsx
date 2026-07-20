@@ -641,7 +641,12 @@ function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) 
   return (
     <div className="class-detail-portrait">
       {src && !broken ? (
-        <img src={src} alt={alt} onError={() => setBroken(true)} />
+        <img
+          src={src}
+          alt={alt}
+          style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
+          onError={() => setBroken(true)}
+        />
       ) : (
         <Swords className="class-detail-fallback" aria-hidden="true" />
       )}
@@ -663,22 +668,8 @@ export function ClassDetailPage() {
   const table = useMemo(() => parseClassTable(c?.description), [c?.description])
   const descText = useMemo(() => stripClassTable(c?.description), [c?.description])
   const subsRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const [leaving, setLeaving] = useState(false)
   const scrollToSubclasses = () =>
     subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
-  // назад — сначала проигрываем анимацию ухода, потом уходим
-  const goBack = (e: React.MouseEvent) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || (e as unknown as MouseEvent).button !== 0) return
-    e.preventDefault()
-    setLeaving(true)
-    document.documentElement.dataset.nav = '1'
-    window.setTimeout(() => {
-      navigate('/classes')
-      delete document.documentElement.dataset.nav
-    }, 300)
-  }
 
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
   if (!c) return <p className="status-line">Листаем хроники орденов…</p>
@@ -686,8 +677,8 @@ export function ClassDetailPage() {
   const dieType = hitDieType(c.hit_dice)
 
   return (
-    <section className={`book-page class-detail-page${leaving ? ' is-leaving' : ''}`}>
-      <Link to="/classes" className="back-link" onClick={goBack}>
+    <section className="book-page class-detail-page">
+      <Link to="/classes" className="back-link">
         <ArrowLeft aria-hidden="true" /> к классам
       </Link>
 
@@ -704,7 +695,9 @@ export function ClassDetailPage() {
           <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
 
           <div className="class-detail-meta">
-            <h1 className="class-detail-name-plate">{c.class_name}</h1>
+            <h1 className="class-detail-name-plate" style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}>
+              {c.class_name}
+            </h1>
             <div className="card-chips class-detail-chips">
               <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
               {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
