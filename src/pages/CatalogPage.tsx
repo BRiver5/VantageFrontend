@@ -44,7 +44,7 @@ import {
 } from '../api'
 import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell, Termin } from '../api'
 import { Divider, ParchmentScroll } from '../ornaments'
-import { DieChipIcon, hitDieType } from '../dice/diceAssets'
+import { DIE_NUM_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
@@ -681,19 +681,44 @@ function ItemSplitView({
   )
 }
 
-function classCard(c: GameClass) {
+function ClassCardPortrait({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
   return (
-    <article className="card">
-      <CardImage src={realImage(c.image_gallery)} alt={c.class_name} fallback={Swords} />
-      <h3 className="card-name">{c.class_name}</h3>
-      <div className="card-chips">
-        <Chip icon={<DieChipIcon type={hitDieType(c.hit_dice)} />}>к{c.hit_dice} хитов</Chip>
-        {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
-        {c.saving_throw_proficiencies && c.saving_throw_proficiencies.length > 0 && (
-          <Chip icon={Shield}>{c.saving_throw_proficiencies.join(', ')}</Chip>
-        )}
+    <div className="class-card-portrait">
+      {src && !broken ? (
+        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <Swords className="class-card-fallback" aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
+function classCard(c: GameClass) {
+  const dieType = hitDieType(c.hit_dice)
+  return (
+    <article className="card card--class">
+      <div className="class-card-visual">
+        <img
+          className="class-card-die"
+          src={DIE_NUM_IMAGE_URLS[dieType]}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+        <ClassCardPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
+        <div className="class-card-glow" aria-hidden="true" />
       </div>
-      <TermDesc text={c.description} />
+      <div className="class-card-lower">
+        <div className="class-card-panel">
+          <TermDesc text={c.description} className="card-desc class-card-desc" />
+          <span className="class-card-cta" aria-hidden="true">
+            Перейти
+            <ChevronRight aria-hidden="true" />
+          </span>
+        </div>
+        <h3 className="class-card-name-plate">{c.class_name}</h3>
+      </div>
     </article>
   )
 }

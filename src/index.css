@@ -1673,6 +1673,212 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 .card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
 .card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
 
+/* ---------- Карточка класса: портрет, кость хитов, наслаивающаяся плашка ---------- */
+.card-grid:has(.card--class) {
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 28px 22px;
+}
+.card-grid:has(.card--class) .card-slot {
+  overflow: visible;
+}
+
+.card.card--class {
+  position: relative;
+  --class-card-inset: 10px;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+.card.card--class::before,
+.card.card--class::after { display: none; }
+.card.card--class:hover {
+  transform: translateY(-5px);
+  box-shadow: none;
+}
+
+/* слои (снизу вверх): кость → портрет → свечение → описание → имя */
+.class-card-visual {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: visible;
+}
+
+.class-card-die {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 82%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.class-card-portrait {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 8px 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.class-card-portrait > img {
+  position: relative;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  max-width: 94%;
+  max-height: 90%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: scale(1.5);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.52));
+  transition: transform 0.28s ease;
+}
+
+.class-card-fallback {
+  position: relative;
+  z-index: 2;
+  width: 38%;
+  height: 38%;
+  color: rgba(196, 154, 60, 0.45);
+  stroke-width: 0.85;
+  transform: scale(1.5);
+  transform-origin: center bottom;
+}
+
+.class-card-glow {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--class-card-inset) + 1.5px);
+  right: calc(var(--class-card-inset) + 1.5px);
+  bottom: 0;
+  height: 52%;
+  background: linear-gradient(
+    to top,
+    rgba(196, 154, 60, 0.38) 0%,
+    rgba(196, 154, 60, 0.2) 38%,
+    rgba(228, 196, 120, 0.08) 68%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.class-card-lower {
+  position: relative;
+  z-index: 4;
+  margin-top: -52px;
+  padding: 0 var(--class-card-inset);
+}
+
+.class-card-panel {
+  position: relative;
+  z-index: 4;
+  margin: 0;
+  padding: 34px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background:
+    linear-gradient(168deg, rgba(28, 32, 42, 0.97), rgba(14, 16, 22, 0.98)) padding-box,
+    linear-gradient(155deg, rgba(168, 175, 186, 0.45), rgba(168, 175, 186, 0.12) 45%, rgba(168, 175, 186, 0.35)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
+  transition: box-shadow 0.22s ease;
+}
+
+.class-card-name-plate {
+  position: absolute;
+  z-index: 5;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(calc(100% - 4px), 268px);
+  padding: 12px 34px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.18rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--parchment);
+  line-height: 1.15;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+}
+.class-card-name-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(168deg, rgba(36, 40, 52, 0.98), rgba(18, 20, 28, 0.99));
+  z-index: -1;
+}
+
+.card.card--class:hover .class-card-panel {
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.55), 0 0 24px rgba(196, 154, 60, 0.1);
+}
+
+.card.card--class:hover .class-card-portrait > img {
+  transform: scale(1.56) translateY(-3px);
+}
+
+.card.card--class:hover .class-card-die {
+  transform: translate(-50%, -50%) scale(1.03);
+  opacity: 0.55;
+}
+
+.card.card--class:hover .class-card-name-plate {
+  filter: brightness(1.06);
+}
+
+.class-card-desc {
+  -webkit-line-clamp: 3;
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.class-card-cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 9px 20px;
+  clip-path: var(--hex-chip);
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+
+.class-card-cta svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+
+.card.card--class:hover .class-card-cta {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
 /* ---------- Карточка предмета в сетке: арт со свечением редкости ---------- */
 .card--item {
   gap: 8px;
@@ -5168,4 +5374,163 @@ a.term-link:hover {
   opacity: 0.85;
   pointer-events: none;
   filter: brightness(0.92) drop-shadow(0 3px 10px rgba(92, 69, 28, 0.4));
+}
+
+/* ---------- Шапка детальной страницы класса ---------- */
+/* слои: кость → портрет → свечение → чипы → имя */
+.class-detail-hero {
+  position: relative;
+  margin: 0 calc(-1 * clamp(12px, 3vw, 28px));
+  padding: 0;
+  background: none;
+  border: none;
+  overflow: visible;
+}
+
+.class-detail-stage {
+  position: relative;
+  width: 100%;
+  min-height: clamp(480px, 68vh, 720px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  overflow: visible;
+}
+
+.class-detail-die {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 46%;
+  width: min(560px, 62vw);
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.5));
+}
+
+.class-detail-portrait {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 12%;
+  width: min(640px, 86vw);
+  height: 92%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.class-detail-portrait > img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55));
+}
+
+.class-detail-fallback {
+  width: 36%;
+  height: 36%;
+  color: rgba(196, 154, 60, 0.45);
+  stroke-width: 0.85;
+  align-self: center;
+  margin: auto;
+}
+
+/* мягкий радиант за персонажем: заклинатель — розово-фиолетовый, воин — тёплый красный */
+.class-detail-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 46%;
+  width: min(720px, 92vw);
+  height: min(720px, 92vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(8px);
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(196, 70, 58, 0.38) 0%,
+    rgba(150, 48, 42, 0.2) 34%,
+    rgba(90, 28, 36, 0.08) 58%,
+    transparent 72%
+  );
+}
+.class-detail-hero.is-caster .class-detail-aura {
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(210, 120, 220, 0.4) 0%,
+    rgba(150, 80, 210, 0.22) 36%,
+    rgba(90, 50, 160, 0.1) 58%,
+    transparent 72%
+  );
+}
+
+.class-detail-meta {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(480px, calc(100% - 24px));
+  margin: 0 auto;
+  text-align: center;
+}
+
+.class-detail-name-plate {
+  position: relative;
+  z-index: 6;
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  margin: 0;
+  padding: 15px 44px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.2vw, 2.05rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  line-height: 1.12;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 28px rgba(196, 154, 60, 0.12);
+}
+.class-detail-name-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(168deg, rgba(40, 44, 56, 0.98), rgba(14, 16, 22, 0.99));
+  z-index: -1;
+}
+
+.class-detail-chips {
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .class-detail-stage {
+    min-height: clamp(420px, 72vh, 580px);
+  }
+  .class-detail-die {
+    width: min(440px, 80vw);
+  }
+  .class-detail-portrait {
+    width: min(100%, 94vw);
+    height: 88%;
+  }
+  .class-detail-name-plate {
+    padding: 13px 30px;
+    font-size: 1.35rem;
+  }
 }

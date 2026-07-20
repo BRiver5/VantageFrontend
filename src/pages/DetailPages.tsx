@@ -33,7 +33,7 @@ import {
 import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace, Termin } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
-import { DIE_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
+import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
@@ -620,6 +620,19 @@ function SubclassHive({ subclasses }: { subclasses: Subclass[] }) {
   )
 }
 
+function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <div className="class-detail-portrait">
+      {src && !broken ? (
+        <img src={src} alt={alt} onError={() => setBroken(true)} />
+      ) : (
+        <Swords className="class-detail-fallback" aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
 export function ClassDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: c, error } = useOne<GameClass>('classes', id)
@@ -640,33 +653,41 @@ export function ClassDetailPage() {
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
   if (!c) return <p className="status-line">Листаем хроники орденов…</p>
 
+  const dieType = hitDieType(c.hit_dice)
+
   return (
-    <DetailShell
-      backTo="/classes"
-      backLabel="к классам"
-      kicker="класс"
-      title={c.class_name}
-      image={realImage(c.image_gallery)}
-      imageIcon={Swords}
-      backdrop={
-        <img
-          className="detail-die-bg"
-          src={DIE_IMAGE_URLS[hitDieType(c.hit_dice)]}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-      }
-      chips={
-        <>
-          <Chip icon={<DieChipIcon type={hitDieType(c.hit_dice)} />}>кость хитов к{c.hit_dice}</Chip>
-          {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
-          {c.saving_throw_proficiencies?.length ? (
-            <Chip icon={Shield}>спасброски: {c.saving_throw_proficiencies.join(', ')}</Chip>
-          ) : null}
-        </>
-      }
-    >
+    <section className="book-page">
+      <Link to="/classes" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к классам
+      </Link>
+
+      <header className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>
+        <div className="class-detail-stage">
+          <div className="class-detail-aura" aria-hidden="true" />
+          <img
+            className="class-detail-die"
+            src={DIE_NUM_IMAGE_URLS[dieType]}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+          />
+          <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
+
+          <div className="class-detail-meta">
+            <h1 className="class-detail-name-plate">{c.class_name}</h1>
+            <div className="card-chips class-detail-chips">
+              <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
+              {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
+              {c.saving_throw_proficiencies?.length ? (
+                <Chip icon={Shield}>{c.saving_throw_proficiencies.join(', ')}</Chip>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <Divider />
+
       <div className="stat-rows">
         <StatRow label="Доспехи" value={c.armor_proficiencies?.join(', ')} />
         <StatRow label="Оружие" value={c.weapon_proficiencies?.join(', ')} />
@@ -695,7 +716,7 @@ export function ClassDetailPage() {
           </DetailSection>
         </div>
       )}
-    </DetailShell>
+    </section>
   )
 }
 

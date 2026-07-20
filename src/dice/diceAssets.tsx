@@ -5,6 +5,12 @@ import d10Url from '../assets/dices/D10.svg'
 import d12Url from '../assets/dices/D12.svg'
 import d20Url from '../assets/dices/D20.svg'
 import d100Url from '../assets/dices/D100.svg'
+import d4NumUrl from '../assets/dices/d4-num.svg'
+import d6NumUrl from '../assets/dices/d6-num.svg'
+import d8NumUrl from '../assets/dices/d8-num.svg'
+import d10NumUrl from '../assets/dices/d10-num.svg'
+import d12NumUrl from '../assets/dices/d12-num.svg'
+import d20NumUrl from '../assets/dices/d20-num.svg'
 import type { DieType } from './DiceShapeIcons'
 import { DIE_TYPES } from './DiceShapeIcons'
 
@@ -15,6 +21,17 @@ export const DIE_IMAGE_URLS: Record<DieType, string> = {
   10: d10Url,
   12: d12Url,
   20: d20Url,
+  100: d100Url,
+}
+
+/** Кости с цифрами на гранях — для крупного декора (карточки классов и т.п.) */
+export const DIE_NUM_IMAGE_URLS: Record<DieType, string> = {
+  4: d4NumUrl,
+  6: d6NumUrl,
+  8: d8NumUrl,
+  10: d10NumUrl,
+  12: d12NumUrl,
+  20: d20NumUrl,
   100: d100Url,
 }
 
