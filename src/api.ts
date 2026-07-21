@@ -432,10 +432,57 @@ export function splitTitle(title: string): { ru: string; en: string | null } {
   return { ru: m[1].trim() || m[2], en: m[2] }
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  laquo: '«', raquo: '»', mdash: '—', ndash: '–', hellip: '…', shy: '',
+}
+
+/** Декодирует базовые HTML-сущности (именованные и числовые). */
+function decodeEntities(s: string): string {
+  return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, code) => {
+    if (code[0] === '#') {
+      const n = code[1] === 'x' || code[1] === 'X'
+        ? parseInt(code.slice(2), 16)
+        : parseInt(code.slice(1), 10)
+      return Number.isFinite(n) ? String.fromCodePoint(n) : m
+    }
+    const rep = HTML_ENTITIES[code.toLowerCase()]
+    return rep !== undefined ? rep : m
+  })
+}
+
+/** Превращает HTML-разметку в читаемый простой текст (для превью-карточек и т.п.). */
+export function htmlToText(html: string): string {
+  return decodeEntities(
+    html
+      // служебные блоки целиком
+      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+      // дублирующее свёрнутое превью спойлера dnd.su
+      .replace(/<blockquote class="spoiler_neck"[\s\S]*?<\/blockquote>/gi, '')
+      // блочные теги → перенос строки
+      .replace(/<\/(p|div|li|tr|h[1-6]|blockquote|ul|ol|table)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      // остальные теги убираем
+      .replace(/<[^>]+>/g, ''),
+  )
+    .replace(/[ \t ]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /** Убирает служебную строку «Источник: «…»» из начала описания */
 export function cleanDescription(text: string | null | undefined): string {
   if (!text) return ''
-  return text.replace(/^Источник:\s*«[^»]*»\s*/u, '').trim()
+  const plain = /<[a-z!/][\s\S]*>/i.test(text) ? htmlToText(text) : text
+  return plain.replace(/^Источник:\s*«[^»]*»\s*/u, '').trim()
+}
+
+/** Короткое превью описания для карточек каталога (очищает HTML и подрезает). */
+export function descriptionPreview(text: string | null | undefined, max = 300): string {
+  const clean = cleanDescription(text)
+  if (clean.length <= max) return clean
+  return clean.slice(0, max - 1).replace(/\s+\S*$/, '').trimEnd() + '…'
 }
 
 /** Плейсхолдер dnd.su вместо настоящей картинки */

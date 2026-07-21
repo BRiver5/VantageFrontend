@@ -36,6 +36,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
   cacheEntity,
+  descriptionPreview,
   fetchAll,
   fetchPage,
   formatCR,
@@ -751,7 +752,7 @@ function classCard(c: GameClass) {
       <div className="class-card-lower">
         <div className="class-card-glow" aria-hidden="true" />
         <div className="class-card-panel">
-          <TermDesc text={c.description} className="card-desc class-card-desc" />
+          <TermDesc text={descriptionPreview(c.description)} className="card-desc class-card-desc" />
         </div>
         <h3 className="class-card-name-plate">{c.class_name}</h3>
       </div>

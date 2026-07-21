@@ -38,6 +38,7 @@ import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
+import { ClassArticle, isHtmlDescription } from '../classArticle'
 
 /* ---------- Общие детали ---------- */
 
@@ -654,6 +655,23 @@ function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) 
   )
 }
 
+/** Как называется группа подклассов у конкретного класса (термин dnd.su). */
+const SUBCLASS_GROUP_LABEL: Record<string, string> = {
+  Бард: 'Коллегии барда',
+  Варвар: 'Пути дикости',
+  Воин: 'Воинские архетипы',
+  Волшебник: 'Магические традиции',
+  Друид: 'Круги друидов',
+  Жрец: 'Божественные домены',
+  Изобретатель: 'Специализации изобретателя',
+  Колдун: 'Потусторонние покровители',
+  Монах: 'Монастырские традиции',
+  Паладин: 'Священные клятвы',
+  Плут: 'Архетипы плута',
+  Следопыт: 'Архетипы следопыта',
+  Чародей: 'Происхождения чародея',
+}
+
 export function ClassDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: c, error } = useOne<GameClass>('classes', id)
@@ -665,8 +683,9 @@ export function ClassDetailPage() {
     getSubList<Subclass>('classes', id, 'subclasses').then(setSubclasses).catch(() => {})
   }, [id])
 
-  const table = useMemo(() => parseClassTable(c?.description), [c?.description])
-  const descText = useMemo(() => stripClassTable(c?.description), [c?.description])
+  const isHtml = useMemo(() => isHtmlDescription(c?.description), [c?.description])
+  const table = useMemo(() => (isHtml ? null : parseClassTable(c?.description)), [c?.description, isHtml])
+  const descText = useMemo(() => (isHtml ? '' : stripClassTable(c?.description)), [c?.description, isHtml])
   const subsRef = useRef<HTMLDivElement>(null)
   const scrollToSubclasses = () =>
     subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -721,20 +740,28 @@ export function ClassDetailPage() {
           Заклинания класса
         </Link>
       )}
-      <DetailSection title="Описание">
-        <Rich text={descText} />
-      </DetailSection>
-      {table && (
-        <DetailSection title="Таблица развития">
-          <ClassProgressionTable
-            table={table}
-            onOpenSubclasses={subclasses.length > 0 ? scrollToSubclasses : undefined}
-          />
-        </DetailSection>
+      {isHtml ? (
+        <section className="detail-section">
+          <ClassArticle html={c.description!} />
+        </section>
+      ) : (
+        <>
+          <DetailSection title="Описание">
+            <Rich text={descText} />
+          </DetailSection>
+          {table && (
+            <DetailSection title="Таблица развития">
+              <ClassProgressionTable
+                table={table}
+                onOpenSubclasses={subclasses.length > 0 ? scrollToSubclasses : undefined}
+              />
+            </DetailSection>
+          )}
+        </>
       )}
       {subclasses.length > 0 && (
         <div ref={subsRef}>
-          <DetailSection title={`Подклассы — ${subclasses.length}`}>
+          <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
             <SubclassHive subclasses={subclasses} />
           </DetailSection>
         </div>
