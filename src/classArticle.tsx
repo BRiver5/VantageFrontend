@@ -10,7 +10,7 @@
  * (`.class-article …` в index.css). Спойлеры и свёрнутые блоки подклассов
  * превращаем в нативные <details>.
  */
-import { useMemo } from 'react'
+import { useMemo, type MouseEvent } from 'react'
 
 /** Похоже ли описание на HTML-разметку (а не на старый плоский текст). */
 export function isHtmlDescription(text: string | null | undefined): boolean {
@@ -27,6 +27,20 @@ const BEHAVIORAL = new Set([
   'hide-wrapper',
   'spoiler_hide',
 ])
+
+/** «ПЕРВОЗДАННАЯ ОСВЕДОМЛЁННОСТЬ» → «Первозданная осведомлённость». */
+function sentenceCase(s: string): string {
+  return s.toLocaleLowerCase('ru').replace(/\p{L}/u, (c) => c.toLocaleUpperCase('ru'))
+}
+
+/** Полностью прописной ли заголовок (тогда приводим к обычному регистру). */
+function isAllCaps(s: string): boolean {
+  const letters = s.match(/\p{L}/gu) ?? []
+  return (
+    letters.length > 1 &&
+    letters.every((c) => c === c.toLocaleUpperCase('ru') && c !== c.toLocaleLowerCase('ru'))
+  )
+}
 
 /** Оставляет у заголовка только «визуальные» классы (bigSectionTitle и пр.). */
 function summaryClasses(el: Element): string {
@@ -52,8 +66,23 @@ function makeDetails(head: Element, doc: Document, open: boolean): void {
   details.append(summary, body)
 }
 
-/** Приводит сырой HTML dnd.su к безопасному виду для dangerouslySetInnerHTML. */
-function transformClassHtml(html: string): string {
+export interface SubclassFeature {
+  level: number
+  name: string
+}
+
+interface TransformOptions {
+  /** вырезать каталог подклассов (страница КЛАССА — true; ПОДКЛАССА — false) */
+  cutSubclasses?: boolean
+  /** умения выбранного подкласса — вписать в столбец «Умения» на нужных уровнях */
+  subclassFeatures?: SubclassFeature[]
+}
+
+/**
+ * Приводит сырой HTML dnd.su к безопасному виду для dangerouslySetInnerHTML.
+ */
+function transformClassHtml(html: string, options: TransformOptions = {}): string {
+  const { cutSubclasses = true, subclassFeatures } = options
   if (typeof DOMParser === 'undefined') return html
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const root = doc.body
@@ -77,26 +106,28 @@ function transformClassHtml(html: string): string {
   //     «Магические традиции» и т.п.) и до конца статьи — вместе с вводкой и
   //     обёртками «Unearthed Arcana»/«Homebrew».
   const content = root.querySelector('.desc.card__article-body') ?? root
-  const SUBCLASS_ID =
-    /(^|\.)(college|primal|archetype|tradition|circle|domain|specialist|patron|oath|origin|monastic-tradition)(\.|$)/i
-  const heads = Array.from(content.querySelectorAll('.hide-next'))
-  const firstSubclass = heads.find((h) => {
-    const withId = h.querySelector('[id]')
-    return !!withId && SUBCLASS_ID.test(withId.id)
-  })
-  if (firstSubclass) {
-    let cutFrom: Element = firstSubclass
-    for (const big of Array.from(content.querySelectorAll('.bigSectionTitle'))) {
-      if (big.compareDocumentPosition(firstSubclass) & Node.DOCUMENT_POSITION_FOLLOWING) cutFrom = big
-      else break
-    }
-    let top: HTMLElement = cutFrom as HTMLElement
-    while (top.parentElement && top.parentElement !== content) top = top.parentElement
-    let cursor: ChildNode | null = top
-    while (cursor) {
-      const next: ChildNode | null = cursor.nextSibling
-      cursor.remove()
-      cursor = next
+  if (cutSubclasses) {
+    const SUBCLASS_ID =
+      /(^|\.)(college|primal|archetype|tradition|circle|domain|specialist|patron|oath|origin|monastic-tradition)(\.|$)/i
+    const heads = Array.from(content.querySelectorAll('.hide-next'))
+    const firstSubclass = heads.find((h) => {
+      const withId = h.querySelector('[id]')
+      return !!withId && SUBCLASS_ID.test(withId.id)
+    })
+    if (firstSubclass) {
+      let cutFrom: Element = firstSubclass
+      for (const big of Array.from(content.querySelectorAll('.bigSectionTitle'))) {
+        if (big.compareDocumentPosition(firstSubclass) & Node.DOCUMENT_POSITION_FOLLOWING) cutFrom = big
+        else break
+      }
+      let top: HTMLElement = cutFrom as HTMLElement
+      while (top.parentElement && top.parentElement !== content) top = top.parentElement
+      let cursor: ChildNode | null = top
+      while (cursor) {
+        const next: ChildNode | null = cursor.nextSibling
+        cursor.remove()
+        cursor = next
+      }
     }
   }
 
@@ -124,16 +155,26 @@ function transformClassHtml(html: string): string {
     el.replaceWith(span)
   })
 
-  // 4. Ссылки dnd.su в нашем приложении никуда не ведут — снимаем навигацию,
-  //    оставляем подсвеченный текст (пустые якоря выкидываем).
+  // 4. Ссылки. Внутренние якоря на способности класса (#feature.*, #channel-*
+  //    и т.п.), цель которых осталась в статье, делаем кликабельными «кнопками»
+  //    (.ca-link + data-target) — клик прокручивает к способности. Внешние
+  //    ссылки dnd.su и битые якоря → просто подсвеченный текст. Пустые — прочь.
+  const existingIds = new Set(Array.from(content.querySelectorAll('[id]')).map((e) => e.id))
   root.querySelectorAll('a').forEach((a) => {
     if (!a.textContent?.trim()) {
       a.remove()
       return
     }
+    const href = a.getAttribute('href') ?? ''
+    const targetId = href.startsWith('#') ? decodeURIComponent(href.slice(1)) : ''
     const span = doc.createElement('span')
-    span.className = 'ca-ref'
     span.innerHTML = a.innerHTML
+    if (targetId && existingIds.has(targetId)) {
+      span.className = 'ca-ref ca-link'
+      span.setAttribute('data-target', targetId)
+    } else {
+      span.className = 'ca-ref'
+    }
     a.replaceWith(span)
   })
 
@@ -141,6 +182,19 @@ function transformClassHtml(html: string): string {
   root.querySelectorAll('[tooltip-for]').forEach((el) => {
     el.removeAttribute('tooltip-for')
     el.classList.add('ca-term')
+  })
+
+  // 5b. Заголовки блоков «капсом» → обычный регистр: первая буква заглавная,
+  //     остальные строчные («ПЕРВОЗДАННАЯ ОСВЕДОМЛЁННОСТЬ» → «Первозданная
+  //     осведомлённость»). Смешанный регистр не трогаем (имена собственные, XGE…).
+  content.querySelectorAll('h1, h2, h3, h4').forEach((h) => {
+    const text = h.textContent ?? ''
+    if (!isAllCaps(text)) return
+    // якорь способности (<span id="feature.…">) переносим на сам заголовок,
+    // иначе плоский textContent затрёт id — и ссылки-«кнопки» перестанут вести.
+    const keepId = h.querySelector('[id]')?.id
+    h.textContent = sentenceCase(text)
+    if (keepId && !h.id) h.id = keepId
   })
 
   // 6. Голые таблицы (dnd.su не оборачивает их) → в скролл-контейнер, чтобы
@@ -152,6 +206,67 @@ function transformClassHtml(html: string): string {
     t.replaceWith(wrap)
     wrap.appendChild(t)
   })
+
+  // 6b. Заголовок столбца «Умения» помечаем — его ячейки (с текстом умений)
+  //     выровнены влево, поэтому и заголовок должен быть слева, а не по центру.
+  root.querySelectorAll('table.class_table tr.table_header td').forEach((td) => {
+    if (td.textContent?.trim() === 'Умения') td.classList.add('ca-feat-h')
+  })
+
+  // 6c. Обычные таблицы: короткие/числовые столбцы (уровень, к6, счётчики)
+  //     центрируем по столбцу — и заголовок, и цифры под ним; текстовые столбцы
+  //     (описания, списки заклинаний) остаются слева. Таблицу развития класса и
+  //     таблицы со сложными «шапками» (colspan/rowspan) не трогаем.
+  root.querySelectorAll('table').forEach((table) => {
+    if (table.classList.contains('class_table')) return
+    if (table.querySelector('td[colspan], td[rowspan], th[colspan], th[rowspan]')) return
+    const rows = Array.from(table.querySelectorAll('tr'))
+    const dataRows = rows.filter((r) => !r.classList.contains('table_header'))
+    if (!dataRows.length) return
+    const colCount = Math.max(...rows.map((r) => r.children.length))
+    for (let c = 0; c < colCount; c++) {
+      let maxLen = -1
+      dataRows.forEach((r) => {
+        const cell = r.children[c]
+        if (cell) maxLen = Math.max(maxLen, (cell.textContent ?? '').trim().length)
+      })
+      if (maxLen < 0 || maxLen > 16) continue // пусто или длинный текст → оставляем слева
+      rows.forEach((r) => r.children[c]?.classList.add('ca-col-center'))
+    }
+  })
+
+  // 6d. Умения выбранного подкласса → дописываем в столбец «Умения» таблицы
+  //     развития на соответствующих уровнях (помечаем классом ca-subfeat).
+  if (subclassFeatures?.length) {
+    const table = content.querySelector('table.class_table')
+    const headerRow = table?.querySelector('tr.table_header')
+    const umIdx = headerRow
+      ? Array.from(headerRow.children).findIndex((c) => c.textContent?.trim() === 'Умения')
+      : -1
+    if (table && umIdx >= 0) {
+      const byLevel = new Map<number, string[]>()
+      for (const f of subclassFeatures) {
+        const arr = byLevel.get(f.level) ?? []
+        arr.push(f.name)
+        byLevel.set(f.level, arr)
+      }
+      Array.from(table.querySelectorAll('tr'))
+        .filter((r) => !r.classList.contains('table_header'))
+        .forEach((r) => {
+          const level = parseInt((r.children[0]?.textContent ?? '').trim(), 10)
+          const names = byLevel.get(level)
+          const cell = r.children[umIdx]
+          if (!names || !cell) return
+          names.forEach((nm) => {
+            if (cell.textContent?.trim()) cell.append(doc.createTextNode(', '))
+            const span = doc.createElement('span')
+            span.className = 'ca-subfeat'
+            span.textContent = nm
+            cell.append(span)
+          })
+        })
+    }
+  }
 
   // 7. Спойлеры (раскрыты) и свёрнутые блоки подклассов (свёрнуты) → <details>.
   //    В сыром HTML dnd.su тело спойлера — просто следующий <span>/<div> после
@@ -171,7 +286,89 @@ function transformClassHtml(html: string): string {
   return root.innerHTML
 }
 
-export function ClassArticle({ html }: { html: string }) {
-  const safe = useMemo(() => transformClassHtml(html), [html])
-  return <div className="class-article" dangerouslySetInnerHTML={{ __html: safe }} />
+/**
+ * Достаёт из HTML класса секцию конкретного подкласса (по названию) — тело блока
+ * «.hide-next заголовок» + «.hide-wrapper». Возвращает внутренний HTML тела
+ * (без дублирующего заголовка-названия) или null, если не нашли.
+ */
+export function extractSubclassHtml(classHtml: string, subclassName: string): string | null {
+  if (typeof DOMParser === 'undefined') return null
+  const norm = (s: string) =>
+    s
+      .toLocaleLowerCase('ru')
+      .replace(/[«»"'`]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  const target = norm(subclassName)
+  if (!target) return null
+  const doc = new DOMParser().parseFromString(classHtml, 'text/html')
+  const content = doc.body.querySelector('.desc.card__article-body') ?? doc.body
+  const head = Array.from(content.querySelectorAll('.hide-next')).find(
+    (h) => norm(h.textContent ?? '') === target,
+  )
+  const body = head?.nextElementSibling
+  if (!body || !body.classList.contains('hide-wrapper')) return null
+  return body.innerHTML
+}
+
+/**
+ * Разбирает секцию подкласса на умения с уровнями: заголовок умения, у которого
+ * рядом идёт маркер «N-й уровень» (напр. «3-й уровень, умение клятвы преданности»).
+ */
+export function parseSubclassFeatures(sectionHtml: string): SubclassFeature[] {
+  if (typeof DOMParser === 'undefined') return []
+  const doc = new DOMParser().parseFromString(sectionHtml, 'text/html')
+  const out: SubclassFeature[] = []
+  const seen = new Set<string>()
+  doc.body.querySelectorAll('h3, h4').forEach((h) => {
+    let node = h.nextElementSibling
+    let level: number | null = null
+    for (let i = 0; node && i < 2; i++, node = node.nextElementSibling) {
+      const m = (node.textContent ?? '').match(/(\d+)-?й?\s*уровень/i)
+      if (m) {
+        level = parseInt(m[1], 10)
+        break
+      }
+    }
+    if (level == null || level < 1 || level > 20) return
+    const raw = (h.textContent ?? '').trim()
+    const name = isAllCaps(raw) ? sentenceCase(raw) : raw
+    const key = level + '|' + name.toLowerCase()
+    if (!name || seen.has(key)) return
+    seen.add(key)
+    out.push({ level, name })
+  })
+  return out
+}
+
+export function ClassArticle({
+  html,
+  cutSubclasses = true,
+  subclassFeatures,
+}: {
+  html: string
+  cutSubclasses?: boolean
+  subclassFeatures?: SubclassFeature[]
+}) {
+  const safe = useMemo(
+    () => transformClassHtml(html, { cutSubclasses, subclassFeatures }),
+    [html, cutSubclasses, subclassFeatures],
+  )
+
+  // Делегируем клики: кнопка-умение (.ca-link) прокручивает к своей способности
+  // внутри статьи и подсвечивает её вспышкой.
+  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
+    const link = (e.target as HTMLElement).closest<HTMLElement>('.ca-link')
+    const targetId = link?.dataset.target
+    if (!targetId) return
+    const target = e.currentTarget.querySelector('#' + CSS.escape(targetId))
+    if (!target) return
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    target.classList.add('ca-flash')
+    window.setTimeout(() => target.classList.remove('ca-flash'), 1400)
+  }
+
+  return (
+    <div className="class-article" onClick={handleClick} dangerouslySetInnerHTML={{ __html: safe }} />
+  )
 }

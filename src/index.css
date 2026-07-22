@@ -5353,8 +5353,7 @@ a.term-link:hover {
   font-size: 1.12rem;
   font-weight: 700;
   line-height: 1.25;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   margin: 1.2em 0 0.4em;
 }
 .class-article .tableTitle {
@@ -5362,8 +5361,7 @@ a.term-link:hover {
   color: var(--gold-3);
   font-size: 1rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
   margin: 1.1em 0 0.35em;
 }
 /* заголовки без «фирменных» классов dnd.su — минимальный запас */
@@ -5425,17 +5423,32 @@ a.term-link:hover {
   font-size: 0.74rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  text-align: center;
+  /* по умолчанию заголовок выровнен так же, как ячейки (влево) — чтобы значения
+     всегда стояли ровно под своим заголовком в любых таблицах */
+  text-align: left;
   vertical-align: bottom;
   border-bottom: 1.5px solid rgba(196, 154, 60, 0.45);
   white-space: nowrap;
 }
 .class-article tr.table_header:hover, .class-article tr.spell-slots-row { background: none; }
+/* В таблице развития класса числовые столбцы по центру — центрируем и заголовки */
+.class-article table.class_table tr.table_header td,
+.class-article table.class_table tr.table_header th { text-align: center; }
+/* В обычных таблицах короткие/числовые столбцы (уровень, к6, счётчики) — по центру
+   (и заголовок, и цифры под ним); помечены в трансформе как ca-col-center.
+   Второе правило перебивает `tr.table_header td` (та же специфика 0,2,2) для
+   ячеек-заголовков — иначе заголовок оставался бы слева, а цифры уезжали в центр. */
+.class-article td.ca-col-center, .class-article th.ca-col-center { text-align: center; }
+.class-article tr.table_header td.ca-col-center,
+.class-article tr.table_header th.ca-col-center { text-align: center; }
 /* В таблице развития все столбцы числовые/короткие — центрируем их под
    заголовками; текстовый столбец «Умения» (ячейки со ссылками-умениями)
    оставляем по левому краю. */
 .class-article table.class_table td { text-align: center; }
 .class-article table.class_table td:has(.ca-ref) { text-align: left; }
+/* заголовок «Умения» — влево, как и его ячейки (иначе он висит по центру
+   широкого столбца, не над своим содержимым) */
+.class-article table.class_table tr.table_header td.ca-feat-h { text-align: left; }
 .class-article table.class_table td:first-child {
   font-family: var(--font-display);
   font-weight: 700;
@@ -5447,8 +5460,39 @@ a.term-link:hover {
 .class-article .short { display: none; }
 .class-article .long { display: inline; }
 
+/* Умение выбранного подкласса, вписанное в столбец «Умения» таблицы развития */
+.class-article .ca-subfeat { color: var(--gold-4); font-style: italic; }
+.class-article .ca-subfeat::before { content: '✦ '; color: var(--gold-2); font-style: normal; }
+
 /* Ссылки dnd.su (обезврежены) и всплывающие термины */
 .class-article .ca-ref { color: var(--gold-3); }
+/* Кликабельная кнопка-умение: ведёт к способности в статье, подсветка по наведению */
+.class-article .ca-link {
+  cursor: pointer;
+  border-radius: 4px;
+  /* padding даёт «воздух» подсветке, отрицательный margin возвращает раскладку
+     (иначе появляются щели перед запятыми между умениями) */
+  padding: 0 2px;
+  margin: 0 -2px;
+  /* чтобы подсветка корректно ложилась на каждую строку при переносе слов */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
+}
+.class-article .ca-link:hover {
+  color: var(--gold-4);
+  background: rgba(196, 154, 60, 0.05);
+  box-shadow: 0 0 7px 0 rgba(196, 154, 60, 0.16);
+  text-shadow: 0 0 8px rgba(246, 231, 182, 0.38);
+}
+/* Отступ под липкую шапку при прокрутке к способности + вспышка на цели */
+.class-article h1, .class-article h2, .class-article h3, .class-article h4,
+.class-article [id] { scroll-margin-top: 90px; }
+.class-article .ca-flash { animation: ca-flash 1.4s ease; border-radius: 4px; }
+@keyframes ca-flash {
+  0%, 100% { background: transparent; }
+  12% { background: rgba(196, 154, 60, 0.32); }
+}
 .class-article .ca-term { border-bottom: 1px dotted rgba(196, 154, 60, 0.5); cursor: help; }
 .class-article .ca-dice {
   font-family: var(--font-display);
@@ -5566,6 +5610,88 @@ a.term-link:hover {
   justify-content: center;
   padding-bottom: 28px;
   overflow: visible;
+}
+
+/* Шестиугольная обложка (как сота): на странице подкласса и бейджем на классе */
+.detail-hex {
+  position: relative;
+  width: clamp(140px, 24vw, 196px);
+  aspect-ratio: 0.87;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 3px;
+  display: block;
+  text-decoration: none;
+}
+.detail-hex-cover,
+.detail-hex-fallback {
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  object-fit: cover;
+  object-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.detail-hex-fallback svg { width: 34%; height: 34%; color: rgba(228, 196, 110, 0.35); stroke-width: 1; }
+.detail-hex--sm { width: clamp(80px, 13vw, 108px); }
+a.detail-hex { transition: filter 0.16s ease; }
+a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211, 219, 0.4)); }
+
+/* Бейдж выбранного подкласса — справа сверху сцены класса */
+.class-detail-subhex {
+  position: absolute;
+  z-index: 5;
+  top: 6px;
+  right: clamp(6px, 4vw, 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  max-width: 140px;
+}
+.class-detail-subhex-name {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+.class-detail-subhex-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  transition: color 0.15s ease;
+}
+.class-detail-subhex-clear:hover { color: var(--gold-3); }
+.class-detail-subhex-clear svg { width: 13px; height: 13px; }
+
+/* Кнопки на странице подкласса */
+.subclass-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+.spell-cta--ghost {
+  background: transparent;
+  color: var(--gold-3);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5);
+}
+.spell-cta--ghost:hover { background: rgba(196, 154, 60, 0.12); filter: none; }
+
+/* Заголовок вставленной секции умений подкласса + кнопка «убрать» */
+.subclass-inject-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .class-detail-die {

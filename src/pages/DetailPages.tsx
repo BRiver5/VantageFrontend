@@ -1,10 +1,11 @@
 import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Award,
   BookOpen,
+  Check,
   Coins,
   Eye,
   Footprints,
@@ -21,6 +22,7 @@ import {
   Target,
   Users,
   VenetianMask,
+  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -38,7 +40,7 @@ import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
-import { ClassArticle, isHtmlDescription } from '../classArticle'
+import { ClassArticle, isHtmlDescription, extractSubclassHtml, parseSubclassFeatures } from '../classArticle'
 
 /* ---------- Общие детали ---------- */
 
@@ -107,6 +109,7 @@ function DetailShell({
   kicker,
   title,
   image,
+  heroHex,
   imageIcon: ImageIcon,
   badge,
   chips,
@@ -120,6 +123,8 @@ function DetailShell({
   kicker: string | null
   title: string
   image: string | null
+  /** если задан — обложка рисуется шестиугольником (как сота), а не плашкой */
+  heroHex?: string | null
   imageIcon: LucideIcon
   badge?: ReactNode
   chips: ReactNode
@@ -139,22 +144,32 @@ function DetailShell({
       </Link>
       <div className="book-hero">
         <Corners size={40} />
-        <div
-          className={`book-cover detail-plate${rarity ? ' detail-plate--glow' : ''}`}
-          data-rarity={rarity || undefined}
-        >
-          {backdrop}
-          {image && !broken ? (
-            <img
-              src={image}
-              alt={title}
-              style={heroNames?.img ? ({ viewTransitionName: heroNames.img } as CSSProperties) : undefined}
-              onError={() => setBroken(true)}
-            />
-          ) : (
-            <ImageIcon className="detail-plate-fallback" aria-hidden="true" />
-          )}
-        </div>
+        {heroHex !== undefined ? (
+          <div className="detail-hex">
+            {heroHex && !broken ? (
+              <img className="detail-hex-cover" src={heroHex} alt={title} onError={() => setBroken(true)} />
+            ) : (
+              <span className="detail-hex-fallback"><ImageIcon aria-hidden="true" /></span>
+            )}
+          </div>
+        ) : (
+          <div
+            className={`book-cover detail-plate${rarity ? ' detail-plate--glow' : ''}`}
+            data-rarity={rarity || undefined}
+          >
+            {backdrop}
+            {image && !broken ? (
+              <img
+                src={image}
+                alt={title}
+                style={heroNames?.img ? ({ viewTransitionName: heroNames.img } as CSSProperties) : undefined}
+                onError={() => setBroken(true)}
+              />
+            ) : (
+              <ImageIcon className="detail-plate-fallback" aria-hidden="true" />
+            )}
+          </div>
+        )}
         <div className="book-meta">
           {kicker && <span className="setting-kicker">{kicker}</span>}
           <div className="detail-title-row">
@@ -690,6 +705,29 @@ export function ClassDetailPage() {
   const scrollToSubclasses = () =>
     subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
+  // Выбранный подкласс (?subclass=): его умения вписываются в таблицу/список класса
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedSub = useMemo(
+    () => subclasses.find((s) => s.id === searchParams.get('subclass')) ?? null,
+    [subclasses, searchParams],
+  )
+  const subclassSection = useMemo(
+    () =>
+      selectedSub && isHtml && c?.description
+        ? extractSubclassHtml(c.description, selectedSub.subclass_name)
+        : null,
+    [selectedSub, isHtml, c?.description],
+  )
+  const subclassFeatures = useMemo(
+    () => (subclassSection ? parseSubclassFeatures(subclassSection) : undefined),
+    [subclassSection],
+  )
+  const clearSubclass = () => {
+    const p = new URLSearchParams(searchParams)
+    p.delete('subclass')
+    setSearchParams(p, { replace: true })
+  }
+
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
   if (!c) return <p className="status-line">Листаем хроники орденов…</p>
 
@@ -725,6 +763,30 @@ export function ClassDetailPage() {
               ) : null}
             </div>
           </div>
+
+          {selectedSub && (
+            <div className="class-detail-subhex">
+              <Link
+                to={`/subclasses/${selectedSub.id}`}
+                className="detail-hex detail-hex--sm"
+                title={selectedSub.subclass_name}
+              >
+                {realImage(selectedSub.image_gallery) ? (
+                  <img
+                    className="detail-hex-cover"
+                    src={realImage(selectedSub.image_gallery)!}
+                    alt={selectedSub.subclass_name}
+                  />
+                ) : (
+                  <span className="detail-hex-fallback"><Shield aria-hidden="true" /></span>
+                )}
+              </Link>
+              <span className="class-detail-subhex-name">{selectedSub.subclass_name}</span>
+              <button type="button" className="class-detail-subhex-clear" onClick={clearSubclass}>
+                <X aria-hidden="true" /> убрать
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -742,7 +804,7 @@ export function ClassDetailPage() {
       )}
       {isHtml ? (
         <section className="detail-section">
-          <ClassArticle html={c.description!} />
+          <ClassArticle html={c.description!} subclassFeatures={subclassFeatures} />
         </section>
       ) : (
         <>
@@ -758,6 +820,17 @@ export function ClassDetailPage() {
             </DetailSection>
           )}
         </>
+      )}
+      {subclassSection && selectedSub && (
+        <section className="detail-section">
+          <div className="subclass-inject-head">
+            <h2 className="detail-subtitle gold-text">Умения подкласса — {selectedSub.subclass_name}</h2>
+            <button type="button" className="class-detail-subhex-clear" onClick={clearSubclass}>
+              <X aria-hidden="true" /> убрать
+            </button>
+          </div>
+          <ClassArticle html={subclassSection} cutSubclasses={false} />
+        </section>
       )}
       {subclasses.length > 0 && (
         <div ref={subsRef}>
@@ -865,6 +938,14 @@ export function SubclassDetailPage() {
   const { data: sc, error } = useOne<Subclass>('subclasses', id)
   const book = useBookRef(sc?.book_source_id)
   const { data: parent } = useOne<GameClass>('classes', sc?.parent_class_id)
+
+  // Богатую разметку подкласса (таблицы, списки, умения) берём из HTML
+  // родительского класса — там лежит полная секция каждого подкласса.
+  const subclassHtml = useMemo(() => {
+    if (!parent?.description || !sc?.subclass_name || !isHtmlDescription(parent.description)) return null
+    return extractSubclassHtml(parent.description, sc.subclass_name)
+  }, [parent?.description, sc?.subclass_name])
+
   if (error) return <p className="status-line is-error">Подкласс не найден: {error}</p>
   if (!sc) return <p className="status-line">Листаем хроники ордена…</p>
 
@@ -875,6 +956,7 @@ export function SubclassDetailPage() {
       kicker={sc.subclass_flavor ?? 'подкласс'}
       title={sc.subclass_name}
       image={null}
+      heroHex={realImage(sc.image_gallery)}
       imageIcon={Shield}
       chips={
         <>
@@ -884,22 +966,35 @@ export function SubclassDetailPage() {
         </>
       }
     >
-      {/* спеллы родительского класса ∪ спеллы этого подкласса */}
-      <Link
-        to={{
-          pathname: '/spells',
-          search:
-            (parent ? `class=${encodeURIComponent(parent.class_name.toLowerCase())}&` : '') +
-            `class=${encodeURIComponent('sub:' + sc.subclass_name.toLowerCase())}`,
-        }}
-        className="spell-cta"
-      >
-        <Sparkles aria-hidden="true" />
-        Заклинания подкласса
-      </Link>
-      <DetailSection title="Описание">
-        <Rich text={sc.description} />
-      </DetailSection>
+      <div className="subclass-actions">
+        {/* выбрать подкласс → страница класса с умениями подкласса в таблице/списке */}
+        <Link to={`/classes/${sc.parent_class_id}?subclass=${sc.id}`} className="spell-cta">
+          <Check aria-hidden="true" />
+          Выбрать подкласс
+        </Link>
+        {/* спеллы родительского класса ∪ спеллы этого подкласса */}
+        <Link
+          to={{
+            pathname: '/spells',
+            search:
+              (parent ? `class=${encodeURIComponent(parent.class_name.toLowerCase())}&` : '') +
+              `class=${encodeURIComponent('sub:' + sc.subclass_name.toLowerCase())}`,
+          }}
+          className="spell-cta spell-cta--ghost"
+        >
+          <Sparkles aria-hidden="true" />
+          Заклинания подкласса
+        </Link>
+      </div>
+      {subclassHtml ? (
+        <section className="detail-section">
+          <ClassArticle html={subclassHtml} cutSubclasses={false} />
+        </section>
+      ) : (
+        <DetailSection title="Описание">
+          <Rich text={sc.description} />
+        </DetailSection>
+      )}
     </DetailShell>
   )
 }
