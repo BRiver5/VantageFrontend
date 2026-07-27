@@ -500,6 +500,20 @@ export function formatCR(cr: number | null): string {
   return String(cr)
 }
 
+/** Категории размера приходят по-английски — показываем по-русски */
+const SIZE_RU: Record<string, string> = {
+  tiny: 'Крошечный',
+  small: 'Маленький',
+  medium: 'Средний',
+  large: 'Большой',
+  huge: 'Огромный',
+  gargantuan: 'Громадный',
+}
+export function sizeRu(size: string | null | undefined): string | null {
+  if (!size) return null
+  return SIZE_RU[size.trim().toLowerCase()] ?? size
+}
+
 export const ABILITY_RU: Record<string, string> = {
   strength: 'СИЛ',
   dexterity: 'ЛОВ',

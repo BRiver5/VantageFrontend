@@ -3,15 +3,19 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  ArrowRight,
   Award,
   BookOpen,
   Check,
   Coins,
   Eye,
+  Feather,
   Footprints,
   Gem,
   Hourglass,
   Landmark,
+  Languages,
+  Mountain,
   Plus,
   Ruler,
   Scale,
@@ -23,6 +27,7 @@ import {
   Target,
   Users,
   VenetianMask,
+  Waves,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -33,6 +38,7 @@ import {
   getOne,
   getSubList,
   realImage,
+  sizeRu,
 } from '../api'
 import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace, Termin } from '../api'
 import { Corners, Divider } from '../ornaments'
@@ -904,9 +910,58 @@ export function ClassDetailPage() {
    РАСА
    ============================================================ */
 
+function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <div className="class-detail-portrait race-detail-portrait">
+      {src && !broken ? (
+        <img
+          src={src}
+          alt={alt}
+          style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <VenetianMask className="class-detail-fallback" aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
+/** Прибавки характеристик расы — золотые жетоны «ЛОВ +2» */
+function AbilityBoosts({ scores, className }: { scores: Record<string, number> | null; className?: string }) {
+  const boosts = Object.entries(scores ?? {})
+  if (boosts.length === 0) return null
+  return (
+    <div className={`race-boosts${className ? ` ${className}` : ''}`}>
+      {boosts.map(([k, v]) => (
+        <span className="race-boost" key={k}>
+          {ABILITY_RU[k] ?? k}
+          <i>+{v}</i>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** Плитка факта о расе: гекс с иконкой, подпись и значение */
+function RaceFact({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | null }) {
+  if (!value) return null
+  return (
+    <div className="race-fact">
+      <span className="race-fact-icon"><Icon aria-hidden="true" /></span>
+      <span className="race-fact-body">
+        <i>{label}</i>
+        <b>{value}</b>
+      </span>
+    </div>
+  )
+}
+
 export function RaceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: r, error } = useOne<Race>('races', id)
+  const book = useBookRef(r?.book_source_id)
   const [subraces, setSubraces] = useState<Subrace[]>([])
 
   useEffect(() => {
@@ -918,71 +973,85 @@ export function RaceDetailPage() {
   if (error) return <p className="status-line is-error">Раса не найдена: {error}</p>
   if (!r) return <p className="status-line">Изучаем родословные…</p>
 
-  const abilities = Object.entries(r.increase_ability_scores ?? {})
-    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
-    .join(', ')
-  const speeds = [
-    `${r.speed} фт.`,
-    r.flight_speed > 0 && `полёт ${r.flight_speed} фт.`,
-    r.swimming_speed > 0 && `плавание ${r.swimming_speed} фт.`,
-    r.climbing_speed > 0 && `лазание ${r.climbing_speed} фт.`,
-  ].filter(Boolean).join(', ')
-
   return (
-    <DetailShell
-      backTo="/races"
-      backLabel="к расам"
-      kicker={r.race_type ? `вид: ${r.race_type}` : 'раса'}
-      title={r.race_name}
-      image={realImage(r.image_gallery)}
-      imageIcon={VenetianMask}
-      chips={
-        <>
-          {r.size && <Chip icon={Ruler}>{r.size}</Chip>}
-          <Chip icon={Footprints}>{speeds}</Chip>
-          {r.darkvision > 0 && <Chip icon={Eye}>тёмное зрение {r.darkvision} фт.</Chip>}
-          {abilities && <Chip icon={Star}>{abilities}</Chip>}
-        </>
-      }
-    >
-      <div className="stat-rows">
-        <StatRow label="Языки" value={r.languages?.join(', ')} />
-        <StatRow
-          label="Возраст"
-          value={
-            r.max_age
-              ? `зрелость к ${r.age_of_adulthood ?? '—'}, живут до ${r.max_age}`
-              : null
-          }
-        />
+    <section className="book-page race-detail-page">
+      <Link to="/races" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к расам
+      </Link>
+
+      <header className="race-detail-hero">
+        <div className="race-detail-stage">
+          <div className="race-detail-aura" aria-hidden="true" />
+          <div className="race-detail-ring" aria-hidden="true" />
+          <RaceDetailPortrait src={realImage(r.image_gallery)} alt={r.race_name} />
+
+          <div className="class-detail-meta race-detail-meta">
+            <h1
+              className="class-detail-name-plate race-detail-name-plate"
+              style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}
+            >
+              {r.race_name}
+            </h1>
+            <div className="race-detail-tags">
+              <span className="race-detail-kind">{r.race_type ? `вид: ${r.race_type}` : 'раса'}</span>
+              <SourceBadge book={book} />
+            </div>
+            <AbilityBoosts scores={r.increase_ability_scores} className="race-detail-boosts" />
+          </div>
+        </div>
+      </header>
+
+      <Divider />
+
+      <div className="race-facts">
+        <RaceFact icon={Ruler} label="Размер" value={sizeRu(r.size)} />
+        <RaceFact icon={Footprints} label="Скорость" value={`${r.speed} фт.`} />
+        <RaceFact icon={Eye} label="Тёмное зрение" value={r.darkvision > 0 ? `${r.darkvision} фт.` : 'нет'} />
+        <RaceFact icon={Feather} label="Полёт" value={r.flight_speed > 0 ? `${r.flight_speed} фт.` : null} />
+        <RaceFact icon={Waves} label="Плавание" value={r.swimming_speed > 0 ? `${r.swimming_speed} фт.` : null} />
+        <RaceFact icon={Mountain} label="Лазание" value={r.climbing_speed > 0 ? `${r.climbing_speed} фт.` : null} />
+        <RaceFact icon={Hourglass} label="Зрелость" value={r.age_of_adulthood ? `${r.age_of_adulthood} лет` : null} />
+        <RaceFact icon={Hourglass} label="Живут до" value={r.max_age ? `${r.max_age} лет` : null} />
       </div>
+
+      {r.languages && r.languages.length > 0 && (
+        <div className="race-langs">
+          <span className="race-langs-label">
+            <Languages aria-hidden="true" /> Языки
+          </span>
+          <div className="card-chips">
+            {r.languages.map((l) => <Chip key={l} icon={Users}>{l}</Chip>)}
+          </div>
+        </div>
+      )}
+
       <DetailSection title="Описание">
         <Rich text={r.description} />
       </DetailSection>
+
       {subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
-          <div className="subclass-grid">
-            {subraces.map((sr) => {
-              const subAbilities = Object.entries(sr.increase_ability_scores ?? {})
-                .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
-                .join(', ')
-              return (
-                <Link key={sr.id} to={`/subraces/${sr.id}`} className="card-slot">
-                  <article className="card">
-                    <h3 className="card-name">{sr.subrace_name}</h3>
-                    <div className="card-chips">
-                      {subAbilities && <Chip icon={Star}>{subAbilities}</Chip>}
-                      {sr.darkvision_override != null && <Chip icon={Eye}>тьма {sr.darkvision_override} фт.</Chip>}
-                    </div>
-                    <TermDesc text={sr.traits ?? sr.description} />
-                  </article>
-                </Link>
-              )
-            })}
+          <div className="subrace-grid">
+            {subraces.map((sr) => (
+              <Link key={sr.id} to={`/subraces/${sr.id}`} className="subrace-card">
+                <span className="subrace-card-name">{sr.subrace_name}</span>
+                <AbilityBoosts scores={sr.increase_ability_scores} />
+                {(sr.darkvision_override != null || sr.speed_bonus > 0) && (
+                  <div className="card-chips">
+                    {sr.speed_bonus > 0 && <Chip icon={Footprints}>скорость +{sr.speed_bonus} фт.</Chip>}
+                    {sr.darkvision_override != null && <Chip icon={Eye}>тьма {sr.darkvision_override} фт.</Chip>}
+                  </div>
+                )}
+                <TermDesc text={sr.traits ?? sr.description} className="card-desc subrace-card-desc" />
+                <span className="subrace-card-go">
+                  подробнее <ArrowRight aria-hidden="true" />
+                </span>
+              </Link>
+            ))}
           </div>
         </DetailSection>
       )}
-    </DetailShell>
+    </section>
   )
 }
 

@@ -42,6 +42,7 @@ import {
   formatCR,
   getBookMap,
   realImage,
+  sizeRu,
   splitTitle,
 } from '../api'
 import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell, Termin } from '../api'
@@ -257,6 +258,8 @@ interface CatalogConfig<T> {
   filters?: FilterGroup<T>[]
   /** раздел шире обычной колонки — сетка и подробный обзор одной ширины */
   wide?: boolean
+  /** весь раздел одним листом: тянем список целиком и не показываем пагинатор */
+  noPaging?: boolean
   /** FLIP-переход: арт/имя карточки летят в деталь, остальные карточки разлетаются */
   heroNav?: boolean
   /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
@@ -722,14 +725,22 @@ function ItemSplitView({
   )
 }
 
-function ClassCardPortrait({ src, alt }: { src: string | null; alt: string }) {
+function ClassCardPortrait({
+  src,
+  alt,
+  fallback: Fallback = Swords,
+}: {
+  src: string | null
+  alt: string
+  fallback?: LucideIcon
+}) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="class-card-portrait">
       {src && !broken ? (
         <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
-        <Swords className="class-card-fallback" aria-hidden="true" />
+        <Fallback className="class-card-fallback" aria-hidden="true" />
       )}
     </div>
   )
@@ -738,7 +749,7 @@ function ClassCardPortrait({ src, alt }: { src: string | null; alt: string }) {
 function classCard(c: GameClass) {
   const dieType = hitDieType(c.hit_dice)
   return (
-    <article className="card card--class">
+    <article className="card card--portrait card--class">
       <div className="class-card-visual">
         <img
           className="class-card-die"
@@ -760,21 +771,46 @@ function classCard(c: GameClass) {
   )
 }
 
-function raceCard(r: Race) {
-  const abilities = Object.entries(r.increase_ability_scores ?? {})
-    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
-    .join(', ')
+/** Одна ячейка нижней «рейки» карточки расы: иконка, значение, подпись. */
+function RaceRailCell({ icon: Icon, value, label }: { icon: LucideIcon; value: string | null; label: string }) {
   return (
-    <article className="card">
-      <CardImage src={realImage(r.image_gallery)} alt={r.race_name} fallback={VenetianMask} />
-      <h3 className="card-name">{r.race_name}</h3>
-      <div className="card-chips">
-        {r.size && <Chip icon={Ruler}>{r.size}</Chip>}
-        <Chip icon={Footprints}>{r.speed} фт.</Chip>
-        {r.darkvision > 0 && <Chip icon={Eye}>тьма {r.darkvision} фт.</Chip>}
-        {abilities && <Chip icon={Star}>{abilities}</Chip>}
+    <span className="race-rail-cell" data-off={value ? undefined : ''}>
+      <Icon aria-hidden="true" />
+      <b>{value ?? '—'}</b>
+      <i>{label}</i>
+    </span>
+  )
+}
+
+function raceCard(r: Race) {
+  const boosts = Object.entries(r.increase_ability_scores ?? {})
+  return (
+    <article className="card card--portrait card--race">
+      <div className="class-card-visual">
+        <ClassCardPortrait src={realImage(r.image_gallery)} alt={r.race_name} fallback={VenetianMask} />
       </div>
-      <TermDesc text={r.description} />
+      <div className="class-card-lower">
+        <div className="class-card-glow" aria-hidden="true" />
+        <div className="class-card-panel race-card-panel">
+          {boosts.length > 0 && (
+            <div className="race-boosts">
+              {boosts.map(([k, v]) => (
+                <span className="race-boost" key={k}>
+                  {ABILITY_RU[k] ?? k}
+                  <i>+{v}</i>
+                </span>
+              ))}
+            </div>
+          )}
+          <TermDesc text={descriptionPreview(r.description)} className="card-desc race-card-desc" />
+          <div className="race-rail">
+            <RaceRailCell icon={Ruler} value={sizeRu(r.size)} label="размер" />
+            <RaceRailCell icon={Footprints} value={`${r.speed} фт.`} label="скорость" />
+            <RaceRailCell icon={Eye} value={r.darkvision > 0 ? `${r.darkvision} фт.` : null} label="тьма" />
+          </div>
+        </div>
+        <h3 className="class-card-name-plate">{r.race_name}</h3>
+      </div>
     </article>
   )
 }
@@ -1102,7 +1138,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const groups = cfg.filters ?? []
     const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
-    if (!activeSort && activeGroups.length === 0) {
+    if (!cfg.noPaging && !activeSort && activeGroups.length === 0) {
       fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined })
         .then((res) => {
           if (stale) return
@@ -1125,7 +1161,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             : all
           if (activeSort) list = [...list].sort((a, b) => activeSort.cmp(a, b, bm))
           setTotal(list.length)
-          setItems(list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
+          setItems(cfg.noPaging ? list : list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
           setError(null)
         })
         .catch((e: unknown) => !stale && setError(e instanceof Error ? e.message : String(e)))
@@ -1134,14 +1170,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     return () => {
       stale = true
     }
-  }, [cfg.resource, cfg.sorts, cfg.filters, page, query, sortKey, filterSel])
+  }, [cfg.resource, cfg.sorts, cfg.filters, cfg.noPaging, page, query, sortKey, filterSel])
 
   // кладём загруженные записи в кэш — деталь откроется мгновенно (нужно морфу)
   useEffect(() => {
     items.forEach((it) => cacheEntity(cfg.resource, it.id, it))
   }, [items, cfg.resource])
 
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
 
@@ -1301,6 +1337,8 @@ export const RacesPage = () => (
       sub: 'Народы и существа, населяющие миры мультивселенной',
       emptyIcon: VenetianMask,
       card: raceCard,
+      heroNav: true,
+      noPaging: true,
     }}
   />
 )
