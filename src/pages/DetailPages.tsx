@@ -12,6 +12,7 @@ import {
   Gem,
   Hourglass,
   Landmark,
+  Plus,
   Ruler,
   Scale,
   Shield,
@@ -61,7 +62,13 @@ function useOne<T>(resource: string, id: string | undefined) {
   const [data, setData] = useState<T | null>(() => getCachedEntity<T>(resource, id))
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    if (!id) return
+    // без id показывать нечего: иначе на экране осталась бы прошлая запись
+    // (снятый подкласс, подкласс прошлого класса и т.п.)
+    if (!id) {
+      setData(null)
+      setError(null)
+      return
+    }
     setData(getCachedEntity<T>(resource, id))
     setError(null)
     getOne<T>(resource, id)
@@ -558,7 +565,18 @@ function SubclassCover({ sc }: { sc: Subclass }) {
   return <img className="hex-cover" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
 }
 
-function SubclassHex({ sc, index }: { sc: Subclass; index: number }) {
+function SubclassHex({
+  sc,
+  index,
+  selected = false,
+  onToggle,
+}: {
+  sc: Subclass
+  index: number
+  /** подкласс выбран для просмотра в статье класса */
+  selected?: boolean
+  onToggle?: (id: string) => void
+}) {
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -582,7 +600,7 @@ function SubclassHex({ sc, index }: { sc: Subclass; index: number }) {
 
   return (
     <div
-      className={`hex-cell-wrap${expanded ? ' is-expanded' : ''}`}
+      className={`hex-cell-wrap${expanded ? ' is-expanded' : ''}${selected ? ' is-picked' : ''}`}
       style={{ animationDelay: `${Math.min(index * 45, 700)}ms` }}
       onMouseEnter={start}
       onMouseLeave={cancel}
@@ -612,11 +630,31 @@ function SubclassHex({ sc, index }: { sc: Subclass; index: number }) {
           <SubclassHexExpand sc={sc} />
         </div>
       </div>
+      {onToggle && (
+        <button
+          type="button"
+          className={`hex-pick hex-pick--hive${selected ? ' is-on' : ''}`}
+          onClick={() => onToggle(sc.id)}
+          title={selected ? 'Убрать подкласс' : 'Выбрать подкласс'}
+          aria-label={selected ? 'Убрать подкласс' : 'Выбрать подкласс'}
+          aria-pressed={selected}
+        >
+          {selected ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}
+        </button>
+      )}
     </div>
   )
 }
 
-function SubclassHive({ subclasses }: { subclasses: Subclass[] }) {
+function SubclassHive({
+  subclasses,
+  selectedId,
+  onToggle,
+}: {
+  subclasses: Subclass[]
+  selectedId?: string | null
+  onToggle?: (id: string) => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState({ s: 196, cols: 5 })
 
@@ -641,7 +679,13 @@ function SubclassHive({ subclasses }: { subclasses: Subclass[] }) {
       {rows.map(({ items: row, pad, nested }, ri) => (
         <div key={ri} className={`hive-row${nested ? ' hive-row--nest' : ''}`}>
           {row.map((sc, ci) => (
-            <SubclassHex key={sc.id} sc={sc} index={ri * layout.cols + ci} />
+            <SubclassHex
+              key={sc.id}
+              sc={sc}
+              index={ri * layout.cols + ci}
+              selected={sc.id === selectedId}
+              onToggle={onToggle}
+            />
           ))}
           {Array.from({ length: pad }, (_, pi) => (
             <span key={`pad-${pi}`} className="hex-cell-wrap hex-cell-wrap--spacer" aria-hidden="true" />
@@ -707,10 +751,17 @@ export function ClassDetailPage() {
 
   // Выбранный подкласс (?subclass=): его умения вписываются в таблицу/список класса
   const [searchParams, setSearchParams] = useSearchParams()
-  const selectedSub = useMemo(
-    () => subclasses.find((s) => s.id === searchParams.get('subclass')) ?? null,
-    [subclasses, searchParams],
-  )
+  const subclassId = searchParams.get('subclass')
+  const { data: selectedSubDirect } = useOne<Subclass>('subclasses', subclassId ?? undefined)
+  const selectedSub = useMemo(() => {
+    if (!subclassId) return null
+    const fromList = subclasses.find((s) => s.id === subclassId)
+    if (fromList) return fromList
+    // подкласс из URL мог не совпасть со списком ещё не загруженного класса
+    return selectedSubDirect?.id === subclassId && selectedSubDirect.parent_class_id === id
+      ? selectedSubDirect
+      : null
+  }, [subclasses, subclassId, selectedSubDirect, id])
   const subclassSection = useMemo(
     () =>
       selectedSub && isHtml && c?.description
@@ -722,10 +773,14 @@ export function ClassDetailPage() {
     () => (subclassSection ? parseSubclassFeatures(subclassSection) : undefined),
     [subclassSection],
   )
-  const clearSubclass = () => {
+  const toggleSubclass = (nextId: string | null) => {
+    const picked = !!nextId && nextId !== subclassId
     const p = new URLSearchParams(searchParams)
-    p.delete('subclass')
+    if (picked) p.set('subclass', nextId!)
+    else p.delete('subclass')
     setSearchParams(p, { replace: true })
+    // выбор из сот внизу страницы — поднимаем к шапке, где виден бейдж подкласса
+    if (picked) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (error) return <p className="status-line is-error">Класс не найден: {error}</p>
@@ -766,25 +821,33 @@ export function ClassDetailPage() {
 
           {selectedSub && (
             <div className="class-detail-subhex">
-              <Link
-                to={`/subclasses/${selectedSub.id}`}
-                className="detail-hex detail-hex--sm"
-                title={selectedSub.subclass_name}
-              >
-                {realImage(selectedSub.image_gallery) ? (
-                  <img
-                    className="detail-hex-cover"
-                    src={realImage(selectedSub.image_gallery)!}
-                    alt={selectedSub.subclass_name}
-                  />
-                ) : (
-                  <span className="detail-hex-fallback"><Shield aria-hidden="true" /></span>
-                )}
-              </Link>
+              <div className="class-detail-subhex-art">
+                <Link
+                  to={`/subclasses/${selectedSub.id}`}
+                  className="detail-hex detail-hex--sm"
+                  title={selectedSub.subclass_name}
+                >
+                  {realImage(selectedSub.image_gallery) ? (
+                    <img
+                      className="detail-hex-cover"
+                      src={realImage(selectedSub.image_gallery)!}
+                      alt={selectedSub.subclass_name}
+                    />
+                  ) : (
+                    <span className="detail-hex-fallback"><Shield aria-hidden="true" /></span>
+                  )}
+                </Link>
+                <button
+                  type="button"
+                  className="hex-pick hex-pick--bottom"
+                  onClick={() => toggleSubclass(null)}
+                  title="Убрать подкласс"
+                  aria-label="Убрать подкласс"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </div>
               <span className="class-detail-subhex-name">{selectedSub.subclass_name}</span>
-              <button type="button" className="class-detail-subhex-clear" onClick={clearSubclass}>
-                <X aria-hidden="true" /> убрать
-              </button>
             </div>
           )}
         </div>
@@ -804,7 +867,12 @@ export function ClassDetailPage() {
       )}
       {isHtml ? (
         <section className="detail-section">
-          <ClassArticle html={c.description!} subclassFeatures={subclassFeatures} />
+          <ClassArticle
+            html={c.description!}
+            subclassSectionHtml={subclassSection}
+            subclassFeatures={subclassFeatures}
+            isCaster={!!c.is_caster}
+          />
         </section>
       ) : (
         <>
@@ -821,21 +889,10 @@ export function ClassDetailPage() {
           )}
         </>
       )}
-      {subclassSection && selectedSub && (
-        <section className="detail-section">
-          <div className="subclass-inject-head">
-            <h2 className="detail-subtitle gold-text">Умения подкласса — {selectedSub.subclass_name}</h2>
-            <button type="button" className="class-detail-subhex-clear" onClick={clearSubclass}>
-              <X aria-hidden="true" /> убрать
-            </button>
-          </div>
-          <ClassArticle html={subclassSection} cutSubclasses={false} />
-        </section>
-      )}
       {subclasses.length > 0 && (
         <div ref={subsRef}>
           <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
-            <SubclassHive subclasses={subclasses} />
+            <SubclassHive subclasses={subclasses} selectedId={subclassId} onToggle={toggleSubclass} />
           </DetailSection>
         </div>
       )}

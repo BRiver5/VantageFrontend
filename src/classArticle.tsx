@@ -69,11 +69,147 @@ function makeDetails(head: Element, doc: Document, open: boolean): void {
 export interface SubclassFeature {
   level: number
   name: string
+  /** якорь заголовка умения в секции подкласса (для ссылок из таблицы развития) */
+  anchorId: string
+}
+
+/** Нормализация названий для сопоставления заголовков подкласса. */
+function normFeatureName(s: string): string {
+  return s
+    .toLocaleLowerCase('ru')
+    .replace(/[«»"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Стабильный id якоря для умения подкласса. */
+function subclassFeatureAnchorId(level: number, name: string): string {
+  const slug = normFeatureName(name)
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-|-$/g, '')
+  return `subfeat.${level}.${slug}`
+}
+
+interface FeatureBlock {
+  level: number
+  name: string
+  anchorId: string
+  heading: Element
+  nodes: Element[]
+}
+
+/**
+ * Уровень получения умения. dnd.su ставит сразу после заголовка пометку вида
+ * «3-й уровень, умение паладина». Требуем, чтобы уровень стоял в НАЧАЛЕ пометки:
+ * у опций (воззвания, инфузии, приёмы) она начинается с «Требование: …»,
+ * и такие блоки умениями уровня не являются.
+ */
+function featureHeadingLevel(h: Element): number | null {
+  let node = h.nextElementSibling
+  for (let i = 0; node && i < 4; i++, node = node.nextElementSibling) {
+    const text = (node.textContent ?? '').trim()
+    if (!text) continue
+    const m = text.match(/^(\d+)-?[йея]?\s*уровень/i)
+    return m ? parseInt(m[1], 10) : null
+  }
+  return null
+}
+
+/** Заголовок h3/h4 с пометкой уровня — умение класса или подкласса. */
+function isFeatureHeadingCandidate(h: Element): boolean {
+  if (!(h.textContent ?? '').trim()) return false
+  if (h.classList.contains('tableTitle')) return false
+  // свёрнутые блоки (каталог подклассов, вставки XGE) не являются списком умений
+  if (h.closest('.hide-wrapper')) return false
+  return featureHeadingLevel(h) != null
+}
+
+/** Собирает блоки умений: заголовок h3/h4 + содержимое до следующего умения. */
+function collectFeatureBlocks(root: Element): FeatureBlock[] {
+  const headings = Array.from(root.querySelectorAll('h3, h4')).filter(isFeatureHeadingCandidate)
+
+  return headings.map((h, i) => {
+    const level = featureHeadingLevel(h)!
+    const end = headings[i + 1] ?? null
+    const nodes: Element[] = []
+    let n: Element | null = h
+    while (n && n !== end && !(end && n.contains(end))) {
+      nodes.push(n)
+      n = n.nextElementSibling
+    }
+    const raw = (h.textContent ?? '').trim()
+    const name = isAllCaps(raw) ? sentenceCase(raw) : raw
+    const keepId = h.querySelector('[id]')?.id ?? h.id
+    return {
+      level,
+      name,
+      anchorId: keepId || subclassFeatureAnchorId(level, name),
+      heading: h,
+      nodes,
+    }
+  })
+}
+
+/**
+ * Узел, перед которым встаёт умение подкласса: поднимаемся из заголовка наружу,
+ * пока он остаётся первым умением своей обёртки (чтобы не влезть внутрь чужого блока).
+ */
+function boundaryNode(h: Element, content: Element, isHeading: (el: Element) => boolean): Element {
+  let node = h
+  while (node.parentElement && node.parentElement !== content) {
+    const parent = node.parentElement
+    if (Array.from(parent.querySelectorAll('h3, h4')).find(isHeading) !== h) break
+    node = parent
+  }
+  return node
+}
+
+/**
+ * Встраивает блоки умений подкласса в DOM статьи класса (после cutSubclasses):
+ * каждое умение встаёт после всех классовых способностей своего уровня.
+ */
+function injectSubclassBlocks(content: Element, subclassSectionHtml: string, doc: Document): void {
+  const subDoc = new DOMParser().parseFromString(subclassSectionHtml, 'text/html')
+  const subBlocks = collectFeatureBlocks(subDoc.body)
+  const classBlocks = collectFeatureBlocks(content)
+  if (!subBlocks.length || !classBlocks.length) return
+
+  const headings = new Set(classBlocks.map((b) => b.heading))
+  const isHeading = (el: Element) => headings.has(el)
+
+  // хвост списка умений: следующий крупный раздел после последнего умения класса
+  const lastBoundary = boundaryNode(classBlocks[classBlocks.length - 1]!.heading, content, isHeading)
+  let tail = lastBoundary.nextElementSibling
+  while (tail && !tail.matches('h1, h2, .bigSectionTitle') && !tail.querySelector('h1, h2, .bigSectionTitle')) {
+    tail = tail.nextElementSibling
+  }
+
+  for (const sub of [...subBlocks].sort((a, b) => a.level - b.level)) {
+    const next = classBlocks.find((b) => b.level > sub.level)
+    const before = next ? boundaryNode(next.heading, content, isHeading) : tail
+    const parent = before?.parentNode ?? lastBoundary.parentNode
+    if (!parent) continue
+
+    const wrapper = doc.createElement('div')
+    wrapper.className = 'ca-subfeat-block'
+    for (const node of sub.nodes) {
+      wrapper.appendChild(doc.importNode(node, true))
+    }
+    const title = wrapper.querySelector('h3, h4')
+    if (title) {
+      title.classList.add('ca-subfeat-title')
+      if (!title.id) title.id = sub.anchorId
+    }
+
+    parent.insertBefore(wrapper, before ?? null)
+  }
 }
 
 interface TransformOptions {
   /** вырезать каталог подклассов (страница КЛАССА — true; ПОДКЛАССА — false) */
   cutSubclasses?: boolean
+  /** HTML секции выбранного подкласса — встроить в список умений класса */
+  subclassSectionHtml?: string
   /** умения выбранного подкласса — вписать в столбец «Умения» на нужных уровнях */
   subclassFeatures?: SubclassFeature[]
 }
@@ -82,7 +218,7 @@ interface TransformOptions {
  * Приводит сырой HTML dnd.su к безопасному виду для dangerouslySetInnerHTML.
  */
 function transformClassHtml(html: string, options: TransformOptions = {}): string {
-  const { cutSubclasses = true, subclassFeatures } = options
+  const { cutSubclasses = true, subclassSectionHtml, subclassFeatures } = options
   if (typeof DOMParser === 'undefined') return html
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const root = doc.body
@@ -129,6 +265,12 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
         cursor = next
       }
     }
+  }
+
+  // 1c. Умения выбранного подкласса → в общий список способностей класса
+  //     (после cutSubclasses, чтобы высокоуровневые умения не попали под нож).
+  if (subclassSectionHtml) {
+    injectSubclassBlocks(content, subclassSectionHtml, doc)
   }
 
   // 2. Чистим атрибуты: обработчики событий, мусор, «display:none» (раскрываем
@@ -236,7 +378,7 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
   })
 
   // 6d. Умения выбранного подкласса → дописываем в столбец «Умения» таблицы
-  //     развития на соответствующих уровнях (помечаем классом ca-subfeat).
+  //     развития на соответствующих уровнях (кликабельные ca-subfeat.ca-link).
   if (subclassFeatures?.length) {
     const table = content.querySelector('table.class_table')
     const headerRow = table?.querySelector('tr.table_header')
@@ -244,24 +386,27 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
       ? Array.from(headerRow.children).findIndex((c) => c.textContent?.trim() === 'Умения')
       : -1
     if (table && umIdx >= 0) {
-      const byLevel = new Map<number, string[]>()
+      const byLevel = new Map<number, SubclassFeature[]>()
       for (const f of subclassFeatures) {
         const arr = byLevel.get(f.level) ?? []
-        arr.push(f.name)
+        arr.push(f)
         byLevel.set(f.level, arr)
       }
       Array.from(table.querySelectorAll('tr'))
         .filter((r) => !r.classList.contains('table_header'))
         .forEach((r) => {
           const level = parseInt((r.children[0]?.textContent ?? '').trim(), 10)
-          const names = byLevel.get(level)
+          const feats = byLevel.get(level)
           const cell = r.children[umIdx]
-          if (!names || !cell) return
-          names.forEach((nm) => {
+          if (!feats || !cell) return
+          // на «пустых» уровнях dnd.su ставит прочерк — умение подкласса его заменяет
+          if (/^[—–-]$/.test((cell.textContent ?? '').trim())) cell.textContent = ''
+          feats.forEach((f) => {
             if (cell.textContent?.trim()) cell.append(doc.createTextNode(', '))
             const span = doc.createElement('span')
-            span.className = 'ca-subfeat'
-            span.textContent = nm
+            span.className = 'ca-ref ca-subfeat ca-link'
+            span.setAttribute('data-target', f.anchorId)
+            span.textContent = f.name
             cell.append(span)
           })
         })
@@ -320,40 +465,36 @@ export function parseSubclassFeatures(sectionHtml: string): SubclassFeature[] {
   const doc = new DOMParser().parseFromString(sectionHtml, 'text/html')
   const out: SubclassFeature[] = []
   const seen = new Set<string>()
-  doc.body.querySelectorAll('h3, h4').forEach((h) => {
-    let node = h.nextElementSibling
-    let level: number | null = null
-    for (let i = 0; node && i < 2; i++, node = node.nextElementSibling) {
-      const m = (node.textContent ?? '').match(/(\d+)-?й?\s*уровень/i)
-      if (m) {
-        level = parseInt(m[1], 10)
-        break
-      }
-    }
-    if (level == null || level < 1 || level > 20) return
-    const raw = (h.textContent ?? '').trim()
-    const name = isAllCaps(raw) ? sentenceCase(raw) : raw
-    const key = level + '|' + name.toLowerCase()
-    if (!name || seen.has(key)) return
+  for (const block of collectFeatureBlocks(doc.body)) {
+    if (block.level < 1 || block.level > 20) continue
+    const key = block.level + '|' + normFeatureName(block.name)
+    if (seen.has(key)) continue
     seen.add(key)
-    out.push({ level, name })
-  })
+    out.push({ level: block.level, name: block.name, anchorId: block.anchorId })
+  }
   return out
 }
 
 export function ClassArticle({
   html,
   cutSubclasses = true,
+  subclassSectionHtml,
   subclassFeatures,
+  isCaster = false,
 }: {
   html: string
   cutSubclasses?: boolean
+  subclassSectionHtml?: string | null
   subclassFeatures?: SubclassFeature[]
+  /** заклинательный класс — фиолетовые умения подкласса; иначе красные */
+  isCaster?: boolean
 }) {
   const safe = useMemo(
-    () => transformClassHtml(html, { cutSubclasses, subclassFeatures }),
-    [html, cutSubclasses, subclassFeatures],
+    () => transformClassHtml(html, { cutSubclasses, subclassSectionHtml: subclassSectionHtml ?? undefined, subclassFeatures }),
+    [html, cutSubclasses, subclassSectionHtml, subclassFeatures],
   )
+
+  const articleClass = `class-article${isCaster ? ' class-article--caster' : ' class-article--martial'}`
 
   // Делегируем клики: кнопка-умение (.ca-link) прокручивает к своей способности
   // внутри статьи и подсвечивает её вспышкой.
@@ -361,7 +502,7 @@ export function ClassArticle({
     const link = (e.target as HTMLElement).closest<HTMLElement>('.ca-link')
     const targetId = link?.dataset.target
     if (!targetId) return
-    const target = e.currentTarget.querySelector('#' + CSS.escape(targetId))
+    const target = document.getElementById(targetId)
     if (!target) return
     target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     target.classList.add('ca-flash')
@@ -369,6 +510,6 @@ export function ClassArticle({
   }
 
   return (
-    <div className="class-article" onClick={handleClick} dangerouslySetInnerHTML={{ __html: safe }} />
+    <div className={articleClass} onClick={handleClick} dangerouslySetInnerHTML={{ __html: safe }} />
   )
 }
