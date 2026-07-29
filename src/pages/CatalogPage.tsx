@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useRef, useState } from 'react'
+import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -6,6 +6,7 @@ import {
   ArrowDownAZ,
   ArrowLeft,
   Award,
+  Backpack,
   BookMarked,
   BookOpen,
   Bookmark,
@@ -19,6 +20,8 @@ import {
   Heart,
   Hourglass,
   Landmark,
+  Layers,
+  Package,
   Ruler,
   Scale,
   Search,
@@ -28,6 +31,7 @@ import {
   Sparkles,
   Star,
   Swords,
+  Tag,
   Target,
   VenetianMask,
   X,
@@ -41,13 +45,29 @@ import {
   fetchPage,
   formatCR,
   getBookMap,
+  getMetaEnums,
   realImage,
   sizeRu,
   splitTitle,
 } from '../api'
-import type { Book, BookMap, Creature, Feat, GameClass, Background, Item, Race, Spell, Termin } from '../api'
+import type {
+  Book,
+  BookMap,
+  Creature,
+  Equipment,
+  Feat,
+  GameClass,
+  Background,
+  Item,
+  MetaEnums,
+  Race,
+  Spell,
+  Termin,
+} from '../api'
+import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
 import { Divider, ParchmentScroll } from '../ornaments'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
+import { SpellSchoolMark } from '../spellSchools'
 import { RichText, TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
@@ -850,7 +870,8 @@ function backgroundCard(bg: Background, bookMap: BookMap) {
 
 function spellCard(s: Spell, bookMap: BookMap) {
   return (
-    <article className="card card--compact">
+    <article className="card card--compact card--spell">
+      <SpellSchoolMark school={s.school} />
       <div className="card-head">
         <HexBadge value={s.spell_level === 0 ? '◈' : String(s.spell_level)} label={s.spell_level === 0 ? 'заговор' : 'круг'} />
         <div>
@@ -894,6 +915,49 @@ function creatureCard(c: Creature, bookMap: BookMap) {
         {c.speed != null && <Chip icon={Footprints}>{c.speed} фт.</Chip>}
       </div>
       <TermDesc text={c.description ?? c.creature_description} />
+    </article>
+  )
+}
+
+function equipmentCard(eq: Equipment, bookMap: BookMap) {
+  const Icon = categoryIcon(eq.category)
+  const cost = formatCost(eq.cost, eq.cost_copper)
+  const weight = formatWeight(eq.weight)
+  const w = eq.weapon
+  const d = eq.defense
+  const ac = d?.armor_class != null ? `КД ${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}` : d?.armor_class_formula
+  return (
+    <article className="card card--compact card--equipment">
+      <div className="card-head">
+        <span className="eq-card-icon" aria-hidden="true">
+          <Icon />
+        </span>
+        <div>
+          <h3 className="card-name">{eq.equipment_name}</h3>
+          <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
+        </div>
+      </div>
+      <div className="card-chips">
+        <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
+        {cost && <Chip icon={Coins}>{cost}</Chip>}
+        {weight && <Chip icon={Scale}>{weight}</Chip>}
+        {w?.damage_dice && (
+          <Chip icon={Swords}>
+            {formatDice(w.damage_dice)}
+            {w.damage_type ? ` ${w.damage_type.toLowerCase()}` : ''}
+          </Chip>
+        )}
+        {ac && <Chip icon={Shield}>{ac}</Chip>}
+        {eq.container && <Chip icon={Backpack}>{containerKindRu(eq.container.container_kind)}</Chip>}
+        {eq.stackable && <Chip icon={Layers}>стак {eq.stack_size}</Chip>}
+        {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
+        {eq.tags.slice(0, 2).map((t) => (
+          <Chip key={t} icon={Tag}>
+            {t}
+          </Chip>
+        ))}
+      </div>
+      <TermDesc text={eq.description} />
     </article>
   )
 }
@@ -974,6 +1038,87 @@ const creatureSorts: SortOption<Creature>[] = [
   { key: 'cr', label: 'Опасность', icon: Flame, cmp: (a, b) => (a.challenge_rating ?? -1) - (b.challenge_rating ?? -1) },
   { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.book_source_id, b.book_source_id, bm) },
 ]
+
+/** Записи без цены/веса уходят в конец, а не выдают себя за самые дешёвые. */
+function numCmp(a: number | null, b: number | null): number {
+  return (a ?? Infinity) - (b ?? Infinity)
+}
+
+const equipmentSorts: SortOption<Equipment>[] = [
+  {
+    key: 'name',
+    label: 'А — Я',
+    icon: ArrowDownAZ,
+    cmp: (a, b) => a.equipment_name.localeCompare(b.equipment_name, 'ru'),
+  },
+  { key: 'cost', label: 'Цена', icon: Coins, cmp: (a, b) => numCmp(a.cost_copper, b.cost_copper) },
+  { key: 'weight', label: 'Вес', icon: Scale, cmp: (a, b) => numCmp(a.weight, b.weight) },
+  { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.book_source_id, b.book_source_id, bm) },
+]
+
+/**
+ * Варианты фильтров снаряжения берём из `/api/meta/enums`, а не из хардкода;
+ * пока справочники не загрузились (или бэкенд без роутера meta) — остаётся
+ * только фильтр по книгам. Ключи групп совпадают с `entryCatalogQuery`, чтобы
+ * ссылка «выбрать» со страницы класса открывала каталог уже отфильтрованным.
+ */
+function equipmentFilters(enums: MetaEnums | null): FilterGroup<Equipment>[] {
+  const plain = (values: string[]) => () => values.map((v) => ({ key: v, label: v }))
+  const groups: FilterGroup<Equipment>[] = []
+
+  if (enums) {
+    groups.push(
+      {
+        key: 'category',
+        label: 'Категория',
+        options: plain(enums.equipment_categories),
+        match: (eq, sel) => sel.includes(eq.category),
+      },
+      {
+        key: 'weapon_kind',
+        label: 'Вид оружия',
+        options: plain(enums.weapon_kinds),
+        match: (eq, sel) => !!eq.weapon?.weapon_kind && sel.includes(eq.weapon.weapon_kind),
+      },
+      {
+        key: 'attack_kind',
+        label: 'Тип атаки',
+        options: plain(enums.weapon_attack_kinds),
+        match: (eq, sel) => !!eq.weapon?.attack_kind && sel.includes(eq.weapon.attack_kind),
+      },
+      {
+        key: 'armor_kind',
+        label: 'Вид доспеха',
+        options: plain(enums.armor_kinds),
+        match: (eq, sel) => !!eq.defense?.armor_kind && sel.includes(eq.defense.armor_kind),
+      },
+      {
+        key: 'container_kind',
+        label: 'Контейнер',
+        options: () => enums.container_kinds.map((k) => ({ key: k, label: cap(containerKindRu(k)) })),
+        match: (eq, sel) => !!eq.container && sel.includes(eq.container.container_kind),
+      },
+      {
+        key: 'tag',
+        label: 'Метки',
+        options: plain(enums.equipment_tags),
+        match: (eq, sel) => eq.tags.some((t) => sel.includes(t)),
+      },
+    )
+  }
+
+  groups.push({
+    key: 'book',
+    label: 'Книга',
+    options: (bookMap) =>
+      Object.values(bookMap)
+        .map((b) => ({ key: b.id, label: b.book_code || b.title, hint: b.title }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'ru')),
+    match: (eq, sel) => !!eq.book_source_id && sel.includes(eq.book_source_id),
+  })
+
+  return groups
+}
 
 const spellSorts: SortOption<Spell>[] = [
   { key: 'name', label: 'А — Я', icon: ArrowDownAZ, cmp: (a, b) => a.spell_name.localeCompare(b.spell_name, 'ru') },
@@ -1410,6 +1555,43 @@ export const TerminsPage = () => (
     }}
   />
 )
+
+/**
+ * Раздел не константа, как остальные: варианты фильтров приходят из
+ * `/api/meta/enums`, поэтому нужен стейт. `filters` мемоизируем — массив входит
+ * в зависимости эффекта загрузки внутри CatalogPage, и новая ссылка на каждый
+ * рендер зациклила бы запросы.
+ */
+export function EquipmentPage() {
+  const [enums, setEnums] = useState<MetaEnums | null>(null)
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    getMetaEnums()
+      .then(setEnums)
+      .finally(() => setReady(true))
+  }, [])
+  const filters = useMemo(() => equipmentFilters(enums), [enums])
+
+  // Каталог монтируем только со готовыми справочниками: фильтры из адреса он
+  // поднимает ОДИН раз при первом рендере, и без нужных групп ссылка «выбрать»
+  // со страницы класса открыла бы список без фильтров.
+  if (!ready) return <p className="status-line">Раскладываем снаряжение…</p>
+
+  return (
+    <CatalogPage<Equipment>
+      cfg={{
+        resource: 'equipment',
+        base: '/equipment',
+        title: 'Снаряжение',
+        sub: 'Оружие, доспехи и походный скарб — от стрел до вьючных мулов',
+        emptyIcon: Backpack,
+        card: equipmentCard,
+        sorts: equipmentSorts,
+        filters,
+      }}
+    />
+  )
+}
 
 export const ItemsPage = () => (
   <CatalogPage<Item>

@@ -55,6 +55,10 @@ export interface GameClass {
   armor_proficiencies: string[] | null
   weapon_proficiencies: string[] | null
   book_source_id: string | null
+  /** опционально: у неразмеченных классов может не быть или прийти пустым */
+  starting_equipment?: EquipmentGrant[] | null
+  /** сырой текст из книги, включая альтернативу «взять золото вместо снаряжения» */
+  starting_equipment_text?: string | null
 }
 
 export interface Subclass {
@@ -199,6 +203,134 @@ export interface Item {
   item_source: string | null
 }
 
+/* ---------- Снаряжение ---------- */
+
+export type Currency = 'cp' | 'sp' | 'ep' | 'gp' | 'pp'
+
+export interface Cost {
+  amount: number
+  currency: Currency
+}
+
+/** Ссылка на вложенный предмет — всегда по slug, не по id */
+export interface ContentEntry {
+  slug: string
+  quantity: number
+}
+
+/**
+ * Профиль контейнера. Все три `accepts_*` пустые — принимает что угодно (рюкзак),
+ * иначе достаточно совпадения хотя бы по одному списку. `sealed` — набор, из
+ * которого содержимое вынимается, но обратно не складывается.
+ */
+export interface ContainerProfile {
+  container_kind: string
+  slots: number | null
+  capacity_pounds: number | null
+  capacity_cubic_feet: number | null
+  accepts_slugs: string[]
+  accepts_tags: string[]
+  accepts_categories: string[]
+  sealed: boolean
+  default_contents: ContentEntry[]
+}
+
+export interface WeaponProfile {
+  weapon_kind: string | null
+  attack_kind: string | null
+  damage_dice: string | null
+  damage_type: string | null
+  versatile_dice: string | null
+  properties: string[]
+  mastery: string | null
+  ammunition_type: string | null
+  range_normal: number | null
+  range_long: number | null
+}
+
+export interface DefenseProfile {
+  armor_class: number | null
+  armor_class_formula: string | null
+  armor_kind: string | null
+  add_dex_modifier: boolean
+  dex_modifier_cap: number | null
+  strength_requirement: number | null
+  stealth_disadvantage: boolean
+  hit_points: number | null
+  damage_threshold: number | null
+}
+
+export interface Equipment {
+  id: string
+  /** стабильный ключ вида «longbow-phb»; ссылки в грантах идут только по нему */
+  slug: string
+  equipment_name: string
+  equipment_name_en: string | null
+  category: string
+  subcategory: string | null
+  tags: string[]
+  weight: number | null
+  cost: Cost | null
+  cost_copper: number | null
+  /** размер пачки в каталоге («Стрелы (20)»), не путать с stack_size */
+  bundle_size: number | null
+  stackable: boolean
+  stack_size: number
+  container: ContainerProfile | null
+  description: string | null
+  weapon: WeaponProfile | null
+  defense: DefenseProfile | null
+  book_source_id: string | null
+  source_url: string | null
+  equipment_image_gallery: string[] | null
+}
+
+/**
+ * Один предмет варианта выдачи. Ровно один режим: либо конкретный `slug`
+ * (тогда возможны `contents` — стартовое наполнение контейнера), либо выбор из
+ * каталога по непустым `choose_from_*` (пересечение измерений).
+ */
+export interface GrantEntry {
+  slug: string | null
+  quantity: number
+  contents: ContentEntry[]
+  choose_count: number
+  choose_from_slugs: string[]
+  choose_from_tags: string[]
+  choose_from_categories: string[]
+  choose_from_weapon_kinds: string[]
+  choose_from_attack_kinds: string[]
+  label: string | null
+}
+
+export interface GrantOption {
+  /** «а» | «б» | «в»; null, если вариант единственный */
+  marker: string | null
+  note: string | null
+  entries: GrantEntry[]
+}
+
+/** Один пункт стартового снаряжения: один option — фиксированная выдача, несколько — выбор */
+export interface EquipmentGrant {
+  label: string | null
+  options: GrantOption[]
+}
+
+/** Справочники для селектов и фильтров — не хардкодим их на клиенте */
+export interface MetaEnums {
+  equipment_categories: string[]
+  equipment_tags: string[]
+  container_kinds: string[]
+  weapon_kinds: string[]
+  weapon_attack_kinds: string[]
+  weapon_properties: string[]
+  weapon_masteries: string[]
+  damage_types: string[]
+  armor_kinds: string[]
+  currencies: Currency[]
+  abilities: string[]
+}
+
 export interface Termin {
   id: string
   name: string
@@ -214,7 +346,9 @@ export interface Background {
   skill_proficiencies: string[] | null
   tool_proficiencies: string[] | null
   languages: string[] | null
+  /** текст снаряжения из книги; разобранная версия — в starting_equipment */
   equipment: string | null
+  starting_equipment?: EquipmentGrant[] | null
   feature_name: string | null
   feature_description: string | null
   image_gallery: string[] | null
@@ -298,6 +432,59 @@ export async function getOne<T>(resource: string, id: string): Promise<T> {
   const data = (await res.json()) as T
   cacheEntity(resource, id, data)
   return data
+}
+
+/**
+ * Каталог снаряжения целиком, с индексом по slug. Гранты классов и предысторий
+ * ссылаются на предметы ТОЛЬКО по slug, а деталь открывается по uuid
+ * (`/equipment/{slug}` отдаёт 422) — поэтому нужен индекс slug → запись.
+ * Каталог небольшой (≈400 записей, одна страница по 500), поэтому тянем разово
+ * и держим промис синглтоном: параллельные вызывающие получат тот же запрос.
+ */
+export interface EquipmentIndex {
+  list: Equipment[]
+  bySlug: Map<string, Equipment>
+  byId: Map<string, Equipment>
+}
+
+let equipmentIndexPromise: Promise<EquipmentIndex> | null = null
+
+export function getEquipmentIndex(): Promise<EquipmentIndex> {
+  if (!equipmentIndexPromise) {
+    equipmentIndexPromise = fetchAll<Equipment>('equipment')
+      .then((list) => {
+        const bySlug = new Map<string, Equipment>()
+        const byId = new Map<string, Equipment>()
+        for (const eq of list) {
+          bySlug.set(eq.slug, eq)
+          byId.set(eq.id, eq)
+          // деталь предмета откроется мгновенно, без ожидания запроса
+          cacheEntity('equipment', eq.id, eq)
+        }
+        return { list, bySlug, byId }
+      })
+      .catch((e: unknown) => {
+        // иначе неудачная загрузка залипла бы синглтоном до перезагрузки страницы
+        equipmentIndexPromise = null
+        throw e
+      })
+  }
+  return equipmentIndexPromise
+}
+
+/**
+ * Справочники для фильтров и селектов. `null` вместо исключения, если бэкенд
+ * ещё/уже без этого роутера — UI просто прячет соответствующие фильтры.
+ */
+let metaEnumsPromise: Promise<MetaEnums | null> | null = null
+
+export function getMetaEnums(): Promise<MetaEnums | null> {
+  if (!metaEnumsPromise) {
+    metaEnumsPromise = fetch(`${API_BASE}/meta/enums`)
+      .then((res) => (res.ok ? (res.json() as Promise<MetaEnums>) : null))
+      .catch(() => null)
+  }
+  return metaEnumsPromise
 }
 
 /** Несколько записей по id (для предысторий книги — API не отдаёт их в /contents) */

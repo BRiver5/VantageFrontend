@@ -11,6 +11,7 @@
  * превращаем в нативные <details>.
  */
 import { useMemo, type MouseEvent } from 'react'
+import { cutProficiencySection } from './classProficiencies'
 
 /** Похоже ли описание на HTML-разметку (а не на старый плоский текст). */
 export function isHtmlDescription(text: string | null | undefined): boolean {
@@ -267,6 +268,9 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
     }
   }
 
+  // 1d. Секция «ВЛАДЕНИЕ» — отдельные stat-rows на странице класса.
+  cutProficiencySection(content)
+
   // 1c. Умения выбранного подкласса → в общий список способностей класса
   //     (после cutSubclasses, чтобы высокоуровневые умения не попали под нож).
   if (subclassSectionHtml) {
@@ -454,6 +458,37 @@ export function extractSubclassHtml(classHtml: string, subclassName: string): st
   const body = head?.nextElementSibling
   if (!body || !body.classList.contains('hide-wrapper')) return null
   return body.innerHTML
+}
+
+/**
+ * Тело описания подкласса без обёртки hide-next / hide-wrapper.
+ * В актуальном API полный HTML лежит в `subclass.description`, а не в статье класса.
+ */
+function unwrapSubclassBody(html: string): string | null {
+  if (typeof DOMParser === 'undefined') return null
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const wrapper = doc.body.querySelector('.hide-wrapper')
+  if (wrapper) return wrapper.innerHTML
+  // уже развёрнутое тело с заголовками умений
+  if (doc.body.querySelector('h3, h4')) return doc.body.innerHTML
+  return null
+}
+
+/**
+ * HTML умений подкласса: сначала собственный `description` подкласса,
+ * иначе — вырезка из HTML родительского класса (старый формат dnd.su).
+ */
+export function resolveSubclassSectionHtml(
+  subclassDescription: string | null | undefined,
+  subclassName: string,
+  parentClassHtml?: string | null,
+): string | null {
+  if (subclassDescription && isHtmlDescription(subclassDescription)) {
+    const own = unwrapSubclassBody(subclassDescription)
+    if (own) return own
+  }
+  if (parentClassHtml) return extractSubclassHtml(parentClassHtml, subclassName)
+  return null
 }
 
 /**

@@ -2172,6 +2172,70 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   text-overflow: ellipsis;
 }
 
+/* ---------- Водяной знак школы магии на карточке заклинания ---------- */
+.card--spell {
+  overflow: hidden;
+}
+.card--spell > :not(.spell-school-mark) {
+  position: relative;
+  z-index: 1;
+}
+
+.spell-school-mark {
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  width: auto;
+  height: 110%;
+  max-height: 170px;
+  max-width: 78%;
+  object-fit: contain;
+  object-position: right bottom;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.22;
+}
+
+.book-hero--deco {
+  overflow: hidden;
+}
+.book-hero--deco .book-cover,
+.book-hero--deco .detail-hex,
+.book-hero--deco .detail-school-cover,
+.book-hero--deco .book-meta {
+  position: relative;
+  z-index: 1;
+}
+.book-hero--deco .spell-school-mark {
+  height: min(135%, 380px);
+  max-height: none;
+  max-width: 58%;
+  right: 3%;
+  bottom: -4%;
+  opacity: 0.28;
+}
+
+/* иконка школы вместо бежевой пергаментной плашки — без book-cover */
+.detail-school-cover {
+  flex-shrink: 0;
+  width: clamp(130px, 16vw, 190px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.detail-school-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 0, 0, 0.4));
+}
+
 /* гекс-жетон (круг заклинания, показатель опасности) */
 .hex-badge {
   display: block;
@@ -6322,4 +6386,247 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 ::view-transition-old(fly-r-12), ::view-transition-old(fly-r-13), ::view-transition-old(fly-r-14),
 ::view-transition-old(fly-r-15) {
   animation: cardfly-right 1.2s cubic-bezier(0.55, 0, 0.35, 1) both;
+}
+
+/* ============================================================
+   СНАРЯЖЕНИЕ: карточки каталога и стартовые наборы класса/предыстории
+   ============================================================ */
+
+/* у снаряжения нет арта, поэтому вместо картинки — жетон с иконкой категории */
+.eq-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 52px;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+.eq-card-icon svg { width: 20px; height: 20px; stroke-width: 1.5; color: var(--gold-2); }
+
+.card--equipment .card-chips { margin-top: 4px; }
+
+/* ---------- Стартовое снаряжение ---------- */
+
+.se-grants { display: flex; flex-direction: column; gap: 22px; }
+
+.se-grant { display: flex; flex-direction: column; gap: 10px; }
+
+.se-grant-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+/* ряд табличек: фиксированные предметы или варианты «а или б» */
+.se-card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px 14px;
+}
+.se-card-row--choice { align-items: center; }
+
+.se-option-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
+  max-width: 420px;
+}
+.se-option-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.se-hex-marker {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--gold-3);
+  text-transform: lowercase;
+}
+.se-hex-marker::after { content: ')'; }
+
+/* горизонтальная табличка предмета */
+.se-card {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 8px 12px 8px 8px;
+  text-decoration: none;
+  color: inherit;
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.05), transparent 70%);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.16);
+  transition: box-shadow 0.16s ease, background 0.16s ease;
+}
+a.se-card:hover {
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.1), transparent 70%);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35);
+}
+.se-card--choice {
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.08), transparent 65%);
+}
+.se-card--pending { opacity: 0.7; }
+
+.se-card-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  object-position: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+}
+.se-card-thumb--empty {
+  display: grid;
+  place-items: center;
+}
+.se-card-thumb--empty svg {
+  width: 26px;
+  height: 26px;
+  color: rgba(228, 196, 110, 0.45);
+  stroke-width: 1.4;
+}
+.se-card-thumb--choice {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  background: linear-gradient(180deg, rgba(28, 24, 15, 0.95), rgba(11, 10, 8, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45);
+}
+
+.se-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.se-card-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.se-card-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--parchment);
+  line-height: 1.25;
+}
+a.se-card:hover .se-card-title { color: var(--gold-3); }
+.se-card-title--choice {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+.se-card-meta {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--gold-2);
+}
+.se-card-desc {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.se-or {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 2px;
+}
+
+.se-note {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-style: italic;
+  max-width: 420px;
+}
+
+a.se-name {
+  color: var(--parchment);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold-2) 45%, transparent);
+  text-underline-offset: 0.15em;
+  transition: color 0.18s ease;
+}
+a.se-name:hover { color: var(--gold-3); }
+
+.se-name.is-loading {
+  display: inline-block;
+  width: 10ch;
+  height: 0.8em;
+  background: linear-gradient(90deg, rgba(168, 175, 186, 0.22), rgba(168, 175, 186, 0.08));
+  animation: se-name-pulse 1.4s ease-in-out infinite;
+}
+@keyframes se-name-pulse {
+  50% { opacity: 0.45; }
+}
+
+.se-qty { color: var(--gold-3); font-weight: 600; font-size: 0.82rem; }
+
+.se-contents {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 1px solid rgba(168, 175, 186, 0.22);
+}
+
+a.se-hex-pick {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--gold-2) 40%, transparent);
+  transition: color 0.18s ease;
+}
+a.se-hex-pick:hover { color: var(--gold-4); }
+
+.se-source { margin-top: 16px; color: var(--text-dim); }
+.se-source > summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.se-source > summary:hover { color: var(--gold-3); }
+.se-source[open] > summary { margin-bottom: 10px; }
+
+@media (max-width: 720px) {
+  .se-card-row--choice { flex-direction: column; align-items: stretch; }
+  .se-option-col { max-width: none; }
+  .se-or { align-self: flex-start; padding: 2px 0; }
+  .se-card { grid-template-columns: 56px 1fr; }
+  .se-card-thumb { width: 56px; height: 56px; }
 }

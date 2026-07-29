@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import {
   Award,
+  Backpack,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +21,17 @@ import { getBookContents, getBooks, getClasses, getSettings, settingArt, splitTi
 import type { Book, BookContents, ContentTotals, GameClass, Setting } from './api'
 import { Corners, VantageLogo, Divider } from './ornaments'
 import { DieImage } from './dice/diceAssets'
-import { BestiaryPage, BackgroundsPage, ClassesPage, FeatsPage, ItemsPage, RacesPage, SpellsPage, TerminsPage } from './pages/CatalogPage'
+import {
+  BestiaryPage,
+  BackgroundsPage,
+  ClassesPage,
+  EquipmentPage,
+  FeatsPage,
+  ItemsPage,
+  RacesPage,
+  SpellsPage,
+  TerminsPage,
+} from './pages/CatalogPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import CharacterSheet from './pages/CharacterSheet'
@@ -28,6 +39,7 @@ import {
   BackgroundDetailPage,
   ClassDetailPage,
   CreatureDetailPage,
+  EquipmentDetailPage,
   FeatDetailPage,
   ItemDetailPage,
   RaceDetailPage,
@@ -48,6 +60,7 @@ const CATEGORIES = [
   { path: '/backgrounds', label: 'Предыстории', icon: Landmark },
   { path: '/feats', label: 'Черты', icon: Award },
   { path: '/spells', label: 'Заклинания', icon: Sparkles },
+  { path: '/equipment', label: 'Снаряжение', icon: Backpack },
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
   { path: '/character', label: 'Лист', icon: ScrollText },
@@ -698,6 +711,8 @@ export default function App() {
             <Route path="/feats/:id" element={<FeatDetailPage />} />
             <Route path="/spells" element={<SpellsPage />} />
             <Route path="/spells/:id" element={<SpellDetailPage />} />
+            <Route path="/equipment" element={<EquipmentPage />} />
+            <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
             <Route path="/items" element={<ItemsPage />} />
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/bestiary" element={<BestiaryPage />} />

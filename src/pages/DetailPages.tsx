@@ -15,7 +15,9 @@ import {
   Hourglass,
   Landmark,
   Languages,
+  Layers,
   Mountain,
+  Package,
   Plus,
   Ruler,
   Scale,
@@ -24,6 +26,7 @@ import {
   Sparkles,
   Star,
   Swords,
+  Tag,
   Target,
   Users,
   VenetianMask,
@@ -37,17 +40,42 @@ import {
   getCachedEntity,
   getOne,
   getSubList,
+  cleanDescription,
   realImage,
   sizeRu,
 } from '../api'
-import type { Book, Creature, CreatureTrait, Feat, GameClass, Background, Item, Race, Spell, Subclass, Subrace, Termin } from '../api'
+import type {
+  Book,
+  ContainerProfile,
+  Creature,
+  CreatureTrait,
+  Equipment,
+  Feat,
+  GameClass,
+  Background,
+  Item,
+  Race,
+  Spell,
+  Subclass,
+  Subrace,
+  Termin,
+} from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge } from './CatalogPage'
+import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
+import {
+  EquipmentContents,
+  StartingEquipment,
+  hasStartingEquipment,
+  useEquipmentIndex,
+} from './StartingEquipment'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
-import { ClassArticle, isHtmlDescription, extractSubclassHtml, parseSubclassFeatures } from '../classArticle'
+import { ClassArticle, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
+import { hasClassProficiencies, parseClassProficiencies } from '../classProficiencies'
+import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
 
 /* ---------- Общие детали ---------- */
 
@@ -128,6 +156,9 @@ function DetailShell({
   chips,
   rarity,
   backdrop,
+  heroDeco,
+  bareCover,
+  omitCover,
   heroNames,
   children,
 }: {
@@ -145,6 +176,12 @@ function DetailShell({
   rarity?: string
   /** декор за обложкой (напр. силуэт кости хитов у класса) */
   backdrop?: ReactNode
+  /** водяной знак / декор панели героя (школа заклинания и т.п.) */
+  heroDeco?: ReactNode
+  /** обложка без бежевой пергаментной рамки (иконка школы и т.п.) */
+  bareCover?: boolean
+  /** скрыть слот обложки целиком (заклинания без арта) */
+  omitCover?: boolean
   /** общие view-transition-name для морфа из карточки каталога (арт + заголовок) */
   heroNames?: { img?: string; title?: string }
   children: ReactNode
@@ -155,9 +192,10 @@ function DetailShell({
       <Link to={backTo} className="back-link">
         <ArrowLeft aria-hidden="true" /> {backLabel}
       </Link>
-      <div className="book-hero">
+      <div className={`book-hero${heroDeco ? ' book-hero--deco' : ''}`}>
+        {heroDeco}
         <Corners size={40} />
-        {heroHex !== undefined ? (
+        {!omitCover && heroHex !== undefined ? (
           <div className="detail-hex">
             {heroHex && !broken ? (
               <img className="detail-hex-cover" src={heroHex} alt={title} onError={() => setBroken(true)} />
@@ -165,10 +203,18 @@ function DetailShell({
               <span className="detail-hex-fallback"><ImageIcon aria-hidden="true" /></span>
             )}
           </div>
-        ) : (
+        ) : null}
+        {!omitCover && heroHex === undefined ? (
           <div
-            className={`book-cover detail-plate${rarity ? ' detail-plate--glow' : ''}`}
-            data-rarity={rarity || undefined}
+            className={
+              bareCover
+                ? 'detail-school-cover'
+                : [
+                    'book-cover detail-plate',
+                    rarity ? 'detail-plate--glow' : '',
+                  ].filter(Boolean).join(' ')
+            }
+            data-rarity={!bareCover && rarity ? rarity : undefined}
           >
             {backdrop}
             {image && !broken ? (
@@ -182,7 +228,7 @@ function DetailShell({
               <ImageIcon className="detail-plate-fallback" aria-hidden="true" />
             )}
           </div>
-        )}
+        ) : null}
         <div className="book-meta">
           {kicker && <span className="setting-kicker">{kicker}</span>}
           <div className="detail-title-row">
@@ -275,15 +321,19 @@ export function SpellDetailPage() {
     s.components?.material && 'М',
   ].filter(Boolean).join(', ')
 
+  const schoolSrc = spellSchoolIcon(s.school)
+
   return (
     <DetailShell
       backTo="/spells"
       backLabel="к гримуару"
       kicker={s.school ? `школа: ${s.school}` : 'заклинание'}
       title={s.spell_name}
-      image={null}
+      image={schoolSrc}
       imageIcon={Sparkles}
+      bareCover={!!schoolSrc}
       badge={<HexBadge value={s.spell_level === 0 ? '◈' : String(s.spell_level)} label={s.spell_level === 0 ? 'заговор' : 'круг'} />}
+      heroDeco={schoolSrc ? <SpellSchoolMark school={s.school} /> : undefined}
       chips={
         <>
           <SourceBadge book={book} />
@@ -537,9 +587,9 @@ function layoutHive<T>(items: T[], cols: number): { items: T[]; pad: number; nes
 
 /** Короткая выжимка описания подкласса для меню соты (первый осмысленный абзац). */
 function subclassPreview(text: string | null | undefined): string {
-  if (!text) return ''
-  // берём текст до первого ALL-CAPS заголовка умения и подрезаем
-  const cut = text.split(/[А-ЯЁ]{2,}(?:[ ]+[А-ЯЁ]+)+/)[0].trim() || text.trim()
+  const plain = cleanDescription(text)
+  if (!plain) return ''
+  const cut = plain.split(/[А-ЯЁ]{2,}(?:[ ]+[А-ЯЁ]+)+/)[0].trim() || plain.trim()
   return cut.length > 240 ? cut.slice(0, 237).trimEnd() + '…' : cut
 }
 
@@ -749,6 +799,10 @@ export function ClassDetailPage() {
   }, [id])
 
   const isHtml = useMemo(() => isHtmlDescription(c?.description), [c?.description])
+  const proficiencies = useMemo(
+    () => (isHtml && c?.description ? parseClassProficiencies(c.description) : {}),
+    [isHtml, c?.description],
+  )
   const table = useMemo(() => (isHtml ? null : parseClassTable(c?.description)), [c?.description, isHtml])
   const descText = useMemo(() => (isHtml ? '' : stripClassTable(c?.description)), [c?.description, isHtml])
   const subsRef = useRef<HTMLDivElement>(null)
@@ -770,10 +824,10 @@ export function ClassDetailPage() {
   }, [subclasses, subclassId, selectedSubDirect, id])
   const subclassSection = useMemo(
     () =>
-      selectedSub && isHtml && c?.description
-        ? extractSubclassHtml(c.description, selectedSub.subclass_name)
+      selectedSub
+        ? resolveSubclassSectionHtml(selectedSub.description, selectedSub.subclass_name, c?.description)
         : null,
-    [selectedSub, isHtml, c?.description],
+    [selectedSub, c?.description],
   )
   const subclassFeatures = useMemo(
     () => (subclassSection ? parseSubclassFeatures(subclassSection) : undefined),
@@ -819,9 +873,6 @@ export function ClassDetailPage() {
             <div className="card-chips class-detail-chips">
               <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
               {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
-              {c.saving_throw_proficiencies?.length ? (
-                <Chip icon={Shield}>{c.saving_throw_proficiencies.join(', ')}</Chip>
-              ) : null}
             </div>
           </div>
 
@@ -861,10 +912,20 @@ export function ClassDetailPage() {
 
       <Divider />
 
-      <div className="stat-rows">
-        <StatRow label="Доспехи" value={c.armor_proficiencies?.join(', ')} />
-        <StatRow label="Оружие" value={c.weapon_proficiencies?.join(', ')} />
-      </div>
+      {hasClassProficiencies(proficiencies) && (
+        <div className="stat-rows">
+          <StatRow label="Доспехи" value={proficiencies.armor} />
+          <StatRow label="Оружие" value={proficiencies.weapons} />
+          <StatRow label="Инструменты" value={proficiencies.tools} />
+          <StatRow label="Спасброски" value={proficiencies.savingThrows} />
+          <StatRow label="Навыки" value={proficiencies.skills} />
+        </div>
+      )}
+      {hasStartingEquipment(c.starting_equipment, c.starting_equipment_text) && (
+        <DetailSection title="Стартовое снаряжение">
+          <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} />
+        </DetailSection>
+      )}
       {c.is_caster && (
         <Link to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`} className="spell-cta">
           <Sparkles aria-hidden="true" />
@@ -1065,12 +1126,11 @@ export function SubclassDetailPage() {
   const book = useBookRef(sc?.book_source_id)
   const { data: parent } = useOne<GameClass>('classes', sc?.parent_class_id)
 
-  // Богатую разметку подкласса (таблицы, списки, умения) берём из HTML
-  // родительского класса — там лежит полная секция каждого подкласса.
+  // Богатую разметку берём из description подкласса; старый путь — вырезка из HTML класса.
   const subclassHtml = useMemo(() => {
-    if (!parent?.description || !sc?.subclass_name || !isHtmlDescription(parent.description)) return null
-    return extractSubclassHtml(parent.description, sc.subclass_name)
-  }, [parent?.description, sc?.subclass_name])
+    if (!sc?.subclass_name) return null
+    return resolveSubclassSectionHtml(sc.description, sc.subclass_name, parent?.description)
+  }, [sc?.description, sc?.subclass_name, parent?.description])
 
   if (error) return <p className="status-line is-error">Подкласс не найден: {error}</p>
   if (!sc) return <p className="status-line">Листаем хроники ордена…</p>
@@ -1220,9 +1280,9 @@ export function BackgroundDetailPage() {
           </div>
         </DetailSection>
       )}
-      {bg.equipment && (
+      {hasStartingEquipment(bg.starting_equipment, bg.equipment) && (
         <DetailSection title="Снаряжение">
-          <Rich text={bg.equipment} />
+          <StartingEquipment grants={bg.starting_equipment} fallbackText={bg.equipment} />
         </DetailSection>
       )}
       {bg.feature_name && (
@@ -1333,6 +1393,129 @@ export function ItemDetailPage() {
         </DetailSection>
       </div>
     </section>
+  )
+}
+
+/* ============================================================
+   СНАРЯЖЕНИЕ
+   ============================================================ */
+
+/** Что контейнер принимает внутрь; все три списка пусты — принимает что угодно */
+function containerAccepts(c: ContainerProfile): string {
+  const parts = [...c.accepts_categories, ...c.accepts_tags, ...c.accepts_slugs]
+  return parts.length === 0 ? 'что угодно' : parts.join(', ')
+}
+
+export function EquipmentDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: eq, error } = useOne<Equipment>('equipment', id)
+  const book = useBookRef(eq?.book_source_id)
+  const index = useEquipmentIndex()
+  if (error) return <p className="status-line is-error">Снаряжение не найдено: {error}</p>
+  if (!eq) return <p className="status-line">Разбираем походный тюк…</p>
+
+  const cost = formatCost(eq.cost, eq.cost_copper)
+  const weight = formatWeight(eq.weight)
+  const w = eq.weapon
+  const d = eq.defense
+  const c = eq.container
+  const range = w?.range_normal != null ? `${w.range_normal}${w.range_long ? `/${w.range_long}` : ''} фт.` : null
+
+  return (
+    <DetailShell
+      backTo="/equipment"
+      backLabel="к снаряжению"
+      kicker={eq.subcategory ?? eq.category}
+      title={eq.equipment_name}
+      image={realImage(eq.equipment_image_gallery)}
+      imageIcon={categoryIcon(eq.category)}
+      chips={
+        <>
+          <SourceBadge book={book} />
+          {cost && <Chip icon={Coins}>{cost}</Chip>}
+          {weight && <Chip icon={Scale}>{weight}</Chip>}
+          {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
+          {eq.stackable && <Chip icon={Layers}>стак до {eq.stack_size}</Chip>}
+          {eq.tags.map((t) => (
+            <Chip key={t} icon={Tag}>
+              {t}
+            </Chip>
+          ))}
+        </>
+      }
+    >
+      {eq.equipment_name_en && <p className="detail-note">{eq.equipment_name_en}</p>}
+
+      {w && (
+        <DetailSection title="Оружие">
+          <div className="stat-rows">
+            <StatRow label="Вид" value={[w.weapon_kind, w.attack_kind].filter(Boolean).join(' · ')} />
+            <StatRow
+              label="Урон"
+              value={[formatDice(w.damage_dice), w.damage_type?.toLowerCase()].filter(Boolean).join(' ')}
+            />
+            <StatRow label="Универсальное" value={formatDice(w.versatile_dice)} />
+            <StatRow label="Дистанция" value={range} />
+            <StatRow label="Свойства" value={w.properties.join(', ')} />
+            <StatRow label="Приём" value={w.mastery} />
+            <StatRow label="Боеприпасы" value={w.ammunition_type} />
+          </div>
+        </DetailSection>
+      )}
+
+      {d && (
+        <DetailSection title="Доспех">
+          <div className="stat-rows">
+            <StatRow label="Вид" value={d.armor_kind} />
+            <StatRow
+              label="Класс Доспеха"
+              value={
+                d.armor_class != null
+                  ? `${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}${
+                      d.dex_modifier_cap != null ? ` (не более +${d.dex_modifier_cap})` : ''
+                    }`
+                  : d.armor_class_formula
+              }
+            />
+            <StatRow label="Требование Силы" value={d.strength_requirement} />
+            <StatRow label="Скрытность" value={d.stealth_disadvantage ? 'помеха' : null} />
+            <StatRow label="Хиты" value={d.hit_points} />
+            <StatRow label="Порог урона" value={d.damage_threshold} />
+          </div>
+        </DetailSection>
+      )}
+
+      {c && (
+        <DetailSection title={`Контейнер: ${containerKindRu(c.container_kind)}`}>
+          <div className="stat-rows">
+            <StatRow label="Ячейки" value={c.slots} />
+            <StatRow label="Вместимость" value={c.capacity_pounds != null ? `${c.capacity_pounds} фнт.` : null} />
+            <StatRow
+              label="Объём"
+              value={c.capacity_cubic_feet != null ? `${c.capacity_cubic_feet} куб. фт.` : null}
+            />
+            <StatRow label="Принимает" value={containerAccepts(c)} />
+          </div>
+          {c.sealed && (
+            <p className="detail-note">
+              Набор: содержимое можно вынуть, но сложить обратно в него нельзя.
+            </p>
+          )}
+          {c.default_contents.length > 0 && (
+            <>
+              <p className="detail-note">Содержимое:</p>
+              <EquipmentContents contents={c.default_contents} index={index} />
+            </>
+          )}
+        </DetailSection>
+      )}
+
+      {eq.description && (
+        <DetailSection title="Описание">
+          <Rich text={eq.description} />
+        </DetailSection>
+      )}
+    </DetailShell>
   )
 }
 
