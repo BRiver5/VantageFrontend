@@ -766,6 +766,32 @@ function ClassCardPortrait({
   )
 }
 
+/** Основная характеристика класса (в API нет — каноничные данные PHB). */
+const CLASS_PRIMARY_ABILITY: Record<string, string> = {
+  Бард: 'Харизма',
+  Варвар: 'Сила',
+  Воин: 'Сила или Ловкость',
+  Волшебник: 'Интеллект',
+  Друид: 'Мудрость',
+  Жрец: 'Мудрость',
+  Изобретатель: 'Интеллект',
+  Колдун: 'Харизма',
+  Монах: 'Ловкость и Мудрость',
+  Паладин: 'Сила и Харизма',
+  Плут: 'Ловкость',
+  Следопыт: 'Ловкость и Мудрость',
+  Чародей: 'Харизма',
+}
+
+function ClassCardStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="ccs-row">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  )
+}
+
 function classCard(c: GameClass) {
   const dieType = hitDieType(c.hit_dice)
   return (
@@ -783,7 +809,16 @@ function classCard(c: GameClass) {
       <div className="class-card-lower">
         <div className="class-card-glow" aria-hidden="true" />
         <div className="class-card-panel">
-          <TermDesc text={descriptionPreview(c.description)} className="card-desc class-card-desc" />
+          <dl className="class-card-stats">
+            <ClassCardStat label="Кость хитов" value={`к${c.hit_dice}`} />
+            {CLASS_PRIMARY_ABILITY[c.class_name] && (
+              <ClassCardStat label="Основные характеристики" value={CLASS_PRIMARY_ABILITY[c.class_name]} />
+            )}
+            <ClassCardStat
+              label="Спасброски"
+              value={c.saving_throw_proficiencies?.join(', ') || '—'}
+            />
+          </dl>
         </div>
         <h3 className="class-card-name-plate">{c.class_name}</h3>
       </div>

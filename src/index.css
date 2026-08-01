@@ -1111,10 +1111,23 @@ button.loot-chip {
   inset: 0;
   width: 100%;
   height: 100%;
-  /* cover — обложка (≈2:3) заполняет гекс без зазоров и всегда отцентрована */
+  /* cover — обложка заполняет гекс без зазоров и всегда отцентрована */
   object-fit: cover;
   object-position: center;
-  transition: transform 0.4s ease, filter 0.3s ease;
+  /* обложка обрезана по гексу на самой картинке */
+  clip-path: var(--hex-point);
+  /* Зум — рост width/height с отрицательным margin (растёт симметрично из
+     центра). Это LAYOUT, а НЕ transform/filter: последние выносят <img> на
+     GPU-слой, где акселерированный композитинг СРЫВАЕТ clip-path (мелькал
+     квадрат; translateZ ломал обрезку даже в покое). Прибавки по вертикали и
+     горизонтали пропорциональны сторонам гекса — пропорции сохраняются, без
+     «сдвига». */
+  transition: width 0.4s ease, height 0.4s ease, margin 0.4s ease,
+    clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+.hex-cell-wrap.is-expanded .hex-cover,
+.hex-cell-wrap:focus-within .hex-cover {
+  clip-path: var(--hex-clip-head);
 }
 
 /* фолбэк, если у книги нет обложки или ссылка на неё битая */
@@ -1154,7 +1167,13 @@ button.loot-chip {
 
 /* обложка приближается СРАЗУ при наведении — мгновенный отклик,
    раскрытие самой соты по-прежнему ждёт задержки курсора (1.5 с) */
-.hex-cell-wrap:hover .hex-cover { transform: scale(1.07); filter: saturate(1.05); }
+/* зум — только при наведении ВНУТРЬ шестиугольника: триггерим по .hex-cell,
+   у которого есть clip-path (он же обрезает и хит-тест — углы вне гекса не в счёт) */
+.hex-cell:hover .hex-cover {
+  width: calc(100% + 12px);
+  height: calc(100% + 14px);
+  margin: -7px -6px;
+}
 
 /* градиент затемнения под текст */
 .hex-shade {
@@ -1858,6 +1877,33 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   -webkit-line-clamp: 3;
   font-size: 0.96rem;
   line-height: 1.5;
+}
+
+/* Класс-карточка: стат-плашки (кость хитов / характеристики / спасброски) */
+.class-card-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.class-card-stats .ccs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.class-card-stats dt {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold-3);
+}
+.class-card-stats dd {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.3;
+  color: var(--text);
 }
 
 /* ---------- Карточка расы: тот же портрет, но вместо кости — стат-плашки ---------- */
@@ -5684,6 +5730,19 @@ a.term-link:hover {
 
 /* Ссылки dnd.su (обезврежены) и всплывающие термины */
 .class-article .ca-ref { color: var(--gold-3); }
+/* Ссылка на конкретное заклинание — ведёт на страницу заклинания */
+.class-article .ca-spell {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(196, 154, 60, 0.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.class-article .ca-spell:hover {
+  color: var(--gold-4);
+  text-decoration-color: var(--gold-3);
+}
 /* Кликабельная кнопка-умение: ведёт к способности в статье, подсветка по наведению */
 .class-article .ca-link {
   cursor: pointer;
@@ -5953,6 +6012,23 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
   filter: drop-shadow(0 0 12px rgba(196, 154, 60, 0.4));
 }
 .hex-cell-wrap.is-picked .hex-title { color: var(--gold-4); }
+
+/* Кнопка «к архетипам» — сразу под шапкой класса, ведёт к сотам подклассов */
+.subclass-jump {
+  display: flex;
+  width: fit-content;
+  margin: 2px auto 6px;
+  gap: 10px;
+}
+.subclass-jump svg:last-child {
+  width: 15px;
+  height: 15px;
+  animation: subclass-jump-bob 1.6s ease-in-out infinite;
+}
+@keyframes subclass-jump-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
 
 /* Кнопки на странице подкласса */
 .subclass-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }

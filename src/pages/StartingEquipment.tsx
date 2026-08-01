@@ -1,9 +1,20 @@
-import { Fragment, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Fragment, createContext, useContext, useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { descriptionPreview, getEquipmentIndex, realImage } from '../api'
 import type { ContentEntry, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, GrantOption } from '../api'
 import { categoryIcon, entryCatalogQuery, entryChoiceLabel, formatCost } from '../equipment'
 import { RichText } from '../terms/terms'
+
+/** Куда вернуться со страницы снаряжения (напр. на страницу класса), + подпись. */
+const BackLabelContext = createContext<string | undefined>(undefined)
+
+/** state для ссылок на снаряжение: откуда пришли + подпись кнопки «назад». */
+function useEquipBackState(): { from: string; fromLabel: string | undefined } | undefined {
+  const label = useContext(BackLabelContext)
+  const location = useLocation()
+  if (!label) return undefined
+  return { from: location.pathname + location.search, fromLabel: label }
+}
 
 /**
  * Каталог снаряжения с индексом по slug. Гранты ссылаются на предметы только по
@@ -63,6 +74,7 @@ function EquipmentItemCard({
   const cost = eq ? formatCost(eq.cost, eq.cost_copper) : null
   const preview = eq ? descriptionPreview(eq.description, 140) : ''
   const href = eq ? `/equipment/${eq.id}` : undefined
+  const backState = useEquipBackState()
 
   const body = (
     <>
@@ -84,7 +96,7 @@ function EquipmentItemCard({
 
   if (href) {
     return (
-      <Link to={href} className="se-card">
+      <Link to={href} state={backState} className="se-card">
         {body}
       </Link>
     )
@@ -153,10 +165,11 @@ export function EquipmentSlugLink({
 }) {
   const eq = index?.bySlug.get(slug)
   const qty = quantity != null && quantity > 1 ? <span className="se-qty">× {quantity}</span> : null
+  const backState = useEquipBackState()
   return (
     <>
       {eq ? (
-        <Link to={`/equipment/${eq.id}`} className="se-name">
+        <Link to={`/equipment/${eq.id}`} state={backState} className="se-name">
           {eq.equipment_name}
         </Link>
       ) : (
@@ -211,10 +224,13 @@ export function StartingEquipment({
   grants,
   fallbackText,
   sourceText,
+  backLabel,
 }: {
   grants: EquipmentGrant[] | null | undefined
   fallbackText?: string | null
   sourceText?: string | null
+  /** подпись кнопки «назад» на странице снаряжения (напр. имя класса) */
+  backLabel?: string
 }) {
   const index = useEquipmentIndex()
   const hasGrants = !!grants && grants.length > 0
@@ -225,7 +241,7 @@ export function StartingEquipment({
   }
 
   return (
-    <>
+    <BackLabelContext.Provider value={backLabel}>
       <div className="se-grants">
         {grants!.map((g, i) => (
           <GrantBlock key={i} grant={g} index={index} />
@@ -237,7 +253,7 @@ export function StartingEquipment({
           <RichText text={sourceText} />
         </details>
       )}
-    </>
+    </BackLabelContext.Provider>
   )
 }
 

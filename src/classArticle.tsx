@@ -11,7 +11,9 @@
  * превращаем в нативные <details>.
  */
 import { useMemo, type MouseEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { cutProficiencySection } from './classProficiencies'
+import { normSpellName, useSpellIndex } from './spellIndex'
 
 /** Похоже ли описание на HTML-разметку (а не на старый плоский текст). */
 export function isHtmlDescription(text: string | null | undefined): boolean {
@@ -318,6 +320,11 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
     if (targetId && existingIds.has(targetId)) {
       span.className = 'ca-ref ca-link'
       span.setAttribute('data-target', targetId)
+    } else if (/\/spells\/\d+-/.test(href)) {
+      // ссылка на конкретное заклинание dnd.su → помечаем; id заклинания у нас
+      // подставим при рендере по названию (см. ClassArticle + useSpellIndex)
+      span.className = 'ca-ref ca-spell'
+      span.setAttribute('data-spell', (a.textContent ?? '').split('[')[0].trim())
     } else {
       span.className = 'ca-ref'
     }
@@ -516,6 +523,7 @@ export function ClassArticle({
   subclassSectionHtml,
   subclassFeatures,
   isCaster = false,
+  backLabel,
 }: {
   html: string
   cutSubclasses?: boolean
@@ -523,6 +531,8 @@ export function ClassArticle({
   subclassFeatures?: SubclassFeature[]
   /** заклинательный класс — фиолетовые умения подкласса; иначе красные */
   isCaster?: boolean
+  /** подпись для кнопки «назад» на странице заклинания (напр. имя класса/подкласса) */
+  backLabel?: string
 }) {
   const safe = useMemo(
     () => transformClassHtml(html, { cutSubclasses, subclassSectionHtml: subclassSectionHtml ?? undefined, subclassFeatures }),
@@ -531,9 +541,26 @@ export function ClassArticle({
 
   const articleClass = `class-article${isCaster ? ' class-article--caster' : ' class-article--martial'}`
 
-  // Делегируем клики: кнопка-умение (.ca-link) прокручивает к своей способности
-  // внутри статьи и подсвечивает её вспышкой.
+  const navigate = useNavigate()
+  const location = useLocation()
+  const spellIndex = useSpellIndex()
+
+  // Делегируем клики: заклинание (.ca-spell) → страница заклинания (id ищем в
+  // индексе по названию ПРЯМО ПРИ КЛИКЕ — так работает и после возврата назад,
+  // когда React пере-вставляет innerHTML и стирает разметку). Кнопка-умение
+  // (.ca-link) → прокрутка к способности со вспышкой. На страницу заклинания
+  // передаём, откуда пришли, чтобы там была кнопка «назад» именно сюда.
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
+    const spell = (e.target as HTMLElement).closest<HTMLElement>('.ca-spell')
+    if (spell) {
+      const id = spellIndex.get(normSpellName(spell.dataset.spell ?? ''))
+      if (id) {
+        navigate(`/spells/${id}`, {
+          state: { from: location.pathname + location.search, fromLabel: backLabel },
+        })
+      }
+      return
+    }
     const link = (e.target as HTMLElement).closest<HTMLElement>('.ca-link')
     const targetId = link?.dataset.target
     if (!targetId) return

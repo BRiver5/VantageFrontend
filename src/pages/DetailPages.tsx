@@ -1,7 +1,8 @@
 import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
   Award,
@@ -115,6 +116,22 @@ function useOne<T>(resource: string, id: string | undefined) {
 /** Лёгкая разметка описаний: абзацы + **жирный** / ***жирный*** + ссылки на термины */
 function Rich({ text }: { text: string | null | undefined }) {
   return <RichText text={text} />
+}
+
+/**
+ * Кнопка «назад»: если на страницу пришли по ссылке из статьи (в location.state
+ * лежит `from`/`fromLabel`) — ведём обратно именно туда, а не в общий каталог.
+ */
+function useContextualBack(
+  defaultTo: string,
+  defaultLabel: string,
+): { backTo: string; backLabel: string } {
+  const location = useLocation()
+  const st = location.state as { from?: string; fromLabel?: string } | null
+  if (st?.from) {
+    return { backTo: st.from, backLabel: st.fromLabel ? `к «${st.fromLabel}»` : 'назад' }
+  }
+  return { backTo: defaultTo, backLabel: defaultLabel }
 }
 
 function Chip({ icon, children }: { icon: LucideIcon | ReactNode; children: ReactNode }) {
@@ -312,6 +329,7 @@ export function SpellDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: s, error } = useOne<Spell>('spells', id)
   const book = useBookRef(s?.spell_source)
+  const { backTo, backLabel } = useContextualBack('/spells', 'к гримуару')
   if (error) return <p className="status-line is-error">Заклинание не найдено: {error}</p>
   if (!s) return <p className="status-line">Разворачиваем свиток…</p>
 
@@ -325,8 +343,8 @@ export function SpellDetailPage() {
 
   return (
     <DetailShell
-      backTo="/spells"
-      backLabel="к гримуару"
+      backTo={backTo}
+      backLabel={backLabel}
       kicker={s.school ? `школа: ${s.school}` : 'заклинание'}
       title={s.spell_name}
       image={schoolSrc}
@@ -912,6 +930,16 @@ export function ClassDetailPage() {
 
       <Divider />
 
+      {subclasses.length > 0 && (
+        <button type="button" className="spell-cta subclass-jump" onClick={scrollToSubclasses}>
+          <Users aria-hidden="true" />
+          {selectedSub
+            ? `Сменить архетип · выбран «${selectedSub.subclass_name}»`
+            : `${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}
+          <ArrowDown aria-hidden="true" />
+        </button>
+      )}
+
       {hasClassProficiencies(proficiencies) && (
         <div className="stat-rows">
           <StatRow label="Доспехи" value={proficiencies.armor} />
@@ -923,7 +951,7 @@ export function ClassDetailPage() {
       )}
       {hasStartingEquipment(c.starting_equipment, c.starting_equipment_text) && (
         <DetailSection title="Стартовое снаряжение">
-          <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} />
+          <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} backLabel={c.class_name} />
         </DetailSection>
       )}
       {c.is_caster && (
@@ -939,6 +967,7 @@ export function ClassDetailPage() {
             subclassSectionHtml={subclassSection}
             subclassFeatures={subclassFeatures}
             isCaster={!!c.is_caster}
+            backLabel={c.class_name}
           />
         </section>
       ) : (
@@ -1174,7 +1203,7 @@ export function SubclassDetailPage() {
       </div>
       {subclassHtml ? (
         <section className="detail-section">
-          <ClassArticle html={subclassHtml} cutSubclasses={false} />
+          <ClassArticle html={subclassHtml} cutSubclasses={false} isCaster={!!sc.is_caster} backLabel={sc.subclass_name} />
         </section>
       ) : (
         <DetailSection title="Описание">
@@ -1282,7 +1311,7 @@ export function BackgroundDetailPage() {
       )}
       {hasStartingEquipment(bg.starting_equipment, bg.equipment) && (
         <DetailSection title="Снаряжение">
-          <StartingEquipment grants={bg.starting_equipment} fallbackText={bg.equipment} />
+          <StartingEquipment grants={bg.starting_equipment} fallbackText={bg.equipment} backLabel={bg.background_name} />
         </DetailSection>
       )}
       {bg.feature_name && (
@@ -1411,6 +1440,7 @@ export function EquipmentDetailPage() {
   const { data: eq, error } = useOne<Equipment>('equipment', id)
   const book = useBookRef(eq?.book_source_id)
   const index = useEquipmentIndex()
+  const { backTo, backLabel } = useContextualBack('/equipment', 'к снаряжению')
   if (error) return <p className="status-line is-error">Снаряжение не найдено: {error}</p>
   if (!eq) return <p className="status-line">Разбираем походный тюк…</p>
 
@@ -1423,8 +1453,8 @@ export function EquipmentDetailPage() {
 
   return (
     <DetailShell
-      backTo="/equipment"
-      backLabel="к снаряжению"
+      backTo={backTo}
+      backLabel={backLabel}
       kicker={eq.subcategory ?? eq.category}
       title={eq.equipment_name}
       image={realImage(eq.equipment_image_gallery)}
