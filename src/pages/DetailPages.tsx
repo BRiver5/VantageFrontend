@@ -1,5 +1,6 @@
-import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown,
@@ -37,6 +38,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
+  cacheEntity,
   formatCR,
   getCachedEntity,
   getOne,
@@ -75,6 +77,7 @@ import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
 import { ClassArticle, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
+import { MulticlassButton } from '../multiclass'
 import { hasClassProficiencies, parseClassProficiencies } from '../classProficiencies'
 import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
 
@@ -164,10 +167,12 @@ export function rarityKeyOf(r: string | null | undefined): string {
 function DetailShell({
   backTo,
   backLabel,
+  onBackClick,
   kicker,
   title,
   image,
   heroHex,
+  heroHexName,
   imageIcon: ImageIcon,
   badge,
   chips,
@@ -181,11 +186,15 @@ function DetailShell({
 }: {
   backTo: string
   backLabel: string
+  /** перехват клика по «назад» — например, чтобы уйти с view-transition-морфом */
+  onBackClick?: (e: ReactMouseEvent<HTMLAnchorElement>) => void
   kicker: string | null
   title: string
   image: string | null
   /** если задан — обложка рисуется шестиугольником (как сота), а не плашкой */
   heroHex?: string | null
+  /** view-transition-name на обложке-шестиугольнике (морф из/в соту) */
+  heroHexName?: string
   imageIcon: LucideIcon
   badge?: ReactNode
   chips: ReactNode
@@ -206,7 +215,7 @@ function DetailShell({
   const [broken, setBroken] = useState(false)
   return (
     <section className="book-page">
-      <Link to={backTo} className="back-link">
+      <Link to={backTo} className="back-link" onClick={onBackClick}>
         <ArrowLeft aria-hidden="true" /> {backLabel}
       </Link>
       <div className={`book-hero${heroDeco ? ' book-hero--deco' : ''}`}>
@@ -215,7 +224,13 @@ function DetailShell({
         {!omitCover && heroHex !== undefined ? (
           <div className="detail-hex">
             {heroHex && !broken ? (
-              <img className="detail-hex-cover" src={heroHex} alt={title} onError={() => setBroken(true)} />
+              <img
+                className="detail-hex-cover"
+                src={heroHex}
+                alt={title}
+                style={heroHexName ? ({ viewTransitionName: heroHexName } as CSSProperties) : undefined}
+                onError={() => setBroken(true)}
+              />
             ) : (
               <span className="detail-hex-fallback"><ImageIcon aria-hidden="true" /></span>
             )}
@@ -497,6 +512,24 @@ export function CreatureDetailPage() {
    КЛАСС
    ============================================================ */
 
+type VTDocument = Document & {
+  startViewTransition?: (cb: () => void | Promise<void>) => { finished: Promise<void> }
+}
+
+/** Общее имя view-transition: сота подкласса ⇄ обложка на его подробной странице. */
+const SUB_HERO = 'subclass-hero-img'
+
+/** Список подклассов класса кэшируем — чтобы при возврате соты были на месте
+ *  СРАЗУ (иначе перелёт-морф не находит цель, пока идёт запрос). */
+const subclassListCache = new Map<string, Subclass[]>()
+
+/** Снимаем имя перелёта с сот, чтобы на новом переходе не было дублей имени. */
+function clearSubHeroNames() {
+  document.querySelectorAll<HTMLElement>('.hex-cover').forEach((el) => {
+    if (el.style.viewTransitionName === SUB_HERO) el.style.viewTransitionName = ''
+  })
+}
+
 /* ---------- Таблица развития класса ---------- */
 
 /** Умения, дающие выбор подкласса — кликом уводим к сотам подклассов ниже. */
@@ -611,9 +644,9 @@ function subclassPreview(text: string | null | undefined): string {
   return cut.length > 240 ? cut.slice(0, 237).trimEnd() + '…' : cut
 }
 
-function SubclassHexExpand({ sc }: { sc: Subclass }) {
+function SubclassHexExpand({ sc, onOpen }: { sc: Subclass; onOpen?: (e: ReactMouseEvent<HTMLAnchorElement>) => void }) {
   return (
-    <Link to={`/subclasses/${sc.id}`} className="hex-expand hex-expand--sub">
+    <Link to={`/subclasses/${sc.id}`} className="hex-expand hex-expand--sub" onClick={onOpen}>
       <div className="hex-expand-inner">
         <Corners size={20} />
         <div className="hex-expand-title">
@@ -626,32 +659,46 @@ function SubclassHexExpand({ sc }: { sc: Subclass }) {
 }
 
 /** Обложка подкласса: картинка из image_gallery, иначе щит-заглушка. */
-function SubclassCover({ sc }: { sc: Subclass }) {
+function SubclassCover({ sc, vtName }: { sc: Subclass; vtName?: string }) {
   const [broken, setBroken] = useState(false)
   const src = realImage(sc.image_gallery)
+  const style = vtName ? ({ viewTransitionName: vtName } as CSSProperties) : undefined
   if (!src || broken) {
     return (
-      <span className="hex-cover hex-cover--empty">
+      <span className="hex-cover hex-cover--empty" style={style}>
         <Shield aria-hidden="true" />
       </span>
     )
   }
-  return <img className="hex-cover" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+  return (
+    <img
+      className="hex-cover"
+      src={src}
+      alt=""
+      loading="lazy"
+      style={style}
+      onError={() => setBroken(true)}
+    />
+  )
 }
 
 function SubclassHex({
   sc,
   index,
   selected = false,
+  returning = false,
   onToggle,
 }: {
   sc: Subclass
   index: number
   /** подкласс выбран для просмотра в статье класса */
   selected?: boolean
+  /** сюда только что вернулись с подробной страницы — цель морфа-перелёта */
+  returning?: boolean
   onToggle?: (id: string) => void
 }) {
   const navigate = useNavigate()
+  const cellRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -670,7 +717,29 @@ function SubclassHex({
     if (dwell.current) clearTimeout(dwell.current)
   }, [])
 
-  const open = () => navigate(`/subclasses/${sc.id}`)
+  // открытие с перелётом-морфом: обложка соты «летит» в шестиугольник-обложку
+  // подробной страницы (общее имя SUB_HERO). Так же, как карточка класса.
+  // Работает и по клику на саму соту, и по раскрытой карточке-описанию.
+  const open = (e?: ReactMouseEvent<HTMLElement>) => {
+    if (e && (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
+    e?.preventDefault()
+    const doc = document as VTDocument
+    const to = `/subclasses/${sc.id}`
+    const img = cellRef.current?.querySelector<HTMLElement>('.hex-cover')
+    if (!doc.startViewTransition || !img) {
+      navigate(to)
+      return
+    }
+    clearSubHeroNames()
+    img.style.viewTransitionName = SUB_HERO
+    document.documentElement.dataset.nav = '1'
+    const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
+    const fin = () => {
+      img.style.viewTransitionName = ''
+      delete document.documentElement.dataset.nav
+    }
+    t.finished.then(fin, fin)
+  }
 
   return (
     <div
@@ -683,6 +752,7 @@ function SubclassHex({
         <div className="hex-unit-fill">
           <div
             className="hex-cell"
+            ref={cellRef}
             role="link"
             tabIndex={0}
             onClick={open}
@@ -694,14 +764,14 @@ function SubclassHex({
             }}
           >
             <span className="hex-inner">
-              <SubclassCover sc={sc} />
+              <SubclassCover sc={sc} vtName={returning ? SUB_HERO : undefined} />
               <span className="hex-shade" />
               <span className="hex-body">
                 <span className="hex-title" title={sc.subclass_name}>{sc.subclass_name}</span>
               </span>
             </span>
           </div>
-          <SubclassHexExpand sc={sc} />
+          <SubclassHexExpand sc={sc} onOpen={open} />
         </div>
       </div>
       {onToggle && (
@@ -723,10 +793,13 @@ function SubclassHex({
 function SubclassHive({
   subclasses,
   selectedId,
+  returningId,
   onToggle,
 }: {
   subclasses: Subclass[]
   selectedId?: string | null
+  /** сота, в которую прилетает морф при возврате с подробной страницы */
+  returningId?: string
   onToggle?: (id: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -758,6 +831,7 @@ function SubclassHive({
               sc={sc}
               index={ri * layout.cols + ci}
               selected={sc.id === selectedId}
+              returning={sc.id === returningId}
               onToggle={onToggle}
             />
           ))}
@@ -807,14 +881,33 @@ const SUBCLASS_GROUP_LABEL: Record<string, string> = {
 
 export function ClassDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const { data: c, error } = useOne<GameClass>('classes', id)
-  const [subclasses, setSubclasses] = useState<Subclass[]>([])
+  // из кэша — чтобы при возврате с подкласса соты были на месте сразу (для морфа)
+  const [subclasses, setSubclasses] = useState<Subclass[]>(() => (id && subclassListCache.get(id)) || [])
 
   useEffect(() => {
     if (!id) return
-    setSubclasses([])
-    getSubList<Subclass>('classes', id, 'subclasses').then(setSubclasses).catch(() => {})
+    setSubclasses(subclassListCache.get(id) ?? [])
+    getSubList<Subclass>('classes', id, 'subclasses')
+      .then((list) => {
+        subclassListCache.set(id, list)
+        // деталь подкласса откроется мгновенно (с обложкой) — нужно для морфа
+        list.forEach((s) => cacheEntity('subclasses', s.id, s))
+        setSubclasses(list)
+      })
+      .catch(() => {})
   }, [id])
+
+  // подкласс, с которого вернулись (морф-перелёт в его соту); гасим имя через ~1.5 c
+  const [returningSub, setReturningSub] = useState<string | undefined>(
+    () => (location.state as { returningSubclass?: string } | null)?.returningSubclass,
+  )
+  useEffect(() => {
+    if (!returningSub) return
+    const t = setTimeout(() => setReturningSub(undefined), 1500)
+    return () => clearTimeout(t)
+  }, [returningSub])
 
   const isHtml = useMemo(() => isHtmlDescription(c?.description), [c?.description])
   const proficiencies = useMemo(
@@ -826,6 +919,20 @@ export function ClassDetailPage() {
   const subsRef = useRef<HTMLDivElement>(null)
   const scrollToSubclasses = () =>
     subsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  // возврат с подкласса: подводим соты в кадр ДО отрисовки, чтобы обложка
+  // «прилетела» на видимую соту (снимок view-transition берётся уже с прокруткой).
+  // Прыжок мгновенный — иначе плавный скролл сайта уводит цель из кадра снимка.
+  useLayoutEffect(() => {
+    if (returningSub && subclasses.length && subsRef.current) {
+      const root = document.documentElement
+      const prev = root.style.scrollBehavior
+      root.style.scrollBehavior = 'auto'
+      subsRef.current.scrollIntoView({ block: 'center' })
+      root.style.scrollBehavior = prev
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returningSub, subclasses.length])
 
   // Выбранный подкласс (?subclass=): его умения вписываются в таблицу/список класса
   const [searchParams, setSearchParams] = useSearchParams()
@@ -930,15 +1037,31 @@ export function ClassDetailPage() {
 
       <Divider />
 
-      {subclasses.length > 0 && (
-        <button type="button" className="spell-cta subclass-jump" onClick={scrollToSubclasses}>
-          <Users aria-hidden="true" />
-          {selectedSub
-            ? `Сменить архетип · выбран «${selectedSub.subclass_name}»`
-            : `${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}
-          <ArrowDown aria-hidden="true" />
-        </button>
-      )}
+      <div className="class-cta-row">
+        {c.is_caster && (
+          <Link
+            to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`}
+            className="spell-cta"
+          >
+            <Sparkles aria-hidden="true" />
+            Заклинания класса
+          </Link>
+        )}
+        {subclasses.length > 0 && (
+          <button
+            type="button"
+            className="spell-cta spell-cta--ghost subclass-jump"
+            onClick={scrollToSubclasses}
+          >
+            <Users aria-hidden="true" />
+            {selectedSub
+              ? 'Сменить архетип'
+              : `${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}
+            <ArrowDown aria-hidden="true" />
+          </button>
+        )}
+        <MulticlassButton fromLabel={c.class_name} />
+      </div>
 
       {hasClassProficiencies(proficiencies) && (
         <div className="stat-rows">
@@ -953,12 +1076,6 @@ export function ClassDetailPage() {
         <DetailSection title="Стартовое снаряжение">
           <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} backLabel={c.class_name} />
         </DetailSection>
-      )}
-      {c.is_caster && (
-        <Link to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`} className="spell-cta">
-          <Sparkles aria-hidden="true" />
-          Заклинания класса
-        </Link>
       )}
       {isHtml ? (
         <section className="detail-section">
@@ -988,7 +1105,12 @@ export function ClassDetailPage() {
       {subclasses.length > 0 && (
         <div ref={subsRef}>
           <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
-            <SubclassHive subclasses={subclasses} selectedId={subclassId} onToggle={toggleSubclass} />
+            <SubclassHive
+              subclasses={subclasses}
+              selectedId={subclassId}
+              returningId={returningSub}
+              onToggle={toggleSubclass}
+            />
           </DetailSection>
         </div>
       )}
@@ -1151,9 +1273,32 @@ export function RaceDetailPage() {
 
 export function SubclassDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { data: sc, error } = useOne<Subclass>('subclasses', id)
   const book = useBookRef(sc?.book_source_id)
   const { data: parent } = useOne<GameClass>('classes', sc?.parent_class_id)
+
+  // возврат к соте с тем же морфом-перелётом, что и при открытии (обложка «летит»
+  // обратно в свою соту на странице класса). Соту помечаем через location.state.
+  const backToClass = (e: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (!sc || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    const to = `/classes/${sc.parent_class_id}`
+    const state = { returningSubclass: sc.id }
+    const doc = document as VTDocument
+    if (!doc.startViewTransition) {
+      navigate(to, { state })
+      return
+    }
+    // не даём глобальному ScrollToTop сбросить прокрутку — сами подводим соты в кадр
+    document.documentElement.dataset.keepScroll = '1'
+    document.documentElement.dataset.nav = '1'
+    // соты подводит в кадр сама страница класса (useLayoutEffect по returningSub) —
+    // навигация в react-router отложенная, тут .hive ещё нет
+    const t = doc.startViewTransition(() => flushSync(() => navigate(to, { state })))
+    const fin = () => delete document.documentElement.dataset.nav
+    t.finished.then(fin, fin)
+  }
 
   // Богатую разметку берём из description подкласса; старый путь — вырезка из HTML класса.
   const subclassHtml = useMemo(() => {
@@ -1168,10 +1313,12 @@ export function SubclassDetailPage() {
     <DetailShell
       backTo={`/classes/${sc.parent_class_id}`}
       backLabel={parent ? `к классу «${parent.class_name}»` : 'к классу'}
+      onBackClick={backToClass}
       kicker={sc.subclass_flavor ?? 'подкласс'}
       title={sc.subclass_name}
       image={null}
       heroHex={realImage(sc.image_gallery)}
+      heroHexName={SUB_HERO}
       imageIcon={Shield}
       chips={
         <>

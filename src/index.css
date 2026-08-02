@@ -6013,22 +6013,26 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 }
 .hex-cell-wrap.is-picked .hex-title { color: var(--gold-4); }
 
-/* Кнопка «к архетипам» — сразу под шапкой класса, ведёт к сотам подклассов */
-.subclass-jump {
+/* Панель действий класса — сразу под шапкой: «Заклинания класса» + «к архетипам» */
+.class-cta-row {
   display: flex;
-  width: fit-content;
-  margin: 2px auto 6px;
-  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 14px;
 }
+.class-cta-row .spell-cta { margin: 0; }
+
+/* Кнопка «к архетипам» — ведёт к сотам подклассов; стрелка чуть «дышит» на hover */
+.subclass-jump { gap: 8px; }
 .subclass-jump svg:last-child {
-  width: 15px;
-  height: 15px;
-  animation: subclass-jump-bob 1.6s ease-in-out infinite;
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  transition: transform 0.18s ease;
 }
-@keyframes subclass-jump-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(3px); }
-}
+.subclass-jump:hover svg:last-child { transform: translateY(2px); }
 
 /* Кнопки на странице подкласса */
 .subclass-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
@@ -6038,6 +6042,171 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
   box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5);
 }
 .spell-cta--ghost:hover { background: rgba(196, 154, 60, 0.12); filter: none; }
+
+/* ---------- Конструктор «Мультикласс» ---------- */
+.mc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  background: rgba(6, 7, 9, 0.72);
+  backdrop-filter: blur(6px);
+  animation: mc-fade 0.18s ease;
+}
+@keyframes mc-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* окно на всё пространство: шапка и селекты закреплены, способности скроллятся */
+.mc-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-1);
+  border-top: 1px solid transparent;
+  border-image: var(--gold-grad-h) 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  animation: mc-rise 0.2s ease;
+}
+@keyframes mc-rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.mc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 14px clamp(16px, 4vw, 24px);
+  border-bottom: 1px solid rgba(196, 154, 60, 0.28);
+}
+/* кнопка «назад» в шапке окна — точь-в-точь общесайтовый .back-link, без нижнего отступа */
+.mc-back { margin: 0; }
+
+.mc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+.mc-title svg { width: 20px; height: 20px; }
+.mc-total {
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+}
+.mc-close {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 6px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.mc-close:hover { color: var(--gold-3); }
+.mc-close svg { width: 20px; height: 20px; }
+
+.mc-slots {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 12px clamp(16px, 4vw, 24px) 14px;
+  border-bottom: 1px solid rgba(196, 154, 60, 0.2);
+}
+.mc-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.mc-field--lvl { flex: 0 0 74px; min-width: 74px; }
+.mc-field > span {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.mc-field select {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.mc-field select:hover:not(:disabled) { border-color: var(--gold-1); }
+.mc-field select:focus { outline: none; border-color: var(--gold-2); }
+.mc-field select:disabled { opacity: 0.5; cursor: default; }
+.mc-remove {
+  display: inline-flex;
+  padding: 7px;
+  color: var(--text-dim);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mc-remove:hover { color: #d98a7a; border-color: #7a3b32; }
+.mc-remove svg { width: 16px; height: 16px; }
+.mc-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px 14px;
+  color: var(--gold-3);
+  background: transparent;
+  border: 1px dashed rgba(196, 154, 60, 0.5);
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mc-add:hover { background: rgba(196, 154, 60, 0.12); }
+.mc-add svg { width: 16px; height: 16px; }
+
+.mc-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px clamp(16px, 4vw, 40px) 32px;
+}
+/* контент способностей ограничиваем по ширине для читаемости на широком экране */
+.mc-body > .class-article,
+.mc-body > .mc-hint { max-width: 900px; margin-inline: auto; }
+.mc-hint,
+.mc-empty {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  padding: 14px 0;
+}
+.mc-empty { padding: 4px 0 10px; font-style: italic; }
 
 /* Заголовок вставленной секции умений подкласса + кнопка «убрать» */
 .subclass-inject-head {
@@ -6431,6 +6600,9 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 ::view-transition-new(class-hero-img),
 ::view-transition-old(class-hero-title),
 ::view-transition-new(class-hero-title),
+::view-transition-group(subclass-hero-img),
+::view-transition-old(subclass-hero-img),
+::view-transition-new(subclass-hero-img),
 ::view-transition-group(root),
 ::view-transition-old(root),
 ::view-transition-new(root) {

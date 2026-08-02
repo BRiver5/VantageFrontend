@@ -517,6 +517,36 @@ export function parseSubclassFeatures(sectionHtml: string): SubclassFeature[] {
   return out
 }
 
+export interface FeatureEntry {
+  level: number
+  name: string
+  /** полный HTML блока умения (заголовок + тело) — для рендера в конструкторе */
+  html: string
+}
+
+/**
+ * Разбирает секцию (класса ИЛИ подкласса) на умения с уровнями и HTML.
+ * Для конструктора «мультикласс»: собираем способности абстрактного персонажа
+ * по выбранному уровню. Опции без уровня (воззвания, приёмы) сюда не попадают —
+ * это отдельные под-умения, а не способности уровня.
+ */
+export function parseFeatureEntries(sectionHtml: string): FeatureEntry[] {
+  if (typeof DOMParser === 'undefined') return []
+  const doc = new DOMParser().parseFromString(sectionHtml, 'text/html')
+  const content = doc.body.querySelector('.desc.card__article-body') ?? doc.body
+  const out: FeatureEntry[] = []
+  const seen = new Set<string>()
+  for (const block of collectFeatureBlocks(content)) {
+    if (block.level < 1 || block.level > 20) continue
+    const key = block.level + '|' + normFeatureName(block.name)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const html = block.nodes.map((n) => (n as HTMLElement).outerHTML).join('')
+    out.push({ level: block.level, name: block.name, html })
+  }
+  return out
+}
+
 export function ClassArticle({
   html,
   cutSubclasses = true,

@@ -681,6 +681,12 @@ function HomePage() {
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
+    // возврат с подкласса к сотам делает свой скролл (морф-перелёт в соту) —
+    // не сбрасываем его в начало страницы; флаг ставит обработчик «назад».
+    if (document.documentElement.dataset.keepScroll) {
+      delete document.documentElement.dataset.keepScroll
+      return
+    }
     // ВАЖНО: тело в {} — иначе стрелка вернёт результат window.scrollTo, а React
     // примет его за cleanup-функцию. В браузерах, где расширение/плагин плавного
     // скролла заставляет scrollTo вернуть НЕ undefined, при следующей навигации
