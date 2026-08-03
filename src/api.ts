@@ -661,7 +661,11 @@ export function htmlToText(html: string): string {
 /** Убирает служебную строку «Источник: «…»» из начала описания */
 export function cleanDescription(text: string | null | undefined): string {
   if (!text) return ''
-  const plain = /<[a-z!/][\s\S]*>/i.test(text) ? htmlToText(text) : text
+  const isHtml = /<[a-z!/][\s\S]*>/i.test(text)
+  // для превью выкидываем эпиграф-цитату (blockquote) — иначе карточка расы
+  // начинается с художественной цитаты, а не с описания
+  const src = isHtml ? text.replace(/<blockquote\b[^>]*>[\s\S]*?<\/blockquote>/gi, '') : text
+  const plain = isHtml ? htmlToText(src) : src
   return plain.replace(/^Источник:\s*«[^»]*»\s*/u, '').trim()
 }
 

@@ -72,7 +72,99 @@ import { RichText, TermDesc } from '../terms/terms'
 
 const PAGE_SIZE = 24
 
-type VTDocument = Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } }
+type VTDocument = Document & {
+  startViewTransition?: (cb: () => void | Promise<void>) => { finished: Promise<void> }
+}
+
+/**
+ * ПРИНЦИП «портрет летит в деталь» (FLIP через View Transitions API).
+ *
+ * Одна и та же анимация для рас, классов и любого будущего раздела с крупным
+ * портретом. Как это работает и как переиспользовать:
+ *
+ *  1. У выбранной карточки её портрет (`.class-card-portrait img`) и имя-плашка
+ *     (`.class-card-name-plate`) НА ВРЕМЯ перехода получают те же
+ *     `view-transition-name`, что и «герой» детальной страницы — `class-hero-img`
+ *     и `class-hero-title`. Браузер сам «несёт» их со старого места на новое и
+ *     масштабирует → картинка «влетает» на своё место в подробном обзоре.
+ *  2. Остальные карточки сетки разлетаются в стороны (имена `fly-l/r-N` по их
+ *     стороне экрана; сами кадры описаны в CSS `::view-transition-old(fly-*)`).
+ *
+ * Чтобы подключить к новому разделу, ничего не меняя здесь: у карточки должны
+ * быть `.class-card-portrait img` и `.class-card-name-plate`, а у детальной
+ * страницы — элементы со стилями `viewTransitionName: 'class-hero-img'` и
+ * `'class-hero-title'` (см. ClassDetailPage / RaceDetailPage). Тайминги морфа —
+ * в CSS-блоке `::view-transition-group(class-hero-img)` (index.css).
+ *
+ * ВАЖНО про тайминг: сам переход заводит React Router (`navigate` ДОЛЖЕН быть
+ * вызовом `navigate(to, { viewTransition: true })`). Нельзя оборачивать переход
+ * вручную в `document.startViewTransition(() => flushSync(navigate))` — навигация
+ * в RR идёт как React-transition, а `flushSync` её синхронно не коммитит, поэтому
+ * «новый» снимок иногда берётся ДО отрисовки детали → морф пропадает «через раз».
+ * RR же снимает новое состояние уже ПОСЛЕ коммита навигации — морф стабилен.
+ */
+/**
+ * Ждёт, пока навигация React Router РЕАЛЬНО закоммитит новый маршрут.
+ *
+ * RR (в режиме BrowserRouter) выполняет переход как React-transition, и его
+ * НЕ форсирует `flushSync`. Поэтому нельзя писать
+ * `startViewTransition(() => flushSync(navigate))` — «новый» кадр снимется до
+ * отрисовки детали, и морф пропадёт «через раз». Мы возвращаем из колбэка
+ * промис, который резолвится, когда переход случился (`committed()` — предикат,
+ * обычно «исходный элемент отсоединён от DOM»), и лишь тогда браузер снимает
+ * новый кадр. `+1` кадр в конце — чтобы деталь успела нарисоваться.
+ */
+export function whenRouteCommitted(committed: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const t0 = performance.now()
+    // ВАЖНО: setTimeout, а не requestAnimationFrame — пока колбэк
+    // startViewTransition ждёт промис, rAF заморожен, а таймеры и коммит
+    // React-перехода продолжают работать. На rAF тут был бы дедлок.
+    const tick = () => {
+      if (committed() || performance.now() - t0 > 600) resolve()
+      else setTimeout(tick, 16)
+    }
+    setTimeout(tick, 0)
+  })
+}
+
+export function runHeroMorph(slot: HTMLElement, navigate: () => void): void {
+  const doc = document as VTDocument
+  if (!doc.startViewTransition) {
+    navigate()
+    return
+  }
+  // РАЗМЕЧАЕМ ДО снимка: выбранной карточке — общие с деталью имена (арт/имя
+  // летят на страницу), остальным — имена fly-l/r по их стороне экрана
+  const grid = slot.closest('.card-grid')
+  const cx = window.innerWidth / 2
+  let li = 0
+  let ri = 0
+  grid?.querySelectorAll<HTMLElement>('.card-slot').forEach((s) => {
+    if (s === slot) {
+      const img = s.querySelector<HTMLElement>('.class-card-portrait img')
+      const nm = s.querySelector<HTMLElement>('.class-card-name-plate')
+      // кость хитов за портретом (только у классов) — тоже летит на своё место
+      const die = s.querySelector<HTMLElement>('.class-card-die')
+      if (img) img.style.viewTransitionName = 'class-hero-img'
+      if (nm) nm.style.viewTransitionName = 'class-hero-title'
+      if (die) die.style.viewTransitionName = 'class-hero-die'
+    } else {
+      const r = s.getBoundingClientRect()
+      const left = r.left + r.width / 2 < cx
+      const n = left ? li++ : ri++
+      if (n < 16) s.style.viewTransitionName = `fly-${left ? 'l' : 'r'}-${n}`
+    }
+  })
+  document.documentElement.dataset.nav = '1'
+  const t = doc.startViewTransition(() => {
+    navigate()
+    // ждём коммита: выбранная карточка отсоединится, когда отрисуется деталь
+    return whenRouteCommitted(() => !slot.isConnected)
+  })
+  const done = () => delete document.documentElement.dataset.nav
+  t.finished.then(done, done)
+}
 
 /**
  * Роли предметов на время перелёта.
@@ -185,42 +277,25 @@ function CardLink({
       onOpen()
       return
     }
-    const doc = document as VTDocument
-    if (heroNav && doc.startViewTransition) {
-      // РАЗМЕЧАЕМ ДО снимка: выбранной карточке — общие с деталью имена (арт/имя
-      // летят на страницу), остальным — имена fly-l/r по их стороне экрана
-      const slot = e.currentTarget
-      const grid = slot.closest('.card-grid')
-      const cx = window.innerWidth / 2
-      let li = 0
-      let ri = 0
-      grid?.querySelectorAll<HTMLElement>('.card-slot').forEach((s) => {
-        if (s === slot) {
-          const img = s.querySelector<HTMLElement>('.class-card-portrait img')
-          const nm = s.querySelector<HTMLElement>('.class-card-name-plate')
-          if (img) img.style.viewTransitionName = 'class-hero-img'
-          if (nm) nm.style.viewTransitionName = 'class-hero-title'
-        } else {
-          const r = s.getBoundingClientRect()
-          const left = r.left + r.width / 2 < cx
-          const n = left ? li++ : ri++
-          if (n < 16) s.style.viewTransitionName = `fly-${left ? 'l' : 'r'}-${n}`
-        }
-      })
-      document.documentElement.dataset.nav = '1'
-      const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
-      const done = () => delete document.documentElement.dataset.nav
-      if (t.finished) t.finished.then(done, done)
-      else window.setTimeout(done, 1500)
+    const slot = e.currentTarget
+    if (heroNav) {
+      // единый принцип «портрет летит в деталь» — общий для рас и классов
+      runHeroMorph(slot, () => navigate(to))
       return
     }
-    if (doc.startViewTransition) {
-      document.documentElement.dataset.nav = '1'
-      const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
-      const done = () => delete document.documentElement.dataset.nav
-      if (t.finished) t.finished.then(done, done)
-      else window.setTimeout(done, 1000)
-    } else navigate(to)
+    // остальные разделы — обычный кросс-фейд, но с ожиданием коммита навигации
+    const doc = document as VTDocument
+    if (!doc.startViewTransition) {
+      navigate(to)
+      return
+    }
+    document.documentElement.dataset.nav = '1'
+    const t = doc.startViewTransition(() => {
+      navigate(to)
+      return whenRouteCommitted(() => !slot.isConnected)
+    })
+    const done = () => delete document.documentElement.dataset.nav
+    t.finished.then(done, done)
   }
 
   return (
@@ -857,7 +932,6 @@ function raceCard(r: Race) {
               ))}
             </div>
           )}
-          <TermDesc text={descriptionPreview(r.description)} className="card-desc race-card-desc" />
           <div className="race-rail">
             <RaceRailCell icon={Ruler} value={sizeRu(r.size)} label="размер" />
             <RaceRailCell icon={Footprints} value={`${r.speed} фт.`} label="скорость" />

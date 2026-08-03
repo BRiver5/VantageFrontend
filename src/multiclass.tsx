@@ -108,9 +108,13 @@ function MulticlassModal({ onClose, fromLabel }: { onClose: () => void; fromLabe
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // пока окно открыто — поднимаем шапку сайта НАД оверлеем, чтобы выпадающий
+    // свиток «Классы» не оказывался под окном (см. CSS :root[data-mc-open])
+    document.documentElement.dataset.mcOpen = '1'
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
+      delete document.documentElement.dataset.mcOpen
     }
   }, [onClose])
 
@@ -169,8 +173,12 @@ function MulticlassModal({ onClose, fromLabel }: { onClose: () => void; fromLabe
   const totalLevel = slots.reduce((n, s) => n + (s.classId ? s.level : 0), 0)
   const anyLoaded = builds.some((b) => b.bundle)
 
-  // портал в body: иначе position:fixed ловит трансформированный предок страницы
-  // класса и окно растягивается на всю высоту документа, а не на окно браузера.
+  // портал в #root (а не в body): у #root свой контекст наложения (z-index:1),
+  // поэтому шапка сайта не может подняться над окном, если оно висит в body.
+  // #root без трансформаций, так что position:fixed по-прежнему считается от окна
+  // браузера (не ловит трансформированный предок страницы класса), а шапка при
+  // data-mc-open поднимается над оверлеем в ОБЩЕМ с ним контексте наложения.
+  const portalTarget = document.getElementById('root') ?? document.body
   return createPortal(
     <div
       className="mc-overlay"
@@ -273,7 +281,7 @@ function MulticlassModal({ onClose, fromLabel }: { onClose: () => void; fromLabe
         </div>
       </div>
     </div>,
-    document.body,
+    portalTarget,
   )
 }
 

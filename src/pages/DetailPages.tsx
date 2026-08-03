@@ -1,6 +1,5 @@
 import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
-import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown,
@@ -64,7 +63,7 @@ import type {
   Termin,
 } from '../api'
 import { Corners, Divider } from '../ornaments'
-import { SourceBadge } from './CatalogPage'
+import { SourceBadge, whenRouteCommitted } from './CatalogPage'
 import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
 import {
   EquipmentContents,
@@ -723,9 +722,9 @@ function SubclassHex({
   const open = (e?: ReactMouseEvent<HTMLElement>) => {
     if (e && (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
     e?.preventDefault()
-    const doc = document as VTDocument
     const to = `/subclasses/${sc.id}`
     const img = cellRef.current?.querySelector<HTMLElement>('.hex-cover')
+    const doc = document as VTDocument
     if (!doc.startViewTransition || !img) {
       navigate(to)
       return
@@ -733,11 +732,13 @@ function SubclassHex({
     clearSubHeroNames()
     img.style.viewTransitionName = SUB_HERO
     document.documentElement.dataset.nav = '1'
-    const t = doc.startViewTransition(() => flushSync(() => navigate(to)))
-    const fin = () => {
-      img.style.viewTransitionName = ''
-      delete document.documentElement.dataset.nav
-    }
+    // ждём коммита навигации, потом снимаем новый кадр (см. whenRouteCommitted):
+    // соту-обложку отсоединит от DOM размонтирование страницы класса
+    const t = doc.startViewTransition(() => {
+      navigate(to)
+      return whenRouteCommitted(() => !img.isConnected)
+    })
+    const fin = () => delete document.documentElement.dataset.nav
     t.finished.then(fin, fin)
   }
 
@@ -988,6 +989,7 @@ export function ClassDetailPage() {
             alt=""
             aria-hidden="true"
             draggable={false}
+            style={{ viewTransitionName: 'class-hero-die' } as CSSProperties}
           />
           <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
 
@@ -1237,9 +1239,16 @@ export function RaceDetailPage() {
         </div>
       )}
 
-      <DetailSection title="Описание">
-        <Rich text={r.description} />
-      </DetailSection>
+      {isHtmlDescription(r.description) ? (
+        // размеченное описание с dnd.su (таблицы, отдельные способности, языки)
+        <section className="detail-section">
+          <ClassArticle html={r.description!} cutSubclasses={false} backLabel={r.race_name} />
+        </section>
+      ) : (
+        <DetailSection title="Описание">
+          <Rich text={r.description} />
+        </DetailSection>
+      )}
 
       {subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
@@ -1293,9 +1302,13 @@ export function SubclassDetailPage() {
     // не даём глобальному ScrollToTop сбросить прокрутку — сами подводим соты в кадр
     document.documentElement.dataset.keepScroll = '1'
     document.documentElement.dataset.nav = '1'
-    // соты подводит в кадр сама страница класса (useLayoutEffect по returningSub) —
-    // навигация в react-router отложенная, тут .hive ещё нет
-    const t = doc.startViewTransition(() => flushSync(() => navigate(to, { state })))
+    // ждём коммита: страница класса появится (.class-detail-page) и её
+    // useLayoutEffect по returningSub успеет подвести соту в кадр — только тогда
+    // берём новый кадр морфа
+    const t = doc.startViewTransition(() => {
+      navigate(to, { state })
+      return whenRouteCommitted(() => !!document.querySelector('.class-detail-page'))
+    })
     const fin = () => delete document.documentElement.dataset.nav
     t.finished.then(fin, fin)
   }
@@ -1365,6 +1378,26 @@ export function SubclassDetailPage() {
    ПОДРАСА
    ============================================================ */
 
+/**
+ * Плоский текст подрасы с бэка идёт как «Название . описание» на каждой строке.
+ * Оборачиваем ярлык-название в **жирный**, чтобы RichText отрисовал его как
+ * <strong> и разбил на абзацы — черты становятся опрятными, как у рас/классов.
+ */
+function structureTraitText(text: string | null | undefined): string {
+  if (!text) return ''
+  return text
+    .split(/\n+/)
+    .map((raw) => {
+      const line = raw.trim()
+      if (!line) return ''
+      // «Ярлык . описание» → «**Ярлык.** описание» (ярлык короткий, без . ! ?)
+      const m = line.match(/^([А-ЯЁA-Z][^.!?]{1,50}?)\s\.\s(.+)$/u)
+      return m ? `**${m[1].trim()}.** ${m[2].trim()}` : line
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
 export function SubraceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: sr, error } = useOne<Subrace>('subraces', id)
@@ -1403,12 +1436,12 @@ export function SubraceDetailPage() {
     >
       {sr.description && (
         <DetailSection title="Описание">
-          <Rich text={sr.description} />
+          <Rich text={structureTraitText(sr.description)} />
         </DetailSection>
       )}
       {showTraits && (
         <DetailSection title="Черты">
-          <Rich text={sr.traits} />
+          <Rich text={structureTraitText(sr.traits)} />
         </DetailSection>
       )}
       {sr.extra_languages && sr.extra_languages.length > 0 && (

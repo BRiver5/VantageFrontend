@@ -6044,6 +6044,10 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 .spell-cta--ghost:hover { background: rgba(196, 154, 60, 0.12); filter: none; }
 
 /* ---------- Конструктор «Мультикласс» ---------- */
+/* пока окно мультикласса открыто, шапка сайта (и её выпадающий свиток «Классы»)
+   должна быть НАД оверлеем (z-index 200), иначе свиток раскрывается под окном */
+:root[data-mc-open] .masthead { z-index: 210; }
+
 .mc-overlay {
   position: fixed;
   inset: 0;
@@ -6423,6 +6427,13 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
   width: min(560px, 86vw);
 }
 
+/* Раса — фигура в полный рост: ноги/полы одежды/оружие лезут под плашку имени и
+   мешают читать название. Обрезаем низ картинки чуть выше имени мягким срезом. */
+.race-detail-portrait > img {
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 76%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 76%);
+}
+
 .race-detail-meta {
   gap: 14px;
   width: min(560px, calc(100% - 24px));
@@ -6596,10 +6607,13 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
    ============================================================ */
 ::view-transition-group(class-hero-img),
 ::view-transition-group(class-hero-title),
+::view-transition-group(class-hero-die),
 ::view-transition-old(class-hero-img),
 ::view-transition-new(class-hero-img),
 ::view-transition-old(class-hero-title),
 ::view-transition-new(class-hero-title),
+::view-transition-old(class-hero-die),
+::view-transition-new(class-hero-die),
 ::view-transition-group(subclass-hero-img),
 ::view-transition-old(subclass-hero-img),
 ::view-transition-new(subclass-hero-img),
