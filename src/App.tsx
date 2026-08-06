@@ -24,7 +24,6 @@ import { DieImage } from './dice/diceAssets'
 import {
   BestiaryPage,
   BackgroundsPage,
-  ClassesPage,
   EquipmentPage,
   FeatsPage,
   ItemsPage,
@@ -32,12 +31,12 @@ import {
   SpellsPage,
   TerminsPage,
 } from './pages/CatalogPage'
+import ClassesPage from './pages/ClassesPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import CharacterSheet from './pages/CharacterSheet'
 import {
   BackgroundDetailPage,
-  ClassDetailPage,
   CreatureDetailPage,
   EquipmentDetailPage,
   FeatDetailPage,
@@ -687,6 +686,9 @@ function ScrollToTop() {
       delete document.documentElement.dataset.keepScroll
       return
     }
+    // портретный open/close: scrollTo посреди View Transition дёргает геометрию
+    // групп — скролл в начало делает сам portraitTransition после finished.
+    if (document.documentElement.dataset.nav) return
     // ВАЖНО: тело в {} — иначе стрелка вернёт результат window.scrollTo, а React
     // примет его за cleanup-функцию. В браузерах, где расширение/плагин плавного
     // скролла заставляет scrollTo вернуть НЕ undefined, при следующей навигации
@@ -705,8 +707,10 @@ export default function App() {
         <RouteReadyGate>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/classes" element={<ClassesPage />} />
-            <Route path="/classes/:id" element={<ClassDetailPage />} />
+            <Route path="/classes" element={<ClassesPage />}>
+              <Route index element={null} />
+              <Route path=":id" element={null} />
+            </Route>
             <Route path="/subclasses/:id" element={<SubclassDetailPage />} />
             <Route path="/races" element={<RacesPage />} />
             <Route path="/races/:id" element={<RaceDetailPage />} />

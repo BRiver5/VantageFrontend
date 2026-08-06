@@ -1,7 +1,8 @@
 import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { markPortraitOpenNames, runShellTransition } from '../portraitTransition'
 import {
   ArrowDownAZ,
   ArrowLeft,
@@ -76,42 +77,10 @@ type VTDocument = Document & {
 }
 
 /**
- * ПРИНЦИП «портрет летит в деталь» (FLIP через View Transitions API).
- *
- * Одна и та же анимация для рас, классов и любого будущего раздела с крупным
- * портретом. Как это работает и как переиспользовать:
- *
- *  1. У выбранной карточки её портрет (`.class-card-portrait img`) и имя-плашка
- *     (`.class-card-name-plate`) НА ВРЕМЯ перехода получают те же
- *     `view-transition-name`, что и «герой» детальной страницы — `class-hero-img`
- *     и `class-hero-title`. Браузер сам «несёт» их со старого места на новое и
- *     масштабирует → картинка «влетает» на своё место в подробном обзоре.
- *  2. Остальные карточки сетки разлетаются в стороны (имена `fly-l/r-N` по их
- *     стороне экрана; сами кадры описаны в CSS `::view-transition-old(fly-*)`).
- *
- * Чтобы подключить к новому разделу, ничего не меняя здесь: у карточки должны
- * быть `.class-card-portrait img` и `.class-card-name-plate`, а у детальной
- * страницы — элементы со стилями `viewTransitionName: 'class-hero-img'` и
- * `'class-hero-title'` (см. ClassDetailPage / RaceDetailPage). Тайминги морфа —
- * в CSS-блоке `::view-transition-group(class-hero-img)` (index.css).
- *
- * ВАЖНО про тайминг: сам переход заводит React Router (`navigate` ДОЛЖЕН быть
- * вызовом `navigate(to, { viewTransition: true })`). Нельзя оборачивать переход
- * вручную в `document.startViewTransition(() => flushSync(navigate))` — навигация
- * в RR идёт как React-transition, а `flushSync` её синхронно не коммитит, поэтому
- * «новый» снимок иногда берётся ДО отрисовки детали → морф пропадает «через раз».
- * RR же снимает новое состояние уже ПОСЛЕ коммита навигации — морф стабилен.
- */
-/**
  * Ждёт, пока навигация React Router РЕАЛЬНО закоммитит новый маршрут.
- *
- * RR (в режиме BrowserRouter) выполняет переход как React-transition, и его
- * НЕ форсирует `flushSync`. Поэтому нельзя писать
- * `startViewTransition(() => flushSync(navigate))` — «новый» кадр снимется до
- * отрисовки детали, и морф пропадёт «через раз». Мы возвращаем из колбэка
- * промис, который резолвится, когда переход случился (`committed()` — предикат,
- * обычно «исходный элемент отсоединён от DOM»), и лишь тогда браузер снимает
- * новый кадр. `+1` кадр в конце — чтобы деталь успела нарисоваться.
+ * Нужно для кросс-роутовых переходов (подклассы, heroNav у рас): RR коммитит
+ * асинхронно, и без ожидания «новый» кадр VT снимается слишком рано.
+ * Для path-inline (классы в одной оболочке) не используется — там flushSync(setState).
  */
 export function whenRouteCommitted(committed: () => boolean): Promise<void> {
   return new Promise((resolve) => {
@@ -127,38 +96,17 @@ export function whenRouteCommitted(committed: () => boolean): Promise<void> {
   })
 }
 
+/** Кросс-роутовый морф портрета (расы и т.п., пока не переведены на path-inline). */
 export function runHeroMorph(slot: HTMLElement, navigate: () => void): void {
   const doc = document as VTDocument
   if (!doc.startViewTransition) {
     navigate()
     return
   }
-  // РАЗМЕЧАЕМ ДО снимка: выбранной карточке — общие с деталью имена (арт/имя
-  // летят на страницу), остальным — имена fly-l/r по их стороне экрана
-  const grid = slot.closest('.card-grid')
-  const cx = window.innerWidth / 2
-  let li = 0
-  let ri = 0
-  grid?.querySelectorAll<HTMLElement>('.card-slot').forEach((s) => {
-    if (s === slot) {
-      const img = s.querySelector<HTMLElement>('.class-card-portrait img')
-      const nm = s.querySelector<HTMLElement>('.class-card-name-plate')
-      // кость хитов за портретом (только у классов) — тоже летит на своё место
-      const die = s.querySelector<HTMLElement>('.class-card-die')
-      if (img) img.style.viewTransitionName = 'class-hero-img'
-      if (nm) nm.style.viewTransitionName = 'class-hero-title'
-      if (die) die.style.viewTransitionName = 'class-hero-die'
-    } else {
-      const r = s.getBoundingClientRect()
-      const left = r.left + r.width / 2 < cx
-      const n = left ? li++ : ri++
-      if (n < 16) s.style.viewTransitionName = `fly-${left ? 'l' : 'r'}-${n}`
-    }
-  })
+  markPortraitOpenNames(slot)
   document.documentElement.dataset.nav = '1'
   const t = doc.startViewTransition(() => {
     navigate()
-    // ждём коммита: выбранная карточка отсоединится, когда отрисуется деталь
     return whenRouteCommitted(() => !slot.isConnected)
   })
   const done = () => delete document.documentElement.dataset.nav
@@ -245,10 +193,8 @@ function CardImage({
  * а остальные карточки уезжают влево (см. ::view-transition-* в CSS).
  */
 /**
- * Карточка-ссылка. Если задан `onOpen` (для предметов) — по клику НЕ уходим на
- * отдельную страницу, а раскрываем деталь ПРЯМО на этой странице: выбранная
- * карточка морфится в «героя» предмета (view-transition-name), остальные уезжают
- * влево (см. ::view-transition-* в CSS). href остаётся для средней/ctrl-кнопки.
+ * Карточка-ссылка. Если задан `onOpen` — раскрываем деталь в оболочке
+ * (предметы / path-inline классы); href остаётся для средней/ctrl-кнопки.
  */
 function CardLink({
   to,
@@ -259,9 +205,8 @@ function CardLink({
 }: {
   to: string
   vtName?: string
-  onOpen?: () => void
-  /** FLIP-переход на страницу: арт и имя выбранной карточки летят в деталь, а
-   *  остальные карточки разлетаются по сторонам (см. CSS ::view-transition-*) */
+  onOpen?: (slot: HTMLElement) => void
+  /** FLIP-переход на отдельную страницу (расы), пока нет path-inline */
   heroNav?: boolean
   children: ReactNode
 }) {
@@ -273,7 +218,7 @@ function CardLink({
     e.preventDefault()
     // раскрытие на месте: onOpen сам заводит переход, расставив роли до снимка
     if (onOpen) {
-      onOpen()
+      onOpen(e.currentTarget)
       return
     }
     const slot = e.currentTarget
@@ -354,7 +299,7 @@ interface CatalogConfig<T> {
   wide?: boolean
   /** весь раздел одним листом: тянем список целиком и не показываем пагинатор */
   noPaging?: boolean
-  /** FLIP-переход: арт/имя карточки летят в деталь, остальные карточки разлетаются */
+  /** FLIP-переход на отдельный route (расы); для классов используйте inlineUrl: 'path' */
   heroNav?: boolean
   /** если задано — клик раскрывает деталь ПРЯМО в списке (без ухода на страницу) */
   inlineDetail?: (ctx: {
@@ -365,6 +310,12 @@ interface CatalogConfig<T> {
     bookMap: BookMap
     switching: SwitchRoles
   }) => ReactNode
+  /**
+   * Как синхронизировать inline-деталь с адресом:
+   * - `query` — `?open=id` (предметы);
+   * - `path` — `base/:id` в той же оболочке (классы).
+   */
+  inlineUrl?: 'query' | 'path'
 }
 
 /* ---------- Вспомогательное для сортировок ---------- */
@@ -823,16 +774,18 @@ function ClassCardPortrait({
   src,
   alt,
   fallback: Fallback = Swords,
+  imgStyle,
 }: {
   src: string | null
   alt: string
   fallback?: LucideIcon
+  imgStyle?: CSSProperties
 }) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="class-card-portrait">
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+        <img src={src} alt={alt} loading="lazy" style={imgStyle} onError={() => setBroken(true)} />
       ) : (
         <Fallback className="class-card-fallback" aria-hidden="true" />
       )}
@@ -1237,6 +1190,9 @@ const spellSorts: SortOption<Spell>[] = [
 /* ---------- Сама страница ---------- */
 
 function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> }) {
+  const navigate = useNavigate()
+  const params = useParams<{ id?: string }>()
+  const pathId = cfg.inlineUrl === 'path' ? params.id : undefined
   const [items, setItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -1249,13 +1205,19 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [error, setError] = useState<string | null>(null)
   const [bookMap, setBookMap] = useState<BookMap>({})
   const bookMapRef = useRef<BookMap>({})
-  // раскрытая деталь прямо в списке (для предметов), без ухода на страницу
-  const [selected, setSelected] = useState<T | null>(null)
+  // раскрытая деталь прямо в списке (для предметов / path-inline классов).
+  // UI всегда от selected; pathId только синхронизирует selected (deep link / Back).
+  const [selected, setSelected] = useState<T | null>(() =>
+    cfg.inlineUrl === 'path' && params.id ? ({ id: params.id } as T) : null,
+  )
   // роли на время перелёта карточки: кто прилетает, кто улетает
   const [switching, setSwitching] = useState<SwitchRoles>(null)
   // открытый предмет сохраняем в адресе (?open=id) — переживает перезагрузку
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialOpenRef = useRef(searchParams.get('open'))
+  const initialOpenRef = useRef(cfg.inlineUrl === 'path' ? null : searchParams.get('open'))
+  // пользовательский open/close сам ставит selected + navigate — URL→state не трогаем,
+  // пока адрес не догонит (иначе pathId снова откроет detail после close).
+  const skipUrlSyncRef = useRef(false)
 
   // предзаполнение фильтров из адреса (переход со страницы класса/подкласса):
   // /spells?class=колдун или ?subclass=…&level=1 — применяем один раз при входе
@@ -1278,13 +1240,6 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   }
 
   /**
-   * Переключение на ДРУГОЙ предмет — особая хореография (см. CSS `tube-fly-left`):
-   * картинка входящего летит отдельным объектом и растёт на место большой,
-   * его название с тегами уезжает вниз в заголовок, а прежний предмет улетает
-   * влево за край и возвращается карточкой справа. Чтобы браузер снял «старый»
-   * снимок уже с нужными именами, помечаем роли ДО startViewTransition.
-   */
-  /**
    * Переход с ролями. Роли надо расставить ДО снимка, иначе браузер снимет
    * «старый» кадр со старыми именами: тогда карточка морфится целиком и её
    * содержимое кросс-фейдится с новым — видно дубли названия и картинки.
@@ -1301,12 +1256,46 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     t.finished.then(done, done)
   }
 
-  // Открытие, переключение и закрытие — одна хореография: картинка и блок с
-  // названием летят на свои места как отдельные объекты (общие имена
-  // incoming-art / incoming-info), рамка карточки остаётся безымянной и тает.
-  const selectItem = (item: T) => {
+  // path-inline: deep link / Back / nav-scroll — selected следует за :id без анимации
+  useEffect(() => {
+    if (cfg.inlineUrl !== 'path' || !cfg.inlineDetail) return
+    if (skipUrlSyncRef.current) {
+      // open: ждём pathId === selected.id; close: ждём pathId === undefined
+      if (selected ? pathId === selected.id : !pathId) skipUrlSyncRef.current = false
+      else return
+    }
+    if (pathId) {
+      if (selected?.id === pathId) {
+        // подтянуть полную запись из списка, если был только `{ id }`
+        const found = items.find((it) => it.id === pathId)
+        if (found && Object.keys(selected as object).length === 1) setSelected(found)
+        return
+      }
+      const found = items.find((it) => it.id === pathId)
+      setSelected(found ?? ({ id: pathId } as T))
+    } else if (selected) {
+      setSelected(null)
+    }
+  }, [pathId, items, cfg.inlineUrl, cfg.inlineDetail, selected])
+
+  // Открытие / закрытие. path — простой fade оболочки; query — морф предметов.
+  const selectItem = (item: T, _slot?: HTMLElement) => {
     if (!cfg.inlineDetail) {
       withVT(() => setSelected(item))
+      return
+    }
+    if (cfg.inlineUrl === 'path') {
+      runShellTransition(
+        () => {
+          skipUrlSyncRef.current = true
+          setSelected(item)
+          navigate(`${cfg.base}/${item.id}`)
+          queueMicrotask(() => {
+            skipUrlSyncRef.current = false
+          })
+        },
+        { scrollTop: true },
+      )
       return
     }
     const prev = selected
@@ -1322,12 +1311,23 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       withVT(() => setSelected(null))
       return
     }
+    if (cfg.inlineUrl === 'path') {
+      runShellTransition(() => {
+        skipUrlSyncRef.current = true
+        setSelected(null)
+        navigate(cfg.base)
+        queueMicrotask(() => {
+          skipUrlSyncRef.current = false
+        })
+      })
+      return
+    }
     runVT({ incomingId: selected.id, outgoingId: null }, () => setSelected(null))
   }
 
   // восстановление открытого предмета из адреса, когда список подгрузился
   useEffect(() => {
-    if (!cfg.inlineDetail || selected) return
+    if (!cfg.inlineDetail || cfg.inlineUrl === 'path' || selected) return
     const openId = initialOpenRef.current
     if (!openId) return
     const found = items.find((it) => it.id === openId)
@@ -1335,11 +1335,11 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       initialOpenRef.current = null
       setSelected(found)
     }
-  }, [items, cfg.inlineDetail, selected])
+  }, [items, cfg.inlineDetail, cfg.inlineUrl, selected])
 
   // выбранный предмет ⇄ адрес (?open=id); ждём восстановления, чтобы не стереть его
   useEffect(() => {
-    if (!cfg.inlineDetail) return
+    if (!cfg.inlineDetail || cfg.inlineUrl === 'path') return
     if (initialOpenRef.current && !selected) return
     setSearchParams(
       (prev) => {
@@ -1350,7 +1350,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       },
       { replace: true },
     )
-  }, [selected, cfg.inlineDetail, setSearchParams])
+  }, [selected, cfg.inlineDetail, cfg.inlineUrl, setSearchParams])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {
@@ -1434,11 +1434,18 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
 
-  // раскрытая деталь прямо на этой странице (предметы) — деталь слева, список справа
+  // раскрытая деталь в оболочке — только selected (не pathId: он отстаёт от navigate)
   if (cfg.inlineDetail && selected) {
     return (
       <section className={`catalog${cfg.wide ? ' catalog--wide' : ''}`}>
-        {cfg.inlineDetail({ selected, items, onSelect: selectItem, onClose: closeSelected, bookMap, switching })}
+        {cfg.inlineDetail({
+          selected,
+          items,
+          onSelect: selectItem,
+          onClose: closeSelected,
+          bookMap,
+          switching,
+        })}
       </section>
     )
   }
@@ -1513,12 +1520,15 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             <CardLink
               key={item.id}
               to={`${cfg.base}/${item.id}`}
-              // у выбранной карточки рамка безымянная: летят только её картинка
-              // и подпись (внутри), а рамка просто тает
+              // у предметов рамка безымянная у incoming; path-portrait летит через class-hero-*
               vtName={
-                cfg.inlineDetail && switching?.incomingId !== item.id ? `card-${item.id}` : undefined
+                cfg.inlineDetail &&
+                cfg.inlineUrl !== 'path' &&
+                switching?.incomingId !== item.id
+                  ? `card-${item.id}`
+                  : undefined
               }
-              onOpen={cfg.inlineDetail ? () => selectItem(item) : undefined}
+              onOpen={cfg.inlineDetail ? (slot) => selectItem(item, slot) : undefined}
               heroNav={cfg.heroNav}
             >
               {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
@@ -1567,19 +1577,27 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 
 /* ---------- Готовые страницы разделов ---------- */
 
-export const ClassesPage = () => (
-  <CatalogPage<GameClass>
-    cfg={{
-      resource: 'classes',
-      base: '/classes',
-      title: 'Классы',
-      sub: 'Пути воинов, магов и плутов — выбери своё призвание',
-      emptyIcon: Swords,
-      card: classCard,
-      heroNav: true,
-    }}
-  />
-)
+/** Оболочка каталога классов; `inlineDetail` задаётся снаружи (ClassDetailView). */
+export function ClassesCatalog({
+  inlineDetail,
+}: {
+  inlineDetail: NonNullable<CatalogConfig<GameClass>['inlineDetail']>
+}) {
+  return (
+    <CatalogPage<GameClass>
+      cfg={{
+        resource: 'classes',
+        base: '/classes',
+        title: 'Классы',
+        sub: 'Пути воинов, магов и плутов — выбери своё призвание',
+        emptyIcon: Swords,
+        card: classCard,
+        inlineUrl: 'path',
+        inlineDetail,
+      }}
+    />
+  )
+}
 
 export const RacesPage = () => (
   <CatalogPage<Race>
@@ -1713,6 +1731,7 @@ export const ItemsPage = () => (
       filters: itemFilters,
       wide: true,
       sorts: itemSorts,
+      inlineUrl: 'query',
       inlineDetail: (ctx) => <ItemSplitView {...ctx} />,
     }}
   />

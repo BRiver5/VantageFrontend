@@ -850,12 +850,7 @@ function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) 
   return (
     <div className="class-detail-portrait">
       {src && !broken ? (
-        <img
-          src={src}
-          alt={alt}
-          style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
-          onError={() => setBroken(true)}
-        />
+        <img src={src} alt={alt} onError={() => setBroken(true)} />
       ) : (
         <Swords className="class-detail-fallback" aria-hidden="true" />
       )}
@@ -880,15 +875,14 @@ const SUBCLASS_GROUP_LABEL: Record<string, string> = {
   Чародей: 'Происхождения чародея',
 }
 
-export function ClassDetailPage() {
-  const { id } = useParams<{ id: string }>()
+/** Деталь класса: id из оболочки/роута, onBack — reverse-VT в каталог (если задан). */
+export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => void }) {
   const location = useLocation()
   const { data: c, error } = useOne<GameClass>('classes', id)
   // из кэша — чтобы при возврате с подкласса соты были на месте сразу (для морфа)
-  const [subclasses, setSubclasses] = useState<Subclass[]>(() => (id && subclassListCache.get(id)) || [])
+  const [subclasses, setSubclasses] = useState<Subclass[]>(() => subclassListCache.get(id) || [])
 
   useEffect(() => {
-    if (!id) return
     setSubclasses(subclassListCache.get(id) ?? [])
     getSubList<Subclass>('classes', id, 'subclasses')
       .then((list) => {
@@ -904,6 +898,10 @@ export function ClassDetailPage() {
   const [returningSub, setReturningSub] = useState<string | undefined>(
     () => (location.state as { returningSubclass?: string } | null)?.returningSubclass,
   )
+  useEffect(() => {
+    const fromState = (location.state as { returningSubclass?: string } | null)?.returningSubclass
+    if (fromState) setReturningSub(fromState)
+  }, [location.state])
   useEffect(() => {
     if (!returningSub) return
     const t = setTimeout(() => setReturningSub(undefined), 1500)
@@ -976,9 +974,15 @@ export function ClassDetailPage() {
 
   return (
     <section className="book-page class-detail-page">
-      <Link to="/classes" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к классам
-      </Link>
+      {onBack ? (
+        <button type="button" className="back-link back-link--btn" onClick={onBack}>
+          <ArrowLeft aria-hidden="true" /> к классам
+        </button>
+      ) : (
+        <Link to="/classes" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к классам
+        </Link>
+      )}
 
       <header className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>
         <div className="class-detail-stage">
@@ -989,14 +993,11 @@ export function ClassDetailPage() {
             alt=""
             aria-hidden="true"
             draggable={false}
-            style={{ viewTransitionName: 'class-hero-die' } as CSSProperties}
           />
           <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
 
           <div className="class-detail-meta">
-            <h1 className="class-detail-name-plate" style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}>
-              {c.class_name}
-            </h1>
+            <h1 className="class-detail-name-plate">{c.class_name}</h1>
             <div className="card-chips class-detail-chips">
               <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
               {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
