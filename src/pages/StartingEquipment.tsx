@@ -1,5 +1,6 @@
 import { Fragment, createContext, useContext, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { Coins } from 'lucide-react'
 import { descriptionPreview, getEquipmentIndex, realImage } from '../api'
 import type { ContentEntry, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, GrantOption } from '../api'
 import { categoryIcon, entryCatalogQuery, entryChoiceLabel, formatCost } from '../equipment'
@@ -185,11 +186,13 @@ function GrantOptionCards({ option, index }: { option: GrantOption; index: Equip
     <div className="se-option-col">
       {option.marker && <span className="se-hex-marker">{option.marker}</span>}
       <div className="se-option-cards">
+        {/* карточка и её вложенное содержимое — одним блоком: в две колонки они
+            иначе разъехались бы по разным ячейкам сетки */}
         {option.entries.map((e, i) => (
-          <Fragment key={i}>
+          <div className="se-entry" key={i}>
             <GrantEntryCard entry={e} index={index} />
             {e.contents.length > 0 && <EquipmentContents contents={e.contents} index={index} />}
-          </Fragment>
+          </div>
         ))}
       </div>
       {option.note && <span className="se-note">{option.note}</span>}
@@ -225,12 +228,15 @@ export function StartingEquipment({
   fallbackText,
   sourceText,
   backLabel,
+  columns = 1,
 }: {
   grants: EquipmentGrant[] | null | undefined
   fallbackText?: string | null
   sourceText?: string | null
   /** подпись кнопки «назад» на странице снаряжения (напр. имя класса) */
   backLabel?: string
+  /** 2 — фиксированную выдачу раскладываем в две колонки (предыстории) */
+  columns?: 1 | 2
 }) {
   const index = useEquipmentIndex()
   const hasGrants = !!grants && grants.length > 0
@@ -242,7 +248,7 @@ export function StartingEquipment({
 
   return (
     <BackLabelContext.Provider value={backLabel}>
-      <div className="se-grants">
+      <div className={`se-grants${columns === 2 ? ' se-grants--two' : ''}`}>
         {grants!.map((g, i) => (
           <GrantBlock key={i} grant={g} index={index} />
         ))}
@@ -263,4 +269,103 @@ export function hasStartingEquipment(
   ...texts: (string | null | undefined)[]
 ): boolean {
   return (!!grants && grants.length > 0) || texts.some(Boolean)
+}
+
+/** Первый вариант каждого гранта → плоский список записей для превью-ряда */
+function flattenGrantEntries(grants: EquipmentGrant[] | null | undefined): GrantEntry[] {
+  if (!grants?.length) return []
+  return grants.flatMap((g) => g.options[0]?.entries ?? [])
+}
+
+function EquipmentIconTile({
+  entry,
+  index,
+}: {
+  entry: GrantEntry
+  index: EquipmentIndex | null
+}) {
+  const [broken, setBroken] = useState(false)
+  const [contentBroken, setContentBroken] = useState(false)
+  const isChoice = !entry.slug
+  const eq = entry.slug ? index?.bySlug.get(entry.slug) : undefined
+  const src =
+    realImage(entry.image_gallery) ??
+    (eq ? realImage(eq.equipment_image_gallery) : null)
+  const title = isChoice
+    ? entryChoiceLabel(entry)
+    : (eq?.equipment_name ?? entry.slug ?? '')
+  const Icon = categoryIcon(eq?.category ?? entry.choose_from_categories[0])
+
+  const content = entry.contents[0]
+  const contentEq = content ? index?.bySlug.get(content.slug) : undefined
+  const contentSrc =
+    content
+      ? realImage(content.image_gallery) ??
+        (contentEq ? realImage(contentEq.equipment_image_gallery) : null)
+      : null
+
+  return (
+    <span className="eq-icon" title={title}>
+      {isChoice ? (
+        <span className="eq-icon-face eq-icon-face--choice" aria-hidden="true">
+          ?
+        </span>
+      ) : src && !broken ? (
+        <img
+          className="eq-icon-face"
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <span className="eq-icon-face eq-icon-face--empty" aria-hidden="true">
+          <Icon />
+        </span>
+      )}
+      {content && (
+        <span className="eq-icon-badge" title={contentEq?.equipment_name ?? content.slug}>
+          {contentSrc && !contentBroken ? (
+            <img
+              src={contentSrc}
+              alt=""
+              loading="lazy"
+              onError={() => setContentBroken(true)}
+            />
+          ) : (
+            <Coins className="eq-icon-badge-fallback" aria-hidden="true" />
+          )}
+          <b>{content.quantity}</b>
+        </span>
+      )}
+    </span>
+  )
+}
+
+/**
+ * Компактный ряд квадратиков стартового снаряжения (карточки предысторий).
+ * Берём первый вариант каждого гранта; лишнее сворачиваем в «+N».
+ */
+export function EquipmentIconRow({
+  grants,
+  max = 6,
+}: {
+  grants: EquipmentGrant[] | null | undefined
+  max?: number
+}) {
+  const index = useEquipmentIndex()
+  const entries = flattenGrantEntries(grants)
+  if (entries.length === 0) return null
+
+  const shown = entries.slice(0, max)
+  const rest = entries.length - shown.length
+
+  return (
+    <div className="eq-icon-row" aria-hidden={false}>
+      {shown.map((e, i) => (
+        <EquipmentIconTile key={`${e.slug ?? 'choice'}-${i}`} entry={e} index={index} />
+      ))}
+      {rest > 0 && <span className="eq-icon eq-icon--more">+{rest}</span>}
+    </div>
+  )
 }

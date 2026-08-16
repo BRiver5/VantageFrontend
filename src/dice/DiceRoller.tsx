@@ -6,6 +6,7 @@ import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } fro
 import DiceD20Mod from './DiceD20Mod'
 import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from './diceSounds'
 import { DieImage } from './diceAssets'
+import { useAuth } from '../auth/AuthContext'
 
 type DicePool = Record<DieType, number>
 type DieColors = Record<DieType, string>
@@ -112,7 +113,9 @@ function animateHistoryScroll(el: HTMLElement, to: number, duration: number) {
 }
 
 export default function DiceRoller() {
+  const { user } = useAuth()
   const boxRef = useRef<DiceBoxType | null>(null)
+  const appliedPrefColor = useRef<string | null>(null)
   const initPromise = useRef<Promise<void> | null>(null)
   const diceClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const historyRef = useRef<HTMLDivElement | null>(null)
@@ -237,6 +240,15 @@ export default function DiceRoller() {
     if (historyCloseTimer.current) clearTimeout(historyCloseTimer.current)
     if (dockCloseTimer.current) clearTimeout(dockCloseTimer.current)
   }, [])
+
+  // цвет корпуса из preferences.dice при логине
+  useEffect(() => {
+    const color = user?.preferences?.dice?.body_color
+    if (!color || appliedPrefColor.current === color) return
+    appliedPrefColor.current = color
+    setDieColors(Object.fromEntries(DIE_TYPES.map((t) => [t, color])) as DieColors)
+    setFavorites((fav) => (fav.includes(color) ? fav : [color, ...fav].slice(0, MAX_FAVORITES)))
+  }, [user?.preferences?.dice?.body_color])
 
   // сохраняем избранное
   useEffect(() => {

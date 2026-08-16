@@ -1,9 +1,165 @@
+import { getAccessToken } from './auth/token'
+import type {
+  LoginBody,
+  PatchMeBody,
+  RegisterBody,
+  TokenResponse,
+  UserMe,
+} from './types/auth'
+import type { Character, CharacterCreate } from './types/character'
+import { characterPayload } from './types/character'
+
+export type { Character, CharacterCreate } from './types/character'
+export type {
+  LoginBody,
+  PatchMeBody,
+  RegisterBody,
+  TokenResponse,
+  UserMe,
+  PublicUser,
+  UserPreferences,
+  DicePreferences,
+  CharacterVisibility,
+  Locale,
+  UserRole,
+} from './types/auth'
+export { emptyCharacter, ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from './types/character'
+export { DEFAULT_DICE_PREFERENCES } from './types/auth'
+
 /**
  * API без CORS-заголовков, поэтому запросы идут через same-origin `/api`
  * (в dev/preview его проксирует Vite, см. vite.config.ts; в проде нужен
  * такой же прокси на хостинге). Переопределяется через VITE_API_BASE.
  */
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api'
+
+export class ApiError extends Error {
+  status: number
+  body: unknown
+
+  constructor(message: string, status: number, body?: unknown) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+  }
+}
+
+type RequestOpts = {
+  method?: string
+  body?: unknown
+  /** If true, require token and send Authorization. If 'optional', send when present. */
+  auth?: boolean | 'optional'
+  signal?: AbortSignal
+}
+
+/**
+ * Универсальный fetch к API. Каталог по-прежнему может использовать fetchPage/getOne;
+ * auth и characters — через request().
+ */
+export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
+  const { method = 'GET', body, auth = false, signal } = opts
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+
+  const token = getAccessToken()
+  if (auth === true) {
+    if (!token) throw new ApiError('Требуется авторизация', 401)
+    headers.Authorization = `Bearer ${token}`
+  } else if (auth === 'optional' && token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const res = await fetch(`${API_BASE}${path.startsWith('/') ? path : `/${path}`}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
+  })
+
+  if (res.status === 204) return undefined as T
+
+  const text = await res.text()
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
+
+  if (!res.ok) {
+    const detail =
+      data && typeof data === 'object' && data !== null && 'detail' in data
+        ? String((data as { detail: unknown }).detail)
+        : `${path}: ${res.status}`
+    throw new ApiError(detail, res.status, data)
+  }
+
+  return data as T
+}
+
+/* ---------- Auth ---------- */
+
+export function register(body: RegisterBody): Promise<TokenResponse> {
+  return request<TokenResponse>('/auth/register', { method: 'POST', body })
+}
+
+export function login(body: LoginBody): Promise<TokenResponse> {
+  return request<TokenResponse>('/auth/login', { method: 'POST', body })
+}
+
+export function getMe(): Promise<UserMe> {
+  return request<UserMe>('/auth/me', { auth: true })
+}
+
+export function patchMe(body: PatchMeBody): Promise<UserMe> {
+  return request<UserMe>('/auth/me', { method: 'PATCH', body, auth: true })
+}
+
+/* ---------- Characters ---------- */
+
+export async function listMyCharacters(): Promise<Character[]> {
+  const data = await request<Character[] | { items: Character[] }>('/me/characters', { auth: true })
+  if (Array.isArray(data)) return data
+  if (data && typeof data === 'object' && Array.isArray(data.items)) return data.items
+  return []
+}
+
+export function listCharacters(opts: { mine?: boolean; q?: string } = {}): Promise<Character[]> {
+  const params = new URLSearchParams()
+  if (opts.mine) params.set('mine', 'true')
+  if (opts.q) params.set('q', opts.q)
+  const qs = params.toString()
+  return request<Character[]>(`/characters${qs ? `?${qs}` : ''}`, {
+    auth: opts.mine ? true : 'optional',
+  })
+}
+
+export function getCharacter(id: string): Promise<Character> {
+  return request<Character>(`/characters/${id}`, { auth: 'optional' })
+}
+
+export function createCharacter(body: CharacterCreate | Character): Promise<Character> {
+  return request<Character>('/characters', {
+    method: 'POST',
+    body: characterPayload(body),
+    auth: true,
+  })
+}
+
+export function updateCharacter(id: string, body: Partial<Character> | Character): Promise<Character> {
+  return request<Character>(`/characters/${id}`, {
+    method: 'PATCH',
+    body: characterPayload(body as Character),
+    auth: true,
+  })
+}
+
+export function deleteCharacter(id: string): Promise<void> {
+  return request<void>(`/characters/${id}`, { method: 'DELETE', auth: true })
+}
 
 export interface Setting {
   id: string
@@ -216,6 +372,8 @@ export interface Cost {
 export interface ContentEntry {
   slug: string
   quantity: number
+  /** картинка с бэка (монеты в кошеле и т.п.); иначе берём из каталога по slug */
+  image_gallery?: string[] | null
 }
 
 /**
@@ -301,6 +459,8 @@ export interface GrantEntry {
   choose_from_weapon_kinds: string[]
   choose_from_attack_kinds: string[]
   label: string | null
+  /** картинка с бэка в гранте; иначе берём из каталога по slug */
+  image_gallery?: string[] | null
 }
 
 export interface GrantOption {
@@ -676,6 +836,31 @@ export function descriptionPreview(text: string | null | undefined, max = 300): 
   return clean.slice(0, max - 1).replace(/\s+\S*$/, '').trimEnd() + '…'
 }
 
+/**
+ * Умное сокращение длинного заголовка: обрезает конец предпоследнего слова
+ * и ставит «…», оставляя последнее слово целым.
+ * «Потомок знаменитого авантюриста» → «Потомок знаменит… авантюриста»
+ */
+export function ellipsizePenultimate(text: string, maxLen: number): string {
+  const t = text.trim().replace(/\s+/g, ' ')
+  if (maxLen < 2) return '…'
+  if (t.length <= maxLen) return t
+
+  const words = t.split(' ')
+  if (words.length < 2) return t.slice(0, maxLen - 1) + '…'
+
+  const last = words[words.length - 1]
+  const penult = words[words.length - 2]
+  const prefix = words.slice(0, -2)
+  const prefixStr = prefix.length ? prefix.join(' ') + ' ' : ''
+  // `${prefixStr}${short}… ${last}`
+  const reserved = prefixStr.length + 1 /*…*/ + 1 /* пробел */ + last.length
+  const letterBudget = maxLen - reserved
+  if (letterBudget < 2) return t.slice(0, maxLen - 1) + '…'
+  if (penult.length <= letterBudget) return t.slice(0, maxLen - 1) + '…'
+  return `${prefixStr}${penult.slice(0, letterBudget)}… ${last}`
+}
+
 /** Плейсхолдер dnd.su вместо настоящей картинки */
 export function realImage(urls: string[] | null | undefined): string | null {
   const u = urls?.find((x) => x && !x.includes('thumbnail'))
@@ -703,6 +888,29 @@ const SIZE_RU: Record<string, string> = {
 export function sizeRu(size: string | null | undefined): string | null {
   if (!size) return null
   return SIZE_RU[size.trim().toLowerCase()] ?? size
+}
+
+/** Тип существа (race_type / creature_type) — по-русски */
+const CREATURE_TYPE_RU: Record<string, string> = {
+  aberration: 'Аберрация',
+  beast: 'Зверь',
+  celestial: 'Небожитель',
+  construct: 'Конструкт',
+  dragon: 'Дракон',
+  elemental: 'Элементаль',
+  fey: 'Фея',
+  fiend: 'Исчадие',
+  giant: 'Великан',
+  humanoid: 'Гуманоид',
+  monstrosity: 'Монстр',
+  ooze: 'Слизь',
+  plant: 'Растение',
+  undead: 'Нежить',
+}
+export function creatureTypeRu(type: string | null | undefined): string | null {
+  if (!type) return null
+  const key = type.trim().toLowerCase()
+  return CREATURE_TYPE_RU[key] ?? type
 }
 
 export const ABILITY_RU: Record<string, string> = {

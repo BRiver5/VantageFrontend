@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './ErrorBoundary.tsx'
+import { AuthProvider } from './auth/AuthContext.tsx'
 import { TermsProvider } from './terms/terms.tsx'
 
 // StrictMode отключён: двойной dev-монтаж ломает WebGL-контекст/WASM-инициализацию
@@ -12,9 +13,11 @@ import { TermsProvider } from './terms/terms.tsx'
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <BrowserRouter>
-      <TermsProvider>
-        <App />
-      </TermsProvider>
+      <AuthProvider>
+        <TermsProvider>
+          <App />
+        </TermsProvider>
+      </AuthProvider>
     </BrowserRouter>
   </ErrorBoundary>,
 )

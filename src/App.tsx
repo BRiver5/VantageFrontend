@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import {
   Award,
   Backpack,
@@ -8,17 +8,18 @@ import {
   ChevronRight,
   Gem,
   Landmark,
-  Menu,
+  LogIn,
   ScrollText,
   Search,
   Sparkles,
   Skull,
   Swords,
+  UserRound,
   VenetianMask,
-  X,
 } from 'lucide-react'
-import { getBookContents, getBooks, getClasses, getSettings, settingArt, splitTitle, totalsOf } from './api'
-import type { Book, BookContents, ContentTotals, GameClass, Setting } from './api'
+import { RequireAuth, useAuth } from './auth/AuthContext'
+import { getBookContents, getBooks, getSettings, settingArt, splitTitle, totalsOf } from './api'
+import type { Book, BookContents, ContentTotals, Setting } from './api'
 import { Corners, VantageLogo, Divider } from './ornaments'
 import { DieImage } from './dice/diceAssets'
 import {
@@ -34,7 +35,12 @@ import {
 import ClassesPage from './pages/ClassesPage'
 import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
-import CharacterSheet from './pages/CharacterSheet'
+import CharacterEditorPage from './pages/CharacterEditorPage'
+import CharactersPage from './pages/CharactersPage'
+import NewCharacterPage from './pages/NewCharacterPage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ProfilePage from './pages/ProfilePage'
 import {
   BackgroundDetailPage,
   CreatureDetailPage,
@@ -62,100 +68,102 @@ const CATEGORIES = [
   { path: '/equipment', label: 'Снаряжение', icon: Backpack },
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
-  { path: '/character', label: 'Лист', icon: ScrollText },
+  { path: '/characters', label: 'Персонажи', icon: ScrollText },
 ] as const
 
-/**
- * «Классы» в шапке — наведение раскрывает свиток со списком классов
- * (можно выбрать конкретный класс, не заходя на страницу каталога).
- */
-function ClassesNavItem() {
-  const [classes, setClasses] = useState<GameClass[]>([])
-  const ref = useRef<HTMLDivElement>(null)
-  const location = useLocation()
+const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
-  useEffect(() => {
-    getClasses().then(setClasses).catch(() => {})
-  }, [])
-
-  // при переходе снимаем фокус изнутри свитка — иначе :focus-within держит его
-  // раскрытым, и он не сворачивается, когда уводишь курсор от «Классов»
-  useEffect(() => {
-    const el = ref.current
-    const active = document.activeElement as HTMLElement | null
-    if (el && active && el.contains(active)) active.blur()
-  }, [location.pathname])
-
-  return (
-    <div className="nav-scroll" ref={ref}>
-      <NavLink to="/classes" className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}>
-        <span className="cat-btn-inner">
-          <Swords aria-hidden="true" />
-          Классы
-        </span>
-      </NavLink>
-      <div className="nav-scroll-panel" role="menu" aria-label="Быстрый выбор класса">
-        <span className="nav-scroll-rod" aria-hidden="true" />
-        <div className="nav-scroll-list">
-          {classes.map((c) => (
-            <Link key={c.id} to={`/classes/${c.id}`} className="nav-scroll-item" role="menuitem">
-              {c.class_name}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+function readSidebarExpanded(): boolean {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_KEY)
+    const expanded = raw === null ? true : raw === '1'
+    document.documentElement.dataset.sidebar = expanded ? 'expanded' : 'collapsed'
+    return expanded
+  } catch {
+    document.documentElement.dataset.sidebar = 'expanded'
+    return true
+  }
 }
 
-function Masthead() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const location = useLocation()
+function Sidebar() {
+  const { user, ready } = useAuth()
+  const [expanded, setExpanded] = useState(readSidebarExpanded)
 
-  // закрываем бургер-меню при переходе на другую страницу
   useEffect(() => {
-    setMenuOpen(false)
-  }, [location.pathname])
+    try {
+      localStorage.setItem(SIDEBAR_KEY, expanded ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+    document.documentElement.dataset.sidebar = expanded ? 'expanded' : 'collapsed'
+  }, [expanded])
+
+  useEffect(() => {
+    document.documentElement.dataset.sidebar = expanded ? 'expanded' : 'collapsed'
+  }, [])
 
   return (
-    <header className="masthead">
-      <div className="masthead-inner">
-        <Link to="/" className="brand">
-          <VantageLogo size={42} />
-          <div>
-            <span className="brand-name gold-text">VANTAGE</span>
-            <span className="brand-tag">Кодекс приключений</span>
-          </div>
-        </Link>
-        <button
-          type="button"
-          className="nav-burger"
-          aria-label={menuOpen ? 'Закрыть меню' : 'Меню разделов'}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-        </button>
-        <nav className={`cat-nav${menuOpen ? ' is-open' : ''}`} aria-label="Разделы каталога">
-          {CATEGORIES.map(({ path, label, icon: Icon }) =>
-            path === '/classes' ? (
-              <ClassesNavItem key={path} />
-            ) : (
-              <NavLink
-                key={path}
-                to={path}
-                className={({ isActive }) => `cat-btn${isActive ? ' is-active' : ''}`}
-              >
-                <span className="cat-btn-inner">
-                  <Icon aria-hidden="true" />
-                  {label}
-                </span>
-              </NavLink>
-            ),
-          )}
+    <aside
+      className={`sidebar-wrap${expanded ? ' is-expanded' : ' is-collapsed'}`}
+      aria-label="Навигация"
+    >
+      <div className="sidebar">
+        <div className="sidebar-top">
+          <Link to="/" className="sidebar-brand" title="Vantage">
+            <VantageLogo size={expanded ? 38 : 34} />
+            <span className="sidebar-brand-name gold-text">Vantage</span>
+          </Link>
+        </div>
+
+        <nav className="sidebar-nav" aria-label="Разделы каталога">
+          {CATEGORIES.map(({ path, label, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              title={label}
+              className={({ isActive }) => `sidebar-link${isActive ? ' is-active' : ''}`}
+            >
+              <Icon aria-hidden="true" className="sidebar-link-icon" />
+              <span className="sidebar-link-label">{label}</span>
+            </NavLink>
+          ))}
         </nav>
+
+        <div className="sidebar-foot">
+          {!ready ? null : user ? (
+            <NavLink
+              to="/me"
+              title={user.nickname}
+              className={({ isActive }) => `sidebar-link sidebar-link--auth${isActive ? ' is-active' : ''}`}
+            >
+              <UserRound aria-hidden="true" className="sidebar-link-icon" />
+              <span className="sidebar-link-label">{user.nickname}</span>
+            </NavLink>
+          ) : (
+            <Link to="/login" title="Войти" className="sidebar-link sidebar-link--auth">
+              <LogIn aria-hidden="true" className="sidebar-link-icon" />
+              <span className="sidebar-link-label">Войти</span>
+            </Link>
+          )}
+        </div>
       </div>
-    </header>
+
+      <button
+        type="button"
+        className="sidebar-toggle"
+        aria-label={expanded ? 'Свернуть меню' : 'Развернуть меню'}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className="sidebar-toggle-face">
+          {expanded ? (
+            <ChevronLeft aria-hidden="true" size={16} />
+          ) : (
+            <ChevronRight aria-hidden="true" size={16} />
+          )}
+        </span>
+      </button>
+    </aside>
   )
 }
 
@@ -700,9 +708,9 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <>
+    <div className="app-shell">
       <ScrollToTop />
-      <Masthead />
+      <Sidebar />
       <main className="page">
         <RouteReadyGate>
           <Routes>
@@ -729,7 +737,41 @@ export default function App() {
             <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
             <Route path="/termins" element={<TerminsPage />} />
             <Route path="/termins/:id" element={<TerminDetailPage />} />
-            <Route path="/character" element={<CharacterSheet />} />
+            <Route path="/character" element={<Navigate to="/characters" replace />} />
+            <Route
+              path="/characters"
+              element={
+                <RequireAuth>
+                  <CharactersPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/characters/new"
+              element={
+                <RequireAuth>
+                  <NewCharacterPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/characters/:id"
+              element={
+                <RequireAuth>
+                  <CharacterEditorPage />
+                </RequireAuth>
+              }
+            />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/me"
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
             <Route path="/books/:id" element={<BookPage />} />
             <Route path="/settings/:id" element={<SettingPage />} />
           </Routes>
@@ -737,6 +779,6 @@ export default function App() {
         <footer className="footer">Vantage · Codex Adventurae · MMXXVI</footer>
       </main>
       <DiceRoller />
-    </>
+    </div>
   )
 }

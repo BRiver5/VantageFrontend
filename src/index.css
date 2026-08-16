@@ -55,11 +55,23 @@
 
   --shadow-deep: 0 18px 44px rgba(0, 0, 0, 0.55);
   --glow-gold: 0 0 18px rgba(228, 196, 110, 0.28), 0 0 46px rgba(228, 196, 110, 0.1);
+
+  /* сайдбар */
+  --sidebar-w: 252px;
+  --sidebar-w-collapsed: 76px;
+  --sidebar-w-expanded: 252px;
+}
+:root[data-sidebar='collapsed'] {
+  --sidebar-w: var(--sidebar-w-collapsed);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
+
+/* `clip`, а не `hidden`: не создаёт скролл-контейнер, поэтому sticky-сайдбар
+   продолжает липнуть к окну, а горизонтального скролла от full-bleed нет */
+html { overflow-x: clip; }
 
 html { text-rendering: optimizeLegibility; }
 
@@ -174,11 +186,26 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 
 /* ---------- Каркас страницы ---------- */
 
-.page {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 clamp(12px, 3vw, 36px) 90px;
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
 }
+
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 40px) 90px;
+  overflow-x: clip;
+}
+
+/* Страницы с обоями мира (сеттинг, книга): герой обязан вылезти из колонки
+   .page на всю область контента, поэтому обрезку здесь снимаем. Лишние
+   пиксели от вычитания vw гасит `overflow-x: clip` на html. */
+.page:has(.world-hero:not(.world-hero--plain)) { overflow-x: visible; }
 
 .page-routes.is-pending {
   visibility: hidden;
@@ -233,36 +260,222 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 .corner--br { bottom: 6px; right: 6px; transform: scale(-1); }
 
 /* ============================================================
-   ШАПКА
+   САЙДБАР
    ============================================================ */
 
-.masthead {
+.sidebar-wrap {
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(10px);
-  background: linear-gradient(180deg, rgba(13, 14, 17, 0.94), rgba(13, 14, 17, 0.78));
-  border-bottom: 1px solid transparent;
-  border-image: var(--gold-grad-h) 1;
+  flex-shrink: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  transition: width 0.28s ease;
 }
 
-.masthead-inner {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 10px clamp(12px, 3vw, 36px);
+.sidebar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 12px 16px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgb(19, 21, 25), rgb(13, 14, 17));
+  border-right: 1px solid transparent;
+  border-image: linear-gradient(180deg, var(--gold-1), var(--silver-0) 40%, transparent 100%) 1;
+  overflow: hidden;
+}
+
+.sidebar-top {
   display: flex;
   align-items: center;
-  gap: clamp(12px, 2.4vw, 32px);
-  flex-wrap: nowrap;
+  gap: 6px;
+  min-height: 52px;
+  padding: 0 6px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--silver-1) 28%, transparent);
 }
 
-.brand {
+.sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
   user-select: none;
 }
 
+.sidebar-brand .brand-logo,
+.sidebar-brand svg {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.22));
+}
+
+.sidebar-brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease, width 0.28s ease, margin 0.28s ease;
+}
+
+/* шестиугольник как у FAB кубика, на боку (rotate 60°) и частично за сайдбаром */
+.sidebar-toggle {
+  position: absolute;
+  top: 70px;
+  left: calc(100% - 18px);
+  z-index: 0;
+  width: 40px;
+  height: calc(40px * var(--hex-aspect));
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: var(--gold-grad);
+  clip-path: var(--hex-point);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(30deg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.sidebar-toggle-face {
+  position: absolute;
+  inset: 1.6px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold-3);
+}
+.sidebar-toggle-face svg {
+  width: 15px;
+  height: 15px;
+  margin-top: -6px;
+  transform: rotate(-30deg);
+  margin-left: 10px;
+  stroke-width: 2.2;
+}
+.sidebar-toggle:hover {
+  filter: brightness(1.12);
+  transform: rotate(30deg) scale(1.05);
+}
+.sidebar-toggle:hover .sidebar-toggle-face {
+  color: var(--gold-4);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+  scrollbar-width: thin;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--silver-1) 28%, transparent);
+}
+
+.sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+  padding: 0 14px;
+  text-decoration: none;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.12rem;
+  letter-spacing: 0.04em;
+  isolation: isolate;
+  transition: color 0.2s ease;
+}
+
+/* сероватый гекс с жёлтым градиентом справа (внутри самой фигуры) */
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  inset: 2px 0;
+  z-index: -1;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(
+    90deg,
+    rgba(110, 116, 128, 0.18) 0%,
+    rgba(72, 76, 86, 0.34) 42%,
+    rgba(140, 110, 40, 0.38) 72%,
+    rgba(228, 196, 110, 0.62) 100%
+  );
+  opacity: 0;
+  transform: scaleX(0.97);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-link:hover,
+.sidebar-link.is-active {
+  color: var(--parchment);
+}
+.sidebar-link:hover::before,
+.sidebar-link.is-active::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.sidebar-link.is-active {
+  color: var(--gold-4);
+}
+
+.sidebar-link-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  stroke-width: 1.7;
+}
+
+.sidebar-link-label {
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-width 0.28s ease;
+  max-width: 180px;
+}
+
+/* свёрнутый режим — только иконки */
+.sidebar-wrap.is-collapsed .sidebar-brand-name,
+.sidebar-wrap.is-collapsed .sidebar-link-label {
+  opacity: 0;
+  max-width: 0;
+  width: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.sidebar-wrap.is-collapsed .sidebar-brand {
+  justify-content: center;
+}
+.sidebar-wrap.is-collapsed .sidebar-link {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+.sidebar-wrap.is-collapsed .sidebar-toggle {
+  top: 66px;
+}
+
+/* совместимость со старыми селекторами бренд/кнопок каталога */
 .brand-logo {
   display: block;
   flex-shrink: 0;
@@ -277,65 +490,12 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   line-height: 1;
 }
 
-.brand-tag {
-  display: block;
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  margin-top: 3px;
-}
-
-/* ---------- Навигация разделов: гекс-фишки с золотой оконтовкой ---------- */
-
-.cat-nav {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-left: auto;
-  justify-content: center;
-}
-
-/* бургер-кнопка — гекс-фишка в золотой оконтовке, видна только на узких экранах */
-.nav-burger {
-  display: none;
-  position: relative;
-  box-sizing: border-box;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  margin-left: auto;
-  flex-shrink: 0;
-  padding: 0;
-  clip-path: var(--hex-chip);
-  background: var(--gold-grad);
-  cursor: pointer;
-}
-.nav-burger::before {
-  content: '';
-  position: absolute;
-  inset: 1.4px;
-  clip-path: var(--hex-chip);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-}
-.nav-burger svg {
-  position: relative;
-  z-index: 1;
-  width: 22px;
-  height: 22px;
-  color: var(--gold-3);
-}
-.nav-burger:hover { filter: brightness(1.2); }
-
 .cat-btn {
-  display: inline-block;                /* без этого <a> внутри .nav-scroll рендерится как inline и теряет форму */
+  display: inline-block;
   position: relative;
   clip-path: var(--hex-chip);
   background: var(--gold-grad);
-  padding: 1.4px;                       /* толщина золотой оконтовки */
+  padding: 1.4px;
   transition: filter 0.25s ease, transform 0.2s ease;
 }
 
@@ -371,7 +531,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 }
 .cat-btn.is-active { filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.4)); }
 
-/* ---------- Свиток «Классы»: наведение раскрывает список без клика ---------- */
+/* ---------- Свиток «Классы» (если используется на страницах) ---------- */
 
 .nav-scroll { position: relative; }
 
@@ -388,15 +548,11 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   border: 1.4px solid transparent;
   box-shadow: 0 22px 40px rgba(0, 0, 0, 0.55);
   z-index: 60;
-  /* свиток «выпадает» сверху: разворачивается из линии и падает вниз с лёгким перелётом */
   transform-origin: top center;
   transform: translateX(-50%) translateY(-8px) scaleY(0.08);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  /* мягкий ease-out без пружины — свиток разворачивается плавно, без рывка.
-     transition-delay в закрытом состоянии = пауза перед сворачиванием: успеваешь
-     перевести курсор с кнопки на нужный класс, свиток не захлопывается сразу */
   transition:
     transform 0.5s cubic-bezier(0.22, 1, 0.3, 1),
     opacity 0.36s ease,
@@ -404,7 +560,6 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   transition-delay: 0.35s;
 }
 
-/* невидимый мостик через зазор между кнопкой и свитком — курсор не теряет hover */
 .nav-scroll-panel::before {
   content: '';
   position: absolute;
@@ -414,7 +569,6 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   height: 22px;
 }
 
-/* имитация деревянного стержня свитка сверху */
 .nav-scroll-rod {
   position: absolute;
   top: -7px;
@@ -443,7 +597,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition-delay: 0s; /* раскрывается сразу, задержка только на сворачивание */
+  transition-delay: 0s;
 }
 
 .nav-scroll-list {
@@ -1456,15 +1610,16 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
    СТРАНИЦЫ КАТАЛОГА (классы, расы, заклинания, бестиарий, предметы)
    ============================================================ */
 
-a.brand, a.cat-btn { text-decoration: none; color: inherit; }
+a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; color: inherit; }
 
 .catalog { padding-top: clamp(30px, 5vw, 54px); }
 
-/* Раздел шире обычной колонки (1280): выходим за неё симметрично, чтобы сетка
-   предметов и подробный обзор были одной ширины и не прыгали при раскрытии. */
+/* Раздел шире обычной колонки (1280): выходим за неё симметрично в пределах
+   области контента (viewport минус сайдбар). Запас шире 34px — иначе 100vw +
+   портреты/карточки чуть вылезают и появляется горизонтальный скролл. */
 .catalog--wide {
-  width: min(100vw - 34px, 1580px);
-  margin-left: calc((100% - min(100vw - 34px, 1580px)) / 2);
+  width: min(calc(100vw - var(--sidebar-w) - 72px), 1520px);
+  margin-left: calc((100% - min(calc(100vw - var(--sidebar-w) - 72px), 1520px)) / 2);
 }
 
 /* поиск по архиву */
@@ -1703,6 +1858,9 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 .card-grid:has(.card--portrait) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 28px 20px;
+  /* внутренний запас, чтобы scale портретов не упирался в край колонки */
+  padding-inline: 22px;
+  box-sizing: border-box;
 }
 .card-grid:has(.card--portrait) .card-slot {
   overflow: visible;
@@ -1766,7 +1924,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   max-height: 90%;
   object-fit: contain;
   object-position: center bottom;
-  transform: scale(1.5);
+  transform: scale(1.42);
   transform-origin: center bottom;
   filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.52));
   transition: transform 0.28s ease;
@@ -1779,7 +1937,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
   height: 38%;
   color: rgba(196, 154, 60, 0.45);
   stroke-width: 0.85;
-  transform: scale(1.5);
+  transform: scale(1.42);
   transform-origin: center bottom;
 }
 
@@ -1861,7 +2019,7 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 }
 
 .card.card--portrait:hover .class-card-portrait > img {
-  transform: scale(1.56) translateY(-3px);
+  transform: scale(1.48) translateY(-3px);
 }
 
 .card.card--class:hover .class-card-die {
@@ -2029,6 +2187,374 @@ a.brand, a.cat-btn { text-decoration: none; color: inherit; }
 @media (max-width: 560px) {
   .card-grid:has(.card--portrait) {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Группы каталога по книгам: перегородка с плашкой ---------- */
+.catalog-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+  transition: opacity 0.2s ease;
+}
+.catalog-groups[data-loading] { opacity: 0.4; pointer-events: none; }
+
+.catalog-groups .card-grid { margin-top: 0; }
+
+.catalog-group-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 26px 0 6px;
+}
+.catalog-group:first-child .catalog-group-head { margin-top: 6px; }
+
+.catalog-group-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 175, 186, 0.45) 30%, rgba(168, 175, 186, 0.45) 70%, transparent);
+}
+
+.catalog-group-plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  max-width: min(60%, 620px);
+  clip-path: var(--hex-chip);
+  padding: 7px 22px;
+  background:
+    linear-gradient(180deg, rgba(241, 244, 248, 0.06), transparent 55%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.32);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--parchment);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.catalog-group-plate svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--gold-3);
+}
+.catalog-group-plate i {
+  font-style: normal;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.catalog-group-plate b {
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(196, 154, 60, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  color: var(--gold-4);
+}
+
+.catalog-group-plate--link {
+  text-decoration: none;
+  transition: box-shadow 0.2s ease, color 0.2s ease, filter 0.2s ease;
+}
+.catalog-group-plate--link:hover {
+  color: var(--gold-4);
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55);
+  filter: drop-shadow(0 0 12px rgba(196, 154, 60, 0.22));
+}
+
+/* ---------- Карточка предыстории: горизонтальная, гекс слева ---------- */
+.card-grid:has(.card--bg) {
+  --bg-card-h: 188px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  box-sizing: border-box;
+}
+.card-grid:has(.card--bg) .card-slot {
+  /* мнимое место слева = половина гекса, чтобы выступ не наезжал на соседа */
+  overflow: visible;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: calc(var(--bg-hex-w) / 2);
+}
+
+.card.card--bg {
+  --bg-card-h: 188px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  height: var(--bg-card-h);
+  min-height: var(--bg-card-h);
+  padding: 12px 14px 12px calc(var(--bg-hex-w) / 2 + 18px);
+  overflow: visible;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgba(28, 31, 38, 0.96), rgba(16, 18, 22, 0.98)) padding-box,
+    linear-gradient(160deg, rgba(168, 175, 186, 0.7), rgba(124, 130, 139, 0.2) 40%, rgba(124, 130, 139, 0.2) 60%, rgba(168, 175, 186, 0.7)) border-box;
+}
+.card.card--bg:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgba(205, 211, 219, 0.14);
+}
+.card.card--bg:hover .bg-card-hex {
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 14px rgba(205, 211, 219, 0.28));
+}
+.card.card--bg:hover .bg-card-go {
+  color: var(--gold-3);
+}
+
+.bg-card-hex {
+  position: absolute;
+  left: calc(var(--bg-hex-w) / -2);
+  top: 0;
+  width: var(--bg-hex-w);
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2.2px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
+  transition: filter 0.22s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+.bg-card-hex-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.bg-card-hex-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+.bg-card-hex-fallback {
+  position: absolute;
+  inset: 28%;
+  width: 44%;
+  height: 44%;
+  color: rgba(228, 196, 110, 0.32);
+  stroke-width: 1.2;
+}
+
+.bg-card-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+}
+.bg-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.bg-card-head .card-name {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 1.22rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bg-card-head .source-chip {
+  flex-shrink: 0;
+}
+.bg-card-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.bg-card-skills {
+  gap: 5px;
+  margin: 0;
+}
+.bg-card-skills .chip {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+.bg-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  min-width: 0;
+}
+.bg-card-go {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+  transition: color 0.2s ease;
+}
+.bg-card-go svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ряд квадратиков снаряжения на карточке предыстории */
+.eq-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.eq-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+}
+.eq-icon-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 6px;
+}
+.eq-icon-face--empty,
+.eq-icon-face--choice {
+  display: grid;
+  place-items: center;
+}
+.eq-icon-face--empty svg {
+  width: 18px;
+  height: 18px;
+  color: rgba(228, 196, 110, 0.42);
+  stroke-width: 1.4;
+}
+.eq-icon-face--choice {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  background: linear-gradient(180deg, rgba(28, 24, 15, 0.95), rgba(11, 10, 8, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+}
+.eq-icon-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 4px 1px 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(228, 196, 110, 0.45);
+  z-index: 1;
+}
+.eq-icon-badge img,
+.eq-icon-badge-fallback {
+  width: 14px;
+  height: 14px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.eq-icon-badge-fallback {
+  color: var(--gold-3);
+  stroke-width: 1.6;
+}
+.eq-icon-badge b {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--gold-4);
+  line-height: 1;
+}
+.eq-icon--more {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: linear-gradient(180deg, rgba(38, 42, 50, 0.95), rgba(18, 20, 24, 0.98));
+}
+
+@media (max-width: 1180px) {
+  .card-grid:has(.card--bg) {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-grid:has(.card--bg) .card-slot {
+    padding-left: 0;
+  }
+  .card.card--bg {
+    --bg-card-h: auto;
+    --bg-hex-w: 92px;
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 14px 14px 14px;
+    gap: 12px;
+  }
+  .bg-card-hex {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: var(--bg-hex-w);
+    height: calc(var(--bg-hex-w) * var(--hex-aspect));
+    margin: 0 auto;
+  }
+  .bg-card-head .card-name {
+    white-space: normal;
+    overflow: visible;
+  }
+  .bg-card-foot {
+    flex-wrap: wrap;
+  }
+  .bg-card-go {
+    margin-left: 0;
   }
 }
 
@@ -3313,7 +3839,7 @@ a.card-slot { text-decoration: none; color: inherit; }
    Браузер САМ перемещает/масштабирует каждую карточку между её старой и новой
    позицией: выбранная летит из списка в левую деталь и растёт, прежняя деталь
    летит обратно в список, остальные поднимаются, занимая место. Всё за 0.9 с. */
-.masthead { view-transition-name: masthead; }
+.sidebar-wrap { view-transition-name: sidebar; }
 
 /* морф положения/размера каждой карточки и детали — 0.9 с, плавно */
 ::view-transition-group(*) {
@@ -3588,10 +4114,10 @@ a.term-link:hover {
    плавно перетекающие в фон страницы к низу ---------- */
 .world-hero {
   position: relative;
-  /* вырываемся из центрированного .page на всю ширину вьюпорта */
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
+  /* на всю ширину области контента (viewport минус сайдбар) */
+  width: calc(100vw - var(--sidebar-w));
+  margin-left: calc(50% - 0.5 * (100vw - var(--sidebar-w)));
+  margin-right: calc(50% - 0.5 * (100vw - var(--sidebar-w)));
   margin-bottom: clamp(14px, 3vw, 30px);
   min-height: clamp(300px, 40vw, 520px);
   display: flex;
@@ -3605,6 +4131,12 @@ a.term-link:hover {
   z-index: 0;
   background-size: cover;
   background-position: center 22%;
+}
+/* обложка книги вертикальная — растягиваем её в размытое полотно-фон */
+.world-hero-bg--cover {
+  background-position: center 30%;
+  filter: blur(26px) saturate(0.85) brightness(0.62);
+  transform: scale(1.14);
 }
 /* обои плавно растворяются в фоне страницы — к низу (до --bg-0) и слегка по краям */
 .world-hero-bg::after {
@@ -3729,13 +4261,14 @@ a.term-link:hover {
 
 .dice-dock {
   position: fixed;
-  left: 22px;
+  left: calc(var(--sidebar-w) + 22px);
   bottom: 22px;
   z-index: 150;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
+  transition: left 0.28s ease;
 }
 
 .dice-action-bar {
@@ -5052,7 +5585,7 @@ a.term-link:hover {
 }
 
 @media (max-width: 560px) {
-  .dice-dock { left: 14px; bottom: 14px; }
+  .dice-dock { left: calc(var(--sidebar-w) + 10px); bottom: 14px; }
   .dice-history-panel { width: min(196px, calc(100vw - 28px)); }
   .dice-fab {
     width: 72px;
@@ -5115,58 +5648,30 @@ a.term-link:hover {
    АДАПТИВ
    ============================================================ */
 
-/* узкие экраны (<1280): разделы прячем в бургер-меню (выпадает под шапкой) */
-@media (max-width: 1279px) {
-  .nav-burger { display: flex; }
-
-  .cat-nav {
-    position: absolute;
-    top: 100%;
+@media (max-width: 900px) {
+  /* на узких экранах сайдбар фиксирован слева */
+  .sidebar-wrap {
+    position: fixed;
     left: 0;
-    right: 0;
-    margin-left: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 0 clamp(12px, 4vw, 28px);
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-    background: linear-gradient(180deg, rgba(13, 14, 17, 0.98), rgba(13, 14, 17, 0.95));
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid transparent;
-    border-image: var(--gold-grad-h) 1;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
-    transition: max-height 0.32s ease, opacity 0.24s ease, padding 0.32s ease;
+    top: 0;
   }
-  .cat-nav.is-open {
-    max-height: 82vh;
-    overflow-y: auto;
-    opacity: 1;
-    pointer-events: auto;
-    padding: 14px clamp(12px, 4vw, 28px) 18px;
+  .page {
+    margin-left: var(--sidebar-w);
+    max-width: none;
   }
-
-  /* каждый раздел — на всю ширину выпадающего меню */
-  .cat-nav .cat-btn,
-  .cat-nav .nav-scroll {
-    display: block;
-    width: 100%;
-  }
-  .cat-nav .cat-btn-inner {
-    justify-content: center;
-    padding: 12px 18px;
-    font-size: 0.95rem;
-  }
-  /* hover-свиток «Классы» в бургере не нужен — просто ссылка на каталог */
-  .nav-scroll-panel { display: none; }
 }
 
 @media (max-width: 560px) {
   .hex-title { font-size: 0.8rem; }
   .car-arrow { display: none; }
   .cat-btn-inner { padding: 8px 16px; font-size: 0.76rem; }
+  .sidebar-link { min-height: 48px; font-size: 1.05rem; }
+  .sidebar-link-icon { width: 20px; height: 20px; }
+  .sidebar-toggle {
+    width: 36px;
+    height: calc(36px * var(--hex-aspect));
+    left: calc(100% - 16px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5818,7 +6323,10 @@ a.term-link:hover {
 .class-article details[open] > summary.ca-summary::before { transform: rotate(90deg); }
 .class-article summary.ca-summary:hover { color: var(--gold-4); }
 /* тело спойлера dnd.su — <span>, оборачивающий блоки; принудительно блок */
-.class-article details.ca-collapse > span { display: block; }
+.class-article details.ca-collapse > span,
+.class-article details.ca-collapse > .ca-collapse-body {
+  display: block;
+}
 
 /* меню соты подкласса: описание вместо кнопок */
 .hex-expand--sub { text-decoration: none; }
@@ -6046,7 +6554,7 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 /* ---------- Конструктор «Мультикласс» ---------- */
 /* пока окно мультикласса открыто, шапка сайта (и её выпадающий свиток «Классы»)
    должна быть НАД оверлеем (z-index 200), иначе свиток раскрывается под окном */
-:root[data-mc-open] .masthead { z-index: 210; }
+:root[data-mc-open] .sidebar-wrap { z-index: 210; }
 
 .mc-overlay {
   position: fixed;
@@ -6430,8 +6938,23 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 /* Раса — фигура в полный рост: ноги/полы одежды/оружие лезут под плашку имени и
    мешают читать название. Обрезаем низ картинки чуть выше имени мягким срезом. */
 .race-detail-portrait > img {
-  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 76%);
-  mask-image: linear-gradient(to bottom, #000 62%, transparent 76%);
+  /* короче зона скрытия (раньше начиналась с ~62%), мягче feather/spread */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
 }
 
 .race-detail-meta {
@@ -6541,6 +7064,260 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
   color: var(--gold-2);
 }
 .race-langs-label svg { width: 16px; height: 16px; }
+
+/* ============================================================
+   ПРЕДЫСТОРИЯ — детальная страница
+   ============================================================ */
+
+.bg-detail-page {
+  /* ширина гекса шапки; высота считается из правильных пропорций */
+  --bg-hero-hex: clamp(196px, 22vw, 286px);
+}
+
+.bg-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3.6vw, 44px);
+  padding: clamp(24px, 3vw, 38px) clamp(22px, 3.2vw, 44px);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(150deg, rgba(30, 33, 41, 0.96), rgba(14, 16, 20, 0.98)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.5), rgba(124, 130, 139, 0.2) 45%, rgba(168, 175, 186, 0.6)) border-box;
+}
+
+/* размытый арт предыстории фоном шапки + затемняющая вуаль слева-направо,
+   чтобы текст лежал на спокойном фоне */
+.bg-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center 32%;
+  background-size: cover;
+  filter: blur(34px) saturate(0.8) brightness(0.5);
+  transform: scale(1.18);
+  pointer-events: none;
+}
+.bg-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(10, 11, 14, 0.86) 0%, rgba(10, 11, 14, 0.6) 45%, rgba(10, 11, 14, 0.82) 100%);
+}
+
+/* тёплое свечение из-под арта — «свет прожитой жизни» */
+.bg-hero-aura {
+  position: absolute;
+  z-index: 0;
+  left: clamp(-40px, -2vw, 0px);
+  top: 50%;
+  width: min(620px, 70%);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(196, 154, 60, 0.22) 0%,
+    rgba(150, 116, 44, 0.11) 38%,
+    transparent 68%
+  );
+}
+
+.bg-hero-art {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: var(--bg-hero-hex);
+}
+
+.bg-hero-hex {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.1547;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2.6px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+}
+.bg-hero-hex-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.bg-hero-hex-inner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.bg-hero-hex-fallback {
+  position: absolute;
+  inset: 30%;
+  width: 40%;
+  height: 40%;
+  color: rgba(228, 196, 110, 0.3);
+  stroke-width: 1.2;
+}
+
+.bg-hero-meta {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bg-hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bg-hero-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  text-wrap: balance;
+}
+
+.bg-hero-abilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+/* жетон характеристики: аббревиатура + расшифровка мелким */
+.bg-ability {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 17px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.24), rgba(196, 154, 60, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 120, 0.36);
+}
+.bg-ability b {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold-4);
+}
+.bg-ability i {
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* плашка черты предыстории — главный «крючок» страницы */
+.bg-hero-feature {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 11px 18px;
+  border-left: 2px solid rgba(196, 154, 60, 0.55);
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.1), transparent 78%);
+}
+.bg-hero-feature svg {
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  color: var(--gold-3);
+  stroke-width: 1.6;
+}
+.bg-hero-feature span {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bg-hero-feature b {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+/* плитки владений: навыки, инструменты, языки */
+.bg-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bg-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.4), rgba(124, 130, 139, 0.18) 55%, rgba(196, 154, 60, 0.4)) border-box;
+}
+.bg-fact-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.bg-fact-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.3), rgba(196, 154, 60, 0.08));
+}
+.bg-fact-icon svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-4); }
+.bg-fact-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.bg-fact-value {
+  padding: 4px 11px;
+  font-size: 0.84rem;
+  color: var(--parchment);
+  background: linear-gradient(180deg, rgba(168, 175, 186, 0.12), rgba(168, 175, 186, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+}
+
+@media (max-width: 860px) {
+  .bg-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .bg-hero-art { width: min(var(--bg-hero-hex), 62vw); }
+  .bg-hero-meta { align-items: center; }
+  .bg-hero-kicker,
+  .bg-hero-abilities { justify-content: center; }
+  .bg-hero-feature {
+    text-align: left;
+    border-left: none;
+    border-top: 2px solid rgba(196, 154, 60, 0.55);
+    background: linear-gradient(180deg, rgba(196, 154, 60, 0.1), transparent 82%);
+  }
+}
 
 /* подрасы — карточки-ссылки без арта (картинок у подрас нет) */
 .subrace-grid {
@@ -6738,6 +7515,33 @@ html[data-nav='1']::view-transition-new(root) {
   gap: 8px;
 }
 
+.se-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* предыстории: фиксированная выдача идёт в две колонки — список короткий,
+   но длинный, и одной колонкой оставляет полстраницы пустой */
+/* в выборе «а или б» колонки вариантов уже делят ширину — там оставляем список */
+.se-grants--two .se-card-row:not(.se-card-row--choice) .se-option-col {
+  flex: 1 1 100%;
+  max-width: none;
+}
+.se-grants--two .se-card-row:not(.se-card-row--choice) .se-option-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px 18px;
+}
+
+@media (max-width: 720px) {
+  .se-grants--two .se-card-row:not(.se-card-row--choice) .se-option-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .se-hex-marker {
   font-family: var(--font-display);
   font-weight: 700;
@@ -6921,4 +7725,238 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   .se-or { align-self: flex-start; padding: 2px 0; }
   .se-card { grid-template-columns: 56px 1fr; }
   .se-card-thumb { width: 56px; height: 56px; }
+}
+
+
+/* ============================================================
+   Auth + персонажи
+   ============================================================ */
+.auth-gate {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding: clamp(28px, 5vw, 56px) 16px 64px;
+}
+.auth-page--wide .auth-card { max-width: 560px; }
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 26px 32px;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--silver-1) 45%, transparent);
+  box-shadow: var(--shadow-deep);
+}
+.auth-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.auth-lead {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin: 6px 0 20px;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+.auth-field input,
+.auth-field textarea,
+.auth-field select,
+.cs-vis-select select {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--silver-1) 55%, transparent);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font: inherit;
+  border-radius: 2px;
+}
+.auth-field--color {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.auth-field--color input[type='color'] {
+  width: 48px;
+  height: 36px;
+  padding: 2px;
+  cursor: pointer;
+}
+.auth-fieldset {
+  border: 1px solid color-mix(in srgb, var(--silver-1) 40%, transparent);
+  padding: 12px 14px 16px;
+  margin: 4px 0;
+}
+.auth-fieldset legend {
+  padding: 0 8px;
+  color: var(--gold-2);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.auth-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-submit {
+  margin-top: 6px;
+  padding: 12px 18px;
+  border: none;
+  cursor: pointer;
+  clip-path: var(--hex-chip);
+  background: var(--gold-grad);
+  color: #1a1408;
+  font: inherit;
+  font-weight: 600;
+}
+.auth-submit:disabled { opacity: 0.6; cursor: wait; }
+.auth-error { color: #e07070; font-size: 0.9rem; }
+.auth-ok { color: #7dba7a; font-size: 0.9rem; }
+.auth-switch {
+  margin-top: 18px;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.auth-switch a { color: var(--gold-3); }
+.auth-actions-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.auth-actions-row .auth-submit { margin-top: 0; }
+
+.chars-page { padding-top: clamp(24px, 4vw, 44px); }
+.chars-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  background: color-mix(in srgb, var(--gold-0) 22%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--gold-2) 35%, transparent);
+}
+.chars-banner p { color: var(--text-dim); margin-top: 4px; font-size: 0.92rem; }
+.chars-banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.chars-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.chars-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chars-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--silver-1) 40%, transparent);
+}
+.chars-card-main {
+  flex: 1;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chars-card-main:hover { background: rgba(255, 255, 255, 0.03); }
+.chars-card-name {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--parchment);
+}
+.chars-card-meta { font-size: 0.88rem; color: var(--text-dim); }
+.chars-card-del {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 0 16px;
+  cursor: pointer;
+}
+.chars-card-del:hover { color: #e07070; }
+
+.cs-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cs-save-state {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  min-width: 5.5rem;
+}
+.cs-save-state--saved { color: #7dba7a; }
+.cs-save-state--error { color: #e07070; }
+.cs-save-state--saving { color: var(--gold-2); }
+.cs-vis-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.cs-check--sm {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+}
+
+.inv-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+.inv-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 22px 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.inv-del {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+}
+.inv-del:hover { color: #e07070; }
+
+.muted { color: var(--text-dim); }
+
+@media (max-width: 720px) {
+  .inv-row {
+    grid-template-columns: 1fr 48px 22px auto;
+  }
+  .inv-row .cs-input:nth-child(4) { grid-column: 1 / -1; }
 }

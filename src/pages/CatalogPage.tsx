@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
+import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -6,6 +6,7 @@ import { markPortraitOpenNames, runShellTransition } from '../portraitTransition
 import {
   ArrowDownAZ,
   ArrowLeft,
+  ArrowRight,
   Award,
   Backpack,
   BookMarked,
@@ -41,6 +42,8 @@ import type { LucideIcon } from 'lucide-react'
 import {
   ABILITY_RU,
   cacheEntity,
+  descriptionPreview,
+  ellipsizePenultimate,
   fetchAll,
   fetchPage,
   formatCR,
@@ -48,6 +51,7 @@ import {
   getMetaEnums,
   realImage,
   sizeRu,
+  creatureTypeRu,
   splitTitle,
 } from '../api'
 import type {
@@ -64,11 +68,15 @@ import type {
   Spell,
   Termin,
 } from '../api'
+import { ABILITY_KEYS, ABILITY_LABELS } from '../types/character'
+import type { AbilityName } from '../types/character'
+import { abilitiesFromSkills } from '../skills'
 import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
 import { Divider, ParchmentScroll } from '../ornaments'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { SpellSchoolMark } from '../spellSchools'
 import { RichText, TermDesc } from '../terms/terms'
+import { EquipmentIconRow } from './StartingEquipment'
 
 const PAGE_SIZE = 24
 
@@ -276,8 +284,12 @@ interface FilterOption {
 interface FilterGroup<T> {
   key: string
   label: string
-  /** варианты могут зависеть от книг (например, список источников) */
-  options: (bookMap: BookMap) => FilterOption[]
+  /**
+   * Варианты могут зависеть от книг (список источников) и от самих записей
+   * (`items` — полный список раздела ДО фильтрации, чтобы набор кнопок не
+   * менялся по мере выбора).
+   */
+  options: (bookMap: BookMap, items: T[]) => FilterOption[]
   /** подходит ли запись под выбранные варианты; пустой выбор группа не проверяет */
   match: (item: T, selected: string[], bookMap: BookMap) => boolean
 }
@@ -295,6 +307,8 @@ interface CatalogConfig<T> {
   sorts?: SortOption<T>[]
   /** если задано — рядом с поиском появляется кнопка «Фильтры» с меню */
   filters?: FilterGroup<T>[]
+  /** если задано — список делится на группы по книге-источнику с перегородками */
+  groupByBook?: (item: T) => string | null | undefined
   /** раздел шире обычной колонки — сетка и подробный обзор одной ширины */
   wide?: boolean
   /** весь раздел одним листом: тянем список целиком и не показываем пагинатор */
@@ -394,12 +408,15 @@ function FilterMenu<T>({
   onToggle,
   onReset,
   bookMap,
+  items,
 }: {
   groups: FilterGroup<T>[]
   sel: Record<string, string[]>
   onToggle: (groupKey: string, optKey: string) => void
   onReset: () => void
   bookMap: BookMap
+  /** полный список раздела — из него берутся варианты вроде «только эти книги» */
+  items: T[]
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -447,7 +464,7 @@ function FilterMenu<T>({
             )}
           </div>
           {groups.map((g) => {
-            const opts = g.options(bookMap)
+            const opts = g.options(bookMap, items)
             if (opts.length === 0) return null
             const s = sel[g.key] ?? []
             return (
@@ -548,6 +565,44 @@ const spellFilters: FilterGroup<Spell>[] = [
     options: () =>
       Array.from({ length: 10 }, (_, i) => ({ key: String(i), label: i === 0 ? 'Заговор' : `${i} круг` })),
     match: (sp, sel) => sel.includes(String(sp.spell_level)),
+  },
+]
+
+/* ---------- Фильтры предысторий ---------- */
+
+/**
+ * Характеристику предыстория напрямую не повышает — её «профиль» задают навыки,
+ * которые она даёт (Акробатика → ЛОВ, Выступление → ХАР). По ним и фильтруем.
+ */
+
+/** Книги, из которых реально есть записи — иначе меню забито пустыми кодами. */
+function usedBookOptions(bookMap: BookMap, bookIds: (string | null | undefined)[]): FilterOption[] {
+  const seen = new Set(bookIds.filter((id): id is string => !!id && !!bookMap[id]))
+  return [...seen]
+    .map((id) => ({
+      key: id,
+      label: bookMap[id].book_code || bookMap[id].title,
+      hint: bookMap[id].title,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+}
+
+const backgroundFilters: FilterGroup<Background>[] = [
+  {
+    key: 'book',
+    label: 'Книга',
+    options: (bookMap, items) => usedBookOptions(bookMap, items.map((bg) => bg.book_source_id)),
+    match: (bg, sel) => !!bg.book_source_id && sel.includes(bg.book_source_id),
+  },
+  {
+    key: 'ability',
+    label: 'Характеристики',
+    options: () =>
+      ABILITY_KEYS.map((a) => ({ key: a, label: ABILITY_LABELS[a].label, hint: ABILITY_LABELS[a].abbr })),
+    match: (bg, sel) => {
+      const abilities = abilitiesFromSkills(bg.skill_proficiencies)
+      return sel.some((a) => abilities.includes(a as AbilityName))
+    },
   },
 ]
 
@@ -755,6 +810,7 @@ function ItemSplitView({
               onToggle={(gk, ok) => setRecSel((cur) => toggleIn(cur, gk, ok))}
               onReset={() => setRecSel({})}
               bookMap={bookMap}
+              items={items}
             />
           </div>
         </div>
@@ -913,19 +969,113 @@ function featCard(f: Feat, bookMap: BookMap) {
   )
 }
 
-function backgroundCard(bg: Background, bookMap: BookMap) {
-  const skills = bg.skill_proficiencies?.slice(0, 3).join(', ')
+function SoftTitle({ text, className = 'card-name' }: { text: string; className?: string }) {
+  const ref = useRef<HTMLHeadingElement>(null)
+  const [display, setDisplay] = useState(text)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const fit = () => {
+      const width = el.clientWidth
+      if (width <= 0) {
+        setDisplay(text)
+        return
+      }
+      if (text.length === 0) {
+        setDisplay('')
+        return
+      }
+      // на мобиле заголовок может переноситься — умный эллипсис не нужен
+      if (getComputedStyle(el).whiteSpace !== 'nowrap') {
+        setDisplay(text)
+        return
+      }
+      // бинарный поиск максимальной длины, при которой строка ещё влезает
+      let lo = 4
+      let hi = text.length
+      let best = ellipsizePenultimate(text, hi)
+      const prev = el.textContent
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        const candidate = ellipsizePenultimate(text, mid)
+        el.textContent = candidate
+        if (el.scrollWidth <= width + 1) {
+          best = candidate
+          lo = mid + 1
+        } else {
+          hi = mid - 1
+        }
+      }
+      el.textContent = prev
+      setDisplay(best)
+    }
+
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [text])
+
   return (
-    <article className="card">
-      <CardImage src={realImage(bg.image_gallery)} alt={bg.background_name} fallback={Landmark} />
-      <h3 className="card-name">{bg.background_name}</h3>
-      <div className="card-chips">
-        <SourceBadge book={bg.book_source_id ? bookMap[bg.book_source_id] : undefined} />
-        {skills && <Chip icon={Star}>{skills}</Chip>}
-        {bg.feature_name && <Chip icon={Landmark}>{bg.feature_name}</Chip>}
+    <h3 className={className} ref={ref} title={text}>
+      {display}
+    </h3>
+  )
+}
+
+function BackgroundCard({ bg, book }: { bg: Background; book: Book | undefined }) {
+  const [broken, setBroken] = useState(false)
+  const src = realImage(bg.image_gallery)
+  const preview = descriptionPreview(bg.description, 180)
+
+  return (
+    <article className="card card--bg">
+      <span className="bg-card-hex" aria-hidden={!src}>
+        <span className="bg-card-hex-inner">
+          {src && !broken ? (
+            <img
+              src={src}
+              alt={bg.background_name}
+              loading="lazy"
+              onError={() => setBroken(true)}
+            />
+          ) : (
+            <Landmark className="bg-card-hex-fallback" aria-hidden="true" />
+          )}
+        </span>
+      </span>
+      <div className="bg-card-body">
+        <div className="bg-card-head">
+          <SoftTitle text={bg.background_name} />
+          <SourceBadge book={book} />
+        </div>
+        {preview && <p className="bg-card-desc">{preview}</p>}
+        {!!bg.skill_proficiencies?.length && (
+          <div className="card-chips bg-card-skills">
+            {bg.skill_proficiencies.map((s) => (
+              <Chip key={s} icon={Star}>{s}</Chip>
+            ))}
+          </div>
+        )}
+        <div className="bg-card-foot">
+          <EquipmentIconRow grants={bg.starting_equipment} max={6} />
+          <span className="bg-card-go">
+            перейти <ArrowRight aria-hidden="true" />
+          </span>
+        </div>
       </div>
-      <TermDesc text={bg.description} />
     </article>
+  )
+}
+
+function backgroundCard(bg: Background, bookMap: BookMap) {
+  return (
+    <BackgroundCard
+      bg={bg}
+      book={bg.book_source_id ? bookMap[bg.book_source_id] : undefined}
+    />
   )
 }
 
@@ -958,7 +1108,9 @@ function spellCard(s: Spell, bookMap: BookMap) {
 }
 
 function creatureCard(c: Creature, bookMap: BookMap) {
-  const kind = [c.size, c.creature_type, c.alignment].filter(Boolean).join(' · ')
+  const kind = [sizeRu(c.size) ?? c.size, creatureTypeRu(c.creature_type) ?? c.creature_type, c.alignment]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <article className="card card--compact">
       <div className="card-head">
@@ -1194,6 +1346,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const params = useParams<{ id?: string }>()
   const pathId = cfg.inlineUrl === 'path' ? params.id : undefined
   const [items, setItems] = useState<T[]>([])
+  // весь раздел ДО фильтрации — из него меню фильтров берёт список книг
+  const [allItems, setAllItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
   const [q, setQ] = useState('')
@@ -1396,6 +1550,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         .then((res) => {
           if (stale) return
           setItems(res.items)
+          setAllItems(res.items)
           setTotal(res.total)
           setError(null)
         })
@@ -1407,6 +1562,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       fetchAll<T>(cfg.resource, { q: query || undefined })
         .then((all) => {
           if (stale) return
+          setAllItems(all)
           const bm = bookMapRef.current
           // группы складываются по И, варианты внутри группы — по ИЛИ
           let list = activeGroups.length
@@ -1433,6 +1589,44 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
+
+  // группы по книгам: порядок книг — как у сортировки «по книге», без книги — в конец
+  const groupByBook = cfg.groupByBook
+  const bookGroups = useMemo(() => {
+    if (!groupByBook) return null
+    const byBook = new Map<string, T[]>()
+    for (const item of items) {
+      const id = groupByBook(item) ?? ''
+      const list = byBook.get(id)
+      if (list) list.push(item)
+      else byBook.set(id, [item])
+    }
+    // «Книга игрока» — всегда первой группой, остальные по коду книги
+    const phbRank = (book: Book | undefined) => (book?.book_code === 'PHB' ? 0 : 1)
+    return [...byBook.entries()]
+      .map(([id, list]) => ({ id, book: id ? bookMap[id] : undefined, items: list }))
+      .sort(
+        (a, b) =>
+          phbRank(a.book) - phbRank(b.book) || bookCmp(a.id || null, b.id || null, bookMap),
+      )
+  }, [groupByBook, items, bookMap])
+
+  const renderCard = (item: T) => (
+    <CardLink
+      key={item.id}
+      to={`${cfg.base}/${item.id}`}
+      // у предметов рамка безымянная у incoming; path-portrait летит через class-hero-*
+      vtName={
+        cfg.inlineDetail && cfg.inlineUrl !== 'path' && switching?.incomingId !== item.id
+          ? `card-${item.id}`
+          : undefined
+      }
+      onOpen={cfg.inlineDetail ? (slot) => selectItem(item, slot) : undefined}
+      heroNav={cfg.heroNav}
+    >
+      {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
+    </CardLink>
+  )
 
   // раскрытая деталь в оболочке — только selected (не pathId: он отстаёт от navigate)
   if (cfg.inlineDetail && selected) {
@@ -1481,6 +1675,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             onToggle={toggleFilter}
             onReset={() => setFilterSel({})}
             bookMap={bookMap}
+            items={allItems}
           />
         )}
 
@@ -1514,26 +1709,45 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 
       {error && <p className="status-line is-error">Архив недоступен: {error}</p>}
 
-      {!error && (
+      {!error && !bookGroups && (
         <div className="card-grid" data-loading={loading || undefined}>
-          {items.map((item) => (
-            <CardLink
-              key={item.id}
-              to={`${cfg.base}/${item.id}`}
-              // у предметов рамка безымянная у incoming; path-portrait летит через class-hero-*
-              vtName={
-                cfg.inlineDetail &&
-                cfg.inlineUrl !== 'path' &&
-                switching?.incomingId !== item.id
-                  ? `card-${item.id}`
-                  : undefined
-              }
-              onOpen={cfg.inlineDetail ? (slot) => selectItem(item, slot) : undefined}
-              heroNav={cfg.heroNav}
-            >
-              {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
-            </CardLink>
-          ))}
+          {items.map(renderCard)}
+        </div>
+      )}
+
+      {!error && bookGroups && (
+        <div className="catalog-groups" data-loading={loading || undefined}>
+          {bookGroups.map((group) => {
+            const { ru, en } = group.book ? splitTitle(group.book.title) : { ru: 'Прочие источники', en: null }
+            const plate = (
+              <>
+                <BookMarked aria-hidden="true" />
+                {ru}
+                {group.book?.book_code && <i>{group.book.book_code}</i>}
+                <b>{group.items.length}</b>
+              </>
+            )
+            return (
+              <section className="catalog-group" key={group.id || 'none'}>
+                <header className="catalog-group-head">
+                  <span className="catalog-group-rule" aria-hidden="true" />
+                  {group.book ? (
+                    <Link
+                      to={`/books/${group.book.id}`}
+                      className="catalog-group-plate catalog-group-plate--link"
+                      title={en ? `${en} — открыть том` : 'Открыть том'}
+                    >
+                      {plate}
+                    </Link>
+                  ) : (
+                    <span className="catalog-group-plate">{plate}</span>
+                  )}
+                  <span className="catalog-group-rule" aria-hidden="true" />
+                </header>
+                <div className="card-grid">{group.items.map(renderCard)}</div>
+              </section>
+            )
+          })}
         </div>
       )}
 
@@ -1636,6 +1850,9 @@ export const BackgroundsPage = () => (
       sub: 'Прошлое героя — навыки, инструменты и особая черта',
       emptyIcon: Landmark,
       card: backgroundCard,
+      filters: backgroundFilters,
+      groupByBook: (bg) => bg.book_source_id,
+      noPaging: true,
     }}
   />
 )

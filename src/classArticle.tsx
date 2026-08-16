@@ -69,6 +69,50 @@ function makeDetails(head: Element, doc: Document, open: boolean): void {
   details.append(summary, body)
 }
 
+/**
+ * Заголовок раздела + все следующие блоки до следующего заголовка → <details>.
+ * Нужно для рас (h3.underlined / bigSectionTitle без hide-wrapper) и похожих статей.
+ */
+function makeSectionDetails(head: Element, doc: Document, open: boolean): void {
+  if (head.closest('details')) return
+
+  const isSectionBreak = (el: Element): boolean => {
+    if (el.tagName === 'DETAILS') return true
+    if (/^H[1-4]$/.test(el.tagName)) return true
+    return (
+      el.classList.contains('bigSectionTitle') ||
+      el.classList.contains('smallSectionTitle') ||
+      el.classList.contains('underlined') ||
+      el.classList.contains('hide-next') ||
+      el.classList.contains('spoiler_head') ||
+      el.classList.contains('tableTitle')
+    )
+  }
+
+  const chunks: Element[] = []
+  let n = head.nextElementSibling
+  while (n && !isSectionBreak(n)) {
+    chunks.push(n)
+    n = n.nextElementSibling
+  }
+  if (chunks.length === 0) return
+
+  const details = doc.createElement('details')
+  details.className = 'ca-collapse'
+  if (open) details.setAttribute('open', '')
+
+  const summary = doc.createElement('summary')
+  summary.className = ('ca-summary ' + summaryClasses(head)).trim()
+  summary.innerHTML = head.innerHTML
+
+  const body = doc.createElement('div')
+  body.className = 'ca-collapse-body'
+  for (const el of chunks) body.append(el)
+
+  head.replaceWith(details)
+  details.append(summary, body)
+}
+
 export interface SubclassFeature {
   level: number
   name: string
@@ -438,6 +482,16 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
       makeDetails(head, doc, false)
     }
   })
+
+  // 7b. Разделы статьи без hide-wrapper (типично расы: h3.underlined,
+  //     bigSectionTitle/smallSectionTitle) — тоже сворачиваемые, как на классах.
+  const sectionHeads = Array.from(
+    content.querySelectorAll('h2.bigSectionTitle, h3.underlined, h3.smallSectionTitle, .smallSectionTitle'),
+  ).filter((h) => !h.closest('details') && !h.classList.contains('hide-next') && !h.classList.contains('spoiler_head'))
+  // с конца — чтобы не сбивать nextElementSibling при обходе
+  for (let i = sectionHeads.length - 1; i >= 0; i--) {
+    makeSectionDetails(sectionHeads[i], doc, true)
+  }
 
   return root.innerHTML
 }

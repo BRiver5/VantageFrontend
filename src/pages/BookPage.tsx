@@ -67,8 +67,9 @@ export default function BookPage() {
 
   const { ru, en } = splitTitle(book.title)
   const year = book.published_date ? new Date(book.published_date).getFullYear() : null
-  const hasWorld = Boolean(book.settings_id)
   const heroArt = setting ? settingPictureUrl(setting, 1600, 720) : null
+  // у книг вне сеттинга обоев мира нет — тогда фоном шапки идёт размытая обложка
+  const bleedArt = heroArt ?? book.book_cover_url
 
   return (
     <section className="book-page">
@@ -76,9 +77,13 @@ export default function BookPage() {
         <ArrowLeft aria-hidden="true" /> {book.settings_id ? 'к миру' : 'к сотам архива'}
       </Link>
 
-      <div className={`world-hero${hasWorld ? '' : ' world-hero--plain'}`}>
-        {heroArt && (
-          <span className="world-hero-bg" style={{ backgroundImage: `url("${heroArt}")` }} aria-hidden="true" />
+      <div className={`world-hero${bleedArt ? '' : ' world-hero--plain'}`}>
+        {bleedArt && (
+          <span
+            className={`world-hero-bg${heroArt ? '' : ' world-hero-bg--cover'}`}
+            style={{ backgroundImage: `url("${bleedArt}")` }}
+            aria-hidden="true"
+          />
         )}
         <div className="world-hero-inner book-hero-inner">
           <div className="book-cover">
