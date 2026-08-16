@@ -6,6 +6,7 @@ import App from './App.tsx'
 import ErrorBoundary from './ErrorBoundary.tsx'
 import { AuthProvider } from './auth/AuthContext.tsx'
 import { TermsProvider } from './terms/terms.tsx'
+import { EquipmentDrawerProvider } from './equipmentDrawer.tsx'
 
 // StrictMode отключён: двойной dev-монтаж ломает WebGL-контекст/WASM-инициализацию
 // rapier у 3D-кубика (see src/dice/DiceRoller.tsx) — известная несовместимость
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AuthProvider>
         <TermsProvider>
-          <App />
+          <EquipmentDrawerProvider>
+            <App />
+          </EquipmentDrawerProvider>
         </TermsProvider>
       </AuthProvider>
     </BrowserRouter>

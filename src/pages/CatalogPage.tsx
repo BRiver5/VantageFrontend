@@ -77,6 +77,7 @@ import { DIE_NUM_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { SpellSchoolMark } from '../spellSchools'
 import { RichText, TermDesc } from '../terms/terms'
 import { EquipmentIconRow } from './StartingEquipment'
+import { useEquipmentDrawer } from '../equipmentDrawer'
 
 const PAGE_SIZE = 24
 
@@ -1343,6 +1344,7 @@ const spellSorts: SortOption<Spell>[] = [
 
 function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> }) {
   const navigate = useNavigate()
+  const drawer = useEquipmentDrawer()
   const params = useParams<{ id?: string }>()
   const pathId = cfg.inlineUrl === 'path' ? params.id : undefined
   const [items, setItems] = useState<T[]>([])
@@ -1621,7 +1623,13 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
           ? `card-${item.id}`
           : undefined
       }
-      onOpen={cfg.inlineDetail ? (slot) => selectItem(item, slot) : undefined}
+      onOpen={
+        cfg.inlineDetail
+          ? (slot) => selectItem(item, slot)
+          : cfg.resource === 'equipment'
+            ? () => drawer.open(item.id)
+            : undefined
+      }
       heroNav={cfg.heroNav}
     >
       {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}

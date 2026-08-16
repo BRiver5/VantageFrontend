@@ -67,11 +67,11 @@ import { Corners, Divider } from '../ornaments'
 import { SourceBadge, whenRouteCommitted } from './CatalogPage'
 import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
 import {
-  EquipmentContents,
   StartingEquipment,
   hasStartingEquipment,
   useEquipmentIndex,
 } from './StartingEquipment'
+import { EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
@@ -1831,7 +1831,7 @@ export function EquipmentDetailPage() {
           {c.default_contents.length > 0 && (
             <>
               <p className="detail-note">Содержимое:</p>
-              <EquipmentContents contents={c.default_contents} index={index} />
+              <EquipmentContentsGallery contents={c.default_contents} index={index} />
             </>
           )}
         </DetailSection>

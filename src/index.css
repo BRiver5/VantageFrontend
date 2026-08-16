@@ -7695,6 +7695,68 @@ a.se-name:hover { color: var(--gold-3); }
   border-left: 1px solid rgba(168, 175, 186, 0.22);
 }
 
+/* набор / комплект одежды: квадратики той же высоты, что картинка карточки */
+.se-contents--gallery {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 0 2px 12px;
+}
+
+.se-tile {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: none;
+  text-decoration: none;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+  cursor: pointer;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+a.se-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5), 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+.se-tile--pending { cursor: default; opacity: 0.7; }
+.se-tile-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.se-tile-face--empty {
+  display: grid;
+  place-items: center;
+}
+.se-tile-face--empty svg {
+  width: 26px;
+  height: 26px;
+  color: rgba(228, 196, 110, 0.45);
+  stroke-width: 1.4;
+}
+.se-tile-qty {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(228, 196, 110, 0.45);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--gold-4);
+  text-align: center;
+}
+
 a.se-hex-pick {
   align-self: flex-start;
   margin-top: 4px;
@@ -7725,8 +7787,148 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   .se-or { align-self: flex-start; padding: 2px 0; }
   .se-card { grid-template-columns: 56px 1fr; }
   .se-card-thumb { width: 56px; height: 56px; }
+  .se-tile { width: 56px; height: 56px; }
 }
 
+/* ============================================================
+   Панель предмета справа
+   ============================================================ */
+
+.eq-drawer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  pointer-events: none;
+}
+
+.eq-drawer-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 9, 0.62);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.28s ease;
+}
+.eq-drawer-layer.is-open .eq-drawer-veil { opacity: 1; }
+
+.eq-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, calc(100vw - 16px));
+  pointer-events: auto;
+  overflow: hidden;
+  background:
+    linear-gradient(165deg, rgba(28, 31, 38, 0.98), rgba(14, 16, 20, 0.99)) padding-box,
+    linear-gradient(180deg, rgba(196, 154, 60, 0.45), rgba(124, 130, 139, 0.22) 40%, rgba(168, 175, 186, 0.35)) border-box;
+  border-left: 1px solid transparent;
+  box-shadow: -18px 0 48px rgba(0, 0, 0, 0.55);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.eq-drawer-layer.is-open .eq-drawer { transform: none; }
+
+.eq-drawer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 14px 16px 0;
+}
+.eq-drawer-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.eq-drawer-icon-btn:hover { color: var(--gold-3); }
+.eq-drawer-icon-btn svg { width: 18px; height: 18px; }
+.eq-drawer-icon-btn--close { margin-left: auto; }
+
+.eq-drawer-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 22px 28px;
+}
+
+.eq-drawer-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.eq-drawer-art {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  object-position: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+.eq-drawer-art--empty {
+  display: grid;
+  place-items: center;
+}
+.eq-drawer-art--empty svg {
+  width: 40px;
+  height: 40px;
+  color: rgba(228, 196, 110, 0.38);
+  stroke-width: 1.3;
+}
+.eq-drawer-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.eq-drawer-title {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.eq-drawer-en {
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.eq-drawer-chips { margin-bottom: 8px; }
+.eq-drawer-section { margin-top: 18px; }
+.eq-drawer-section .se-contents { margin-top: 10px; }
+
+.eq-drawer-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 22px;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--gold-2);
+}
+.eq-drawer-full:hover { color: var(--gold-4); }
+.eq-drawer-full svg { width: 15px; height: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .eq-drawer-veil,
+  .eq-drawer { transition: none; }
+}
 
 /* ============================================================
    Auth + персонажи

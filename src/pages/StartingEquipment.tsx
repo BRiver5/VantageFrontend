@@ -1,10 +1,15 @@
-import { Fragment, createContext, useContext, useEffect, useState } from 'react'
+import { Fragment, createContext, useContext, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Coins } from 'lucide-react'
-import { descriptionPreview, getEquipmentIndex, realImage } from '../api'
+import { descriptionPreview, realImage } from '../api'
 import type { ContentEntry, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, GrantOption } from '../api'
 import { categoryIcon, entryCatalogQuery, entryChoiceLabel, formatCost } from '../equipment'
+import { EquipmentContentsGallery, useEquipmentDrawer } from '../equipmentDrawer'
+import { useEquipmentIndex } from '../equipmentIndex'
 import { RichText } from '../terms/terms'
+
+export { useEquipmentIndex }
 
 /** Куда вернуться со страницы снаряжения (напр. на страницу класса), + подпись. */
 const BackLabelContext = createContext<string | undefined>(undefined)
@@ -18,24 +23,18 @@ function useEquipBackState(): { from: string; fromLabel: string | undefined } | 
 }
 
 /**
- * Каталог снаряжения с индексом по slug. Гранты ссылаются на предметы только по
- * slug, а деталь открывается по uuid — без индекса не построить ни имя, ни
- * ссылку. Запрос синглтонный, так что второй и последующие вызовы бесплатны.
+ * Клик по предмету открывает правую панель, а не уводит со страницы. Модификаторы
+ * и средняя кнопка остаются за браузером — ссылка настоящая, её можно открыть
+ * в новой вкладке.
  */
-export function useEquipmentIndex(): EquipmentIndex | null {
-  const [index, setIndex] = useState<EquipmentIndex | null>(null)
-  useEffect(() => {
-    let alive = true
-    getEquipmentIndex()
-      .then((i) => {
-        if (alive) setIndex(i)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
-  return index
+function useOpenInDrawer(id: string | undefined) {
+  const drawer = useEquipmentDrawer()
+  if (!id) return undefined
+  return (e: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+    e.preventDefault()
+    drawer.open(id)
+  }
 }
 
 function EquipmentThumb({ eq }: { eq: Equipment | undefined }) {
@@ -76,6 +75,7 @@ function EquipmentItemCard({
   const preview = eq ? descriptionPreview(eq.description, 140) : ''
   const href = eq ? `/equipment/${eq.id}` : undefined
   const backState = useEquipBackState()
+  const openDrawer = useOpenInDrawer(eq?.id)
 
   const body = (
     <>
@@ -97,12 +97,19 @@ function EquipmentItemCard({
 
   if (href) {
     return (
-      <Link to={href} state={backState} className="se-card">
+      <Link to={href} state={backState} className="se-card" onClick={openDrawer}>
         {body}
       </Link>
     )
   }
   return <div className="se-card se-card--pending">{body}</div>
+}
+
+/** Содержимое выдачи, иначе то, что лежит в контейнере по каталогу (набор, комплект одежды). */
+function nestedContents(entry: GrantEntry, index: EquipmentIndex | null): ContentEntry[] {
+  if (entry.contents.length > 0) return entry.contents
+  if (!entry.slug || !index) return []
+  return index.bySlug.get(entry.slug)?.container?.default_contents ?? []
 }
 
 /** Выбор из каталога: табличка с «?» и кнопкой выбрать. */
@@ -134,26 +141,6 @@ function GrantEntryCard({ entry, index }: { entry: GrantEntry; index: EquipmentI
   return <EquipmentChoiceCard entry={entry} />
 }
 
-/** Вложенное содержимое контейнера: монеты в кошеле, карта в футляре */
-export function EquipmentContents({
-  contents,
-  index,
-}: {
-  contents: ContentEntry[]
-  index: EquipmentIndex | null
-}) {
-  if (contents.length === 0) return null
-  return (
-    <ul className="se-contents">
-      {contents.map((c) => (
-        <li key={c.slug}>
-          <EquipmentItemCard slug={c.slug} index={index} quantity={c.quantity} />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 /** Название предмета со ссылкой на деталь; пока каталог не загружен — заглушка */
 export function EquipmentSlugLink({
   slug,
@@ -167,10 +154,11 @@ export function EquipmentSlugLink({
   const eq = index?.bySlug.get(slug)
   const qty = quantity != null && quantity > 1 ? <span className="se-qty">× {quantity}</span> : null
   const backState = useEquipBackState()
+  const openDrawer = useOpenInDrawer(eq?.id)
   return (
     <>
       {eq ? (
-        <Link to={`/equipment/${eq.id}`} state={backState} className="se-name">
+        <Link to={`/equipment/${eq.id}`} state={backState} className="se-name" onClick={openDrawer}>
           {eq.equipment_name}
         </Link>
       ) : (
@@ -188,12 +176,15 @@ function GrantOptionCards({ option, index }: { option: GrantOption; index: Equip
       <div className="se-option-cards">
         {/* карточка и её вложенное содержимое — одним блоком: в две колонки они
             иначе разъехались бы по разным ячейкам сетки */}
-        {option.entries.map((e, i) => (
-          <div className="se-entry" key={i}>
-            <GrantEntryCard entry={e} index={index} />
-            {e.contents.length > 0 && <EquipmentContents contents={e.contents} index={index} />}
-          </div>
-        ))}
+        {option.entries.map((e, i) => {
+          const nested = nestedContents(e, index)
+          return (
+            <div className="se-entry" key={i}>
+              <GrantEntryCard entry={e} index={index} />
+              {nested.length > 0 && <EquipmentContentsGallery contents={nested} index={index} />}
+            </div>
+          )
+        })}
       </div>
       {option.note && <span className="se-note">{option.note}</span>}
     </div>
