@@ -588,6 +588,33 @@ function usedBookOptions(bookMap: BookMap, bookIds: (string | null | undefined)[
     .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
+/* ---------- Фильтры черт ---------- */
+
+const featFilters: FilterGroup<Feat>[] = [
+  {
+    key: 'book',
+    label: 'Книга',
+    options: (bookMap, items) => usedBookOptions(bookMap, items.map((f) => f.book_source_id)),
+    match: (f, sel) => !!f.book_source_id && sel.includes(f.book_source_id),
+  },
+  {
+    key: 'ability',
+    label: 'Характеристики',
+    options: () =>
+      ABILITY_KEYS.map((a) => ({ key: a, label: ABILITY_LABELS[a].label, hint: ABILITY_LABELS[a].abbr })),
+    match: (f, sel) => sel.some((a) => a in (f.increase_ability_scores ?? {})),
+  },
+  {
+    key: 'prereq',
+    label: 'Требования',
+    options: () => [
+      { key: 'yes', label: 'Есть требование' },
+      { key: 'no', label: 'Без требований' },
+    ],
+    match: (f, sel) => sel.includes(f.prerequisite ? 'yes' : 'no'),
+  },
+]
+
 const backgroundFilters: FilterGroup<Background>[] = [
   {
     key: 'book',
@@ -953,20 +980,70 @@ function raceCard(r: Race) {
   )
 }
 
-function featCard(f: Feat, bookMap: BookMap) {
-  const abilities = Object.entries(f.increase_ability_scores ?? {})
-    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
-    .join(', ')
+/** Ряд плашек характеристик, которые повышает черта (аналог EquipmentIconRow у предысторий). */
+function FeatAbilityRow({ scores }: { scores: Record<string, number> | null | undefined }) {
+  const entries = Object.entries(scores ?? {})
+  if (entries.length === 0) return null
+
   return (
-    <article className="card">
-      <h3 className="card-name">{f.feat_name}</h3>
-      <div className="card-chips">
-        <SourceBadge book={f.book_source_id ? bookMap[f.book_source_id] : undefined} />
-        {f.prerequisite && <Chip icon={Shield}>треб.: {f.prerequisite}</Chip>}
-        {abilities && <Chip icon={Star}>{abilities}</Chip>}
+    <div className="fa-row">
+      {entries.map(([k, v]) => (
+        <span className="fa-tile" key={k}>
+          {ABILITY_RU[k] ?? k}
+          <b>+{v}</b>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function FeatCard({ f, book }: { f: Feat; book: Book | undefined }) {
+  const [broken, setBroken] = useState(false)
+  const src = realImage(f.image_gallery)
+  const preview = descriptionPreview(f.description, 150)
+
+  return (
+    <article className="card card--feat">
+      <div className="feat-card-art" aria-hidden={!src}>
+        {src && !broken ? (
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <Sparkles className="feat-card-art-fallback" aria-hidden="true" />
+        )}
       </div>
-      <TermDesc text={f.description} />
+      <div className="feat-card-body">
+        <div className="bg-card-head">
+          <SoftTitle text={f.feat_name} />
+          <SourceBadge book={book} />
+        </div>
+        {preview && <p className="bg-card-desc">{preview}</p>}
+        {f.prerequisite && (
+          <div className="card-chips bg-card-skills">
+            <Chip icon={Shield}>треб.: {f.prerequisite}</Chip>
+          </div>
+        )}
+        <div className="bg-card-foot">
+          <FeatAbilityRow scores={f.increase_ability_scores} />
+          <span className="bg-card-go">
+            перейти <ArrowRight aria-hidden="true" />
+          </span>
+        </div>
+      </div>
     </article>
+  )
+}
+
+function featCard(f: Feat, bookMap: BookMap) {
+  return (
+    <FeatCard
+      f={f}
+      book={f.book_source_id ? bookMap[f.book_source_id] : undefined}
+    />
   )
 }
 
@@ -1133,6 +1210,21 @@ function creatureCard(c: Creature, bookMap: BookMap) {
   )
 }
 
+/** Арт снаряжения в карточке сетки: картинка (или иконка категории) со свечением на наведении. */
+function EquipmentCardArt({ src, alt, fallback: Icon }: { src: string | null; alt: string; fallback: LucideIcon }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span className="eq-card-art">
+      <span className="eq-card-glow" aria-hidden="true" />
+      {src && !broken ? (
+        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <Icon className="eq-card-fallback" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
+
 function equipmentCard(eq: Equipment, bookMap: BookMap) {
   const Icon = categoryIcon(eq.category)
   const cost = formatCost(eq.cost, eq.cost_copper)
@@ -1141,37 +1233,32 @@ function equipmentCard(eq: Equipment, bookMap: BookMap) {
   const d = eq.defense
   const ac = d?.armor_class != null ? `КД ${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}` : d?.armor_class_formula
   return (
-    <article className="card card--compact card--equipment">
-      <div className="card-head">
-        <span className="eq-card-icon" aria-hidden="true">
-          <Icon />
-        </span>
-        <div>
-          <h3 className="card-name">{eq.equipment_name}</h3>
-          <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
+    <article className="card card--equipment">
+      <EquipmentCardArt src={realImage(eq.equipment_image_gallery)} alt={eq.equipment_name} fallback={Icon} />
+      <div className="eq-card-info">
+        <h3 className="card-name">{eq.equipment_name}</h3>
+        <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
+        <div className="card-chips">
+          <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
+          {cost && <Chip icon={Coins}>{cost}</Chip>}
+          {weight && <Chip icon={Scale}>{weight}</Chip>}
+          {w?.damage_dice && (
+            <Chip icon={Swords}>
+              {formatDice(w.damage_dice)}
+              {w.damage_type ? ` ${w.damage_type.toLowerCase()}` : ''}
+            </Chip>
+          )}
+          {ac && <Chip icon={Shield}>{ac}</Chip>}
+          {eq.container && <Chip icon={Backpack}>{containerKindRu(eq.container.container_kind)}</Chip>}
+          {eq.stackable && <Chip icon={Layers}>стак {eq.stack_size}</Chip>}
+          {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
+          {eq.tags.slice(0, 2).map((t) => (
+            <Chip key={t} icon={Tag}>
+              {t}
+            </Chip>
+          ))}
         </div>
       </div>
-      <div className="card-chips">
-        <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
-        {cost && <Chip icon={Coins}>{cost}</Chip>}
-        {weight && <Chip icon={Scale}>{weight}</Chip>}
-        {w?.damage_dice && (
-          <Chip icon={Swords}>
-            {formatDice(w.damage_dice)}
-            {w.damage_type ? ` ${w.damage_type.toLowerCase()}` : ''}
-          </Chip>
-        )}
-        {ac && <Chip icon={Shield}>{ac}</Chip>}
-        {eq.container && <Chip icon={Backpack}>{containerKindRu(eq.container.container_kind)}</Chip>}
-        {eq.stackable && <Chip icon={Layers}>стак {eq.stack_size}</Chip>}
-        {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
-        {eq.tags.slice(0, 2).map((t) => (
-          <Chip key={t} icon={Tag}>
-            {t}
-          </Chip>
-        ))}
-      </div>
-      <TermDesc text={eq.description} />
     </article>
   )
 }
@@ -1850,6 +1937,9 @@ export const FeatsPage = () => (
       sub: 'Особые таланты и способности, доступные при развитии персонажа',
       emptyIcon: Award,
       card: featCard,
+      filters: featFilters,
+      groupByBook: (f) => f.book_source_id,
+      noPaging: true,
     }}
   />
 )

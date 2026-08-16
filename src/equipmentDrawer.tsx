@@ -191,18 +191,58 @@ function containerAccepts(c: ContainerProfile): string {
   return parts.length === 0 ? 'что угодно' : parts.join(', ')
 }
 
-function DrawerArt({ eq }: { eq: Equipment }) {
+/**
+ * Превью вложенного содержимого — стопка мини-иконок в левом нижнем углу арта.
+ * Общая для панели снаряжения (`sm`) и полной страницы предмета (`md`, по умолчанию).
+ */
+export function EquipmentContentsCorner({
+  contents,
+  index,
+  size = 'md',
+}: {
+  contents: ContentEntry[]
+  index: EquipmentIndex | null
+  size?: 'md' | 'sm'
+}) {
+  if (contents.length === 0) return null
+  const shown = contents.slice(0, 3)
+  const extra = contents.length - shown.length
+  return (
+    <span
+      className={`detail-plate-contents${size === 'sm' ? ' detail-plate-contents--sm' : ''}`}
+      title={`Внутри: ${contents.length}`}
+    >
+      {shown.map((entry, i) => {
+        const item = index?.bySlug.get(entry.slug)
+        const src = realImage(entry.image_gallery) ?? (item ? realImage(item.equipment_image_gallery) : null)
+        const Icon = categoryIcon(item?.category)
+        return (
+          <span className="detail-plate-contents-item" key={entry.slug + i}>
+            {src ? <img src={src} alt="" /> : <Icon aria-hidden="true" />}
+          </span>
+        )
+      })}
+      {extra > 0 && <span className="detail-plate-contents-more">+{extra}</span>}
+    </span>
+  )
+}
+
+function DrawerArt({ eq, index }: { eq: Equipment; index: EquipmentIndex | null }) {
   const [broken, setBroken] = useState(false)
   const src = realImage(eq.equipment_image_gallery)
   const Icon = categoryIcon(eq.category)
-  if (src && !broken) {
-    return (
-      <img className="eq-drawer-art" src={src} alt="" onError={() => setBroken(true)} />
-    )
-  }
+  const contents = eq.container?.default_contents ?? []
   return (
-    <span className="eq-drawer-art eq-drawer-art--empty">
-      <Icon aria-hidden="true" />
+    <span className="eq-drawer-art-wrap">
+      <span className="eq-drawer-art-glow" aria-hidden="true" />
+      {src && !broken ? (
+        <img className="eq-drawer-art" src={src} alt="" onError={() => setBroken(true)} />
+      ) : (
+        <span className="eq-drawer-art eq-drawer-art--empty">
+          <Icon aria-hidden="true" />
+        </span>
+      )}
+      {contents.length > 0 && <EquipmentContentsCorner contents={contents} index={index} size="sm" />}
     </span>
   )
 }
@@ -224,7 +264,7 @@ function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose:
   return (
     <div className="eq-drawer-scroll">
       <header className="eq-drawer-hero">
-        <DrawerArt eq={eq} />
+        <DrawerArt eq={eq} index={index} />
         <div className="eq-drawer-heading">
           <span className="setting-kicker">{eq.subcategory ?? eq.category}</span>
           <h2 className="eq-drawer-title gold-text">{eq.equipment_name}</h2>

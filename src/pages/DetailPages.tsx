@@ -50,9 +50,11 @@ import {
 import type {
   Book,
   ContainerProfile,
+  ContentEntry,
   Creature,
   CreatureTrait,
   Equipment,
+  EquipmentIndex,
   Feat,
   GameClass,
   Background,
@@ -71,7 +73,7 @@ import {
   hasStartingEquipment,
   useEquipmentIndex,
 } from './StartingEquipment'
-import { EquipmentContentsGallery } from '../equipmentDrawer'
+import { EquipmentContentsCorner, EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
@@ -179,6 +181,8 @@ function DetailShell({
   badge,
   chips,
   rarity,
+  cornerGlow,
+  plateOverlay,
   backdrop,
   heroDeco,
   bareCover,
@@ -202,6 +206,10 @@ function DetailShell({
   chips: ReactNode
   /** ключ редкости — если задан, за артом предмета светится её цвет */
   rarity?: string
+  /** серое свечение от углов плашки — для сущностей без редкости (снаряжение) */
+  cornerGlow?: boolean
+  /** оверлей поверх арта плашки (напр. превью вложенного содержимого в углу) */
+  plateOverlay?: ReactNode
   /** декор за обложкой (напр. силуэт кости хитов у класса) */
   backdrop?: ReactNode
   /** водяной знак / декор панели героя (школа заклинания и т.п.) */
@@ -246,6 +254,7 @@ function DetailShell({
                 : [
                     'book-cover detail-plate',
                     rarity ? 'detail-plate--glow' : '',
+                    !rarity && cornerGlow ? 'detail-plate--corner-glow' : '',
                   ].filter(Boolean).join(' ')
             }
             data-rarity={!bareCover && rarity ? rarity : undefined}
@@ -261,6 +270,7 @@ function DetailShell({
             ) : (
               <ImageIcon className="detail-plate-fallback" aria-hidden="true" />
             )}
+            {!bareCover && plateOverlay}
           </div>
         ) : null}
         <div className="book-meta">
@@ -1764,6 +1774,8 @@ export function EquipmentDetailPage() {
       title={eq.equipment_name}
       image={realImage(eq.equipment_image_gallery)}
       imageIcon={categoryIcon(eq.category)}
+      cornerGlow
+      plateOverlay={c && c.default_contents.length > 0 ? <EquipmentContentsCorner contents={c.default_contents} index={index} /> : undefined}
       chips={
         <>
           <SourceBadge book={book} />

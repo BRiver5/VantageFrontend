@@ -2517,6 +2517,129 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   background: linear-gradient(180deg, rgba(38, 42, 50, 0.95), rgba(18, 20, 24, 0.98));
 }
 
+/* ряд плашек характеристик на карточке черты (вместо снаряжения у предыстории) */
+.fa-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.fa-tile {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+.fa-tile b {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--parchment);
+}
+
+/* ---------- Карточка черты: 3 в ряд, арт растворяется к середине ---------- */
+.card-grid:has(.card--feat) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.card.card--feat {
+  position: relative;
+  min-height: 300px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* арт лежит фоном ВСЕЙ карточки и растворяется в её панели к середине —
+   маска делает пиксели картинки прозрачными (а не кроет их поверх непрозрачным
+   градиентом), поэтому переход идёт до самого фона карточки без видимого шва */
+.feat-card-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.feat-card-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 28%,
+    rgba(0, 0, 0, 0.75) 38%,
+    rgba(0, 0, 0, 0.3) 48%,
+    transparent 58%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 28%,
+    rgba(0, 0, 0, 0.75) 38%,
+    rgba(0, 0, 0, 0.3) 48%,
+    transparent 58%
+  );
+}
+.feat-card-art-fallback {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30px;
+  margin: 0 auto;
+  width: 36px;
+  height: 36px;
+  color: rgba(205, 211, 219, 0.2);
+  stroke-width: 1.2;
+}
+
+.feat-card-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 130px 18px 16px;
+}
+.feat-card-body .bg-card-head .card-name {
+  font-size: 1.08rem;
+}
+.feat-card-body .bg-card-desc {
+  -webkit-line-clamp: 3;
+}
+.feat-card-body .bg-card-foot {
+  margin-top: auto;
+}
+
+@media (max-width: 1150px) {
+  .card-grid:has(.card--feat) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .card-grid:has(.card--feat) {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1180px) {
   .card-grid:has(.card--bg) {
     grid-template-columns: minmax(0, 1fr);
@@ -3075,6 +3198,75 @@ a.card-slot { text-decoration: none; color: inherit; }
 .detail-plate--glow[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.55); --rarity-edge: rgba(168, 85, 247, 0.6); }
 .detail-plate--glow[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.58); --rarity-edge: rgba(245, 158, 11, 0.6); }
 .detail-plate--glow[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.6); --rarity-edge: rgba(222, 66, 54, 0.62); }
+
+/* ---------- Серое свечение от углов плашки — снаряжение (у него нет редкости,
+   поэтому вместо цветного пятна из центра — нейтральный отблеск по углам) ---------- */
+.detail-plate--corner-glow {
+  background:
+    radial-gradient(65% 65% at 4% 4%, rgba(205, 211, 219, 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 4%, rgba(205, 211, 219, 0.32), transparent 60%),
+    radial-gradient(65% 65% at 4% 96%, rgba(205, 211, 219, 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 96%, rgba(205, 211, 219, 0.32), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(168, 175, 186, 0.4),
+    inset 0 0 34px -10px rgba(205, 211, 219, 0.3),
+    var(--shadow-deep) !important;
+}
+.detail-plate--corner-glow .detail-plate-fallback { color: rgba(205, 211, 219, 0.55); }
+
+/* ---------- Превью вложенного содержимого — стопка мини-иконок в левом нижнем углу арта ---------- */
+.detail-plate-contents {
+  position: absolute;
+  z-index: 2;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+.detail-plate-contents-item {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: 0 0 0 1.5px var(--bg-0), inset 0 0 0 1px rgba(168, 175, 186, 0.4), 0 3px 8px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.detail-plate-contents-item:not(:first-child) { margin-left: -10px; }
+.detail-plate-contents-item img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.detail-plate-contents-item svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--silver-2); }
+.detail-plate-contents-more {
+  margin-left: 5px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.4);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--silver-3);
+}
+
+/* уменьшенный вариант — на маленьком арте в панели снаряжения */
+.detail-plate-contents--sm { left: 3px; bottom: 3px; }
+.detail-plate-contents--sm .detail-plate-contents-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--bg-0), inset 0 0 0 1px rgba(168, 175, 186, 0.4), 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+.detail-plate-contents--sm .detail-plate-contents-item img { padding: 2px; }
+.detail-plate-contents--sm .detail-plate-contents-item:not(:first-child) { margin-left: -7px; }
+.detail-plate-contents--sm .detail-plate-contents-item svg { width: 10px; height: 10px; }
+.detail-plate-contents--sm .detail-plate-contents-more {
+  margin-left: 3px;
+  padding: 2px 4px;
+  font-size: 0.58rem;
+}
 
 /* ============================================================
    ДЕТАЛЬНАЯ ПРЕДМЕТА — центрированный герой без рамки,
@@ -7461,21 +7653,73 @@ html[data-nav='1']::view-transition-new(root) {
    СНАРЯЖЕНИЕ: карточки каталога и стартовые наборы класса/предыстории
    ============================================================ */
 
-/* у снаряжения нет арта, поэтому вместо картинки — жетон с иконкой категории */
-.eq-card-icon {
+/* Карточка снаряжения в сетке: картинка (или иконка категории, если арта нет),
+   в покое неброская — серебряное свечение и блик раскрываются на наведении. */
+.card--equipment { gap: 8px; }
+
+.eq-card-info { display: flex; flex-direction: column; gap: 8px; }
+
+.eq-card-art {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 52px;
-  flex-shrink: 0;
-  clip-path: var(--hex-point);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  min-height: 96px;
+  margin: 2px 0 6px;
+  overflow: hidden;
 }
-.eq-card-icon svg { width: 20px; height: 20px; stroke-width: 1.5; color: var(--gold-2); }
+.eq-card-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 130%;
+  height: 120%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: radial-gradient(50% 48% at 50% 50%, rgba(205, 211, 219, 0.55), transparent 76%);
+  filter: blur(16px);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.card--equipment:hover .eq-card-glow { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-.card--equipment .card-chips { margin-top: 4px; }
+/* мерцающий блик по диагонали — «раскрывающаяся» анимация на наведении */
+.eq-card-art::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 42%, rgba(241, 244, 248, 0.3) 50%, transparent 58%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.card--equipment:hover .eq-card-art::after { animation: eq-card-shine 0.9s ease; }
+@keyframes eq-card-shine {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
+.eq-card-art img {
+  position: relative;
+  z-index: 1;
+  max-width: 78%;
+  max-height: 78%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  transition: transform 0.25s ease;
+}
+.card--equipment:hover .eq-card-art img { transform: scale(1.06); }
+.eq-card-fallback {
+  position: relative;
+  z-index: 1;
+  width: 30%;
+  height: 30%;
+  color: var(--silver-2);
+  stroke-width: 0.9;
+}
+
+.card--equipment .card-chips { margin-top: 2px; }
 
 /* ---------- Стартовое снаряжение ---------- */
 
@@ -7869,8 +8113,29 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   gap: 16px;
   margin-bottom: 16px;
 }
-.eq-drawer-art {
+/* обёртка нужна, чтобы серое свечение из углов и значок содержимого лежали
+   поверх/позади арта, не меняя его собственные размеры */
+.eq-drawer-art-wrap {
+  position: relative;
   flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+}
+.eq-drawer-art-glow {
+  position: absolute;
+  z-index: 0;
+  inset: -16px;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 60% at 0% 0%, rgba(205, 211, 219, 0.4), transparent 62%),
+    radial-gradient(60% 60% at 100% 0%, rgba(205, 211, 219, 0.4), transparent 62%),
+    radial-gradient(60% 60% at 0% 100%, rgba(205, 211, 219, 0.4), transparent 62%),
+    radial-gradient(60% 60% at 100% 100%, rgba(205, 211, 219, 0.4), transparent 62%);
+  filter: blur(7px);
+}
+.eq-drawer-art {
+  position: relative;
+  z-index: 1;
   width: 96px;
   height: 96px;
   object-fit: cover;
