@@ -855,7 +855,12 @@ function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) 
   return (
     <div className="class-detail-portrait">
       {src && !broken ? (
-        <img src={src} alt={alt} onError={() => setBroken(true)} />
+        <img
+          src={src}
+          alt={alt}
+          style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
+          onError={() => setBroken(true)}
+        />
       ) : (
         <Swords className="class-detail-fallback" aria-hidden="true" />
       )}
@@ -998,11 +1003,14 @@ export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => voi
             alt=""
             aria-hidden="true"
             draggable={false}
+            style={{ viewTransitionName: 'class-hero-die' } as CSSProperties}
           />
           <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
 
           <div className="class-detail-meta">
-            <h1 className="class-detail-name-plate">{c.class_name}</h1>
+            <h1 className="class-detail-name-plate" style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}>
+              {c.class_name}
+            </h1>
             <div className="card-chips class-detail-chips">
               <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
               {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}

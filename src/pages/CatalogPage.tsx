@@ -1434,13 +1434,18 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     }
   }, [pathId, items, cfg.inlineUrl, cfg.inlineDetail, selected])
 
-  // Открытие / закрытие. path — простой fade оболочки; query — морф предметов.
-  const selectItem = (item: T, _slot?: HTMLElement) => {
+  // Открытие / закрытие. path — портрет-морф (как у рас) + fade оболочки; query — морф предметов.
+  const selectItem = (item: T, slot?: HTMLElement) => {
     if (!cfg.inlineDetail) {
       withVT(() => setSelected(item))
       return
     }
     if (cfg.inlineUrl === 'path') {
+      // «портрет летит в деталь» — тот же принцип, что у рас (heroNav): помечаем
+      // портрет/имя/кость выбранной карточки общими с деталью view-transition-name,
+      // остальные карточки разлетаются. Деталь рисуется по selected (flushSync),
+      // поэтому морф ловит новый кадр надёжно.
+      if (slot) markPortraitOpenNames(slot)
       runShellTransition(
         () => {
           skipUrlSyncRef.current = true
