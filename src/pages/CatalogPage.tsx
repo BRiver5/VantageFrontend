@@ -1,5 +1,5 @@
 import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { markPortraitOpenNames, runShellTransition } from '../portraitTransition'
@@ -7,6 +7,7 @@ import {
   ArrowDownAZ,
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   Award,
   Backpack,
   BookMarked,
@@ -71,7 +72,9 @@ import type {
 import { ABILITY_KEYS, ABILITY_LABELS } from '../types/character'
 import type { AbilityName } from '../types/character'
 import { abilitiesFromSkills } from '../skills'
-import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
+import { categoryIcon, containerKindRu, formatDice, formatWeight } from '../equipment'
+import { PriceMark } from '../coins'
+import { rarityAdjective } from '../itemRarity'
 import { Divider, ParchmentScroll } from '../ornaments'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { SpellSchoolMark } from '../spellSchools'
@@ -724,7 +727,6 @@ function ItemSplitView({
     })
     // лента показывает не больше 10 предметов
     .slice(0, 10)
-  const gp = selected.cost_copper ? Math.round(selected.cost_copper / 100) : null
   const rarity = rarityKeyOf(selected.rarity)
   const image = realImage(selected.item_image_gallery)
   const book = selected.item_source ? bookMap[selected.item_source] : undefined
@@ -765,13 +767,13 @@ function ItemSplitView({
 
         {/* заголовок и характеристики — под «плеером», слева */}
         <div className="item-tube-head" style={vt(infoName)}>
+          <PriceMark costCopper={selected.cost_copper} />
           <h1 className="book-title gold-text item-title">{selected.item_name}</h1>
           <span className="setting-kicker item-kicker">{selected.item_type ?? 'магический предмет'}</span>
           <div className="card-chips item-chips">
             <SourceBadge book={book} />
             {selected.rarity && <Chip icon={Gem}>{selected.rarity}</Chip>}
             {selected.attunement_required && <Chip icon={Sparkles}>требует настройки</Chip>}
-            {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
             {selected.weight != null && selected.weight > 0 && <Chip icon={Scale}>{selected.weight} фнт.</Chip>}
           </div>
         </div>
@@ -1210,12 +1212,11 @@ function creatureCard(c: Creature, bookMap: BookMap) {
   )
 }
 
-/** Арт снаряжения в карточке сетки: картинка (или иконка категории) со свечением на наведении. */
+/** Арт снаряжения в карточке сетки: картинка или иконка категории. */
 function EquipmentCardArt({ src, alt, fallback: Icon }: { src: string | null; alt: string; fallback: LucideIcon }) {
   const [broken, setBroken] = useState(false)
   return (
     <span className="eq-card-art">
-      <span className="eq-card-glow" aria-hidden="true" />
       {src && !broken ? (
         <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
@@ -1227,20 +1228,19 @@ function EquipmentCardArt({ src, alt, fallback: Icon }: { src: string | null; al
 
 function equipmentCard(eq: Equipment, bookMap: BookMap) {
   const Icon = categoryIcon(eq.category)
-  const cost = formatCost(eq.cost, eq.cost_copper)
   const weight = formatWeight(eq.weight)
   const w = eq.weapon
   const d = eq.defense
   const ac = d?.armor_class != null ? `КД ${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}` : d?.armor_class_formula
   return (
     <article className="card card--equipment">
+      <PriceMark cost={eq.cost} costCopper={eq.cost_copper} />
       <EquipmentCardArt src={realImage(eq.equipment_image_gallery)} alt={eq.equipment_name} fallback={Icon} />
       <div className="eq-card-info">
         <h3 className="card-name">{eq.equipment_name}</h3>
         <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
         <div className="card-chips">
           <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
-          {cost && <Chip icon={Coins}>{cost}</Chip>}
           {weight && <Chip icon={Scale}>{weight}</Chip>}
           {w?.damage_dice && (
             <Chip icon={Swords}>
@@ -1293,12 +1293,40 @@ function ItemCardArt({ src, alt, vtName }: { src: string | null; alt: string; vt
   )
 }
 
+/** Код книги в углу карточки предмета — ведёт на страницу книги, не раскрывая карточку. */
+function ItemSourceLink({ book }: { book: Book | undefined }) {
+  const navigate = useNavigate()
+  if (!book) return null
+  const { ru, en } = splitTitle(book.title)
+  const go = (e: ReactMouseEvent | ReactKeyboardEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    navigate(`/books/${book.id}`)
+  }
+  return (
+    <span
+      className="item-card-source"
+      role="link"
+      tabIndex={0}
+      title={en ? `${ru} — ${en}` : ru}
+      onClick={go}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') go(e)
+      }}
+    >
+      {book.book_code}
+      <ArrowUpRight aria-hidden="true" />
+    </span>
+  )
+}
+
 function itemCard(it: Item, bookMap: BookMap, role?: RecRole) {
-  const gp = it.cost_copper ? Math.round(it.cost_copper / 100) : null
-  const rarityKey = it.rarity ? RARITY_KEY[it.rarity.toLowerCase()] : undefined
   const incoming = role === 'incoming'
+  const adj = rarityAdjective(it.rarity, it.item_name, it.item_type)
   return (
     <article className="card card--item" data-rarity={rarityKeyOf(it.rarity)}>
+      <PriceMark costCopper={it.cost_copper} />
+      <ItemSourceLink book={it.item_source ? bookMap[it.item_source] : undefined} />
       <ItemCardArt
         src={realImage(it.item_image_gallery)}
         alt={it.item_name}
@@ -1308,19 +1336,16 @@ function itemCard(it: Item, bookMap: BookMap, role?: RecRole) {
         className="item-card-info"
         style={incoming ? ({ viewTransitionName: 'incoming-info' } as CSSProperties) : undefined}
       >
-        <h3 className="card-name">{it.item_name}</h3>
+        <h3 className="card-name">
+          {adj && <i className="item-rarity">{adj}</i>}
+          {it.item_name}
+        </h3>
         {it.item_type && <span className="card-kicker">{it.item_type}</span>}
-        <div className="card-chips">
-          <SourceBadge book={it.item_source ? bookMap[it.item_source] : undefined} />
-          {it.rarity && (
-            <span className="chip" data-rarity={rarityKey}>
-              <Gem aria-hidden="true" />
-              {it.rarity}
-            </span>
-          )}
-          {it.attunement_required && <Chip icon={Sparkles}>настройка</Chip>}
-          {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
-        </div>
+        {it.attunement_required && (
+          <div className="card-chips">
+            <Chip icon={Sparkles}>настройка</Chip>
+          </div>
+        )}
       </div>
     </article>
   )
@@ -1429,16 +1454,25 @@ const spellSorts: SortOption<Spell>[] = [
 
 /* ---------- Сама страница ---------- */
 
+/** Номер листа из `?page=` (1-based в адресе, 0-based в стейте). */
+function pageFromSearch(params: URLSearchParams): number {
+  const raw = Number(params.get('page'))
+  if (!Number.isFinite(raw) || raw < 1) return 0
+  return Math.floor(raw) - 1
+}
+
 function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> }) {
   const navigate = useNavigate()
   const drawer = useEquipmentDrawer()
   const params = useParams<{ id?: string }>()
   const pathId = cfg.inlineUrl === 'path' ? params.id : undefined
+  const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<T[]>([])
   // весь раздел ДО фильтрации — из него меню фильтров берёт список книг
   const [allItems, setAllItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(0)
+  // лист каталога в адресе (?page=2) — переживает перезагрузку
+  const [page, setPage] = useState(() => (cfg.noPaging ? 0 : pageFromSearch(searchParams)))
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState('none')
@@ -1456,11 +1490,13 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   // роли на время перелёта карточки: кто прилетает, кто улетает
   const [switching, setSwitching] = useState<SwitchRoles>(null)
   // открытый предмет сохраняем в адресе (?open=id) — переживает перезагрузку
-  const [searchParams, setSearchParams] = useSearchParams()
   const initialOpenRef = useRef(cfg.inlineUrl === 'path' ? null : searchParams.get('open'))
   // пользовательский open/close сам ставит selected + navigate — URL→state не трогаем,
   // пока адрес не догонит (иначе pathId снова откроет detail после close).
   const skipUrlSyncRef = useRef(false)
+  // не сбрасывать лист при первом прогоне эффектов и при подъёме фильтров из адреса
+  const skipSortPageResetRef = useRef(true)
+  const skipFilterPageResetRef = useRef(true)
 
   // предзаполнение фильтров из адреса (переход со страницы класса/подкласса):
   // /spells?class=колдун или ?subclass=…&level=1 — применяем один раз при входе
@@ -1473,7 +1509,10 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       const vals = searchParams.getAll(g.key).flatMap((v) => v.split(',')).filter(Boolean)
       if (vals.length) next[g.key] = vals
     }
-    if (Object.keys(next).length) setFilterSel(next)
+    if (Object.keys(next).length) {
+      skipFilterPageResetRef.current = true
+      setFilterSel(next)
+    }
   }, [cfg.filters, searchParams])
 
   const withVT = (fn: () => void) => {
@@ -1585,20 +1624,25 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     }
   }, [items, cfg.inlineDetail, cfg.inlineUrl, selected])
 
-  // выбранный предмет ⇄ адрес (?open=id); ждём восстановления, чтобы не стереть его
+  // выбранный предмет ⇄ адрес (?open=id); лист ⇄ ?page=N — оба переживают перезагрузку
   useEffect(() => {
-    if (!cfg.inlineDetail || cfg.inlineUrl === 'path') return
-    if (initialOpenRef.current && !selected) return
+    if (cfg.inlineDetail && cfg.inlineUrl !== 'path' && initialOpenRef.current && !selected) return
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
-        if (selected) next.set('open', selected.id)
-        else next.delete('open')
-        return next
+        if (cfg.inlineDetail && cfg.inlineUrl !== 'path') {
+          if (selected) next.set('open', selected.id)
+          else next.delete('open')
+        }
+        if (!cfg.noPaging) {
+          if (page > 0) next.set('page', String(page + 1))
+          else next.delete('page')
+        }
+        return next.toString() === prev.toString() ? prev : next
       },
       { replace: true },
     )
-  }, [selected, cfg.inlineDetail, cfg.inlineUrl, setSearchParams])
+  }, [selected, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {
@@ -1611,20 +1655,31 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   }, [])
 
   // задержка поиска, чтобы не дёргать API на каждый символ
+  const prevQueryRef = useRef<string | null>(null)
   useEffect(() => {
     const t = setTimeout(() => {
-      setQuery(q.trim())
-      setPage(0)
+      const next = q.trim()
+      if (prevQueryRef.current !== null && prevQueryRef.current !== next) setPage(0)
+      prevQueryRef.current = next
+      setQuery(next)
     }, 400)
     return () => clearTimeout(t)
   }, [q])
 
   useEffect(() => {
+    if (skipSortPageResetRef.current) {
+      skipSortPageResetRef.current = false
+      return
+    }
     setPage(0)
   }, [sortKey])
 
-  // смена фильтров возвращает на первую страницу
+  // смена фильтров возвращает на первую страницу (кроме подъёма из адреса)
   useEffect(() => {
+    if (skipFilterPageResetRef.current) {
+      skipFilterPageResetRef.current = false
+      return
+    }
     setPage(0)
   }, [filterSel])
 
@@ -1683,6 +1738,12 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
+
+  // если после фильтра/поиска листов стало меньше — подтянуть номер из адреса
+  useEffect(() => {
+    if (cfg.noPaging || loading || total === 0) return
+    if (page >= pages) setPage(pages - 1)
+  }, [cfg.noPaging, loading, total, page, pages])
 
   // группы по книгам: порядок книг — как у сортировки «по книге», без книги — в конец
   const groupByBook = cfg.groupByBook

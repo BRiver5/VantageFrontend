@@ -2,12 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import type { MouseEvent as ReactMouseEvent } from 'react'
-import { ArrowLeft, ArrowUpRight, Coins, Layers, Package, Scale, Tag, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Layers, Package, Scale, Tag, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { getOne, realImage } from './api'
 import type { ContainerProfile, ContentEntry, Equipment, EquipmentIndex } from './api'
-import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from './equipment'
+import { categoryIcon, containerKindRu, formatDice, formatWeight } from './equipment'
+import { PriceMark } from './coins'
 import { useEquipmentIndex } from './equipmentIndex'
 import { Corners } from './ornaments'
 import { RichText } from './terms/terms'
@@ -234,7 +235,6 @@ function DrawerArt({ eq, index }: { eq: Equipment; index: EquipmentIndex | null 
   const contents = eq.container?.default_contents ?? []
   return (
     <span className="eq-drawer-art-wrap">
-      <span className="eq-drawer-art-glow" aria-hidden="true" />
       {src && !broken ? (
         <img className="eq-drawer-art" src={src} alt="" onError={() => setBroken(true)} />
       ) : (
@@ -253,7 +253,6 @@ function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose:
 
   if (!eq) return <p className="status-line">Разбираем походный тюк…</p>
 
-  const cost = formatCost(eq.cost, eq.cost_copper)
   const weight = formatWeight(eq.weight)
   const w = eq.weapon
   const d = eq.defense
@@ -266,6 +265,7 @@ function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose:
       <header className="eq-drawer-hero">
         <DrawerArt eq={eq} index={index} />
         <div className="eq-drawer-heading">
+          <PriceMark cost={eq.cost} costCopper={eq.cost_copper} />
           <span className="setting-kicker">{eq.subcategory ?? eq.category}</span>
           <h2 className="eq-drawer-title gold-text">{eq.equipment_name}</h2>
           {eq.equipment_name_en && <span className="eq-drawer-en">{eq.equipment_name_en}</span>}
@@ -273,7 +273,6 @@ function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose:
       </header>
 
       <div className="card-chips eq-drawer-chips">
-        {cost && <DrawerChip icon={Coins}>{cost}</DrawerChip>}
         {weight && <DrawerChip icon={Scale}>{weight}</DrawerChip>}
         {eq.bundle_size != null && eq.bundle_size > 1 && (
           <DrawerChip icon={Package}>пачка {eq.bundle_size}</DrawerChip>

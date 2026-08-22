@@ -52,15 +52,29 @@ function formatAmount(n: number): string {
 }
 
 /**
- * Цена в родной валюте предмета («5 см», «200 зм»). Если `cost` не задан,
- * раскладываем `cost_copper` в крупнейшую валюту без остатка.
+ * Цена в родной валюте предмета. Если `cost` не задан, раскладываем
+ * `cost_copper` в крупнейшую валюту без остатка (зм → см → мм).
  */
-export function formatCost(cost: Cost | null, costCopper: number | null): string | null {
-  if (cost) return `${formatAmount(cost.amount)} ${CURRENCY_RU[cost.currency] ?? cost.currency}`
+export function resolveCost(
+  cost: Cost | null | undefined,
+  costCopper: number | null | undefined,
+): Cost | null {
+  if (cost && cost.amount > 0) return cost
   if (costCopper == null || costCopper <= 0) return null
-  if (costCopper % 100 === 0) return `${formatAmount(costCopper / 100)} ${CURRENCY_RU.gp}`
-  if (costCopper % 10 === 0) return `${formatAmount(costCopper / 10)} ${CURRENCY_RU.sp}`
-  return `${formatAmount(costCopper)} ${CURRENCY_RU.cp}`
+  if (costCopper % 100 === 0) return { amount: costCopper / 100, currency: 'gp' }
+  if (costCopper % 10 === 0) return { amount: costCopper / 10, currency: 'sp' }
+  return { amount: costCopper, currency: 'cp' }
+}
+
+export function formatCostAmount(n: number): string {
+  return formatAmount(n)
+}
+
+/** Цена строкой («5 см», «200 зм») — для подсказок и мест без иконки. */
+export function formatCost(cost: Cost | null, costCopper: number | null): string | null {
+  const resolved = resolveCost(cost, costCopper)
+  if (!resolved) return null
+  return `${formatAmount(resolved.amount)} ${CURRENCY_RU[resolved.currency] ?? resolved.currency}`
 }
 
 export function formatWeight(weight: number | null): string | null {

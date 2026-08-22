@@ -4,7 +4,8 @@ import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Coins } from 'lucide-react'
 import { descriptionPreview, realImage } from '../api'
 import type { ContentEntry, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, GrantOption } from '../api'
-import { categoryIcon, entryCatalogQuery, entryChoiceLabel, formatCost } from '../equipment'
+import { categoryIcon, entryCatalogQuery, entryChoiceLabel } from '../equipment'
+import { PriceMark } from '../coins'
 import { EquipmentContentsGallery, useEquipmentDrawer } from '../equipmentDrawer'
 import { useEquipmentIndex } from '../equipmentIndex'
 import { RichText } from '../terms/terms'
@@ -71,7 +72,6 @@ function EquipmentItemCard({
   quantity?: number
 }) {
   const eq = index?.bySlug.get(slug)
-  const cost = eq ? formatCost(eq.cost, eq.cost_copper) : null
   const preview = eq ? descriptionPreview(eq.description, 140) : ''
   const href = eq ? `/equipment/${eq.id}` : undefined
   const backState = useEquipBackState()
@@ -89,7 +89,7 @@ function EquipmentItemCard({
           )}
           {quantity != null && quantity > 1 && <span className="se-qty">× {quantity}</span>}
         </div>
-        {cost && <span className="se-card-meta">{cost}</span>}
+        {eq && <PriceMark cost={eq.cost} costCopper={eq.cost_copper} className="price-mark--inline" />}
         {preview && <p className="se-card-desc">{preview}</p>}
       </div>
     </>

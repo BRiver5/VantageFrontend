@@ -8,7 +8,6 @@ import {
   Award,
   BookOpen,
   Check,
-  Coins,
   Eye,
   Feather,
   Footprints,
@@ -50,11 +49,9 @@ import {
 import type {
   Book,
   ContainerProfile,
-  ContentEntry,
   Creature,
   CreatureTrait,
   Equipment,
-  EquipmentIndex,
   Feat,
   GameClass,
   Background,
@@ -67,13 +64,14 @@ import type {
 } from '../api'
 import { Corners, Divider } from '../ornaments'
 import { SourceBadge, whenRouteCommitted } from './CatalogPage'
-import { categoryIcon, containerKindRu, formatCost, formatDice, formatWeight } from '../equipment'
+import { categoryIcon, containerKindRu, formatDice, formatWeight } from '../equipment'
+import { PriceMark } from '../coins'
 import {
   StartingEquipment,
   hasStartingEquipment,
   useEquipmentIndex,
 } from './StartingEquipment'
-import { EquipmentContentsCorner, EquipmentContentsGallery } from '../equipmentDrawer'
+import { EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
@@ -1526,7 +1524,16 @@ function BackgroundFact({
   )
 }
 
-function BackgroundHeroArt({ src, alt }: { src: string | null; alt: string }) {
+/** Гекс шапки: арт сущности или иконка-запасной вариант */
+function HeroHexArt({
+  src,
+  alt,
+  fallback: Fallback,
+}: {
+  src: string | null
+  alt: string
+  fallback: LucideIcon
+}) {
   const [broken, setBroken] = useState(false)
   return (
     <span className="bg-hero-hex">
@@ -1534,7 +1541,7 @@ function BackgroundHeroArt({ src, alt }: { src: string | null; alt: string }) {
         {src && !broken ? (
           <img src={src} alt={alt} onError={() => setBroken(true)} />
         ) : (
-          <Landmark className="bg-hero-hex-fallback" aria-hidden="true" />
+          <Fallback className="bg-hero-hex-fallback" aria-hidden="true" />
         )}
       </span>
     </span>
@@ -1570,7 +1577,7 @@ export function BackgroundDetailPage() {
         <span className="bg-hero-aura" aria-hidden="true" />
         <Corners size={40} />
         <div className="bg-hero-art">
-          <BackgroundHeroArt src={art} alt={bg.background_name} />
+          <HeroHexArt src={art} alt={bg.background_name} fallback={Landmark} />
         </div>
         <div className="bg-hero-meta">
           <div className="bg-hero-kicker">
@@ -1654,30 +1661,67 @@ export function FeatDetailPage() {
   if (error) return <p className="status-line is-error">Черта не найдена: {error}</p>
   if (!f) return <p className="status-line">Листаем свод дарований…</p>
 
-  const abilities = Object.entries(f.increase_ability_scores ?? {})
-    .map(([k, v]) => `${ABILITY_RU[k] ?? k} +${v}`)
-    .join(', ')
+  const abilityEntries = Object.entries(f.increase_ability_scores ?? {})
+  const descHtml = isHtmlDescription(f.description) ? f.description! : null
+  const art = realImage(f.image_gallery)
 
   return (
-    <DetailShell
-      backTo="/feats"
-      backLabel="к чертам"
-      kicker="черта"
-      title={f.feat_name}
-      image={realImage(f.image_gallery)}
-      imageIcon={Award}
-      chips={
-        <>
-          <SourceBadge book={book} />
-          {abilities && <Chip icon={Star}>{abilities}</Chip>}
-        </>
-      }
-    >
-      {f.prerequisite && <p className="detail-note">Требование: {f.prerequisite}</p>}
-      <DetailSection title="Описание">
-        <Rich text={f.description} />
-      </DetailSection>
-    </DetailShell>
+    <section className="book-page bg-detail-page">
+      <Link to="/feats" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к чертам
+      </Link>
+
+      <header className="bg-hero">
+        {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
+        <span className="bg-hero-aura" aria-hidden="true" />
+        <Corners size={40} />
+        <div className="bg-hero-art">
+          <HeroHexArt src={art} alt={f.feat_name} fallback={Award} />
+        </div>
+        <div className="bg-hero-meta">
+          <div className="bg-hero-kicker">
+            <span className="setting-kicker">черта</span>
+            <SourceBadge book={book} />
+          </div>
+          <h1 className="book-title gold-text bg-hero-title">{f.feat_name}</h1>
+          {abilityEntries.length > 0 && (
+            <div className="bg-hero-abilities" title="Характеристики, которые повышает черта">
+              {abilityEntries.map(([k, v]) => {
+                const meta = ABILITY_LABELS[k as keyof typeof ABILITY_LABELS]
+                return (
+                  <span className="bg-ability" key={k}>
+                    <b>{meta?.abbr ?? ABILITY_RU[k] ?? k}</b>
+                    <i className="feat-boost">+{v}</i>
+                  </span>
+                )
+              })}
+            </div>
+          )}
+          {f.prerequisite && (
+            <div className="bg-hero-feature">
+              <Shield aria-hidden="true" />
+              <span>требование</span>
+              <b>{f.prerequisite}</b>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <Divider />
+
+      {descHtml ? (
+        // размеченное описание с dnd.su (таблицы, списки, секции)
+        <section className="detail-section">
+          <ClassArticle html={descHtml} cutSubclasses={false} backLabel={f.feat_name} />
+        </section>
+      ) : (
+        f.description && (
+          <DetailSection title="Описание">
+            <Rich text={f.description} />
+          </DetailSection>
+        )
+      )}
+    </section>
   )
 }
 
@@ -1685,7 +1729,15 @@ export function FeatDetailPage() {
    ПРЕДМЕТ
    ============================================================ */
 
-function ItemArt({ src, alt }: { src: string | null; alt: string }) {
+function ItemArt({
+  src,
+  alt,
+  fallback: Fallback = Gem,
+}: {
+  src: string | null
+  alt: string
+  fallback?: LucideIcon
+}) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="item-art">
@@ -1693,7 +1745,7 @@ function ItemArt({ src, alt }: { src: string | null; alt: string }) {
       {src && !broken ? (
         <img src={src} alt={alt} onError={() => setBroken(true)} />
       ) : (
-        <Gem className="item-art-fallback" aria-hidden="true" />
+        <Fallback className="item-art-fallback" aria-hidden="true" />
       )}
     </div>
   )
@@ -1706,7 +1758,6 @@ export function ItemDetailPage() {
   if (error) return <p className="status-line is-error">Предмет не найден: {error}</p>
   if (!it) return <p className="status-line">Открываем сокровищницу…</p>
 
-  const gp = it.cost_copper ? Math.round(it.cost_copper / 100) : null
   const rarity = rarityKeyOf(it.rarity)
 
   return (
@@ -1717,6 +1768,7 @@ export function ItemDetailPage() {
 
       {/* центрированный герой: крупный арт со свечением редкости сзади и снизу */}
       <div className="item-hero" data-rarity={rarity}>
+        <PriceMark costCopper={it.cost_copper} className="price-mark--hero" />
         <ItemArt src={realImage(it.item_image_gallery)} alt={it.item_name} />
         <span className="setting-kicker item-kicker">{it.item_type ?? 'магический предмет'}</span>
         <h1 className="book-title gold-text item-title">{it.item_name}</h1>
@@ -1724,7 +1776,6 @@ export function ItemDetailPage() {
           <SourceBadge book={book} />
           {it.rarity && <Chip icon={Gem}>{it.rarity}</Chip>}
           {it.attunement_required && <Chip icon={Sparkles}>требует настройки</Chip>}
-          {gp != null && gp > 0 && <Chip icon={Coins}>{gp.toLocaleString('ru')} зм</Chip>}
           {it.weight != null && it.weight > 0 && <Chip icon={Scale}>{it.weight} фнт.</Chip>}
         </div>
       </div>
@@ -1759,27 +1810,31 @@ export function EquipmentDetailPage() {
   if (error) return <p className="status-line is-error">Снаряжение не найдено: {error}</p>
   if (!eq) return <p className="status-line">Разбираем походный тюк…</p>
 
-  const cost = formatCost(eq.cost, eq.cost_copper)
   const weight = formatWeight(eq.weight)
   const w = eq.weapon
   const d = eq.defense
   const c = eq.container
   const range = w?.range_normal != null ? `${w.range_normal}${w.range_long ? `/${w.range_long}` : ''} фт.` : null
+  const Icon = categoryIcon(eq.category)
 
   return (
-    <DetailShell
-      backTo={backTo}
-      backLabel={backLabel}
-      kicker={eq.subcategory ?? eq.category}
-      title={eq.equipment_name}
-      image={realImage(eq.equipment_image_gallery)}
-      imageIcon={categoryIcon(eq.category)}
-      cornerGlow
-      plateOverlay={c && c.default_contents.length > 0 ? <EquipmentContentsCorner contents={c.default_contents} index={index} /> : undefined}
-      chips={
-        <>
+    <section className="book-page item-page">
+      <Link to={backTo} className="back-link">
+        <ArrowLeft aria-hidden="true" /> {backLabel}
+      </Link>
+
+      <div className="item-hero">
+        <PriceMark cost={eq.cost} costCopper={eq.cost_copper} className="price-mark--hero" />
+        <ItemArt
+          src={realImage(eq.equipment_image_gallery)}
+          alt={eq.equipment_name}
+          fallback={Icon}
+        />
+        <span className="setting-kicker item-kicker">{eq.subcategory ?? eq.category}</span>
+        <h1 className="book-title gold-text item-title">{eq.equipment_name}</h1>
+        {eq.equipment_name_en && <span className="setting-name-en">{eq.equipment_name_en}</span>}
+        <div className="card-chips item-chips">
           <SourceBadge book={book} />
-          {cost && <Chip icon={Coins}>{cost}</Chip>}
           {weight && <Chip icon={Scale}>{weight}</Chip>}
           {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
           {eq.stackable && <Chip icon={Layers}>стак до {eq.stack_size}</Chip>}
@@ -1788,81 +1843,83 @@ export function EquipmentDetailPage() {
               {t}
             </Chip>
           ))}
-        </>
-      }
-    >
-      {eq.equipment_name_en && <p className="detail-note">{eq.equipment_name_en}</p>}
+        </div>
+      </div>
 
-      {w && (
-        <DetailSection title="Оружие">
-          <div className="stat-rows">
-            <StatRow label="Вид" value={[w.weapon_kind, w.attack_kind].filter(Boolean).join(' · ')} />
-            <StatRow
-              label="Урон"
-              value={[formatDice(w.damage_dice), w.damage_type?.toLowerCase()].filter(Boolean).join(' ')}
-            />
-            <StatRow label="Универсальное" value={formatDice(w.versatile_dice)} />
-            <StatRow label="Дистанция" value={range} />
-            <StatRow label="Свойства" value={w.properties.join(', ')} />
-            <StatRow label="Приём" value={w.mastery} />
-            <StatRow label="Боеприпасы" value={w.ammunition_type} />
-          </div>
-        </DetailSection>
-      )}
+      <Divider />
 
-      {d && (
-        <DetailSection title="Доспех">
-          <div className="stat-rows">
-            <StatRow label="Вид" value={d.armor_kind} />
-            <StatRow
-              label="Класс Доспеха"
-              value={
-                d.armor_class != null
-                  ? `${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}${
-                      d.dex_modifier_cap != null ? ` (не более +${d.dex_modifier_cap})` : ''
-                    }`
-                  : d.armor_class_formula
-              }
-            />
-            <StatRow label="Требование Силы" value={d.strength_requirement} />
-            <StatRow label="Скрытность" value={d.stealth_disadvantage ? 'помеха' : null} />
-            <StatRow label="Хиты" value={d.hit_points} />
-            <StatRow label="Порог урона" value={d.damage_threshold} />
-          </div>
-        </DetailSection>
-      )}
+      <div className="item-body">
+        {w && (
+          <DetailSection title="Оружие">
+            <div className="stat-rows">
+              <StatRow label="Вид" value={[w.weapon_kind, w.attack_kind].filter(Boolean).join(' · ')} />
+              <StatRow
+                label="Урон"
+                value={[formatDice(w.damage_dice), w.damage_type?.toLowerCase()].filter(Boolean).join(' ')}
+              />
+              <StatRow label="Универсальное" value={formatDice(w.versatile_dice)} />
+              <StatRow label="Дистанция" value={range} />
+              <StatRow label="Свойства" value={w.properties.join(', ')} />
+              <StatRow label="Приём" value={w.mastery} />
+              <StatRow label="Боеприпасы" value={w.ammunition_type} />
+            </div>
+          </DetailSection>
+        )}
 
-      {c && (
-        <DetailSection title={`Контейнер: ${containerKindRu(c.container_kind)}`}>
-          <div className="stat-rows">
-            <StatRow label="Ячейки" value={c.slots} />
-            <StatRow label="Вместимость" value={c.capacity_pounds != null ? `${c.capacity_pounds} фнт.` : null} />
-            <StatRow
-              label="Объём"
-              value={c.capacity_cubic_feet != null ? `${c.capacity_cubic_feet} куб. фт.` : null}
-            />
-            <StatRow label="Принимает" value={containerAccepts(c)} />
-          </div>
-          {c.sealed && (
-            <p className="detail-note">
-              Набор: содержимое можно вынуть, но сложить обратно в него нельзя.
-            </p>
-          )}
-          {c.default_contents.length > 0 && (
-            <>
-              <p className="detail-note">Содержимое:</p>
-              <EquipmentContentsGallery contents={c.default_contents} index={index} />
-            </>
-          )}
-        </DetailSection>
-      )}
+        {d && (
+          <DetailSection title="Доспех">
+            <div className="stat-rows">
+              <StatRow label="Вид" value={d.armor_kind} />
+              <StatRow
+                label="Класс Доспеха"
+                value={
+                  d.armor_class != null
+                    ? `${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}${
+                        d.dex_modifier_cap != null ? ` (не более +${d.dex_modifier_cap})` : ''
+                      }`
+                    : d.armor_class_formula
+                }
+              />
+              <StatRow label="Требование Силы" value={d.strength_requirement} />
+              <StatRow label="Скрытность" value={d.stealth_disadvantage ? 'помеха' : null} />
+              <StatRow label="Хиты" value={d.hit_points} />
+              <StatRow label="Порог урона" value={d.damage_threshold} />
+            </div>
+          </DetailSection>
+        )}
 
-      {eq.description && (
-        <DetailSection title="Описание">
-          <Rich text={eq.description} />
-        </DetailSection>
-      )}
-    </DetailShell>
+        {c && (
+          <DetailSection title={`Контейнер: ${containerKindRu(c.container_kind)}`}>
+            <div className="stat-rows">
+              <StatRow label="Ячейки" value={c.slots} />
+              <StatRow label="Вместимость" value={c.capacity_pounds != null ? `${c.capacity_pounds} фнт.` : null} />
+              <StatRow
+                label="Объём"
+                value={c.capacity_cubic_feet != null ? `${c.capacity_cubic_feet} куб. фт.` : null}
+              />
+              <StatRow label="Принимает" value={containerAccepts(c)} />
+            </div>
+            {c.sealed && (
+              <p className="detail-note">
+                Набор: содержимое можно вынуть, но сложить обратно в него нельзя.
+              </p>
+            )}
+            {c.default_contents.length > 0 && (
+              <>
+                <p className="detail-note">Содержимое:</p>
+                <EquipmentContentsGallery contents={c.default_contents} index={index} />
+              </>
+            )}
+          </DetailSection>
+        )}
+
+        {eq.description && (
+          <DetailSection title="Описание">
+            <Rich text={eq.description} />
+          </DetailSection>
+        )}
+      </div>
+    </section>
   )
 }
 
