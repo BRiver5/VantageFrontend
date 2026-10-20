@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  BookCheck,
-  ChevronsUp,
-  Dices,
-  Feather,
-  Footprints,
-  Plus,
-  ScrollText,
-  Swords,
-  Trash2,
-} from 'lucide-react'
-import { Corners } from '../ornaments'
+import { Plus, Trash2 } from 'lucide-react'
 import {
   createCharacter,
   deleteCharacter,
@@ -24,18 +13,6 @@ import {
   markLegacyMigrated,
   sheetDataToCharacter,
 } from '../characters/sheetMigration'
-
-const EMPTY_STATS = ['СИЛ', 'ЛОВ', 'ТЕЛ', 'ИНТ', 'МДР', 'ХАР']
-
-const CREATE_STEPS = [
-  { label: 'Раса', icon: Footprints },
-  { label: 'Класс', icon: Swords },
-  { label: 'Уровень', icon: ChevronsUp },
-  { label: 'Характеристики', icon: Dices },
-  { label: 'Имя', icon: Feather },
-  { label: 'Предыстория', icon: ScrollText },
-  { label: 'Итог', icon: BookCheck },
-]
 
 export default function CharactersPage() {
   const navigate = useNavigate()
@@ -137,39 +114,13 @@ export default function CharactersPage() {
 
       {isEmpty && (
         <div className="chars-empty">
-          <Link to="/characters/new" className="hero-slot" aria-label="Создать персонажа">
-            <Corners size={30} gold />
-            <span className="hero-slot-level">Ур. 1</span>
-            <span className="hero-slot-portrait">
-              <Plus aria-hidden="true" />
-            </span>
-            <span className="hero-slot-name">Новый персонаж</span>
-            <span className="hero-slot-meta">Раса и класс не выбраны</span>
-            <span className="hero-slot-stats">
-              {EMPTY_STATS.map((s) => (
-                <span key={s} className="hero-slot-stat">
-                  <b>—</b>
-                  <i>{s}</i>
-                </span>
-              ))}
-            </span>
+          <p className="chars-empty-title">У вас нет ни одного персонажа</p>
+          <Link to="/characters/new" className="chars-empty-hex" aria-label="Создать персонажа">
+            <Plus aria-hidden="true" />
           </Link>
-
-          <div className="chars-empty-side">
-            <h2 className="chars-empty-title">Персонажей пока нет</h2>
-            <ol className="chars-path">
-              {CREATE_STEPS.map(({ label, icon: Icon }, i) => (
-                <li key={label} className="chars-path-step">
-                  <span className="chars-path-num">{i + 1}</span>
-                  <Icon aria-hidden="true" />
-                  <span>{label}</span>
-                </li>
-              ))}
-            </ol>
-            <Link to="/characters/new" className="cs-btn cs-btn--lg">
-              <Plus aria-hidden="true" /> Создать персонажа
-            </Link>
-          </div>
+          <Link to="/characters/new" className="cs-btn cs-btn--lg">
+            Создать первого
+          </Link>
         </div>
       )}
 
