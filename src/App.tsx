@@ -37,7 +37,7 @@ import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import CharacterEditorPage from './pages/CharacterEditorPage'
 import CharactersPage from './pages/CharactersPage'
-import NewCharacterPage from './pages/NewCharacterPage'
+import CreateCharacterWizard from './create/CreateCharacterWizard'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProfilePage from './pages/ProfilePage'
@@ -750,7 +750,7 @@ export default function App() {
               path="/characters/new"
               element={
                 <RequireAuth>
-                  <NewCharacterPage />
+                  <CreateCharacterWizard />
                 </RequireAuth>
               }
             />
@@ -772,6 +772,7 @@ export default function App() {
                 </RequireAuth>
               }
             />
+            <Route path="/__cw-preview" element={<CreateCharacterWizard />} />
             <Route path="/books/:id" element={<BookPage />} />
             <Route path="/settings/:id" element={<SettingPage />} />
           </Routes>
