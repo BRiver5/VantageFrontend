@@ -48,7 +48,6 @@ export default function ReviewStep({
   return (
     <div className="cw-step">
       <StepHeader
-        kicker="ступень девятая"
         title="Герой готов"
         lead="Проверьте лист — после создания его можно будет править в редакторе."
       />

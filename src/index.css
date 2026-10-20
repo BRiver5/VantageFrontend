@@ -2177,6 +2177,165 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 }
 .race-rail-cell[data-off] b { color: var(--text-dim); }
 
+/* ---------- Карточка существа: портрет расы + ступень опасности ---------- */
+.card--creature { --danger: #9aa3ad; }
+
+/* свечение цвета опасности за портретом (вместо кости класса) */
+.creature-aura {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 14%;
+  width: 92%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--danger) 34%, transparent) 0%,
+    color-mix(in srgb, var(--danger) 12%, transparent) 45%,
+    transparent 70%
+  );
+  opacity: 0.75;
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.card--creature:hover .creature-aura {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.02);
+}
+
+/* существа шире гуманоидов (драконы, звери) — портрет мягче масштабируем,
+   а при наведении лишь чуть приподнимаем */
+.card.card--creature:hover { transform: translateY(-3px); }
+.card--creature .class-card-portrait > img { transform: scale(1.2); max-width: 100%; }
+/* растёт от нижнего края вверх — сдвигаем вниз, чтобы не лезть на карточку выше */
+.card--creature:hover .class-card-portrait > img { transform: scale(1.22) translateY(8px); }
+.card--creature .class-card-fallback { transform: none; width: 34%; height: 34%; margin-bottom: 22%; }
+
+/* портрет держит пропорции 3:4 — иначе flex сжимает его и ряды пляшут;
+   min-width: 0 — длинная строка «размер · тип» не раздувает колонку */
+.card--creature .class-card-visual { flex: none; }
+.card-grid:has(.card--creature) .card-slot,
+.card.card--creature { min-width: 0; }
+
+/* арт dnd.su с фоном — в арочном окне, без «вырезки» в полный рост */
+.card--creature .creature-portrait--framed {
+  align-items: stretch;
+  padding: 30px 13% 50px;
+}
+.card--creature .creature-portrait--framed > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 30%;
+  border-radius: 999px 999px 4px 4px;
+  transform: none;
+  filter: saturate(0.85) brightness(0.88);
+  box-shadow:
+    0 0 0 1px rgba(168, 175, 186, 0.4),
+    0 0 0 5px rgba(14, 16, 22, 0.9),
+    0 0 0 6px color-mix(in srgb, var(--danger) 45%, transparent),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  transition: transform 0.28s ease, filter 0.28s ease;
+}
+.card--creature:hover .creature-portrait--framed > img {
+  transform: none;
+  filter: saturate(1) brightness(1);
+}
+
+/* жетон ПО в углу портрета, окантовка — цвет опасности */
+.creature-cr {
+  position: absolute;
+  z-index: 6;
+  top: 6px;
+  left: 4px;
+  width: 50px;
+  height: 57px;
+  padding: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(160deg, var(--danger), color-mix(in srgb, var(--danger) 35%, #111) 55%, var(--danger));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+}
+.creature-cr-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.creature-cr-inner b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.08rem;
+  line-height: 1;
+  color: var(--parchment);
+}
+.creature-cr-inner i {
+  margin-top: 2px;
+  font-style: normal;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--danger);
+}
+
+/* легендарное / уникальное — маленькие гербы в правом углу */
+.creature-flags {
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.creature-flag {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(228, 196, 120, 0.3), rgba(20, 22, 30, 0.92) 70%);
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 120, 0.5), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.creature-flag svg { width: 14px; height: 14px; color: var(--gold-3); stroke-width: 1.7; }
+
+/* размер · тип — одной строкой под именем */
+.creature-card-panel { gap: 10px; }
+.creature-kind {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.creature-kind span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* иконки видов передвижения над значением скорости */
+.creature-moves {
+  display: inline-flex;
+  gap: 4px;
+}
+.race-rail-cell .creature-moves svg { width: 14px; height: 14px; }
+
 @media (max-width: 1150px) {
   .card-grid:has(.card--portrait) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -8813,7 +8972,14 @@ a.se-hex-pick:hover { color: var(--gold-4); }
     linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 40%, rgba(124, 130, 139, 0.8)) border-box;
 }
 
-/* ---------- Поиск ---------- */
+/* ---------- Поиск и фильтры ---------- */
+
+.cw-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
 
 .cw-search-row {
   display: flex;
@@ -8821,20 +8987,24 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .cw-search {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: min(460px, 100%);
-  margin: 0 auto;
-  padding: 8px 16px;
-  clip-path: var(--hex-wide-blunt);
+  width: min(640px, 100%);
+  padding: 10px 16px;
+  border: 1px solid rgba(168, 175, 186, 0.26);
+  border-radius: 4px;
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.cw-search-row .cw-search { margin: 0; }
+.cw-search:focus-within {
+  border-color: rgba(196, 154, 60, 0.6);
+  box-shadow: 0 0 0 3px rgba(196, 154, 60, 0.12);
+}
 .cw-search svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
 .cw-search input {
   flex: 1;
@@ -8843,48 +9013,210 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   border: none;
   color: var(--text);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
 }
 .cw-search input:focus { outline: none; }
 .cw-search input::placeholder { color: var(--text-dim); font-style: italic; }
 
-/* ---------- Раскладка «сетка + досье» ---------- */
+.cw-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 18px;
+  max-width: 960px;
+}
+.cw-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cw-filter-label {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+.cw-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 11px;
+  border: 1px solid rgba(168, 175, 186, 0.24);
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.5);
+  color: var(--silver-2);
+  font-size: 0.8rem;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.cw-filter:hover { color: var(--gold-3); border-color: rgba(196, 154, 60, 0.45); }
+.cw-filter.is-on {
+  color: var(--bg-0);
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+}
+.cw-filter--reset { color: var(--text-dim); border-style: dashed; }
+.cw-filter--reset svg { width: 12px; height: 12px; }
 
-.cw-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 18px;
-  align-items: start;
+/* ---------- Сетка карточек выбора ---------- */
+
+.cw-pick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
 }
 
-.cw-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-}
-
-/* ---------- Карточка выбора ---------- */
-
-.cw-card {
+.cw-pick {
+  --pick-w: 196px;
   position: relative;
   display: flex;
   flex-direction: column;
-  text-align: left;
-  padding: 0 0 12px;
+  width: var(--pick-w);
+  text-align: center;
+  padding: 0 0 14px;
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.6), rgba(124, 130, 139, 0.16) 45%, rgba(124, 130, 139, 0.6)) border-box;
+    linear-gradient(160deg, rgba(124, 130, 139, 0.55), rgba(124, 130, 139, 0.14) 45%, rgba(124, 130, 139, 0.55)) border-box;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.cw-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-deep); }
-.cw-card.is-selected {
+.cw-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow-deep); }
+.cw-pick:focus-visible { outline: 2px solid var(--gold-2); outline-offset: 2px; }
+.cw-pick.is-selected {
   background:
     linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
     var(--gold-grad) border-box;
   box-shadow: var(--glow-gold);
 }
-.cw-card .corner { opacity: 0.8; }
+
+.cw-pick-visual {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 85%, rgba(168, 175, 186, 0.08), transparent 70%);
+}
+
+/* фигура целиком, как в каталоге — без обрезки по cover */
+.cw-portrait {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 10px 0;
+}
+.cw-portrait img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.5));
+  transition: transform 0.24s ease;
+  transform-origin: center bottom;
+}
+.cw-pick:hover .cw-portrait img { transform: scale(1.04); }
+.cw-portrait-fallback {
+  align-self: center;
+  width: 38%;
+  height: 38%;
+  color: rgba(196, 154, 60, 0.4);
+  stroke-width: 0.9;
+}
+
+/* свечение заклинателя позади портрета */
+.cw-pick-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 8%;
+  width: 96%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(150, 110, 230, 0.4) 0%,
+    rgba(120, 90, 210, 0.14) 45%,
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+.cw-pick:hover .cw-pick-aura { transform: translateX(-50%) scale(1.06); }
+
+.cw-pick-badge {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(13, 14, 17, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  color: var(--gold-3);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cw-pick-visual .cw-card-check { z-index: 2; }
+
+.cw-pick-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  padding: 10px 12px 0;
+}
+.cw-pick-name {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--parchment);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+.cw-pick-body .cw-card-chips { justify-content: center; }
+.cw-pick-body .cw-card-chips:empty { display: none; }
+.cw-pick-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--silver-2);
+  font-size: 0.82rem;
+}
+.cw-pick-meta svg { width: 14px; height: 14px; color: var(--gold-2); flex-shrink: 0; }
+.cw-pick-meta svg:not(:first-child) { margin-left: 8px; }
+.cw-pick-line {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+.cw-pick-line svg {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  color: var(--gold-2);
+}
+.cw-pick-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+.cw-pick-foot .eq-icon-row { justify-content: center; }
 
 .cw-card-art {
   position: relative;
@@ -8915,34 +9247,10 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   color: rgba(168, 175, 186, 0.3);
 }
 
-.cw-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px 0;
-}
-.cw-card-name {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--parchment);
-  letter-spacing: 0.03em;
-}
-.cw-card-meta {
-  color: var(--gold-2);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 .cw-card-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-}
-.cw-card-desc {
-  color: var(--text-dim);
-  font-size: 0.87rem;
-  line-height: 1.45;
 }
 
 .cw-card-check {
@@ -8957,6 +9265,119 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
 }
 .cw-card-check svg { width: 14px; height: 14px; color: var(--bg-0); }
+
+/* ---------- Попап выбора ---------- */
+
+.cw-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: rgba(8, 9, 12, 0.72);
+  backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
+  animation: cw-modal-fade 0.18s ease;
+}
+@keyframes cw-modal-fade { from { opacity: 0; } }
+@keyframes cw-modal-rise { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+
+.cw-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-height: min(88vh, 900px);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(168deg, rgba(28, 32, 42, 0.99), rgba(14, 16, 22, 0.99)) padding-box,
+    linear-gradient(155deg, rgba(196, 154, 60, 0.6), rgba(168, 175, 186, 0.14) 45%, rgba(196, 154, 60, 0.5)) border-box;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  animation: cw-modal-rise 0.22s ease;
+}
+
+.cw-modal-close {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(13, 14, 17, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  color: var(--silver-2);
+  transition: color 0.16s ease, box-shadow 0.16s ease;
+}
+.cw-modal-close:hover { color: var(--gold-3); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.6); }
+.cw-modal-close svg { width: 18px; height: 18px; }
+
+.cw-modal-scroll {
+  overflow-y: auto;
+  padding: 22px 24px 8px;
+  overscroll-behavior: contain;
+}
+
+.cw-modal-hero {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: end;
+}
+.cw-modal-visual {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: radial-gradient(ellipse at 50% 85%, rgba(168, 175, 186, 0.09), transparent 70%);
+}
+.cw-modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 28px 10px 0;
+}
+.cw-modal-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+
+.cw-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+.cw-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(168, 175, 186, 0.14);
+}
+.cw-modal-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  font-size: 0.92rem;
+}
+.cw-modal-section .rich { color: var(--text); font-size: 0.92rem; line-height: 1.6; }
+.cw-modal-section .rich p + p { margin-top: 0.6em; }
+
+.cw-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 24px;
+  border-top: 1px solid rgba(168, 175, 186, 0.14);
+}
+.cw-modal-foot .cw-next { margin-left: 0; }
 
 /* ---------- Жетон-факт ---------- */
 
@@ -8977,16 +9398,7 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-chip--removable { cursor: pointer; }
 .cw-chip--removable:hover { color: #e07070; box-shadow: inset 0 0 0 1px rgba(224, 112, 112, 0.5); }
 
-/* ---------- Досье выбранной сущности ---------- */
-
-.cw-dossier {
-  position: sticky;
-  top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cw-dossier .cw-card-art { aspect-ratio: 3 / 2; }
+/* ---------- Строки фактов (лист, итог, попап) ---------- */
 
 .cw-dossier-name {
   font-family: var(--font-display);
@@ -9008,22 +9420,6 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   color: var(--text-dim);
   font-size: 0.87rem;
   line-height: 1.55;
-}
-.cw-dossier-feature {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.cw-dossier-die {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.cw-dossier-die-label {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--gold-3);
 }
 
 /* ---------- Выбор уровня ---------- */
@@ -9754,24 +10150,6 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-next { margin-left: auto; }
 .cw-create { margin-top: 0; }
 
-/* ---------- 3D-кости визарда ---------- */
-
-.create-dice-stage {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.create-dice-stage.is-active { opacity: 1; }
-.create-dice-stage canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 /* ============================================================
    Сцены награды (level-up) — продолжение оверлея броска
    ============================================================ */
@@ -9908,10 +10286,8 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 /* ---------- Адаптив ---------- */
 
 @media (max-width: 980px) {
-  .cw-layout,
   .cw-identity,
   .cw-review { grid-template-columns: minmax(0, 1fr); }
-  .cw-dossier,
   .cw-identity-portrait { position: static; }
 }
 
@@ -9920,11 +10296,22 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   .cw-rail { gap: 6px; }
   .cw-foot { gap: 10px; padding: 12px; }
   .cw-foot-hint { display: none; }
-  .cw-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .cw-pick { --pick-w: calc(50% - 8px); }
+  .cw-modal-layer { padding: 0; place-items: end stretch; }
+  .cw-modal { max-height: 94vh; width: 100%; }
+  .cw-modal-scroll { padding: 18px 16px 8px; }
+  .cw-modal-hero { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .cw-modal-visual { width: min(240px, 70%); margin: 0 auto; }
+  .cw-modal-head { padding: 0; text-align: center; align-items: center; }
+  .cw-modal-head .cw-card-chips { justify-content: center; }
+  .cw-modal-foot { padding: 12px 16px; }
+  .cw-modal-foot .cw-next { width: 100%; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cw-stage,
+  .cw-modal-layer,
+  .cw-modal,
   .celebrate-content,
   .celebrate-value,
   .celebrate-name,

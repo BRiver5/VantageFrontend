@@ -1,123 +1,180 @@
-/** Шаг 3 — класс: карточки с артом, костью хитов и спасбросками. */
-import { useMemo, useState } from 'react'
-import { Search, Shield, Sparkles, Swords } from 'lucide-react'
-import { descriptionPreview, realImage } from '../../api'
+/** Шаг 3 — класс: короткие карточки с костью хитов, подробности и снаряжение — в попапе. */
+import { useCallback, useMemo, useState } from 'react'
+import { Shield, Sparkles, Swords } from 'lucide-react'
+import { realImage } from '../../api'
 import type { GameClass } from '../../api'
 import { DieChipIcon, DieImage, hitDieType } from '../../dice/diceAssets'
+import { StartingEquipment, hasStartingEquipment } from '../../pages/StartingEquipment'
+import { RichText } from '../../terms/terms'
 import { CLASS_PRIMARY_ABILITY, casterKind, classSkillChoice } from '../dnd5e'
 import { emptyLevelChoice, type StepProps } from '../draft'
-import { ChoiceCard, FactChip, StepHeader, StepPanel, StepStatus } from './ui'
+import {
+  ChoiceModal,
+  FactChip,
+  ModalLine,
+  ModalSection,
+  PickCard,
+  PickEmpty,
+  PickGrid,
+  PickToolbar,
+  StepHeader,
+  StepStatus,
+  usePicker,
+  type PickFilterGroup,
+} from './ui'
 import { useCatalogList } from '../useCatalog'
 import { DEFAULT_SKILLS } from '../../types/character'
 
 const SKILL_LABEL = new Map(DEFAULT_SKILLS.map((s) => [s.key, s.label]))
 
-function ClassDossier({ cls }: { cls: GameClass }) {
-  const kind = casterKind(cls.class_name, cls.is_caster)
+const className = (c: GameClass) => c.class_name
+const isCaster = (c: GameClass) => casterKind(c.class_name, c.is_caster) !== 'none'
+
+function ClassModal({
+  cls,
+  selected,
+  onChoose,
+  onClose,
+}: {
+  cls: GameClass
+  selected: boolean
+  onChoose: () => void
+  onClose: () => void
+}) {
   const skills = classSkillChoice(cls.class_name)
+  const caster = isCaster(cls)
 
   return (
-    <StepPanel className="cw-dossier">
-      <div className="cw-dossier-die">
-        <DieImage type={hitDieType(cls.hit_dice)} size={74} />
-        <span className="cw-dossier-die-label">к{cls.hit_dice}</span>
-      </div>
-      <h3 className="cw-dossier-name gold-text">{cls.class_name}</h3>
-      <div className="cw-card-chips cw-dossier-chips">
-        {CLASS_PRIMARY_ABILITY[cls.class_name] && (
-          <FactChip icon={Swords}>{CLASS_PRIMARY_ABILITY[cls.class_name]}</FactChip>
-        )}
-        {kind !== 'none' && <FactChip icon={Sparkles}>заклинатель</FactChip>}
-      </div>
+    <ChoiceModal
+      art={realImage(cls.image_gallery)}
+      icon={Swords}
+      glow={caster}
+      title={cls.class_name}
+      selected={selected}
+      onChoose={onChoose}
+      onClose={onClose}
+      facts={
+        <>
+          <FactChip>
+            <DieChipIcon type={hitDieType(cls.hit_dice)} /> к{cls.hit_dice}
+          </FactChip>
+          {CLASS_PRIMARY_ABILITY[cls.class_name] && (
+            <FactChip icon={Swords}>{CLASS_PRIMARY_ABILITY[cls.class_name]}</FactChip>
+          )}
+          {caster && <FactChip icon={Sparkles}>заклинатель</FactChip>}
+        </>
+      }
+    >
       {cls.saving_throw_proficiencies && cls.saving_throw_proficiencies.length > 0 && (
-        <p className="cw-dossier-line">
-          <Shield aria-hidden="true" /> Спасброски: {cls.saving_throw_proficiencies.join(', ')}
-        </p>
+        <ModalLine icon={Shield}>Спасброски: {cls.saving_throw_proficiencies.join(', ')}</ModalLine>
       )}
-      <p className="cw-dossier-line">
+      <ModalLine>
         Навыков на выбор: {skills.count} из{' '}
         {skills.options.map((k) => SKILL_LABEL.get(k) ?? k).join(', ')}
-      </p>
+      </ModalLine>
       {cls.armor_proficiencies && cls.armor_proficiencies.length > 0 && (
-        <p className="cw-dossier-line">Броня: {cls.armor_proficiencies.join(', ')}</p>
+        <ModalLine>Броня: {cls.armor_proficiencies.join(', ')}</ModalLine>
       )}
       {cls.weapon_proficiencies && cls.weapon_proficiencies.length > 0 && (
-        <p className="cw-dossier-line">Оружие: {cls.weapon_proficiencies.join(', ')}</p>
+        <ModalLine>Оружие: {cls.weapon_proficiencies.join(', ')}</ModalLine>
       )}
-      <p className="cw-dossier-desc">{descriptionPreview(cls.description, 600)}</p>
-    </StepPanel>
+      {hasStartingEquipment(cls.starting_equipment, cls.starting_equipment_text) && (
+        <ModalSection title="Стартовое снаряжение">
+          <StartingEquipment
+            grants={cls.starting_equipment}
+            sourceText={cls.starting_equipment_text}
+            backLabel={cls.class_name}
+          />
+        </ModalSection>
+      )}
+      {cls.description && (
+        <ModalSection title="Описание">
+          <RichText text={cls.description} />
+        </ModalSection>
+      )}
+    </ChoiceModal>
   )
 }
 
 export default function ClassStep({ draft, update }: StepProps) {
   const { items, loading, error } = useCatalogList<GameClass>('classes')
-  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState<GameClass | null>(null)
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru')
-    const list = q
-      ? items.filter((c) => c.class_name.toLocaleLowerCase('ru').includes(q))
-      : items
-    return [...list].sort((a, b) => a.class_name.localeCompare(b.class_name, 'ru'))
-  }, [items, query])
+  const groups = useMemo<PickFilterGroup<GameClass>[]>(() => {
+    const dice = [...new Set(items.map((c) => c.hit_dice))].sort((a, b) => a - b)
+    return [
+      {
+        key: 'magic',
+        label: 'Магия',
+        options: [
+          { key: 'yes', label: 'заклинатель' },
+          { key: 'no', label: 'без магии' },
+        ],
+        match: (c, sel) => sel.includes(isCaster(c) ? 'yes' : 'no'),
+      },
+      {
+        key: 'die',
+        label: 'Кость хитов',
+        options: dice.map((d) => ({ key: String(d), label: `к${d}` })),
+        match: (c, sel) => sel.includes(String(c.hit_dice)),
+      },
+    ]
+  }, [items])
+
+  const picker = usePicker(items, className, groups)
+  const close = useCallback(() => setOpen(null), [])
+
+  const choose = (cls: GameClass) => {
+    // новый класс обнуляет подкласс и все решения по уровням:
+    // навыки, заклинания и усиления у него свои
+    if (draft.cls?.id !== cls.id) {
+      update({
+        cls,
+        subclass: null,
+        levels: Array.from({ length: draft.targetLevel }, (_, i) => emptyLevelChoice(i + 1)),
+      })
+    }
+    setOpen(null)
+  }
 
   return (
     <div className="cw-step cw-step--picker">
-      <StepHeader
-        kicker="ступень третья"
-        title="Чьё ремесло ты избрал?"
-        lead="Класс определяет кость хитов, спасброски, владения и — если он заклинатель — магию."
-      />
+      <StepHeader title="Чьё ремесло ты избрал?" />
 
-      <label className="cw-search">
-        <Search aria-hidden="true" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Искать класс…"
-          aria-label="Поиск класса"
-        />
-      </label>
+      <PickToolbar picker={picker} groups={groups} placeholder="Искать класс…" />
 
       <StepStatus loading={loading} error={error} />
+      <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <div className="cw-layout">
-        <div className="cw-grid">
-          {visible.map((cls) => (
-            <ChoiceCard
-              key={cls.id}
-              art={realImage(cls.image_gallery)}
-              icon={Swords}
-              name={cls.class_name}
-              meta={CLASS_PRIMARY_ABILITY[cls.class_name] ?? null}
-              chips={
-                <>
-                  <FactChip>
-                    <DieChipIcon type={hitDieType(cls.hit_dice)} /> к{cls.hit_dice}
-                  </FactChip>
-                  {cls.is_caster && <FactChip icon={Sparkles}>магия</FactChip>}
-                </>
-              }
-              description={descriptionPreview(cls.description, 140)}
-              selected={draft.cls?.id === cls.id}
-              onSelect={() =>
-                // новый класс обнуляет подкласс и все решения по уровням:
-                // навыки, заклинания и усиления у него свои
-                update({
-                  cls,
-                  subclass: null,
-                  levels: Array.from({ length: draft.targetLevel }, (_, i) =>
-                    emptyLevelChoice(i + 1),
-                  ),
-                })
-              }
-            />
-          ))}
-        </div>
+      <PickGrid>
+        {picker.visible.map((cls) => (
+          <PickCard
+            key={cls.id}
+            art={realImage(cls.image_gallery)}
+            icon={Swords}
+            name={cls.class_name}
+            glow={isCaster(cls)}
+            selected={draft.cls?.id === cls.id}
+            onOpen={() => setOpen(cls)}
+          >
+            <span className="cw-pick-meta">
+              <DieImage type={hitDieType(cls.hit_dice)} size={18} /> к{cls.hit_dice}
+            </span>
+            {CLASS_PRIMARY_ABILITY[cls.class_name] && (
+              <span className="cw-pick-line">{CLASS_PRIMARY_ABILITY[cls.class_name]}</span>
+            )}
+          </PickCard>
+        ))}
+      </PickGrid>
 
-        {draft.cls && <ClassDossier cls={draft.cls} />}
-      </div>
+      {open && (
+        <ClassModal
+          cls={open}
+          selected={draft.cls?.id === open.id}
+          onChoose={() => choose(open)}
+          onClose={close}
+        />
+      )}
     </div>
   )
 }

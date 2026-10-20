@@ -40,7 +40,6 @@ export default function IdentityStep({ draft, update }: StepProps) {
   return (
     <div className="cw-step">
       <StepHeader
-        kicker="ступень шестая"
         title="Как тебя запомнят?"
         lead="Имя обязательно, остальное — по желанию; всё это допишется в лист."
       />

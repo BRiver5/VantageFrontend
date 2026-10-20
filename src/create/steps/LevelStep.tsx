@@ -38,7 +38,6 @@ export default function LevelStep({
   return (
     <div className="cw-step">
       <StepHeader
-        kicker="ступень четвёртая"
         title="До какой ступени подняться?"
         lead="Каждый уровень будет выдан отдельно — с броском кости хитов и выбором того, что он принёс."
       />

@@ -40,7 +40,7 @@ import { averageHitDie, finalScores, hitPointsForLevel } from '../deriveCharacte
 import { emptyLevelChoice, type LevelChoice, type StepProps } from '../draft'
 import type { ClassBundle } from '../useClassBundle'
 import type { FeatureEntry } from '../../classArticle'
-import { useDice } from '../DiceStage'
+import { useDice } from '../../dice/diceControl'
 import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay'
 import { useCatalogList } from '../useCatalog'
 import { FactChip, StepHeader, StepPanel } from './ui'
@@ -262,7 +262,6 @@ export default function LevelUpStep({
   return (
     <div className="cw-step cw-step--levelup">
       <StepHeader
-        kicker="ступень восьмая"
         title="Путь наверх"
         lead="Каждый уровень принимается отдельно: бросьте кость хитов и заберите то, что он даёт."
       />

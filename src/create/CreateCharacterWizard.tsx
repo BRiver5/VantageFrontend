@@ -15,7 +15,6 @@ import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
 import { createCharacter } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Divider } from '../ornaments'
-import { DiceStageProvider } from './DiceStage'
 import { buildCharacter } from './deriveCharacter'
 import { initialDraft, resizeLevels, type CharacterDraft, type DraftUpdate } from './draft'
 import { ABILITY_KEYS } from '../types/character'
@@ -81,7 +80,7 @@ function Stepper({
   )
 }
 
-function WizardInner() {
+export default function CreateCharacterWizard() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -201,9 +200,6 @@ function WizardInner() {
         <h1 className="section-title gold-text cw-title">
           <ScrollText aria-hidden="true" /> Создание героя
         </h1>
-        <p className="section-sub">
-          Девять ступеней от чистого листа до готового приключенца
-        </p>
       </header>
 
       <Stepper steps={steps} current={safeIdx} maxVisited={maxVisited} onJump={go} />
@@ -280,13 +276,5 @@ function WizardInner() {
         )}
       </footer>
     </section>
-  )
-}
-
-export default function CreateCharacterWizard() {
-  return (
-    <DiceStageProvider>
-      <WizardInner />
-    </DiceStageProvider>
   )
 }

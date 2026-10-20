@@ -2,114 +2,167 @@
  * Шаг 7 — предыстория: даёт владения навыками, инструментами, языки и умение.
  * Шаг можно пропустить, тогда этих владений у героя просто не будет.
  */
-import { useMemo, useState } from 'react'
-import { Award, Hammer, Landmark, Languages, Search } from 'lucide-react'
-import { descriptionPreview, realImage } from '../../api'
+import { useCallback, useMemo, useState } from 'react'
+import { Award, Hammer, Landmark, Languages } from 'lucide-react'
+import { realImage } from '../../api'
 import type { Background } from '../../api'
+import {
+  EquipmentIconRow,
+  StartingEquipment,
+  hasStartingEquipment,
+} from '../../pages/StartingEquipment'
+import { RichText } from '../../terms/terms'
 import type { StepProps } from '../draft'
-import { ChoiceArt, ChoiceCard, FactChip, StepHeader, StepPanel, StepStatus } from './ui'
+import {
+  ChoiceModal,
+  FactChip,
+  ModalLine,
+  ModalSection,
+  PickCard,
+  PickEmpty,
+  PickGrid,
+  PickToolbar,
+  StepHeader,
+  StepStatus,
+  usePicker,
+  type PickFilterGroup,
+} from './ui'
 import { useCatalogList } from '../useCatalog'
 
-function BackgroundDossier({ bg }: { bg: Background }) {
+const bgName = (b: Background) => b.background_name
+
+function BackgroundModal({
+  bg,
+  selected,
+  onChoose,
+  onClose,
+}: {
+  bg: Background
+  selected: boolean
+  onChoose: () => void
+  onClose: () => void
+}) {
   return (
-    <StepPanel className="cw-dossier">
-      <ChoiceArt src={realImage(bg.image_gallery)} icon={Landmark} />
-      <h3 className="cw-dossier-name gold-text">{bg.background_name}</h3>
-      <div className="cw-card-chips cw-dossier-chips">
-        {bg.skill_proficiencies?.map((s) => (
-          <FactChip key={s} icon={Award}>{s}</FactChip>
-        ))}
-      </div>
+    <ChoiceModal
+      art={realImage(bg.image_gallery)}
+      icon={Landmark}
+      title={bg.background_name}
+      selected={selected}
+      onChoose={onChoose}
+      onClose={onClose}
+      facts={
+        <>
+          {bg.skill_proficiencies?.map((s) => (
+            <FactChip key={s} icon={Award}>
+              {s}
+            </FactChip>
+          ))}
+        </>
+      }
+    >
       {bg.tool_proficiencies && bg.tool_proficiencies.length > 0 && (
-        <p className="cw-dossier-line">
-          <Hammer aria-hidden="true" /> {bg.tool_proficiencies.join(', ')}
-        </p>
+        <ModalLine icon={Hammer}>Инструменты: {bg.tool_proficiencies.join(', ')}</ModalLine>
       )}
       {bg.languages && bg.languages.length > 0 && (
-        <p className="cw-dossier-line">
-          <Languages aria-hidden="true" /> {bg.languages.join(', ')}
-        </p>
+        <ModalLine icon={Languages}>Языки: {bg.languages.join(', ')}</ModalLine>
       )}
       {bg.feature_name && (
-        <>
-          <p className="cw-dossier-feature gold-text">{bg.feature_name}</p>
-          <p className="cw-dossier-desc">{descriptionPreview(bg.feature_description, 400)}</p>
-        </>
+        <ModalSection title={`Умение: ${bg.feature_name}`}>
+          <RichText text={bg.feature_description} />
+        </ModalSection>
       )}
-      {bg.equipment && <p className="cw-dossier-line">Снаряжение: {bg.equipment}</p>}
-    </StepPanel>
+      {hasStartingEquipment(bg.starting_equipment, bg.equipment) && (
+        <ModalSection title="Снаряжение">
+          <StartingEquipment
+            grants={bg.starting_equipment}
+            fallbackText={bg.equipment}
+            backLabel={bg.background_name}
+            columns={2}
+          />
+        </ModalSection>
+      )}
+      {bg.description && (
+        <ModalSection title="Описание">
+          <RichText text={bg.description} />
+        </ModalSection>
+      )}
+    </ChoiceModal>
   )
 }
 
 export default function BackgroundStep({ draft, update }: StepProps) {
   const { items, loading, error } = useCatalogList<Background>('backgrounds')
-  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState<Background | null>(null)
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru')
-    const list = q
-      ? items.filter((b) => b.background_name.toLocaleLowerCase('ru').includes(q))
-      : items
-    return [...list].sort((a, b) => a.background_name.localeCompare(b.background_name, 'ru'))
-  }, [items, query])
+  const groups = useMemo<PickFilterGroup<Background>[]>(() => {
+    const skills = [...new Set(items.flatMap((b) => b.skill_proficiencies ?? []))].sort((a, b) =>
+      a.localeCompare(b, 'ru'),
+    )
+    return [
+      {
+        key: 'skill',
+        label: 'Навыки',
+        options: skills.map((s) => ({ key: s, label: s })),
+        match: (b, sel) => sel.some((s) => b.skill_proficiencies?.includes(s)),
+      },
+    ]
+  }, [items])
+
+  const picker = usePicker(items, bgName, groups)
+  const close = useCallback(() => setOpen(null), [])
 
   return (
     <div className="cw-step cw-step--picker">
-      <StepHeader
-        kicker="ступень седьмая"
-        title="Кем ты был до приключений?"
-        lead="Предыстория добавит владения навыками и инструментами, языки и собственное умение."
+      <StepHeader title="Кем ты был до приключений?" />
+
+      <PickToolbar
+        picker={picker}
+        groups={groups}
+        placeholder="Искать предысторию…"
+        extra={
+          draft.background && (
+            <button
+              type="button"
+              className="cs-btn cs-btn--ghost"
+              onClick={() => update({ background: null })}
+            >
+              Без предыстории
+            </button>
+          )
+        }
       />
 
-      <div className="cw-search-row">
-        <label className="cw-search">
-          <Search aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Искать предысторию…"
-            aria-label="Поиск предыстории"
-          />
-        </label>
-        {draft.background && (
-          <button
-            type="button"
-            className="cs-btn cs-btn--ghost"
-            onClick={() => update({ background: null })}
-          >
-            Без предыстории
-          </button>
-        )}
-      </div>
-
       <StepStatus loading={loading} error={error} />
+      <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <div className="cw-layout">
-        <div className="cw-grid">
-          {visible.map((bg) => (
-            <ChoiceCard
-              key={bg.id}
-              art={realImage(bg.image_gallery)}
-              icon={Landmark}
-              name={bg.background_name}
-              meta={bg.feature_name}
-              chips={
-                <>
-                  {bg.skill_proficiencies?.slice(0, 3).map((s) => (
-                    <FactChip key={s}>{s}</FactChip>
-                  ))}
-                </>
-              }
-              description={descriptionPreview(bg.description, 140)}
-              selected={draft.background?.id === bg.id}
-              onSelect={() => update({ background: bg })}
-            />
-          ))}
-        </div>
+      <PickGrid>
+        {picker.visible.map((bg) => (
+          <PickCard
+            key={bg.id}
+            art={realImage(bg.image_gallery)}
+            icon={Landmark}
+            name={bg.background_name}
+            selected={draft.background?.id === bg.id}
+            onOpen={() => setOpen(bg)}
+          >
+            <span className="cw-pick-foot">
+              <EquipmentIconRow grants={bg.starting_equipment} max={5} />
+            </span>
+          </PickCard>
+        ))}
+      </PickGrid>
 
-        {draft.background && <BackgroundDossier bg={draft.background} />}
-      </div>
+      {open && (
+        <BackgroundModal
+          bg={open}
+          selected={draft.background?.id === open.id}
+          onChoose={() => {
+            update({ background: open })
+            setOpen(null)
+          }}
+          onClose={close}
+        />
+      )}
     </div>
   )
 }

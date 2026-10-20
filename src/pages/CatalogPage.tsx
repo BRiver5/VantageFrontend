@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
+  Crown,
   Eye,
+  Feather,
   Flame,
   Footprints,
   Gem,
@@ -24,11 +26,13 @@ import {
   Hourglass,
   Landmark,
   Layers,
+  Mountain,
   Package,
   Ruler,
   Scale,
   Search,
   Shield,
+  Shovel,
   Skull,
   SlidersHorizontal,
   Sparkles,
@@ -37,6 +41,7 @@ import {
   Tag,
   Target,
   VenetianMask,
+  Waves,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -171,30 +176,6 @@ export function SourceBadge({ book }: { book: Book | undefined }) {
       <BookMarked aria-hidden="true" />
       {book.book_code}
     </span>
-  )
-}
-
-function CardImage({
-  src,
-  alt,
-  fallback: Fallback,
-  backdrop,
-}: {
-  src: string | null
-  alt: string
-  fallback: LucideIcon
-  backdrop?: ReactNode
-}) {
-  const [broken, setBroken] = useState(false)
-  return (
-    <div className="card-img">
-      {backdrop}
-      {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
-      ) : (
-        <Fallback className="card-img-fallback" aria-hidden="true" />
-      )}
-    </div>
   )
 }
 
@@ -1187,27 +1168,181 @@ function spellCard(s: Spell, bookMap: BookMap) {
   )
 }
 
-function creatureCard(c: Creature, bookMap: BookMap) {
-  const kind = [sizeRu(c.size) ?? c.size, creatureTypeRu(c.creature_type) ?? c.creature_type, c.alignment]
-    .filter(Boolean)
-    .join(' · ')
+/* ---------- Существа: ступени опасности, базовый тип, передвижение ---------- */
+
+/** Ступени опасности по ПО — цвет свечения карточки и точки в фильтре. */
+const DANGER_TIERS: { key: string; label: string; color: string; max: number }[] = [
+  { key: 't0', label: 'ПО 0 – 1/2', color: '#9aa3ad', max: 0.5 },
+  { key: 't1', label: 'ПО 1 – 4', color: '#3fae5a', max: 4 },
+  { key: 't2', label: 'ПО 5 – 10', color: '#d9a53a', max: 10 },
+  { key: 't3', label: 'ПО 11 – 16', color: '#e0672c', max: 16 },
+  { key: 't4', label: 'ПО 17+', color: '#d23b3b', max: Infinity },
+]
+function dangerTier(cr: number | null) {
+  return cr == null ? null : (DANGER_TIERS.find((t) => cr <= t.max) ?? null)
+}
+
+const CREATURE_TYPES = [
+  'Аберрация', 'Великан', 'Гуманоид', 'Дракон', 'Зверь', 'Конструкт', 'Монстр',
+  'Небожитель', 'Нежить', 'Растение', 'Слизь', 'Фея', 'Элементаль', 'Исчадие',
+].sort((a, b) => a.localeCompare(b, 'ru'))
+
+/**
+ * Тип в API бывает «Гуманоид (человек», «или Средний Гуманоид (любой расы)» —
+ * берём первое слово после возможного «или <размер>» и без уточнения в скобках.
+ */
+function creatureBaseType(c: Creature): string | null {
+  const t = creatureTypeRu(c.creature_type)
+  if (!t) return null
+  const word = t.replace(/^или\s+\S+\s+/i, '').split(/[\s(]/)[0]
+  return word ? cap(word.toLowerCase()) : null
+}
+
+const SIZE_KEYS = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']
+
+const MOVE_MODES: { key: string; label: string; icon: LucideIcon; get: (c: Creature) => number | null }[] = [
+  { key: 'fly', label: 'Полёт', icon: Feather, get: (c) => c.flight_speed },
+  { key: 'swim', label: 'Плавание', icon: Waves, get: (c) => c.swim_speed },
+  { key: 'climb', label: 'Лазание', icon: Mountain, get: (c) => c.climb_speed },
+  { key: 'burrow', label: 'Копание', icon: Shovel, get: (c) => c.burrow_speed },
+]
+
+const creatureFilters: FilterGroup<Creature>[] = [
+  {
+    key: 'cr',
+    label: 'Опасность',
+    options: () => DANGER_TIERS.map(({ key, label, color }) => ({ key, label, color })),
+    match: (c, sel) => {
+      const t = dangerTier(c.challenge_rating)
+      return !!t && sel.includes(t.key)
+    },
+  },
+  {
+    key: 'type',
+    label: 'Тип',
+    options: () => CREATURE_TYPES.map((t) => ({ key: t, label: t })),
+    match: (c, sel) => {
+      const t = creatureBaseType(c)
+      return !!t && sel.includes(t)
+    },
+  },
+  {
+    key: 'size',
+    label: 'Размер',
+    options: () => SIZE_KEYS.map((s) => ({ key: s, label: sizeRu(s) ?? s })),
+    match: (c, sel) => !!c.size && sel.includes(c.size.trim().toLowerCase()),
+  },
+  {
+    key: 'move',
+    label: 'Передвижение',
+    options: () => MOVE_MODES.map(({ key, label }) => ({ key, label })),
+    match: (c, sel) => sel.some((k) => !!MOVE_MODES.find((m) => m.key === k)?.get(c)),
+  },
+  {
+    key: 'trait',
+    label: 'Особое',
+    options: () => [{ key: 'legendary', label: 'Легендарные действия' }],
+    match: (c, sel) => sel.includes('legendary') && !!c.legendary_actions?.length,
+  },
+  {
+    // именные НПС помечены в API как уникальные (is_unique совпадает с is_npc)
+    key: 'npc',
+    label: 'Именные НПС',
+    options: () => [
+      { key: 'hide', label: 'Скрыть' },
+      { key: 'only', label: 'Только они' },
+    ],
+    match: (c, sel) => sel.includes(c.is_unique ? 'only' : 'hide'),
+  },
+  {
+    key: 'book',
+    label: 'Книга',
+    options: (bookMap) =>
+      Object.values(bookMap)
+        .map((b) => ({ key: b.id, label: b.book_code || b.title, hint: b.title }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'ru')),
+    match: (c, sel) => !!c.book_source_id && sel.includes(c.book_source_id),
+  },
+]
+
+/**
+ * Портрет существа. Вырезанные PNG (наши `/media/`) стоят «в полный рост», как
+ * у рас; картинки dnd.su — с фоном, их показываем в окне с мягким краем.
+ */
+function CreaturePortrait({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  const framed = !!src && !src.includes('/media/')
   return (
-    <article className="card card--compact">
-      <div className="card-head">
-        <HexBadge value={formatCR(c.challenge_rating)} label="ПО" />
-        <div>
-          <h3 className="card-name">{c.name}</h3>
-          {kind && <span className="card-kicker">{kind}</span>}
+    <div className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
+      {src && !broken ? (
+        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <Skull className="class-card-fallback" aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
+function creatureCard(c: Creature, bookMap: BookMap) {
+  const tier = dangerTier(c.challenge_rating)
+  const kind = [sizeRu(c.size), creatureBaseType(c)].filter(Boolean).join(' · ')
+  const moves = MOVE_MODES.filter((m) => m.get(c))
+  // у летающих/плавающих пешая скорость бывает 0 — показываем лучшую из имеющихся
+  const speed = c.speed || (moves.length ? Math.max(...moves.map((m) => m.get(c) ?? 0)) : c.speed)
+  const book = c.book_source_id ? bookMap[c.book_source_id] : undefined
+  const legendary = !!c.legendary_actions?.length
+  return (
+    <article
+      className="card card--portrait card--race card--creature"
+      style={tier ? ({ '--danger': tier.color } as CSSProperties) : undefined}
+    >
+      <div className="class-card-visual">
+        <span className="creature-aura" aria-hidden="true" />
+        <span className="creature-cr" title={`Показатель опасности ${formatCR(c.challenge_rating)}`}>
+          <span className="creature-cr-inner">
+            <b>{formatCR(c.challenge_rating)}</b>
+            <i>ПО</i>
+          </span>
+        </span>
+        {(legendary || c.is_unique) && (
+          <span className="creature-flags">
+            {legendary && (
+              <span className="creature-flag" title="Легендарные действия">
+                <Crown aria-hidden="true" />
+              </span>
+            )}
+            {c.is_unique && (
+              <span className="creature-flag" title="Уникальное существо">
+                <Star aria-hidden="true" />
+              </span>
+            )}
+          </span>
+        )}
+        <CreaturePortrait src={realImage(c.image_gallery) ?? realImage(c.image_url)} alt={c.name} />
+      </div>
+      <div className="class-card-lower">
+        <div className="class-card-glow" aria-hidden="true" />
+        <div className="class-card-panel race-card-panel creature-card-panel">
+          <div className="creature-kind" title={book?.title}>
+            <span>{kind || 'существо'}</span>
+          </div>
+          <div className="race-rail">
+            <RaceRailCell icon={Shield} value={String(c.ac)} label="КД" />
+            <RaceRailCell icon={Heart} value={String(c.hp)} label="хиты" />
+            <span className="race-rail-cell">
+              <span className="creature-moves" aria-hidden="true">
+                <Footprints />
+                {moves.map(({ key, icon: Icon, label }) => (
+                  <Icon key={key} aria-label={label} />
+                ))}
+              </span>
+              <b>{speed != null ? `${speed} фт.` : '—'}</b>
+              <i>скорость</i>
+            </span>
+          </div>
         </div>
+        <h3 className="class-card-name-plate">{c.name}</h3>
       </div>
-      <CardImage src={realImage(c.image_gallery)} alt={c.name} fallback={Skull} />
-      <div className="card-chips">
-        <SourceBadge book={c.book_source_id ? bookMap[c.book_source_id] : undefined} />
-        <Chip icon={Shield}>КД {c.ac}</Chip>
-        <Chip icon={Heart}>{c.hp} хп</Chip>
-        {c.speed != null && <Chip icon={Footprints}>{c.speed} фт.</Chip>}
-      </div>
-      <TermDesc text={c.description ?? c.creature_description} />
     </article>
   )
 }
@@ -1362,6 +1497,8 @@ const itemSorts: SortOption<Item>[] = [
 const creatureSorts: SortOption<Creature>[] = [
   { key: 'name', label: 'А — Я', icon: ArrowDownAZ, cmp: (a, b) => a.name.localeCompare(b.name, 'ru') },
   { key: 'cr', label: 'Опасность', icon: Flame, cmp: (a, b) => (a.challenge_rating ?? -1) - (b.challenge_rating ?? -1) },
+  { key: 'ac', label: 'КД', icon: Shield, cmp: (a, b) => a.ac - b.ac },
+  { key: 'hp', label: 'Хиты', icon: Heart, cmp: (a, b) => a.hp - b.hp },
   { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.book_source_id, b.book_source_id, bm) },
 ]
 
@@ -2046,6 +2183,8 @@ export const BestiaryPage = () => (
       emptyIcon: Skull,
       card: creatureCard,
       sorts: creatureSorts,
+      filters: creatureFilters,
+      heroNav: true,
     }}
   />
 )

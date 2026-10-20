@@ -73,3 +73,31 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
 
   return { items, loading }
 }
+
+/**
+ * id рас, у которых есть подрасы, — для пометки на карточке и фильтра.
+ * Запросы идут отдельно от списка рас, поэтому сетка их не ждёт.
+ */
+export function useRacesWithSubraces(raceIds: string[]): Set<string> {
+  const [withSubs, setWithSubs] = useState<Set<string>>(() => new Set())
+  const key = raceIds.join(',')
+
+  useEffect(() => {
+    if (!key) return
+    let alive = true
+    for (const id of key.split(',')) {
+      getSubList<Subrace>('races', id, 'subraces')
+        .then((list) => {
+          if (alive && list.length > 0) setWithSubs((prev) => new Set(prev).add(id))
+        })
+        .catch(() => {
+          /* без пометки — не страшно */
+        })
+    }
+    return () => {
+      alive = false
+    }
+  }, [key])
+
+  return withSubs
+}

@@ -21,7 +21,7 @@ import {
   type StepProps,
 } from '../draft'
 import { racialBonuses } from '../deriveCharacter'
-import { dropLowest, useDice } from '../DiceStage'
+import { useDice } from '../../dice/diceControl'
 import { FactChip, StepHeader, StepPanel } from './ui'
 
 const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
@@ -30,6 +30,14 @@ const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
   { id: 'pointbuy', label: 'Покупка за очки', hint: `27 очков, значения от 8 до 15` },
   { id: 'manual', label: 'Вручную', hint: 'Если мастер выдал цифры сам' },
 ]
+
+/** Бросок 4d6 с отбрасыванием младшей кости */
+function dropLowest(values: number[]): { kept: number[]; dropped: number; total: number } {
+  const sorted = [...values].sort((a, b) => a - b)
+  const dropped = sorted[0] ?? 0
+  const kept = sorted.slice(1)
+  return { kept, dropped, total: kept.reduce((s, v) => s + v, 0) }
+}
 
 /** Один бросок 4к6: сами кости и отброшенная */
 interface RollRecord {
@@ -153,7 +161,6 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
   return (
     <div className="cw-step">
       <StepHeader
-        kicker="ступень пятая"
         title="Из чего ты сделан?"
         lead="Расовые бонусы добавляются поверх — в правой колонке сразу виден итог."
       />

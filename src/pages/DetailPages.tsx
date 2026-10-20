@@ -454,6 +454,7 @@ export function CreatureDetailPage() {
       title={c.name}
       image={realImage(c.image_gallery) ?? realImage(c.image_url)}
       imageIcon={Skull}
+      heroNames={{ img: 'class-hero-img', title: 'class-hero-title' }}
       badge={<HexBadge value={formatCR(c.challenge_rating)} label="ПО" />}
       chips={
         <>

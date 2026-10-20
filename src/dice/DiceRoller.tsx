@@ -5,6 +5,7 @@ import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
 import DiceD20Mod from './DiceD20Mod'
 import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from './diceSounds'
+import { registerDiceRoller } from './diceControl'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
 
@@ -151,6 +152,8 @@ export default function DiceRoller() {
   const [d20ModOpen, setD20ModOpen] = useState(false)
   const [d20ModTop, setD20ModTop] = useState(0)
   const [revealClash, setRevealClash] = useState<'adv' | 'dis' | null>(null)
+  // бросок из кода (визард): сцена видна, но оверлей результата не нужен
+  const [externalActive, setExternalActive] = useState(false)
 
   const hasDice = DIE_TYPES.some((t) => pool[t] > 0)
   const hideTrayOnMobile = phase === 'rolling' || phase === 'reveal'
@@ -284,10 +287,12 @@ export default function DiceRoller() {
   const clear3DDice = useCallback(() => {
     clearDiceTimer()
     boxRef.current?.clear()
+    setExternalActive(false)
   }, [clearDiceTimer])
 
-  useEffect(() => {
-    if (!open || initPromise.current) return
+  // бокс поднимается по первому открытию лотка или по первому броску из кода
+  const ensureBox = useCallback(() => {
+    if (initPromise.current) return initPromise.current
     initPromise.current = (async () => {
       const { default: DiceBox } = await import('@3d-dice/dice-box')
       const box = new DiceBox({
@@ -307,7 +312,47 @@ export default function DiceRoller() {
       boxRef.current = box
       setReady(true)
     })().catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [open])
+    return initPromise.current
+  }, [])
+
+  useEffect(() => {
+    if (open) void ensureBox()
+  }, [open, ensureBox])
+
+  // цвета читаем через ref, чтобы обработчик не перерегистрировался на каждый клик
+  const colorsRef = useRef({ dieColors, favorites })
+  colorsRef.current = { dieColors, favorites }
+
+  useEffect(
+    () =>
+      registerDiceRoller(async (notation) => {
+        await ensureBox()
+        const box = boxRef.current
+        if (!box) throw new Error('Кости недоступны')
+
+        const count = parseInt(notation, 10) || 1
+        const sides = parseSides(notation.split('d')[1] ?? '') as DieType
+        const { dieColors: colors, favorites: favs } = colorsRef.current
+
+        initDiceAudio()
+        playDropsForRoll(count)
+        clear3DDice()
+        setExternalActive(true)
+        try {
+          await box.updateConfig({ scale: DEFAULT_SCALE })
+          const results = await box.roll(notation, { themeColor: colors[sides] || favs[0] })
+          return results.map((r) => r.value)
+        } finally {
+          // кости задерживаются на сцене, чтобы игрок увидел грани
+          diceClearTimer.current = setTimeout(() => {
+            boxRef.current?.clear()
+            setExternalActive(false)
+            diceClearTimer.current = null
+          }, 4000)
+        }
+      }),
+    [ensureBox, clear3DDice],
+  )
 
   useLayoutEffect(() => {
     const el = historyRef.current
@@ -539,8 +584,8 @@ export default function DiceRoller() {
     <>
       <div
         id="dice-box-stage"
-        className={`dice-stage${phase !== 'idle' ? ' is-active' : ''}`}
-        aria-hidden={phase === 'idle'}
+        className={`dice-stage${phase !== 'idle' || externalActive ? ' is-active' : ''}`}
+        aria-hidden={phase === 'idle' && !externalActive}
       />
 
       {phase === 'reveal' && rollResults.length > 0 && (
