@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import {
+  BookCheck,
+  ChevronsUp,
+  Dices,
+  Feather,
+  Footprints,
+  Plus,
+  ScrollText,
+  Swords,
+  Trash2,
+} from 'lucide-react'
+import { Corners } from '../ornaments'
 import {
   createCharacter,
   deleteCharacter,
@@ -13,6 +24,18 @@ import {
   markLegacyMigrated,
   sheetDataToCharacter,
 } from '../characters/sheetMigration'
+
+const EMPTY_STATS = ['СИЛ', 'ЛОВ', 'ТЕЛ', 'ИНТ', 'МДР', 'ХАР']
+
+const CREATE_STEPS = [
+  { label: 'Раса', icon: Footprints },
+  { label: 'Класс', icon: Swords },
+  { label: 'Уровень', icon: ChevronsUp },
+  { label: 'Характеристики', icon: Dices },
+  { label: 'Имя', icon: Feather },
+  { label: 'Предыстория', icon: ScrollText },
+  { label: 'Итог', icon: BookCheck },
+]
 
 export default function CharactersPage() {
   const navigate = useNavigate()
@@ -77,15 +100,19 @@ export default function CharactersPage() {
     }
   }
 
+  const isEmpty = !loading && !error && items.length === 0
+
   return (
     <section className="chars-page">
       <div className="cs-toolbar">
         <h1 className="section-title gold-text">Мои персонажи</h1>
-        <div className="cs-toolbar-actions">
-          <Link to="/characters/new" className="cs-btn">
-            <Plus aria-hidden="true" /> Создать
-          </Link>
-        </div>
+        {!isEmpty && (
+          <div className="cs-toolbar-actions">
+            <Link to="/characters/new" className="cs-btn">
+              <Plus aria-hidden="true" /> Создать
+            </Link>
+          </div>
+        )}
       </div>
 
       {showImport && (
@@ -108,12 +135,41 @@ export default function CharactersPage() {
       {loading && <p className="muted">Загрузка…</p>}
       {error && <p className="auth-error">{error}</p>}
 
-      {!loading && !error && items.length === 0 && (
+      {isEmpty && (
         <div className="chars-empty">
-          <p>Пока нет персонажей.</p>
-          <Link to="/characters/new" className="cs-btn">
-            Создать первого
+          <Link to="/characters/new" className="hero-slot" aria-label="Создать персонажа">
+            <Corners size={30} gold />
+            <span className="hero-slot-level">Ур. 1</span>
+            <span className="hero-slot-portrait">
+              <Plus aria-hidden="true" />
+            </span>
+            <span className="hero-slot-name">Новый персонаж</span>
+            <span className="hero-slot-meta">Раса и класс не выбраны</span>
+            <span className="hero-slot-stats">
+              {EMPTY_STATS.map((s) => (
+                <span key={s} className="hero-slot-stat">
+                  <b>—</b>
+                  <i>{s}</i>
+                </span>
+              ))}
+            </span>
           </Link>
+
+          <div className="chars-empty-side">
+            <h2 className="chars-empty-title">Персонажей пока нет</h2>
+            <ol className="chars-path">
+              {CREATE_STEPS.map(({ label, icon: Icon }, i) => (
+                <li key={label} className="chars-path-step">
+                  <span className="chars-path-num">{i + 1}</span>
+                  <Icon aria-hidden="true" />
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ol>
+            <Link to="/characters/new" className="cs-btn cs-btn--lg">
+              <Plus aria-hidden="true" /> Создать персонажа
+            </Link>
+          </div>
         </div>
       )}
 
