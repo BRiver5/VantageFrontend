@@ -22,7 +22,6 @@ import {
   Ruler,
   Scale,
   Shield,
-  Skull,
   Sparkles,
   Star,
   Swords,
@@ -45,6 +44,8 @@ import {
   realImage,
   sizeRu,
   creatureTypeRu,
+  settingPictureUrl,
+  splitTitle,
 } from '../api'
 import type {
   Book,
@@ -57,6 +58,7 @@ import type {
   Background,
   Item,
   Race,
+  Setting,
   Spell,
   Subclass,
   Subrace,
@@ -82,6 +84,7 @@ import { ABILITY_LABELS } from '../types/character'
 import { abilitiesFromSkills } from '../skills'
 import { hasClassProficiencies, parseClassProficiencies } from '../classProficiencies'
 import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
+import { CreatureBoard, CreatureStage, WorldBackdrop } from '../creatureSheet'
 
 /* ---------- Общие детали ---------- */
 
@@ -341,11 +344,6 @@ function Traits({ list }: { list: CreatureTrait[] | null | undefined }) {
   )
 }
 
-const mod = (v: number) => {
-  const m = Math.floor((v - 10) / 2)
-  return m >= 0 ? `+${m}` : String(m)
-}
-
 /* ============================================================
    ЗАКЛИНАНИЕ
    ============================================================ */
@@ -413,86 +411,54 @@ export function SpellDetailPage() {
    СУЩЕСТВО — полный статблок
    ============================================================ */
 
-const ABILITIES: (keyof Creature)[] = ['strenght', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
-const ABILITY_LABEL: Record<string, string> = {
-  strenght: 'СИЛ', dexterity: 'ЛОВ', constitution: 'ТЕЛ',
-  intelligence: 'ИНТ', wisdom: 'МДР', charisma: 'ХАР',
+/** Мир кампании книги — кроме «родного» для 5e Фаэруна, где живёт большинство существ */
+function useBookWorld(book: Book | undefined) {
+  const { data: setting } = useOne<Setting>('settings', book?.settings_id ?? undefined)
+  if (!setting || setting.id !== book?.settings_id) return null
+  const { ru, en } = splitTitle(setting.settings_title)
+  if (en === 'Forgotten Realms') return null
+  return { id: setting.id, name: ru, art: settingPictureUrl(setting, 1600, 720) }
 }
 
 export function CreatureDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: c, error } = useOne<Creature>('creatures', id)
   const book = useBookRef(c?.book_source_id)
+  const world = useBookWorld(book)
   if (error) return <p className="status-line is-error">Существо не найдено: {error}</p>
   if (!c) return <p className="status-line">Выслеживаем существо…</p>
 
   const kind = [sizeRu(c.size) ?? c.size, creatureTypeRu(c.creature_type) ?? c.creature_type, c.alignment]
     .filter(Boolean)
     .join(' · ')
-  const speeds = [
-    c.speed != null && `${c.speed} фт.`,
-    c.flight_speed && `полёт ${c.flight_speed} фт.`,
-    c.swim_speed && `плавание ${c.swim_speed} фт.`,
-    c.climb_speed && `лазание ${c.climb_speed} фт.`,
-    c.burrow_speed && `копание ${c.burrow_speed} фт.`,
-  ].filter(Boolean).join(', ')
-  const senses = [
-    c.night_vision && `тёмное зрение ${c.night_vision} фт.`,
-    c.blind_vision && `слепое зрение ${c.blind_vision} фт.`,
-    c.true_vision && `истинное зрение ${c.true_vision} фт.`,
-  ].filter(Boolean).join(', ')
-  const fmtMap = (m: Record<string, number> | null) =>
-    m && Object.keys(m).length
-      ? Object.entries(m).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')
-      : null
+  const image = realImage(c.image_gallery) ?? realImage(c.image_url)
 
   return (
-    <DetailShell
-      backTo="/bestiary"
-      backLabel="к бестиарию"
-      kicker={kind || 'существо'}
-      title={c.name}
-      image={realImage(c.image_gallery) ?? realImage(c.image_url)}
-      imageIcon={Skull}
-      heroNames={{ img: 'class-hero-img', title: 'class-hero-title' }}
-      badge={<HexBadge value={formatCR(c.challenge_rating)} label="ПО" />}
-      chips={
-        <>
-          <SourceBadge book={book} />
-          <Chip icon={Shield}>КД {c.ac}{c.ac_source ? ` (${c.ac_source})` : ''}</Chip>
-          <Chip icon={Star}>{c.hp} хитов{c.hp_formula ? ` (${c.hp_formula.trim()})` : ''}</Chip>
-          {speeds && <Chip icon={Footprints}>{speeds}</Chip>}
-          {c.proficiency_bonus != null && <Chip icon={<DieChipIcon type={20} />}>бонус мастерства +{c.proficiency_bonus}</Chip>}
-          {c.is_unique && <Chip icon={Star}>уникальное</Chip>}
-        </>
-      }
-    >
-      <div className="ability-grid">
-        {ABILITIES.map((key) => {
-          const v = c[key] as number | null
-          if (v == null) return null
-          return (
-            <span key={key} className="hex-badge ability-hex" title={ABILITY_LABEL[key]}>
-              <span className="hex-badge-inner">
-                <b>{v}</b>
-                <i>{ABILITY_LABEL[key]} {mod(v)}</i>
-              </span>
-            </span>
-          )
-        })}
-      </div>
+    <section className={`book-page beast-page${world ? ' has-world' : ''}`}>
+      {world && <WorldBackdrop art={world.art} />}
+      <Link to="/bestiary" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к бестиарию
+      </Link>
+      <CreatureStage
+        c={c}
+        image={image}
+        kicker={kind || 'существо'}
+        cr={formatCR(c.challenge_rating)}
+        chips={
+          <>
+            <SourceBadge book={book} link />
+            {world && (
+              <Link to={`/settings/${world.id}`} className="chip chip--link">
+                <Landmark aria-hidden="true" /> {world.name}
+              </Link>
+            )}
+            {c.proficiency_bonus != null && <Chip icon={<DieChipIcon type={20} />}>бонус мастерства +{c.proficiency_bonus}</Chip>}
+          </>
+        }
+      />
+      <Divider />
 
-      <div className="stat-rows">
-        <StatRow label="Спасброски" value={fmtMap(c.saving_throws)} />
-        <StatRow label="Навыки" value={fmtMap(c.skills)} />
-        <StatRow label="Иммунитет к урону" value={c.damage_imunities?.join(', ')} />
-        <StatRow label="Сопротивление урону" value={c.damage_resistances?.join(', ')} />
-        <StatRow label="Уязвимость к урону" value={c.damage_vulnerabilities?.join(', ')} />
-        <StatRow label="Иммунитет к состояниям" value={c.condition_imunities?.join(', ')} />
-        <StatRow label="Чувства" value={senses} />
-        <StatRow label="Языки" value={c.languages?.join(', ')} />
-        <StatRow label="Среда обитания" value={c.area_of_living?.join(', ')} />
-      </div>
+      <CreatureBoard c={c} image={image} />
 
       {(c.description || c.creature_description) && (
         <DetailSection title="Описание">
@@ -517,7 +483,7 @@ export function CreatureDetailPage() {
       {c.mythical_actions?.length ? (
         <DetailSection title="Мифические действия"><Traits list={c.mythical_actions} /></DetailSection>
       ) : null}
-    </DetailShell>
+    </section>
   )
 }
 

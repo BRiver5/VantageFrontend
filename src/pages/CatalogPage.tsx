@@ -168,13 +168,24 @@ function HexBadge({ value, label }: { value: string; label: string }) {
 }
 
 /** Аббревиатура книги-источника; полное название всплывает при наведении */
-export function SourceBadge({ book }: { book: Book | undefined }) {
+/** `link` — только вне карточек-ссылок: вложенный <a> в <a> недопустим */
+export function SourceBadge({ book, link }: { book: Book | undefined; link?: boolean }) {
   if (!book) return null
   const { ru, en } = splitTitle(book.title)
-  return (
-    <span className="chip source-chip" title={en ? `${ru} — ${en}` : ru}>
+  const title = en ? `${ru} — ${en}` : ru
+  const content = (
+    <>
       <BookMarked aria-hidden="true" />
       {book.book_code}
+    </>
+  )
+  return link ? (
+    <Link to={`/books/${book.id}`} className="chip source-chip chip--link" title={title}>
+      {content}
+    </Link>
+  ) : (
+    <span className="chip source-chip" title={title}>
+      {content}
     </span>
   )
 }

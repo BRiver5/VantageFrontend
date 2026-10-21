@@ -206,6 +206,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
    .page на всю область контента, поэтому обрезку здесь снимаем. Лишние
    пиксели от вычитания vw гасит `overflow-x: clip` на html. */
 .page:has(.world-hero:not(.world-hero--plain)),
+.page:has(.beast-world),
 .page:has(.catalog--wide) { overflow-x: visible; }
 
 .page-routes.is-pending {
@@ -2208,9 +2209,10 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 /* существа шире гуманоидов (драконы, звери) — портрет мягче масштабируем,
    а при наведении лишь чуть приподнимаем */
 .card.card--creature:hover { transform: translateY(-3px); }
-.card--creature .class-card-portrait > img { transform: scale(1.2); max-width: 100%; }
-/* растёт от нижнего края вверх — сдвигаем вниз, чтобы не лезть на карточку выше */
-.card--creature:hover .class-card-portrait > img { transform: scale(1.22) translateY(8px); }
+.card--creature .class-card-portrait > img { transform: scale(1); max-width: 100%; }
+/* растёт от нижнего края вверх — сдвигаем вниз, чтобы не лезть на карточку выше.
+   селектор специально длиннее .card.card--portrait:hover, иначе побеждает scale(1.48) */
+.card.card--portrait.card--creature:hover .class-card-portrait > img { transform: scale(1.1) translateY(8px); }
 .card--creature .class-card-fallback { transform: none; width: 34%; height: 34%; margin-bottom: 22%; }
 
 /* портрет держит пропорции 3:4 — иначе flex сжимает его и ряды пляшут;
@@ -4497,16 +4499,851 @@ a.term-link:hover {
 
 /* --- статблок существа --- */
 
-.ability-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin: 0 auto 26px;
+/* сцена: оборона | арт | роза характеристик */
+.beast-stage {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(320px, 1.35fr) minmax(300px, 1fr);
+  grid-template-areas: 'left center right';
+  gap: clamp(18px, 3vw, 40px);
+  align-items: start;
+  max-width: 1320px;
+  margin: 0 auto;
 }
-.ability-hex { width: 76px; height: 88px; }
-.ability-hex .hex-badge-inner b { font-size: 1.35rem; }
-.ability-hex .hex-badge-inner i { font-size: 0.66rem; color: var(--gold-2); }
+.beast-stage-left { grid-area: left; display: flex; flex-direction: column; gap: 14px; padding-top: 40px; }
+.beast-stage-center { grid-area: center; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.beast-stage-right { grid-area: right; padding-top: 120px; }
+
+/* --- арт без подложки: аура, гекс-печать, тень на полу --- */
+.beast-art {
+  position: relative;
+  width: 100%;
+  height: clamp(360px, 52vw, 560px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.beast-art-aura {
+  position: absolute;
+  inset: 8% 4% 6%;
+  background:
+    radial-gradient(48% 46% at 50% 52%, rgba(228, 196, 110, 0.16), transparent 70%),
+    radial-gradient(70% 60% at 50% 60%, rgba(124, 130, 139, 0.12), transparent 72%);
+  filter: blur(6px);
+  pointer-events: none;
+}
+.beast-art-sigil {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(92%, 470px);
+  aspect-ratio: 1;
+  translate: -50% -52%;
+  fill: none;
+  stroke: rgba(205, 211, 219, 0.16);
+  stroke-width: 0.6;
+  animation: beast-sigil-spin 120s linear infinite;
+  pointer-events: none;
+}
+.beast-art-sigil polygon:first-child { stroke: rgba(228, 196, 110, 0.28); stroke-width: 0.9; }
+@keyframes beast-sigil-spin { to { rotate: 360deg; } }
+.beast-art-floor {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  width: 62%;
+  height: 34px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.7), transparent);
+  pointer-events: none;
+}
+.beast-art-defs { position: absolute; width: 0; height: 0; }
+.beast-art img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+  filter: url(#beast-key) drop-shadow(0 18px 26px rgba(0, 0, 0, 0.6));
+  animation: beast-float 7s ease-in-out infinite;
+}
+@keyframes beast-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+.beast-art-fallback {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  width: 120px;
+  height: 120px;
+  stroke-width: 0.7;
+  color: rgba(168, 175, 186, 0.45);
+}
+
+/* --- табличка с именем: гекс ПО + имя --- */
+.beast-nameplate {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+  /* шире колонки арта: длинные имена и вид не ломаются в узкий столбик */
+  width: max-content;
+  max-width: 50vw;
+  position: relative;
+  z-index: 2;
+}
+.beast-nameplate .book-title { text-wrap: balance; }
+.beast-cr { width: 74px; height: 85px; filter: drop-shadow(0 0 14px rgba(228, 196, 110, 0.18)); }
+.beast-cr .hex-badge-inner b { font-size: 1.6rem; }
+.beast-cr .hex-badge-inner i { color: var(--gold-2); }
+.beast-nameplate-text { min-width: 0; }
+.beast-nameplate .book-title { margin-top: 0; }
+.beast-kicker {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.beast-chips { justify-content: center; margin-top: 16px; width: max-content; max-width: 50vw; }
+@media (max-width: 1180px) {
+  .beast-nameplate, .beast-chips { max-width: min(80vw, 100%); }
+}
+
+/* --- карточки обороны --- */
+.beast-def-card {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.14) 45%, rgba(124, 130, 139, 0.55)) border-box;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.beast-def-card:hover { transform: translateX(4px); box-shadow: -6px 0 22px rgba(228, 196, 110, 0.07); }
+.beast-def-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.beast-def-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.beast-def-note { font-size: 0.82rem; color: var(--text-dim); line-height: 1.35; }
+.beast-def-note b { color: var(--gold-3); }
+.beast-def-reset {
+  align-self: flex-start;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.beast-def-reset:hover { color: var(--text); }
+
+/* щит КД */
+.beast-shield { position: relative; width: 84px; flex-shrink: 0; aspect-ratio: 100 / 116; overflow: hidden; }
+.beast-shield svg { width: 100%; height: 100%; display: block; }
+.beast-shield::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(241, 244, 248, 0.22) 50%, transparent 65%);
+  translate: -120% 0;
+  clip-path: path('M42 3.4 L77.3 15.1 V45.4 C77.3 70.6 60.5 85.7 42 94.1 C23.5 85.7 6.7 70.6 6.7 45.4 V15.1 Z');
+  pointer-events: none;
+}
+.beast-armor:hover .beast-shield::after { animation: beast-sheen 0.9s ease; }
+@keyframes beast-sheen { to { translate: 120% 0; } }
+.beast-shield-value {
+  position: absolute;
+  inset: 0 0 8%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.beast-shield-value b, .beast-vial-value b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--gold-3);
+}
+.beast-shield-value i, .beast-vial-value i {
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.beast-hit-calc { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.beast-hit-calc-label { font-size: 0.74rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.beast-stepper { display: inline-flex; align-items: center; gap: 2px; }
+.beast-stepper b { min-width: 30px; text-align: center; font-size: 0.9rem; color: var(--text); }
+.beast-stepper button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  clip-path: var(--hex-point);
+  background: var(--bg-3);
+  color: var(--silver-2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.beast-stepper button:hover { background: var(--gold-1); color: var(--gold-4); }
+.beast-stepper svg { width: 12px; height: 12px; }
+.beast-hit-bar { height: 4px; background: rgba(168, 175, 186, 0.14); overflow: hidden; }
+.beast-hit-bar span {
+  display: block;
+  height: 100%;
+  width: var(--pct);
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-3));
+  transition: width 0.3s ease;
+}
+
+/* флакон хитов */
+.beast-vial {
+  position: relative;
+  width: 84px;
+  height: 97px;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.5px;
+}
+.beast-vial-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.beast-vial-liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill);
+  background: linear-gradient(180deg, #b23a33, #5e1714);
+  transition: height 0.7s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.beast-vial-liquid::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -50%;
+  width: 200%;
+  height: 12px;
+  background: radial-gradient(10px 6px at 10px 6px, #b23a33 98%, transparent) 0 0 / 20px 12px repeat-x;
+  animation: beast-wave 2.6s linear infinite;
+}
+@keyframes beast-wave { to { translate: 20px 0; } }
+.beast-vial-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+}
+.beast-vial-value b { color: var(--gold-4); animation: beast-pop 0.45s ease; }
+.beast-vial-value i { color: rgba(246, 231, 182, 0.75); }
+@keyframes beast-pop {
+  0% { scale: 0.6; opacity: 0; }
+  60% { scale: 1.15; opacity: 1; }
+  100% { scale: 1; }
+}
+
+/* кнопка-бросок (общая для хитов и розы) */
+.beast-roll-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 5px 16px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: color 0.15s ease, box-shadow 0.15s ease;
+}
+.beast-roll-btn svg { width: 14px; height: 14px; color: var(--gold-2); transition: rotate 0.4s ease; }
+.beast-roll-btn b { color: var(--gold-3); }
+.beast-roll-btn:hover { color: var(--gold-4); box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.6); }
+.beast-roll-btn:hover svg { rotate: 180deg; }
+.beast-roll-btn:active { translate: 0 1px; }
+.beast-roll-btn:disabled, .beast-save:disabled, .beast-skill:disabled { opacity: 0.5; cursor: progress; pointer-events: none; }
+.beast-roll-btn.is-prof { box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.45); }
+
+/* движение */
+.beast-move { flex-direction: column; align-items: stretch; gap: 8px; }
+.beast-move-row { display: grid; grid-template-columns: 16px 74px 1fr auto; align-items: center; gap: 8px; font-size: 0.84rem; }
+.beast-move-row svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-2); }
+.beast-move-label { color: var(--text-dim); }
+.beast-move-row b { font-weight: 600; color: var(--text); }
+.beast-move-track { height: 3px; background: rgba(168, 175, 186, 0.14); }
+.beast-move-track span { display: block; height: 100%; background: linear-gradient(90deg, var(--silver-1), var(--silver-3)); }
+
+/* --- роза характеристик --- */
+.beast-rose { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.beast-rose-chart { position: relative; width: min(100%, 340px); aspect-ratio: 1; }
+.beast-rose-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.beast-rose-ring { fill: none; stroke: rgba(168, 175, 186, 0.2); stroke-width: 0.8; }
+.beast-rose-ring:first-child { stroke: rgba(205, 211, 219, 0.42); stroke-width: 1.1; }
+.beast-rose-axis { stroke: rgba(168, 175, 186, 0.18); stroke-width: 0.8; transition: stroke 0.2s ease; }
+.beast-rose-axis.is-active { stroke: rgba(228, 196, 110, 0.75); stroke-dasharray: 3 3; }
+.beast-rose-data {
+  fill: url(#rose-fill);
+  stroke: var(--gold-3);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  transform-origin: 160px 160px;
+  animation: beast-rose-grow 0.9s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  filter: drop-shadow(0 0 8px rgba(228, 196, 110, 0.35));
+}
+@keyframes beast-rose-grow { from { scale: 0; opacity: 0; } }
+.beast-rose-dot { fill: var(--gold-4); transition: r 0.2s ease; }
+
+.beast-rose-node {
+  position: absolute;
+  width: 58px;
+  height: 67px;
+  translate: -50% -50%;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.5px;
+  transition: scale 0.2s ease, filter 0.2s ease;
+}
+.beast-rose-node-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.beast-rose-node b { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1; color: var(--gold-3); }
+.beast-rose-node i { font-style: normal; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-dim); margin-top: 2px; white-space: nowrap; }
+.beast-rose-node.is-prof { background: var(--gold-grad); }
+.beast-rose-node:hover, .beast-rose-node.is-active { scale: 1.12; filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.45)); }
+.beast-rose-node.is-active { background: var(--gold-grad); }
+.beast-rose-node.is-active i { color: var(--gold-2); }
+
+.beast-rose-readout {
+  width: min(100%, 320px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(168, 175, 186, 0.18);
+}
+.beast-rose-readout-head { display: flex; align-items: baseline; gap: 10px; }
+.beast-rose-readout-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--parchment);
+}
+.beast-rose-readout-score { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--gold-3); }
+.beast-rose-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.beast-rose-actions .beast-roll-btn { align-self: auto; margin-top: 0; }
+.beast-roll-result {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  text-align: center;
+  animation: beast-pop 0.4s ease;
+}
+.beast-roll-result span { display: block; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.beast-roll-result b { color: var(--text); }
+.beast-roll-result strong { font-family: var(--font-display); font-size: 1.6rem; color: var(--gold-3); vertical-align: middle; }
+.beast-roll-result.is-crit strong { color: #8fd194; text-shadow: 0 0 12px rgba(95, 174, 100, 0.6); }
+.beast-roll-result.is-fumble strong { color: #ee8d82; text-shadow: 0 0 12px rgba(200, 90, 80, 0.6); }
+
+@media (max-width: 1180px) {
+  .beast-stage {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 'center center' 'left right';
+  }
+  .beast-stage-left, .beast-stage-right { padding-top: 0; }
+}
+@media (max-width: 720px) {
+  .beast-stage { grid-template-columns: 1fr; grid-template-areas: 'center' 'right' 'left'; }
+  .beast-nameplate { flex-direction: column; text-align: center; width: auto; max-width: 100%; }
+  .beast-chips { width: auto; max-width: 100%; }
+  .beast-name-row { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beast-art-sigil, .beast-art img, .beast-vial-liquid::before, .beast-sonar-sweep { animation: none; }
+}
+
+/* --- доска свойств под сценой --- */
+.beast-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(380px, 440px);
+  grid-auto-flow: row dense;
+  gap: 16px;
+  max-width: 1180px;
+  margin: 0 auto 34px;
+}
+.beast-card {
+  position: relative;
+  min-width: 0;
+  padding: 22px 24px 20px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(228, 196, 110, 0.05), transparent 60%) padding-box,
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.14) 45%, rgba(124, 130, 139, 0.55)) border-box;
+  animation: beast-card-in 0.5s ease both;
+}
+.beast-card:nth-child(2) { animation-delay: 0.05s; }
+.beast-card:nth-child(3) { animation-delay: 0.1s; }
+.beast-card:nth-child(4) { animation-delay: 0.15s; }
+.beast-card:nth-child(5) { animation-delay: 0.2s; }
+.beast-card:nth-child(6) { animation-delay: 0.25s; }
+@keyframes beast-card-in { from { opacity: 0; translate: 0 10px; } }
+.beast-card--wide { grid-column: span 2; }
+.beast-card--size { grid-column: 3; grid-row: 1 / span 2; display: flex; flex-direction: column; }
+@media (max-width: 1000px) {
+  .beast-board { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); }
+  .beast-card--wide { grid-column: 1; }
+  .beast-card--size { grid-column: 2; }
+}
+@media (max-width: 640px) {
+  .beast-board { grid-template-columns: minmax(0, 1fr); }
+  .beast-card--size { grid-column: 1; grid-row: auto; }
+}
+
+/* размер — существо рядом с рыцарем */
+.beast-size-chart {
+  position: relative;
+  flex: 1;
+  min-height: 260px;
+  max-height: 320px;
+  margin: 4px 0 0 34px;
+  border-left: 1px solid rgba(168, 175, 186, 0.22);
+}
+.beast-size-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(168, 175, 186, 0.14);
+}
+.beast-size-tick i {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: -0.6em;
+  font-style: normal;
+  font-size: 0.64rem;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+.beast-size-ground {
+  position: absolute;
+  left: -34px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--silver-2) 20%, var(--silver-2) 80%, transparent);
+}
+/* фигуры стоят по своим центрам: у артов прозрачные поля, поэтому
+   раскладка в ряд по ширине картинок разводила бы их слишком далеко */
+.beast-size-stage { position: absolute; inset: 0; overflow: hidden; }
+.beast-size-figure {
+  position: absolute;
+  bottom: 0;
+  translate: -50% 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.beast-size-figure--monster { left: 30%; }
+.beast-size-figure--knight { left: 75%; z-index: 1; }
+.beast-size-figure img {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  filter: url(#beast-key) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+}
+.beast-size-figure--monster:has(.beast-size-fallback) { aspect-ratio: 1; }
+.beast-size-fallback { width: 70%; height: 70%; stroke-width: 0.8; color: var(--silver-1); }
+/* фигура рыцаря занимает центральные 73% ширины квадратного PNG — поля срезаем */
+.beast-size-figure--knight { aspect-ratio: 0.73; }
+.beast-size-knight {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, var(--silver-3), var(--silver-0));
+  -webkit-mask: var(--knight) center bottom / cover no-repeat;
+  mask: var(--knight) center bottom / cover no-repeat;
+  opacity: 0.85;
+}
+/* отметка роста над фигурой */
+.beast-size-mark {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 100%;
+  translate: -50% -4px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gold-3);
+  background: rgba(13, 14, 17, 0.75);
+  border-bottom: 1px solid rgba(228, 196, 110, 0.5);
+}
+.beast-size-mark--knight { color: var(--silver-3); border-bottom-color: rgba(205, 211, 219, 0.4); }
+
+.beast-size-caption { margin-top: auto; padding-top: 14px; font-size: 0.84rem; color: var(--text-dim); line-height: 1.4; }
+.beast-size-caption b { font-family: var(--font-display); font-size: 1rem; letter-spacing: 0.06em; color: var(--parchment); }
+.beast-size-caption span { display: block; }
+.beast-card-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.beast-card-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(168, 175, 186, 0.35), transparent); }
+.beast-card-title svg { width: 16px; height: 16px; stroke-width: 1.6; color: var(--gold-3); }
+.beast-card-title--sub { margin: 18px 0 12px; font-size: 0.8rem; }
+
+/* спасброски — ряд гексов */
+.beast-saves { display: flex; flex-wrap: wrap; gap: 6px; }
+.beast-save {
+  width: 56px;
+  height: 64px;
+  padding: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(160deg, rgba(124, 130, 139, 0.6), rgba(75, 79, 86, 0.6));
+  transition: scale 0.18s ease, filter 0.18s ease;
+}
+.beast-save-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+}
+.beast-save b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1; color: var(--text-dim); }
+.beast-save i { font-style: normal; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-dim); margin-top: 3px; }
+.beast-save.is-prof { background: var(--gold-grad); }
+.beast-save.is-prof b { color: var(--gold-3); }
+.beast-save.is-prof i { color: var(--gold-2); }
+.beast-save:hover { scale: 1.1; filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.4)); }
+.beast-save:active { scale: 1.02; }
+
+/* навыки — жетоны с бонусом */
+.beast-skills { display: flex; flex-wrap: wrap; gap: 8px; }
+.beast-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 16px 5px 6px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.24);
+  font-size: 0.92rem;
+  color: var(--text);
+  transition: box-shadow 0.15s ease, color 0.15s ease, translate 0.15s ease;
+}
+.beast-skill:hover { color: var(--gold-4); box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.6); translate: 0 -1px; }
+.beast-skill-bonus {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 26px;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+  background: var(--gold-grad);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--bg-0);
+}
+.beast-skill-ab { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-dim); }
+
+/* урон — три полосы */
+.beast-dmg { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.beast-dmg-band {
+  --band: 168, 175, 186;
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  background: linear-gradient(90deg, rgba(var(--band), 0.09), transparent 75%);
+  border-left: 2px solid rgba(var(--band), 0.75);
+}
+.beast-dmg-band--immune { --band: 227, 196, 110; }
+.beast-dmg-band--resist { --band: 143, 192, 232; }
+.beast-dmg-band--vuln { --band: 222, 96, 84; }
+.beast-dmg-band-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--band));
+}
+.beast-dmg-band-head svg { width: 16px; height: 16px; stroke-width: 1.7; }
+.beast-dmg-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.beast-dmg-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 9px;
+  border-radius: 2px;
+  background: rgba(var(--band), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--band), 0.28);
+  font-size: 0.86rem;
+  color: var(--text);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.beast-dmg-tag svg { width: 14px; height: 14px; stroke-width: 1.7; color: rgb(var(--band)); }
+.beast-dmg-tag:hover { background: rgba(var(--band), 0.18); box-shadow: inset 0 0 0 1px rgba(var(--band), 0.6), 0 0 14px rgba(var(--band), 0.18); }
+.beast-dmg-band--vuln .beast-dmg-tag svg { animation: beast-throb 1.8s ease-in-out infinite; }
+@keyframes beast-throb { 50% { scale: 1.2; } }
+.beast-dmg-note { margin-top: 10px; font-size: 0.78rem; font-style: italic; color: var(--text-dim); }
+
+/* иммунитет к состояниям — перечёркнутые печати */
+.beast-conds { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.beast-cond {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.beast-cond-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 39px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+.beast-cond-icon svg { width: 16px; height: 16px; stroke-width: 1.6; color: var(--silver-2); }
+.beast-cond-icon::after {
+  content: '';
+  position: absolute;
+  width: 130%;
+  height: 1.5px;
+  background: var(--gold-3);
+  rotate: -45deg;
+  box-shadow: 0 0 6px rgba(228, 196, 110, 0.6);
+  scale: 0 1;
+  transition: scale 0.25s ease;
+}
+.beast-cond:hover .beast-cond-icon::after { scale: 1 1; }
+.beast-cond:hover .beast-cond-icon svg { color: var(--text-dim); }
+
+/* чувства — сонар */
+.beast-sonar { display: flex; align-items: center; gap: 20px; }
+.beast-sonar svg { width: 120px; height: 120px; flex-shrink: 0; overflow: visible; }
+.beast-sonar-grid { fill: none; stroke: rgba(168, 175, 186, 0.16); stroke-width: 0.6; }
+.beast-sonar-ring { stroke-width: 1.2; transform-origin: 60px 60px; animation: beast-ping 0.9s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes beast-ping { from { scale: 0; opacity: 0; } }
+.beast-sonar-sweep { transform-origin: 60px 60px; animation: beast-sigil-spin 4s linear infinite; }
+.beast-sonar-sweep path { fill: rgba(228, 196, 110, 0.12); }
+.beast-sonar-legend { list-style: none; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.beast-sonar-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--text-dim); }
+.beast-sonar-legend svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--c); }
+.beast-sonar-legend b { margin-left: auto; padding-left: 10px; font-weight: 600; color: var(--text); white-space: nowrap; }
+
+/* языки и среда */
+.beast-langs { display: flex; flex-wrap: wrap; gap: 8px; }
+.beast-lang {
+  padding: 5px 14px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--parchment);
+  background:
+    linear-gradient(90deg, transparent, rgba(236, 220, 176, 0.06) 20%, rgba(236, 220, 176, 0.06) 80%, transparent);
+  border-top: 1px solid rgba(236, 220, 176, 0.18);
+  border-bottom: 1px solid rgba(236, 220, 176, 0.18);
+}
+.beast-lang:first-letter { text-transform: uppercase; }
+
+/* всплывающий результат броска */
+.beast-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 28px;
+  translate: -50% 0;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.5);
+  animation: beast-toast-in 0.35s cubic-bezier(0.2, 1.3, 0.4, 1), beast-toast-out 0.4s ease 2.8s forwards;
+}
+.beast-toast svg { width: 20px; height: 20px; color: var(--gold-3); animation: beast-sigil-spin 0.6s ease-out; }
+.beast-toast-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-2); }
+.beast-toast-math { font-size: 0.9rem; color: var(--text-dim); }
+.beast-toast-math b { color: var(--text); }
+.beast-toast strong { font-family: var(--font-display); font-size: 1.8rem; line-height: 1; color: var(--gold-3); }
+.beast-toast.is-crit strong { color: #8fd194; text-shadow: 0 0 12px rgba(95, 174, 100, 0.6); }
+.beast-toast.is-fumble strong { color: #ee8d82; text-shadow: 0 0 12px rgba(200, 90, 80, 0.6); }
+/* --- фон мира кампании за верхом страницы --- */
+.beast-page { position: relative; isolation: isolate; }
+.beast-world {
+  position: absolute;
+  z-index: -1;
+  top: -26px;
+  left: calc(50% - 0.5 * (100vw - var(--sidebar-w)));
+  width: calc(100vw - var(--sidebar-w));
+  height: clamp(560px, 62vw, 860px);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 100%);
+}
+.beast-world-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  opacity: 0.5;
+  filter: saturate(0.85) brightness(0.8);
+  animation: beast-world-in 1.2s ease both;
+}
+/* затемнение по краям и в центре — арт мира не спорит с фигурой и статами */
+.beast-world-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(38% 55% at 50% 42%, rgba(13, 14, 17, 0.55), transparent 75%),
+    linear-gradient(90deg, rgba(13, 14, 17, 0.4) 0%, transparent 14%, transparent 86%, rgba(13, 14, 17, 0.4) 100%);
+}
+@keyframes beast-world-in { from { opacity: 0; scale: 1.04; } }
+.has-world .beast-art-aura { opacity: 0.6; }
+
+a.chip--link { text-decoration: none; transition: color 0.15s ease, box-shadow 0.15s ease; }
+a.chip--link:hover { color: var(--gold-4); box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55); }
+
+/* --- знак уникального персонажа рядом с именем --- */
+.beast-name-row { display: flex; align-items: center; gap: 12px; }
+.beast-unique {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 34px;
+  cursor: help;
+  outline: none;
+}
+.beast-unique::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  opacity: 0.9;
+}
+.beast-unique::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.beast-unique > svg {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.6;
+  color: var(--gold-3);
+  transition: color 0.2s ease, scale 0.2s ease;
+}
+.beast-unique:hover > svg, .beast-unique:focus-visible > svg { color: var(--gold-4); scale: 1.12; }
+.beast-unique-tip {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  width: 260px;
+  padding: 12px 14px;
+  translate: -50% 4px;
+  border: 1px solid rgba(228, 196, 110, 0.45);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  box-shadow: var(--shadow-deep);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, translate 0.18s ease, visibility 0.18s;
+}
+.beast-unique-tip b {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.beast-unique-tip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  translate: -50% -5px;
+  rotate: 45deg;
+  background: var(--bg-0);
+  border-right: 1px solid rgba(228, 196, 110, 0.45);
+  border-bottom: 1px solid rgba(228, 196, 110, 0.45);
+}
+.beast-unique:hover .beast-unique-tip,
+.beast-unique:focus-visible .beast-unique-tip { opacity: 1; visibility: visible; translate: -50% 0; }
+
+@keyframes beast-toast-in { from { opacity: 0; translate: -50% 20px; scale: 0.9; } }
+@keyframes beast-toast-out { to { opacity: 0; translate: -50% 10px; } }
 
 .stat-rows {
   max-width: 1040px;
