@@ -447,19 +447,6 @@ export function CreatureStage({
             <polygon points="100,194 33,61 167,61" />
           </svg>
           <span className="beast-art-floor" aria-hidden="true" />
-          {/* арты с dnd.su — на белом листе, а CORS не даёт обработать пиксели:
-              почти белое уводим в прозрачность, родную альфу PNG сохраняем */}
-          <svg className="beast-art-defs" aria-hidden="true">
-            <filter id="beast-key" colorInterpolationFilters="sRGB">
-              <feColorMatrix
-                in="SourceGraphic"
-                type="matrix"
-                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -8 -8 -8 0 23.6"
-                result="key"
-              />
-              <feComposite in="key" in2="SourceGraphic" operator="in" />
-            </filter>
-          </svg>
           {image && !broken ? (
             <img
               src={image}

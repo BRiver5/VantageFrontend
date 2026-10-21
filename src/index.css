@@ -4557,7 +4557,6 @@ a.term-link:hover {
   background: radial-gradient(closest-side, rgba(0, 0, 0, 0.7), transparent);
   pointer-events: none;
 }
-.beast-art-defs { position: absolute; width: 0; height: 0; }
 .beast-art img {
   position: relative;
   z-index: 1;
@@ -4565,7 +4564,7 @@ a.term-link:hover {
   height: 100%;
   object-fit: contain;
   object-position: bottom;
-  filter: url(#beast-key) drop-shadow(0 18px 26px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.6));
   animation: beast-float 7s ease-in-out infinite;
 }
 @keyframes beast-float {
@@ -4985,7 +4984,7 @@ a.term-link:hover {
   height: 100%;
   width: auto;
   max-width: none;
-  filter: url(#beast-key) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
 }
 .beast-size-figure--monster:has(.beast-size-fallback) { aspect-ratio: 1; }
 .beast-size-fallback { width: 70%; height: 70%; stroke-width: 0.8; color: var(--silver-1); }
