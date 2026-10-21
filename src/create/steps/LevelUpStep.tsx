@@ -6,7 +6,7 @@
  * характеристик или черту, новые заклинания — и видит умения класса и
  * подкласса. Принятый уровень проигрывается сценами награды.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import {
   Award,
   Check,
@@ -43,7 +43,10 @@ import type { FeatureEntry } from '../../classArticle'
 import { useDice } from '../../dice/diceControl'
 import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay'
 import { useCatalogList } from '../useCatalog'
-import { FactChip, StepHeader, StepPanel } from './ui'
+import { RichText } from '../../terms/terms'
+import { FeatPicker } from './FeatPicker'
+import { checkPrereq, type PrereqContext } from '../prereq'
+import { ChoiceModal, FactChip, ModalSection, MoreTab, StepHeader } from './ui'
 
 const SKILL_BY_KEY = new Map(DEFAULT_SKILLS.map((s) => [s.key, s]))
 
@@ -61,6 +64,64 @@ interface LevelRequirements {
   subFeatures: FeatureEntry[]
 }
 
+/**
+ * Текст умения без повтора заголовка: в статье класса описание начинается с
+ * «БОЖЕСТВЕННОЕ ЧУВСТВО 1-й уровень, умение паладина …» — название, уровень и
+ * класс и так видны на карточке. Обрезаем по целому слову.
+ */
+function featureText(html: string, name: string, owner: string, max = 260): string {
+  let text = cleanDescription(html)
+  if (text.toLocaleLowerCase('ru').startsWith(name.toLocaleLowerCase('ru'))) {
+    text = text.slice(name.length)
+  }
+  // «1-й уровень, умение паладина …» / «3-й уровень, особенность Клятвы преданности …»
+  text = text
+    .replace(/^[\s.:—-]*\d+-?(?:й|го)?\s+уров\S*[,.]?\s*/iu, '')
+    .replace(/^(?:умение|особенность|черта|способность)\s+/iu, '')
+  // слова владельца в любом падеже («паладина», «Клятвы преданности») — по основам
+  const stems = new Set(owner.toLocaleLowerCase('ru').replace(/ё/g, 'е').split(/\s+/).map((w) => w.slice(0, 4)))
+  const words = text.split(/\s+/)
+  let skip = 0
+  while (skip < words.length && stems.has(words[skip].toLocaleLowerCase('ru').replace(/ё/g, 'е').slice(0, 4))) skip++
+  text = words.slice(skip).join(' ').trim()
+  if (text.length <= max) return text
+  return text.slice(0, max).replace(/\s+\S*$/u, '').replace(/[,.;:]$/, '') + '…'
+}
+
+/** Хиты уровня жетонами: [кость → значение] + [ТЕЛ ±n] = [итог] */
+function HpEquation({
+  die,
+  value,
+  conMod,
+  total,
+}: {
+  die: number
+  value: number
+  conMod: number
+  total: number
+}) {
+  return (
+    <div className="cw-hp-eq" aria-label={`${value} ${conMod >= 0 ? '+' : '−'} ${Math.abs(conMod)} = ${total} хитов`}>
+      <span className="cw-hp-token">
+        <DieImage type={hitDieType(die)} size={22} />
+        <b>{value}</b>
+        <i>к{die}</i>
+      </span>
+      <span className="cw-hp-op">{conMod >= 0 ? '+' : '−'}</span>
+      <span className="cw-hp-token">
+        <b>{Math.abs(conMod)}</b>
+        <i>ТЕЛ</i>
+      </span>
+      <span className="cw-hp-op">=</span>
+      <span className="cw-hp-token cw-hp-token--total">
+        <Heart aria-hidden="true" />
+        <b>{total}</b>
+        <i>хитов</i>
+      </span>
+    </div>
+  )
+}
+
 export default function LevelUpStep({
   draft,
   update,
@@ -73,6 +134,8 @@ export default function LevelUpStep({
   subclassFeatures: FeatureEntry[]
 }) {
   const dice = useDice()
+  const [subDetails, setSubDetails] = useState<Subclass | null>(null)
+  const closeSubDetails = useCallback(() => setSubDetails(null), [])
   const className = draft.cls?.class_name ?? ''
   const hitDie = draft.cls?.hit_dice ?? 10
   const kind = casterKind(className, draft.cls?.is_caster)
@@ -80,6 +143,8 @@ export default function LevelUpStep({
 
   // активный уровень — первый непройденный, но можно вернуться к любому пройденному
   const nextPending = draft.levels.findIndex((l) => !l.done)
+  // принятые уровни — линия дороги заливается до следующего непринятого
+  const doneCount = draft.levels.filter((l) => l.done).length
   const [cursor, setCursor] = useState(() => (nextPending === -1 ? 0 : nextPending))
   const [scenes, setScenes] = useState<CelebrationScene[] | null>(null)
   const [diceError, setDiceError] = useState<string | null>(null)
@@ -197,6 +262,21 @@ export default function LevelUpStep({
 
   const hpGain = Math.max(1, hitPointsForLevel(choice, hitDie) + conMod)
 
+  // требования черт проверяем на тот уровень, где черта берётся
+  const prereqContext: PrereqContext = {
+    level,
+    scores,
+    raceName: draft.race?.race_name ?? '',
+    subraceName: draft.subrace?.subrace_name ?? '',
+    raceSize: draft.race?.size ?? null,
+    className,
+    casterKind: kind,
+    armorProficiencies: draft.cls?.armor_proficiencies ?? [],
+    weaponProficiencies: draft.cls?.weapon_proficiencies ?? [],
+    backgroundName: draft.background?.background_name ?? '',
+    feats: draft.levels.filter((l) => l.level < level && l.featName).map((l) => l.featName!),
+  }
+
   const hpTotal = useMemo(() => {
     let total = 0
     for (const l of draft.levels) {
@@ -266,32 +346,52 @@ export default function LevelUpStep({
         lead="Каждый уровень принимается отдельно: бросьте кость хитов и заберите то, что он даёт."
       />
 
-      <nav className="cw-ladder" aria-label="Уровни">
+      {/* дорога уровней: золото заливает линию до последнего принятого */}
+      <nav
+        className="cw-climb"
+        aria-label="Уровни"
+        style={
+          {
+            '--n': draft.levels.length,
+            '--fill': `${draft.levels.length > 1 ? (Math.min(doneCount, draft.levels.length - 1) / (draft.levels.length - 1)) * 100 : 0}%`,
+          } as CSSProperties
+        }
+      >
+        {draft.levels.length > 1 && <span className="cw-climb-line" aria-hidden="true" />}
         {draft.levels.map((l, i) => (
           <button
             key={l.level}
             type="button"
-            className={`cw-ladder-step${l.level === level ? ' is-active' : ''}${l.done ? ' is-done' : ''}`}
+            className={`cw-climb-node${l.level === level ? ' is-active' : ''}${l.done ? ' is-done' : ''}`}
             onClick={() => setCursor(i)}
             // вперёд через непройденные уровни не прыгаем — иначе порядок наград рассыплется
             disabled={!l.done && nextPending !== -1 && i > nextPending}
             title={`${l.level} уровень`}
           >
-            {l.done ? <Check aria-hidden="true" /> : l.level}
+            <span className="cw-climb-hex">{l.done ? <Check aria-hidden="true" /> : l.level}</span>
           </button>
         ))}
       </nav>
 
-      <StepPanel className="cw-level-card">
-        <header className="cw-level-card-head">
-          <DieImage type={hitDieType(hitDie)} size={48} />
-          <div>
-            <h3 className="cw-dossier-name gold-text">{level} уровень · {className}</h3>
-            <p className="cw-dossier-line">
-              Бонус мастерства +{proficiencyBonus(level)}
+      <div className="cw-lvl">
+        <header className="cw-lvl-hero">
+          <span className="cw-path-medal cw-lvl-medal">
+            <span>
+              <b key={level}>{level}</b>
+              <i>уровень</i>
+            </span>
+          </span>
+          <div className="cw-lvl-title">
+            <b className="gold-text">{className}</b>
+            <span>
+              бонус мастерства +{proficiencyBonus(level)}
               {draft.subclass && level >= subclassLevel ? ` · ${draft.subclass.subclass_name}` : ''}
-            </p>
+            </span>
           </div>
+          <span className="cw-lvl-die" title={`Кость хитов к${hitDie}`}>
+            <DieImage type={hitDieType(hitDie)} size={54} />
+            <i>к{hitDie}</i>
+          </span>
           {choice.done && (
             <span className="cw-level-done" aria-label="Уровень принят">
               <Check aria-hidden="true" /> принят
@@ -305,10 +405,10 @@ export default function LevelUpStep({
             <Heart aria-hidden="true" /> Хиты
           </h4>
           {level === 1 ? (
-            <p className="cw-block-note">
-              Первый уровень даёт максимум кости: <b>{hitDie}</b> + {conMod} за Телосложение ={' '}
-              <b className="gold-text">{hpGain}</b>
-            </p>
+            <>
+              <HpEquation die={hitDie} value={hitDie} conMod={conMod} total={hpGain} />
+              <p className="cw-block-note">Первый уровень всегда даёт максимум кости хитов.</p>
+            </>
           ) : (
             <div className="cw-hp-row">
               <button
@@ -343,15 +443,11 @@ export default function LevelUpStep({
                   }}
                 />
               </label>
-              <span className="cw-hp-total">
-                {choice.hpRoll != null ? (
-                  <>
-                    {hpValue} + {conMod} = <b className="gold-text">{hpGain}</b>
-                  </>
-                ) : (
-                  'бросьте кость или введите значение'
-                )}
-              </span>
+              {choice.hpRoll != null ? (
+                <HpEquation die={hitDie} value={hpValue} conMod={conMod} total={hpGain} />
+              ) : (
+                <span className="cw-hp-total">бросьте кость или введите значение</span>
+              )}
             </div>
           )}
           {diceError && <p className="auth-error">{diceError}</p>}
@@ -411,24 +507,27 @@ export default function LevelUpStep({
                 const art = realImage(sub.image_gallery)
                 const on = draft.subclass?.id === sub.id
                 return (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    className={`cw-subclass${on ? ' is-on' : ''}`}
-                    onClick={() => update({ subclass: sub })}
-                  >
-                    {art ? (
-                      <img src={art} alt="" loading="lazy" className="cw-subclass-art" />
-                    ) : (
-                      <span className="cw-subclass-art cw-subclass-art--empty">
-                        <Shield aria-hidden="true" />
-                      </span>
-                    )}
-                    <span className="cw-subclass-name">{sub.subclass_name}</span>
-                    {sub.subclass_flavor && (
-                      <span className="cw-subclass-flavor">{sub.subclass_flavor}</span>
-                    )}
-                  </button>
+                  <div key={sub.id} className="cw-pick-slot cw-pick-slot--sub">
+                    <button
+                      type="button"
+                      className={`cw-subclass${on ? ' is-on' : ''}`}
+                      onClick={() => update({ subclass: sub })}
+                      aria-pressed={on}
+                    >
+                      {art ? (
+                        <img src={art} alt="" loading="lazy" className="cw-subclass-art" />
+                      ) : (
+                        <span className="cw-subclass-art cw-subclass-art--empty">
+                          <Shield aria-hidden="true" />
+                        </span>
+                      )}
+                      <span className="cw-subclass-name">{sub.subclass_name}</span>
+                      {sub.subclass_flavor && (
+                        <span className="cw-subclass-flavor">{sub.subclass_flavor}</span>
+                      )}
+                    </button>
+                    <MoreTab onClick={() => setSubDetails(sub)} />
+                  </div>
                 )
               })}
             </div>
@@ -445,14 +544,14 @@ export default function LevelUpStep({
               <button
                 type="button"
                 className={`cs-btn cs-btn--ghost${choice.featName === null ? ' is-active' : ''}`}
-                onClick={() => patchLevel({ featName: null })}
+                onClick={() => patchLevel({ featName: null, featId: null })}
               >
                 +2 к характеристикам
               </button>
               <button
                 type="button"
                 className={`cs-btn cs-btn--ghost${choice.featName !== null ? ' is-active' : ''}`}
-                onClick={() => patchLevel({ featName: '', asi: {} })}
+                onClick={() => patchLevel({ featName: '', featId: null, asi: {} })}
               >
                 Взять черту
               </button>
@@ -503,23 +602,14 @@ export default function LevelUpStep({
                 </div>
               </>
             ) : (
-              <label className="cw-field">
-                <span>Черта</span>
-                <select
-                  value={choice.featName}
-                  onChange={(e) => patchLevel({ featName: e.target.value })}
-                >
-                  <option value="">— выберите черту —</option>
-                  {allFeats
-                    .slice()
-                    .sort((a, b) => a.feat_name.localeCompare(b.feat_name, 'ru'))
-                    .map((f) => (
-                      <option key={f.id} value={f.feat_name}>
-                        {f.feat_name}
-                      </option>
-                    ))}
-                </select>
-              </label>
+              <FeatPicker
+                feats={allFeats}
+                value={choice.featName}
+                onChange={(name) =>
+                  patchLevel({ featName: name, featId: allFeats.find((f) => f.feat_name === name)?.id ?? null })
+                }
+                check={(f) => checkPrereq(f.prerequisite, prereqContext)}
+              />
             )}
           </section>
         )}
@@ -543,8 +633,7 @@ export default function LevelUpStep({
 
             {prepared && (
               <p className="cw-block-note">
-                {className} готовит заклинания из всего списка — конкретный набор выберете в листе
-                персонажа.
+                {className} готовит заклинания из всего списка — набор выберете на шаге «Заклинания».
               </p>
             )}
 
@@ -587,13 +676,13 @@ export default function LevelUpStep({
               {req.classFeatures.map((f) => (
                 <li key={`c-${f.name}`} className="cw-feature">
                   <b>{f.name}</b>
-                  <span>{cleanDescription(f.html).slice(0, 260)}</span>
+                  <span>{featureText(f.html, f.name, className)}</span>
                 </li>
               ))}
               {req.subFeatures.map((f) => (
                 <li key={`s-${f.name}`} className="cw-feature cw-feature--sub">
                   <b>{f.name}</b>
-                  <span>{cleanDescription(f.html).slice(0, 260)}</span>
+                  <span>{featureText(f.html, f.name, draft.subclass?.subclass_name ?? className)}</span>
                 </li>
               ))}
             </ul>
@@ -626,7 +715,38 @@ export default function LevelUpStep({
             {choice.done ? 'Пересмотреть награды' : `Принять ${level} уровень`}
           </button>
         </footer>
-      </StepPanel>
+      </div>
+
+      {subDetails && (
+        <ChoiceModal
+          art={realImage(subDetails.image_gallery)}
+          icon={Shield}
+          title={subDetails.subclass_name}
+          selected={draft.subclass?.id === subDetails.id}
+          onChoose={() => {
+            update({ subclass: subDetails })
+            setSubDetails(null)
+          }}
+          onClose={closeSubDetails}
+          facts={
+            <>
+              {subDetails.level_available != null && (
+                <FactChip>с {subDetails.level_available} уровня</FactChip>
+              )}
+              {subDetails.is_caster && <FactChip>заклинатель</FactChip>}
+            </>
+          }
+        >
+          {subDetails.subclass_flavor && (
+            <p className="cw-dossier-desc">{subDetails.subclass_flavor}</p>
+          )}
+          {subDetails.description && (
+            <ModalSection title="Описание">
+              <RichText text={subDetails.description} />
+            </ModalSection>
+          )}
+        </ChoiceModal>
+      )}
 
       {scenes && <CelebrationOverlay scenes={scenes} onClose={closeScenes} />}
     </div>

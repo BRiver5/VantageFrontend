@@ -699,6 +699,23 @@ export async function getSubList<T>(resource: string, id: string, sub: string): 
 }
 
 /**
+ * Подрасы расы без точных дублей. При импорте одна и та же подраса местами
+ * записана дважды (то же имя и тот же текст) — такие схлопываем. Записи с
+ * одинаковым именем, но разным текстом и бонусами — это разные подрасы
+ * с неудачным заголовком, их оставляем.
+ */
+export async function getSubraces(raceId: string): Promise<Subrace[]> {
+  const list = await getSubList<Subrace>('races', raceId, 'subraces')
+  const seen = new Set<string>()
+  return list.filter((sr) => {
+    const key = `${sr.subrace_name}|${sr.traits ?? sr.description ?? ''}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+/**
  * Запасной арт баннера, если у сеттинга нет settings_picture_urls.
  */
 export function settingArt(titleEn: string | null, titleRu: string, w = 420, h = 800): string {

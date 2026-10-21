@@ -10,7 +10,7 @@
  * (`.class-article …` в index.css). Спойлеры и свёрнутые блоки подклассов
  * превращаем в нативные <details>.
  */
-import { useMemo, type MouseEvent } from 'react'
+import { createContext, useContext, useMemo, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cutProficiencySection } from './classProficiencies'
 import { normSpellName, useSpellIndex } from './spellIndex'
@@ -601,6 +601,13 @@ export function parseFeatureEntries(sectionHtml: string): FeatureEntry[] {
   return out
 }
 
+/**
+ * Статья показана внутри другого сценария (попап конструктора персонажа):
+ * переходы на заклинания и подклассы открываем в новой вкладке, чтобы не
+ * потерять то, что игрок уже собрал.
+ */
+export const OpenLinksInNewTab = createContext(false)
+
 export function ClassArticle({
   html,
   cutSubclasses = true,
@@ -628,6 +635,7 @@ export function ClassArticle({
   const navigate = useNavigate()
   const location = useLocation()
   const spellIndex = useSpellIndex()
+  const newTab = useContext(OpenLinksInNewTab)
 
   // Делегируем клики: заклинание (.ca-spell) → страница заклинания (id ищем в
   // индексе по названию ПРЯМО ПРИ КЛИКЕ — так работает и после возврата назад,
@@ -638,7 +646,9 @@ export function ClassArticle({
     const spell = (e.target as HTMLElement).closest<HTMLElement>('.ca-spell')
     if (spell) {
       const id = spellIndex.get(normSpellName(spell.dataset.spell ?? ''))
-      if (id) {
+      if (id && newTab) {
+        window.open(`/spells/${id}`, '_blank', 'noopener')
+      } else if (id) {
         navigate(`/spells/${id}`, {
           state: { from: location.pathname + location.search, fromLabel: backLabel },
         })

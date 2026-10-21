@@ -1,7 +1,7 @@
 /** Загрузка списков каталога для шагов визарда. */
 import { useEffect, useState } from 'react'
-import { fetchAll, getSubList } from '../api'
-import type { Subrace } from '../api'
+import { fetchAll, getBookMap, getSubraces } from '../api'
+import type { BookMap, Subrace } from '../api'
 
 export interface CatalogState<T> {
   items: T[]
@@ -56,7 +56,7 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
     }
     let alive = true
     setLoading(true)
-    getSubList<Subrace>('races', raceId, 'subraces')
+    getSubraces(raceId)
       .then((list) => {
         if (alive) setItems(list)
       })
@@ -86,7 +86,7 @@ export function useRacesWithSubraces(raceIds: string[]): Set<string> {
     if (!key) return
     let alive = true
     for (const id of key.split(',')) {
-      getSubList<Subrace>('races', id, 'subraces')
+      getSubraces(id)
         .then((list) => {
           if (alive && list.length > 0) setWithSubs((prev) => new Set(prev).add(id))
         })
@@ -100,4 +100,23 @@ export function useRacesWithSubraces(raceIds: string[]): Set<string> {
   }, [key])
 
   return withSubs
+}
+
+let bookMapPromise: Promise<BookMap> | null = null
+
+/** Книги по id — для фильтра «Книга» на шагах выбора; грузятся один раз */
+export function useBookMap(): BookMap {
+  const [books, setBooks] = useState<BookMap>({})
+  useEffect(() => {
+    let alive = true
+    bookMapPromise ??= getBookMap().catch((e: unknown) => {
+      bookMapPromise = null
+      throw e
+    })
+    bookMapPromise.then((map) => alive && setBooks(map)).catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+  return books
 }

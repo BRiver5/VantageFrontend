@@ -1,25 +1,24 @@
-/** Шаг 1 — раса: короткие карточки по центру, подробности — в попапе. */
+/** Шаг 1 — раса: карточки как в каталоге рас, подробности — в попапе. */
 import { useCallback, useMemo, useState } from 'react'
-import { Eye, Footprints, Languages, Ruler, VenetianMask } from 'lucide-react'
+import { Check, Eye, Footprints, GitFork, Ruler, VenetianMask } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { ABILITY_RU, realImage, sizeRu } from '../../api'
 import type { Race } from '../../api'
-import { RichText } from '../../terms/terms'
+import { RaceDetailBody } from '../../pages/DetailPages'
+import { useBookWorld } from '../../worldArt'
 import type { StepProps } from '../draft'
 import {
   ChoiceModal,
-  FactChip,
-  ModalLine,
-  ModalSection,
-  PickCard,
+  MoreTab,
   PickEmpty,
-  PickGrid,
   PickToolbar,
   StepHeader,
   StepStatus,
+  bookFilterGroup,
   usePicker,
   type PickFilterGroup,
 } from './ui'
-import { useCatalogList, useRacesWithSubraces } from '../useCatalog'
+import { useBookMap, useCatalogList, useRacesWithSubraces } from '../useCatalog'
 
 const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']
 const ABILITY_ORDER = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
@@ -27,20 +26,96 @@ const ABILITY_ORDER = ['strength', 'dexterity', 'constitution', 'intelligence', 
 const sizeKey = (r: Race) => r.size?.trim().toLowerCase() ?? ''
 const raceName = (r: Race) => r.race_name
 
-function AbilityBoosts({ scores }: { scores: Record<string, number> | null }) {
-  const boosts = Object.entries(scores ?? {})
-  if (boosts.length === 0) return null
+function RailCell({ icon: Icon, value, label }: { icon: LucideIcon; value: string | null; label: string }) {
   return (
-    <>
-      {boosts.map(([k, v]) => (
-        <FactChip key={k}>
-          {ABILITY_RU[k] ?? k} +{v}
-        </FactChip>
-      ))}
-    </>
+    <span className="race-rail-cell" data-off={value ? undefined : ''}>
+      <Icon aria-hidden="true" />
+      <b>{value ?? '—'}</b>
+      <i>{label}</i>
+    </span>
   )
 }
 
+/** Портрет без подложки — фигура стоит прямо на панели, как в каталоге */
+function RacePortrait({ src }: { src: string | null }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span className="class-card-portrait">
+      {src && !broken ? (
+        <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+      ) : (
+        <VenetianMask className="class-card-fallback" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
+
+/** Карточка расы в стиле каталога: клик — выбор, язычок «Подробнее» — описание */
+function RaceCard({
+  race,
+  hasSubraces,
+  selected,
+  onSelect,
+  onDetails,
+}: {
+  race: Race
+  hasSubraces: boolean
+  selected: boolean
+  onSelect: () => void
+  onDetails: () => void
+}) {
+  const boosts = Object.entries(race.increase_ability_scores ?? {})
+  return (
+    <div className="cw-pick-slot cw-pick-slot--catalog">
+      <button
+        type="button"
+        className={`card card--portrait card--race cw-catalog-card${selected ? ' is-selected' : ''}`}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
+        <span className="class-card-visual">
+          <RacePortrait src={realImage(race.image_gallery)} />
+          {hasSubraces && (
+            <span className="cw-race-branch" title="Есть подрасы">
+              <span>
+                <GitFork aria-hidden="true" />
+              </span>
+            </span>
+          )}
+          {selected && (
+            <span className="cw-card-check" aria-hidden="true">
+              <Check />
+            </span>
+          )}
+        </span>
+        <span className="class-card-lower">
+          <span className="class-card-glow" aria-hidden="true" />
+          <span className="class-card-panel race-card-panel">
+            {boosts.length > 0 && (
+              <span className="race-boosts">
+                {boosts.map(([k, v]) => (
+                  <span className="race-boost" key={k}>
+                    {ABILITY_RU[k] ?? k}
+                    <i>+{v}</i>
+                  </span>
+                ))}
+              </span>
+            )}
+            <span className="race-rail">
+              <RailCell icon={Ruler} value={sizeRu(race.size)} label="размер" />
+              <RailCell icon={Footprints} value={`${race.speed} фт.`} label="скорость" />
+              <RailCell icon={Eye} value={race.darkvision > 0 ? `${race.darkvision} фт.` : null} label="тьма" />
+            </span>
+          </span>
+          <span className="class-card-name-plate">{race.race_name}</span>
+        </span>
+      </button>
+      <MoreTab onClick={onDetails} />
+    </div>
+  )
+}
+
+/** Подробности расы — та же страница, что в каталоге, только внутри попапа */
 function RaceModal({
   race,
   selected,
@@ -52,43 +127,19 @@ function RaceModal({
   onChoose: () => void
   onClose: () => void
 }) {
-  const speeds = [
-    race.flight_speed > 0 ? `полёт ${race.flight_speed} фт.` : null,
-    race.swimming_speed > 0 ? `плавание ${race.swimming_speed} фт.` : null,
-    race.climbing_speed > 0 ? `лазание ${race.climbing_speed} фт.` : null,
-  ].filter(Boolean)
-
+  const world = useBookWorld(race.book_source_id)
   return (
     <ChoiceModal
-      art={realImage(race.image_gallery)}
-      icon={VenetianMask}
+      bare
+      world={world?.art}
       title={race.race_name}
       selected={selected}
       onChoose={onChoose}
       onClose={onClose}
-      facts={
-        <>
-          <FactChip icon={Ruler}>{sizeRu(race.size) ?? '—'}</FactChip>
-          <FactChip icon={Footprints}>{race.speed} фт.</FactChip>
-          {race.darkvision > 0 && <FactChip icon={Eye}>тьма {race.darkvision} фт.</FactChip>}
-          <AbilityBoosts scores={race.increase_ability_scores} />
-        </>
-      }
     >
-      {speeds.length > 0 && <ModalLine icon={Footprints}>Движение: {speeds.join(', ')}</ModalLine>}
-      {race.languages && race.languages.length > 0 && (
-        <ModalLine icon={Languages}>{race.languages.join(', ')}</ModalLine>
-      )}
-      {(race.age_of_adulthood || race.max_age) && (
-        <ModalLine>
-          Взрослеют к {race.age_of_adulthood ?? '—'} годам, живут до {race.max_age ?? '—'}
-        </ModalLine>
-      )}
-      {race.description && (
-        <ModalSection title="Описание">
-          <RichText text={race.description} />
-        </ModalSection>
-      )}
+      <div className="race-detail-page cw-sheet-race">
+        <RaceDetailBody race={race} world={world} embedded />
+      </div>
     </ChoiceModal>
   )
 }
@@ -99,6 +150,7 @@ export default function RaceStep({ draft, update }: StepProps) {
   const withSubraces = useRacesWithSubraces(raceIds)
   const [open, setOpen] = useState<Race | null>(null)
 
+  const books = useBookMap()
   const groups = useMemo<PickFilterGroup<Race>[]>(() => {
     const sizes = new Set(items.map(sizeKey).filter(Boolean))
     const abilities = new Set(items.flatMap((r) => Object.keys(r.increase_ability_scores ?? {})))
@@ -124,8 +176,9 @@ export default function RaceStep({ draft, update }: StepProps) {
         options: withSubraces.size > 0 ? [{ key: 'yes', label: 'есть подрасы' }] : [],
         match: (r) => withSubraces.has(r.id),
       },
+      bookFilterGroup(items, books, (r) => r.book_source_id),
     ]
-  }, [items, withSubraces])
+  }, [items, withSubraces, books])
 
   const picker = usePicker(items, raceName, groups)
   const close = useCallback(() => setOpen(null), [])
@@ -145,32 +198,18 @@ export default function RaceStep({ draft, update }: StepProps) {
       <StepStatus loading={loading} error={error} />
       <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <PickGrid>
+      <div className="cw-catalog-grid">
         {picker.visible.map((race) => (
-          <PickCard
+          <RaceCard
             key={race.id}
-            art={realImage(race.image_gallery)}
-            icon={VenetianMask}
-            name={race.race_name}
-            badge={withSubraces.has(race.id) ? 'подрасы' : null}
+            race={race}
+            hasSubraces={withSubraces.has(race.id)}
             selected={draft.race?.id === race.id}
-            onOpen={() => setOpen(race)}
-          >
-            <span className="cw-card-chips">
-              <AbilityBoosts scores={race.increase_ability_scores} />
-            </span>
-            <span className="cw-pick-meta">
-              <Ruler aria-hidden="true" /> {sizeRu(race.size) ?? '—'}
-              <Footprints aria-hidden="true" /> {race.speed} фт.
-            </span>
-            {race.languages && race.languages.length > 0 && (
-              <span className="cw-pick-line">
-                <Languages aria-hidden="true" /> {race.languages.join(', ')}
-              </span>
-            )}
-          </PickCard>
+            onSelect={() => choose(race)}
+            onDetails={() => setOpen(race)}
+          />
         ))}
-      </PickGrid>
+      </div>
 
       {open && (
         <RaceModal

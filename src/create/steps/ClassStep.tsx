@@ -1,35 +1,110 @@
-/** Шаг 3 — класс: короткие карточки с костью хитов, подробности и снаряжение — в попапе. */
+/** Шаг 3 — класс: карточки как в каталоге классов, подробности и снаряжение — в попапе. */
 import { useCallback, useMemo, useState } from 'react'
-import { Shield, Sparkles, Swords } from 'lucide-react'
+import { Check, Swords } from 'lucide-react'
 import { realImage } from '../../api'
 import type { GameClass } from '../../api'
-import { DieChipIcon, DieImage, hitDieType } from '../../dice/diceAssets'
-import { StartingEquipment, hasStartingEquipment } from '../../pages/StartingEquipment'
-import { RichText } from '../../terms/terms'
-import { CLASS_PRIMARY_ABILITY, casterKind, classSkillChoice } from '../dnd5e'
+import { DIE_NUM_IMAGE_URLS, hitDieType } from '../../dice/diceAssets'
+import { ClassDetailView } from '../../pages/DetailPages'
+import { CLASS_PRIMARY_ABILITY, casterKind } from '../dnd5e'
 import { emptyLevelChoice, type StepProps } from '../draft'
 import {
   ChoiceModal,
-  FactChip,
-  ModalLine,
-  ModalSection,
-  PickCard,
+  MoreTab,
   PickEmpty,
-  PickGrid,
   PickToolbar,
   StepHeader,
   StepStatus,
+  bookFilterGroup,
   usePicker,
   type PickFilterGroup,
 } from './ui'
-import { useCatalogList } from '../useCatalog'
-import { DEFAULT_SKILLS } from '../../types/character'
-
-const SKILL_LABEL = new Map(DEFAULT_SKILLS.map((s) => [s.key, s.label]))
+import { useBookMap, useCatalogList } from '../useCatalog'
 
 const className = (c: GameClass) => c.class_name
 const isCaster = (c: GameClass) => casterKind(c.class_name, c.is_caster) !== 'none'
 
+function ClassPortrait({ src, alt }: { src: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span className="class-card-portrait">
+      {src && !broken ? (
+        <img src={src} alt={alt} loading="lazy" draggable={false} onError={() => setBroken(true)} />
+      ) : (
+        <Swords className="class-card-fallback" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
+
+function ClassStat({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="ccs-row">
+      <span className="ccs-dt">{label}</span>
+      <span className="ccs-dd">{value}</span>
+    </span>
+  )
+}
+
+/**
+ * Карточка класса как в каталоге: кость хитов за фигурой, панель с главным.
+ * Свечение за портретом — фиолетовое у заклинателей, красное у остальных.
+ */
+function ClassCard({
+  cls,
+  selected,
+  onSelect,
+  onDetails,
+}: {
+  cls: GameClass
+  selected: boolean
+  onSelect: () => void
+  onDetails: () => void
+}) {
+  const caster = isCaster(cls)
+  return (
+    <div className="cw-pick-slot cw-pick-slot--catalog">
+      <button
+        type="button"
+        className={`card card--portrait card--class cw-catalog-card cw-class-card ${caster ? 'is-caster' : 'is-martial'}${selected ? ' is-selected' : ''}`}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
+        <span className="class-card-visual">
+          <span className="cw-class-aura" aria-hidden="true" />
+          <img
+            className="class-card-die"
+            src={DIE_NUM_IMAGE_URLS[hitDieType(cls.hit_dice)]}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+          />
+          <ClassPortrait src={realImage(cls.image_gallery)} alt={cls.class_name} />
+          {selected && (
+            <span className="cw-card-check" aria-hidden="true">
+              <Check />
+            </span>
+          )}
+        </span>
+        <span className="class-card-lower">
+          <span className="class-card-glow" aria-hidden="true" />
+          <span className="class-card-panel">
+            <span className="class-card-stats">
+              <ClassStat label="Кость хитов" value={`к${cls.hit_dice}`} />
+              {CLASS_PRIMARY_ABILITY[cls.class_name] && (
+                <ClassStat label="Основные характеристики" value={CLASS_PRIMARY_ABILITY[cls.class_name]} />
+              )}
+              <ClassStat label="Спасброски" value={cls.saving_throw_proficiencies?.join(', ') || '—'} />
+            </span>
+          </span>
+          <span className="class-card-name-plate">{cls.class_name}</span>
+        </span>
+      </button>
+      <MoreTab onClick={onDetails} />
+    </div>
+  )
+}
+
+/** Подробности класса — та же страница, что в разделе классов, внутри попапа */
 function ClassModal({
   cls,
   selected,
@@ -41,57 +116,11 @@ function ClassModal({
   onChoose: () => void
   onClose: () => void
 }) {
-  const skills = classSkillChoice(cls.class_name)
-  const caster = isCaster(cls)
-
   return (
-    <ChoiceModal
-      art={realImage(cls.image_gallery)}
-      icon={Swords}
-      glow={caster}
-      title={cls.class_name}
-      selected={selected}
-      onChoose={onChoose}
-      onClose={onClose}
-      facts={
-        <>
-          <FactChip>
-            <DieChipIcon type={hitDieType(cls.hit_dice)} /> к{cls.hit_dice}
-          </FactChip>
-          {CLASS_PRIMARY_ABILITY[cls.class_name] && (
-            <FactChip icon={Swords}>{CLASS_PRIMARY_ABILITY[cls.class_name]}</FactChip>
-          )}
-          {caster && <FactChip icon={Sparkles}>заклинатель</FactChip>}
-        </>
-      }
-    >
-      {cls.saving_throw_proficiencies && cls.saving_throw_proficiencies.length > 0 && (
-        <ModalLine icon={Shield}>Спасброски: {cls.saving_throw_proficiencies.join(', ')}</ModalLine>
-      )}
-      <ModalLine>
-        Навыков на выбор: {skills.count} из{' '}
-        {skills.options.map((k) => SKILL_LABEL.get(k) ?? k).join(', ')}
-      </ModalLine>
-      {cls.armor_proficiencies && cls.armor_proficiencies.length > 0 && (
-        <ModalLine>Броня: {cls.armor_proficiencies.join(', ')}</ModalLine>
-      )}
-      {cls.weapon_proficiencies && cls.weapon_proficiencies.length > 0 && (
-        <ModalLine>Оружие: {cls.weapon_proficiencies.join(', ')}</ModalLine>
-      )}
-      {hasStartingEquipment(cls.starting_equipment, cls.starting_equipment_text) && (
-        <ModalSection title="Стартовое снаряжение">
-          <StartingEquipment
-            grants={cls.starting_equipment}
-            sourceText={cls.starting_equipment_text}
-            backLabel={cls.class_name}
-          />
-        </ModalSection>
-      )}
-      {cls.description && (
-        <ModalSection title="Описание">
-          <RichText text={cls.description} />
-        </ModalSection>
-      )}
+    <ChoiceModal bare title={cls.class_name} selected={selected} onChoose={onChoose} onClose={onClose}>
+      <div className="cw-sheet-class">
+        <ClassDetailView id={cls.id} embedded />
+      </div>
     </ChoiceModal>
   )
 }
@@ -100,6 +129,7 @@ export default function ClassStep({ draft, update }: StepProps) {
   const { items, loading, error } = useCatalogList<GameClass>('classes')
   const [open, setOpen] = useState<GameClass | null>(null)
 
+  const books = useBookMap()
   const groups = useMemo<PickFilterGroup<GameClass>[]>(() => {
     const dice = [...new Set(items.map((c) => c.hit_dice))].sort((a, b) => a - b)
     return [
@@ -118,8 +148,9 @@ export default function ClassStep({ draft, update }: StepProps) {
         options: dice.map((d) => ({ key: String(d), label: `к${d}` })),
         match: (c, sel) => sel.includes(String(c.hit_dice)),
       },
+      bookFilterGroup(items, books, (c) => c.book_source_id),
     ]
-  }, [items])
+  }, [items, books])
 
   const picker = usePicker(items, className, groups)
   const close = useCallback(() => setOpen(null), [])
@@ -146,26 +177,17 @@ export default function ClassStep({ draft, update }: StepProps) {
       <StepStatus loading={loading} error={error} />
       <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <PickGrid>
+      <div className="cw-catalog-grid">
         {picker.visible.map((cls) => (
-          <PickCard
+          <ClassCard
             key={cls.id}
-            art={realImage(cls.image_gallery)}
-            icon={Swords}
-            name={cls.class_name}
-            glow={isCaster(cls)}
+            cls={cls}
             selected={draft.cls?.id === cls.id}
-            onOpen={() => setOpen(cls)}
-          >
-            <span className="cw-pick-meta">
-              <DieImage type={hitDieType(cls.hit_dice)} size={18} /> к{cls.hit_dice}
-            </span>
-            {CLASS_PRIMARY_ABILITY[cls.class_name] && (
-              <span className="cw-pick-line">{CLASS_PRIMARY_ABILITY[cls.class_name]}</span>
-            )}
-          </PickCard>
+            onSelect={() => choose(cls)}
+            onDetails={() => setOpen(cls)}
+          />
         ))}
-      </PickGrid>
+      </div>
 
       {open && (
         <ClassModal

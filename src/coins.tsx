@@ -37,3 +37,25 @@ export function PriceMark({
     </span>
   )
 }
+
+/** Картинка монеты нужной валюты — для кошелька и монет внутри предметов */
+export function CoinImg({
+  currency,
+  size = 18,
+  className,
+}: {
+  currency: keyof typeof COIN_SRC
+  size?: number
+  className?: string
+}) {
+  return (
+    <img
+      src={COIN_SRC[currency]}
+      alt={CURRENCY_RU[currency]}
+      width={size}
+      height={size}
+      className={['coin-img', className].filter(Boolean).join(' ')}
+      draggable={false}
+    />
+  )
+}

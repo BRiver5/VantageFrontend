@@ -3,34 +3,99 @@
  * Шаг можно пропустить, тогда этих владений у героя просто не будет.
  */
 import { useCallback, useMemo, useState } from 'react'
-import { Award, Hammer, Landmark, Languages } from 'lucide-react'
+import { Check, Landmark, Star } from 'lucide-react'
 import { realImage } from '../../api'
 import type { Background } from '../../api'
-import {
-  EquipmentIconRow,
-  StartingEquipment,
-  hasStartingEquipment,
-} from '../../pages/StartingEquipment'
-import { RichText } from '../../terms/terms'
+import { EquipmentIconRow } from '../../pages/StartingEquipment'
+import { BackgroundDetailBody } from '../../pages/DetailPages'
 import type { StepProps } from '../draft'
 import {
   ChoiceModal,
-  FactChip,
-  ModalLine,
-  ModalSection,
-  PickCard,
+  MoreTab,
   PickEmpty,
-  PickGrid,
   PickToolbar,
   StepHeader,
   StepStatus,
+  bookFilterGroup,
   usePicker,
   type PickFilterGroup,
 } from './ui'
-import { useCatalogList } from '../useCatalog'
+import { useBookMap, useCatalogList } from '../useCatalog'
+import { abilitiesFromSkills, skillKeysFromNames } from '../../skills'
+import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
 
 const bgName = (b: Background) => b.background_name
 
+/** Навыки предыстории чистыми названиями — в данных они часто записаны фразами */
+function skillLabels(bg: Background): string[] {
+  const keys = new Set(skillKeysFromNames(bg.skill_proficiencies))
+  return DEFAULT_SKILLS.filter((sk) => keys.has(sk.key)).map((sk) => sk.label)
+}
+
+/**
+ * Карточка предыстории в стиле каталога, но проще: гекс с артом, название,
+ * навыки и иконки снаряжения — без описания. Клик — выбор, язычок — подробности.
+ */
+function BackgroundCard({
+  bg,
+  selected,
+  onSelect,
+  onDetails,
+}: {
+  bg: Background
+  selected: boolean
+  onSelect: () => void
+  onDetails: () => void
+}) {
+  const [broken, setBroken] = useState(false)
+  const src = realImage(bg.image_gallery)
+  const skills = skillLabels(bg)
+  return (
+    <div className="cw-pick-slot cw-pick-slot--bg">
+      <button
+        type="button"
+        className={`card card--bg cw-bg-card${selected ? ' is-selected' : ''}`}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
+        <span className="bg-card-hex">
+          <span className="bg-card-hex-inner">
+            {src && !broken ? (
+              <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+            ) : (
+              <Landmark className="bg-card-hex-fallback" aria-hidden="true" />
+            )}
+          </span>
+        </span>
+        <span className="bg-card-body">
+          <span className="bg-card-head">
+            <span className="card-name">{bg.background_name}</span>
+          </span>
+          {skills.length > 0 && (
+            <span className="card-chips bg-card-skills">
+              {skills.map((sk) => (
+                <span key={sk} className="chip">
+                  <Star aria-hidden="true" /> {sk}
+                </span>
+              ))}
+            </span>
+          )}
+          <span className="bg-card-foot">
+            <EquipmentIconRow grants={bg.starting_equipment} max={4} />
+          </span>
+        </span>
+        {selected && (
+          <span className="cw-card-check" aria-hidden="true">
+            <Check />
+          </span>
+        )}
+      </button>
+      <MoreTab onClick={onDetails} />
+    </div>
+  )
+}
+
+/** Подробности предыстории — та же страница, что в разделе предысторий, внутри попапа */
 function BackgroundModal({
   bg,
   selected,
@@ -43,49 +108,10 @@ function BackgroundModal({
   onClose: () => void
 }) {
   return (
-    <ChoiceModal
-      art={realImage(bg.image_gallery)}
-      icon={Landmark}
-      title={bg.background_name}
-      selected={selected}
-      onChoose={onChoose}
-      onClose={onClose}
-      facts={
-        <>
-          {bg.skill_proficiencies?.map((s) => (
-            <FactChip key={s} icon={Award}>
-              {s}
-            </FactChip>
-          ))}
-        </>
-      }
-    >
-      {bg.tool_proficiencies && bg.tool_proficiencies.length > 0 && (
-        <ModalLine icon={Hammer}>Инструменты: {bg.tool_proficiencies.join(', ')}</ModalLine>
-      )}
-      {bg.languages && bg.languages.length > 0 && (
-        <ModalLine icon={Languages}>Языки: {bg.languages.join(', ')}</ModalLine>
-      )}
-      {bg.feature_name && (
-        <ModalSection title={`Умение: ${bg.feature_name}`}>
-          <RichText text={bg.feature_description} />
-        </ModalSection>
-      )}
-      {hasStartingEquipment(bg.starting_equipment, bg.equipment) && (
-        <ModalSection title="Снаряжение">
-          <StartingEquipment
-            grants={bg.starting_equipment}
-            fallbackText={bg.equipment}
-            backLabel={bg.background_name}
-            columns={2}
-          />
-        </ModalSection>
-      )}
-      {bg.description && (
-        <ModalSection title="Описание">
-          <RichText text={bg.description} />
-        </ModalSection>
-      )}
+    <ChoiceModal bare title={bg.background_name} selected={selected} onChoose={onChoose} onClose={onClose}>
+      <div className="bg-detail-page cw-sheet-bg">
+        <BackgroundDetailBody bg={bg} embedded />
+      </div>
     </ChoiceModal>
   )
 }
@@ -94,19 +120,34 @@ export default function BackgroundStep({ draft, update }: StepProps) {
   const { items, loading, error } = useCatalogList<Background>('backgrounds')
   const [open, setOpen] = useState<Background | null>(null)
 
+  const books = useBookMap()
   const groups = useMemo<PickFilterGroup<Background>[]>(() => {
-    const skills = [...new Set(items.flatMap((b) => b.skill_proficiencies ?? []))].sort((a, b) =>
-      a.localeCompare(b, 'ru'),
-    )
+    // навыки в данных бывают фразами («Выберите два навыка из следующих: Магия…»),
+    // поэтому фильтруем по каноническим навыкам, найденным внутри текста
+    const skillsOf = (b: Background) => skillKeysFromNames(b.skill_proficiencies)
+    const present = new Set(items.flatMap(skillsOf))
+    const abilities = new Set(items.flatMap((b) => abilitiesFromSkills(b.skill_proficiencies)))
     return [
       {
         key: 'skill',
         label: 'Навыки',
-        options: skills.map((s) => ({ key: s, label: s })),
-        match: (b, sel) => sel.some((s) => b.skill_proficiencies?.includes(s)),
+        options: DEFAULT_SKILLS.filter((sk) => present.has(sk.key))
+          .map((sk) => ({ key: sk.key, label: sk.label }))
+          .sort((x, y) => x.label.localeCompare(y.label, 'ru')),
+        match: (b, sel) => skillsOf(b).some((k) => sel.includes(k)),
       },
+      {
+        key: 'ability',
+        label: 'Характеристика навыков',
+        options: ABILITY_KEYS.filter((a) => abilities.has(a)).map((a) => ({
+          key: a,
+          label: ABILITY_LABELS[a].label,
+        })),
+        match: (b, sel) => abilitiesFromSkills(b.skill_proficiencies).some((a) => sel.includes(a)),
+      },
+      bookFilterGroup(items, books, (b) => b.book_source_id),
     ]
-  }, [items])
+  }, [items, books])
 
   const picker = usePicker(items, bgName, groups)
   const close = useCallback(() => setOpen(null), [])
@@ -135,22 +176,17 @@ export default function BackgroundStep({ draft, update }: StepProps) {
       <StepStatus loading={loading} error={error} />
       <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <PickGrid>
+      <div className="cw-bg-grid">
         {picker.visible.map((bg) => (
-          <PickCard
+          <BackgroundCard
             key={bg.id}
-            art={realImage(bg.image_gallery)}
-            icon={Landmark}
-            name={bg.background_name}
+            bg={bg}
             selected={draft.background?.id === bg.id}
-            onOpen={() => setOpen(bg)}
-          >
-            <span className="cw-pick-foot">
-              <EquipmentIconRow grants={bg.starting_equipment} max={5} />
-            </span>
-          </PickCard>
+            onSelect={() => update({ background: bg })}
+            onDetails={() => setOpen(bg)}
+          />
         ))}
-      </PickGrid>
+      </div>
 
       {open && (
         <BackgroundModal

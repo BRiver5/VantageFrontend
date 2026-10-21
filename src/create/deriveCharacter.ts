@@ -7,6 +7,7 @@
  * получает уже заполненного персонажа, а не заготовку с десятками.
  */
 import { cleanDescription } from '../api'
+import type { EquipmentIndex } from '../api'
 import { skillKeysFromNames } from '../skills'
 import { ABILITY_KEYS, emptyCharacter } from '../types/character'
 import type {
@@ -17,6 +18,7 @@ import type {
 } from '../types/character'
 import type { FeatureEntry } from '../classArticle'
 import { scoreOf, type CharacterDraft, type LevelChoice } from './draft'
+import { inventoryItem, resolveGear, weaponAttack, wornDefense } from './startingGear'
 import {
   abilityFromAny,
   abilityMod,
@@ -129,6 +131,8 @@ export interface DeriveInput {
   subclassFeatures: FeatureEntry[]
   /** имя игрока для шапки листа */
   playerDisplayName?: string | null
+  /** каталог снаряжения — из него берутся предметы стартового набора */
+  equipmentIndex?: EquipmentIndex | null
 }
 
 export function buildCharacter({
@@ -136,6 +140,7 @@ export function buildCharacter({
   classFeatures,
   subclassFeatures,
   playerDisplayName,
+  equipmentIndex = null,
 }: DeriveInput): CharacterCreate {
   const className = draft.cls?.class_name ?? 'Воин'
   const raceName = draft.race?.race_name ?? 'Человек'
@@ -191,7 +196,6 @@ export function buildCharacter({
   base.combat.hit_points.current = base.combat.hit_points.max
   base.combat.hit_dice = { total: `${level}d${hitDie}`, remaining: level }
   base.combat.speed = (draft.race?.speed ?? 30) + (draft.subrace?.speed_bonus ?? 0)
-  base.combat.armor_class = 10 + dexMod
   base.combat.initiative = dexMod
   base.combat.passive_perception =
     10 + wisMod + (base.skills.perception?.proficient ? pb : 0)
@@ -209,16 +213,44 @@ export function buildCharacter({
     ]),
   }
 
+  /* ---------- стартовое снаряжение: инвентарь, доспех, атаки ---------- */
+
+  const gear = resolveGear(draft, equipmentIndex)
+  const worn = wornDefense(
+    gear.items.map((g) => g.eq),
+    className,
+    scores,
+  )
+  base.combat.armor_class = worn.ac
+  base.combat.shield = worn.shield !== null
+
+  const items = gear.items.map(({ eq, quantity }, i) => {
+    const slot = eq === worn.armor ? 'armor' : eq === worn.shield ? 'shield' : null
+    return inventoryItem(eq, quantity, i, { equipped: slot !== null, slot })
+  })
+  base.inventory = {
+    ...base.inventory,
+    items,
+    currency: { ...base.inventory.currency, ...gear.currency },
+  }
+  base.attacks = items
+    .map((it) =>
+      it.equipment
+        ? weaponAttack(it.equipment, it.instance_id, scores, pb, base.proficiencies.weapons)
+        : null,
+    )
+    .filter((a): a is NonNullable<typeof a> => a !== null)
+
   /* ---------- умения ---------- */
 
   const subclassName = draft.subclass?.subclass_name ?? null
   const features: SheetFeature[] = [
     ...classFeatures
       .filter((f) => f.level <= level)
-      .map((f) => toSheetFeature(f, 'class', className)),
+      .map((f) => toSheetFeature(f, 'class', draft.cls?.id ?? null)),
     ...subclassFeatures
       .filter((f) => f.level <= level)
-      .map((f) => toSheetFeature(f, 'subclass', subclassName)),
+      .map((f) => toSheetFeature(f, 'subclass', draft.subclass?.id ?? null)),
   ]
 
   if (draft.subrace?.traits) {
@@ -227,7 +259,7 @@ export function buildCharacter({
       source: 'subrace',
       level: 1,
       description: cleanDescription(draft.subrace.traits),
-      feature_source: draft.subrace.subrace_name,
+      feature_source: draft.subrace.id,
     })
   }
   if (draft.background?.feature_name) {
@@ -236,11 +268,12 @@ export function buildCharacter({
       source: 'background',
       level: 1,
       description: cleanDescription(draft.background.feature_description),
-      feature_source: draft.background.background_name,
+      feature_source: draft.background.id,
     })
   }
   base.features = features
-  base.feats = uniqueStrings(draft.levels.map((l) => l.featName))
+  // сервер хранит черты по UUID; названия — в каталоге
+  base.feats = uniqueStrings(draft.levels.map((l) => l.featId))
 
   /* ---------- заклинания ---------- */
 
@@ -250,22 +283,35 @@ export function buildCharacter({
     const mod = ability ? abilityMod(scores[ability]) : 0
     const pickedCantrips = draft.levels.flatMap((l) => l.cantrips)
     const pickedSpells = draft.levels.flatMap((l) => l.spells)
+    const pickedIds = new Set(pickedSpells.map((s) => s.id))
+    const preparedIds = new Set(draft.preparedSpells.map((s) => s.id))
 
     const known: SpellKnown[] = [
       ...pickedCantrips.map((s) => ({
         name: s.spell_name,
         level: 0,
         prepared: true,
-        spell_source: className,
+        spell_source: s.spell_source ?? null,
         snapshot: null,
       })),
       ...pickedSpells.map((s) => ({
         name: s.spell_name,
         level: s.spell_level,
-        prepared: !isPreparedCaster(className),
-        spell_source: className,
+        // у волшебника книга ≠ подготовленные: отмечено на шаге «Заклинания»
+        prepared: !isPreparedCaster(className) || preparedIds.has(s.id),
+        spell_source: s.spell_source ?? null,
         snapshot: null,
       })),
+      // жрец, друид, паладин, изобретатель готовят из всего списка класса
+      ...draft.preparedSpells
+        .filter((s) => !pickedIds.has(s.id))
+        .map((s) => ({
+          name: s.spell_name,
+          level: s.spell_level,
+          prepared: true,
+          spell_source: s.spell_source ?? null,
+          snapshot: null,
+        })),
     ]
 
     base.spellcasting = {
@@ -284,12 +330,22 @@ export function buildCharacter({
 
   base.basic_info.race = {
     name: raceName,
+    source: draft.race?.id ?? null,
     size: draft.race?.size ?? null,
     speed: base.combat.speed,
+    darkvision: draft.subrace?.darkvision_override ?? draft.race?.darkvision ?? null,
+    languages: draft.race?.languages ?? [],
+    increase_ability_scores: draft.race?.increase_ability_scores ?? {},
   }
-  base.basic_info.subrace = draft.subrace ? { name: draft.subrace.subrace_name } : null
+  base.basic_info.subrace = draft.subrace
+    ? {
+        name: draft.subrace.subrace_name,
+        source: draft.subrace.id,
+        increase_ability_scores: draft.subrace.increase_ability_scores ?? {},
+      }
+    : null
   base.basic_info.background = draft.background
-    ? { name: draft.background.background_name }
+    ? { name: draft.background.background_name, source: draft.background.id }
     : null
   base.basic_info.classes = [
     {
@@ -298,8 +354,8 @@ export function buildCharacter({
       hit_die: hitDie,
       is_caster: kind !== 'none',
       subclass_name: subclassName,
-      subclass_source: null,
-      source: null,
+      subclass_source: draft.subclass?.id ?? null,
+      source: draft.cls?.id ?? null,
       spellcasting_ability: spellcastingAbility(className),
     },
   ]

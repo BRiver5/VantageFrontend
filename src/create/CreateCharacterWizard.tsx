@@ -1,15 +1,17 @@
 /**
  * Пошаговый конструктор персонажа.
  *
- * Порядок шагов повторяет порядок решений за столом: сначала кто ты (раса,
- * подраса), потом кем станешь (класс, уровень), затем характеристики, имя и
- * предыстория — и только после этого прокачка по уровням, где каждый уровень
- * выдаётся отдельно, с броском кости хитов и выбором, что он принёс.
+ * Порядок шагов: кто ты (раса, подраса), кем стал (класс, предыстория), из чего
+ * сделан (характеристики — навыки предыстории уже видны в них), с чем выходишь
+ * в путь (снаряжение — его КД и атаки считаются от характеристик), как тебя
+ * зовут — и только в конце уровень и прокачка, где каждый уровень выдаётся
+ * отдельно, с броском кости хитов и выбором того, что он принёс.
  *
  * Черновик (CharacterDraft) хранит и выбранные объекты каталога, и решения по
  * уровням; в лист персонажа его превращает buildCharacter.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
 import { createCharacter } from '../api'
@@ -20,6 +22,11 @@ import { initialDraft, resizeLevels, type CharacterDraft, type DraftUpdate } fro
 import { ABILITY_KEYS } from '../types/character'
 import { useClassBundle, useSubclassFeatures } from './useClassBundle'
 import { useSubraces } from './useCatalog'
+import { useEquipmentIndex } from '../equipmentIndex'
+import { WorldBackdrop } from '../creatureSheet'
+import { useBookWorld } from '../worldArt'
+import { gearReady } from './startingGear'
+import EquipmentStep from './steps/EquipmentStep'
 import RaceStep from './steps/RaceStep'
 import SubraceStep from './steps/SubraceStep'
 import ClassStep from './steps/ClassStep'
@@ -29,6 +36,8 @@ import IdentityStep from './steps/IdentityStep'
 import BackgroundStep from './steps/BackgroundStep'
 import LevelUpStep from './steps/LevelUpStep'
 import ReviewStep from './steps/ReviewStep'
+import SpellsStep from './steps/SpellsStep'
+import { casterKind } from './dnd5e'
 
 type StepId =
   | 'race'
@@ -38,7 +47,9 @@ type StepId =
   | 'abilities'
   | 'identity'
   | 'background'
+  | 'equipment'
   | 'levelup'
+  | 'spells'
   | 'review'
 
 interface StepDef {
@@ -99,6 +110,7 @@ export default function CreateCharacterWizard() {
   const { items: subraces } = useSubraces(draft.race?.id ?? null)
   const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null)
   const subclassFeatures = useSubclassFeatures(bundle, draft.subclass?.id ?? null)
+  const equipmentIndex = useEquipmentIndex()
 
   // целевой уровень управляет длиной списка решений по уровням
   useEffect(() => {
@@ -114,18 +126,27 @@ export default function CreateCharacterWizard() {
     if (subraces.length > 0) list.push({ id: 'subrace', label: 'Подраса' })
     list.push(
       { id: 'class', label: 'Класс' },
-      { id: 'level', label: 'Уровень' },
-      { id: 'abilities', label: 'Характеристики' },
-      { id: 'identity', label: 'Имя' },
       { id: 'background', label: 'Предыстория' },
+      { id: 'abilities', label: 'Характеристики' },
+      { id: 'equipment', label: 'Снаряжение' },
+      { id: 'identity', label: 'Имя' },
+      { id: 'level', label: 'Уровень' },
       { id: 'levelup', label: 'Прокачка' },
-      { id: 'review', label: 'Итог' },
     )
+    // заклинания — только у заклинателей
+    if (draft.cls && casterKind(draft.cls.class_name, draft.cls.is_caster) !== 'none') {
+      list.push({ id: 'spells', label: 'Заклинания' })
+    }
+    list.push({ id: 'review', label: 'Итог' })
     return list
-  }, [subraces.length])
+  }, [subraces.length, draft.cls])
 
   const safeIdx = Math.min(stepIdx, steps.length - 1)
   const step = steps[safeIdx]
+
+  // на шагах расы и подрасы за мастером — мир, откуда родом выбранная раса
+  const raceWorld = useBookWorld(draft.race?.book_source_id)
+  const showWorld = (step.id === 'race' || step.id === 'subrace') && raceWorld
 
   const go = useCallback(
     (index: number) => {
@@ -162,8 +183,12 @@ export default function CreateCharacterWizard() {
         return draft.name.trim().length > 0
       case 'background':
         return true
+      case 'equipment':
+        return gearReady(draft)
       case 'levelup':
         return levelsReady
+      case 'spells':
+        return true
       case 'review':
         return true
     }
@@ -178,6 +203,7 @@ export default function CreateCharacterWizard() {
         classFeatures: bundle?.features ?? [],
         subclassFeatures,
         playerDisplayName: user?.display_name ?? null,
+        equipmentIndex,
       })
       const created = await createCharacter(body)
       if (!created.id) throw new Error('Сервер не вернул id персонажа')
@@ -192,7 +218,8 @@ export default function CreateCharacterWizard() {
   const isLast = step.id === 'review'
 
   return (
-    <section className="cw">
+    <section className={`cw${showWorld ? ' has-world' : ''}`}>
+      {showWorld && <WorldBackdrop key={showWorld.art} art={showWorld.art} />}
       <header className="cw-top">
         <Link to="/characters" className="back-link back-link--btn">
           <ChevronLeft aria-hidden="true" /> к персонажам
@@ -216,6 +243,7 @@ export default function CreateCharacterWizard() {
         {step.id === 'abilities' && <AbilitiesStep draft={draft} update={update} />}
         {step.id === 'identity' && <IdentityStep draft={draft} update={update} />}
         {step.id === 'background' && <BackgroundStep draft={draft} update={update} />}
+        {step.id === 'equipment' && <EquipmentStep draft={draft} update={update} />}
         {step.id === 'levelup' && (
           <LevelUpStep
             draft={draft}
@@ -225,6 +253,7 @@ export default function CreateCharacterWizard() {
             subclassFeatures={subclassFeatures}
           />
         )}
+        {step.id === 'spells' && <SpellsStep draft={draft} update={update} />}
         {step.id === 'review' && (
           <ReviewStep
             draft={draft}
@@ -237,44 +266,52 @@ export default function CreateCharacterWizard() {
 
       {error && <p className="auth-error cw-error">{error}</p>}
 
-      <footer className="cw-foot">
-        <button
-          type="button"
-          className="cs-btn cs-btn--ghost"
-          onClick={() => go(safeIdx - 1)}
-          disabled={safeIdx === 0 || busy}
-        >
-          <ChevronLeft aria-hidden="true" /> Назад
-        </button>
+      {/* панель шагов — в body и fixed: всегда внизу экрана и поверх содержимого,
+          её не сдвигают ни прокрутка, ни transform анимаций страницы */}
+      {createPortal(
+        <footer className="cw-foot">
+          <div className="cw-foot-inner">
+            <button
+              type="button"
+              className="cs-btn cs-btn--ghost"
+              onClick={() => go(safeIdx - 1)}
+              disabled={safeIdx === 0 || busy}
+            >
+              <ChevronLeft aria-hidden="true" /> Назад
+            </button>
 
-        <span className="cw-foot-hint">
-          {!canAdvance && step.id === 'levelup' && 'Пройдите все уровни, чтобы продолжить'}
-          {!canAdvance && step.id === 'abilities' && 'Разложите значения по всем характеристикам'}
-          {!canAdvance && step.id === 'identity' && 'Герою нужно имя'}
-          {!canAdvance && (step.id === 'race' || step.id === 'subrace' || step.id === 'class') &&
-            'Сделайте выбор, чтобы продолжить'}
-        </span>
+            <span className="cw-foot-hint">
+              {!canAdvance && step.id === 'levelup' && 'Пройдите все уровни, чтобы продолжить'}
+              {!canAdvance && step.id === 'abilities' && 'Разложите значения по всем характеристикам'}
+              {!canAdvance && step.id === 'identity' && 'Герою нужно имя'}
+              {!canAdvance && step.id === 'equipment' && 'Выберите предметы во всех пунктах «на выбор»'}
+              {!canAdvance && (step.id === 'race' || step.id === 'subrace' || step.id === 'class') &&
+                'Сделайте выбор, чтобы продолжить'}
+            </span>
 
-        {isLast ? (
-          <button
-            type="button"
-            className="auth-submit cw-create"
-            onClick={() => void submit()}
-            disabled={busy}
-          >
-            {busy ? 'Вписываем в хроники…' : 'Создать героя'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="cs-btn cw-next"
-            onClick={() => go(safeIdx + 1)}
-            disabled={!canAdvance || busy}
-          >
-            Далее <ChevronRight aria-hidden="true" />
-          </button>
-        )}
-      </footer>
+            {isLast ? (
+              <button
+                type="button"
+                className="auth-submit cw-create"
+                onClick={() => void submit()}
+                disabled={busy}
+              >
+                {busy ? 'Вписываем в хроники…' : 'Создать героя'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cs-btn cw-next"
+                onClick={() => go(safeIdx + 1)}
+                disabled={!canAdvance || busy}
+              >
+                Далее <ChevronRight aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </footer>,
+        document.body,
+      )}
     </section>
   )
 }

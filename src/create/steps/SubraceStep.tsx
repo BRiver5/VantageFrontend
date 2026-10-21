@@ -48,7 +48,8 @@ export default function SubraceStep({
             icon={Users}
             name={sr.subrace_name}
             selected={draft.subrace?.id === sr.id}
-            onOpen={() => setOpen(sr)}
+            onSelect={() => update({ subrace: sr })}
+            onDetails={() => setOpen(sr)}
           >
             <span className="cw-card-chips">
               <SubraceFacts sr={sr} />
@@ -83,7 +84,8 @@ export default function SubraceStep({
               <RichText text={open.traits} />
             </ModalSection>
           )}
-          {open.description && (
+          {/* в данных описание подрасы почти всегда дословно повторяет особенности */}
+          {open.description && open.description.trim() !== open.traits?.trim() && (
             <ModalSection title="Описание">
               <RichText text={open.description} />
             </ModalSection>

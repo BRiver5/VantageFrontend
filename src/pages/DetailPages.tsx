@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -40,6 +40,7 @@ import {
   getCachedEntity,
   getOne,
   getSubList,
+  getSubraces,
   cleanDescription,
   realImage,
   sizeRu,
@@ -78,13 +79,14 @@ import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
-import { ClassArticle, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
+import { ClassArticle, OpenLinksInNewTab, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
 import { MulticlassButton } from '../multiclass'
 import { ABILITY_LABELS } from '../types/character'
 import { abilitiesFromSkills } from '../skills'
 import { hasClassProficiencies, parseClassProficiencies } from '../classProficiencies'
 import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
 import { CreatureBoard, CreatureStage, WorldBackdrop } from '../creatureSheet'
+import { useBookWorld, type BookWorld } from '../worldArt'
 
 /* ---------- Общие детали ---------- */
 
@@ -412,7 +414,7 @@ export function SpellDetailPage() {
    ============================================================ */
 
 /** Мир кампании книги — кроме «родного» для 5e Фаэруна, где живёт большинство существ */
-function useBookWorld(book: Book | undefined) {
+function useCreatureWorld(book: Book | undefined) {
   const { data: setting } = useOne<Setting>('settings', book?.settings_id ?? undefined)
   if (!setting || setting.id !== book?.settings_id) return null
   const { ru, en } = splitTitle(setting.settings_title)
@@ -424,7 +426,7 @@ export function CreatureDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: c, error } = useOne<Creature>('creatures', id)
   const book = useBookRef(c?.book_source_id)
-  const world = useBookWorld(book)
+  const world = useCreatureWorld(book)
   if (error) return <p className="status-line is-error">Существо не найдено: {error}</p>
   if (!c) return <p className="status-line">Выслеживаем существо…</p>
 
@@ -699,10 +701,15 @@ function SubclassHex({
   // открытие с перелётом-морфом: обложка соты «летит» в шестиугольник-обложку
   // подробной страницы (общее имя SUB_HERO). Так же, как карточка класса.
   // Работает и по клику на саму соту, и по раскрытой карточке-описанию.
+  const newTab = useContext(OpenLinksInNewTab)
   const open = (e?: ReactMouseEvent<HTMLElement>) => {
     if (e && (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
     e?.preventDefault()
     const to = `/subclasses/${sc.id}`
+    if (newTab) {
+      window.open(to, '_blank', 'noopener')
+      return
+    }
     const img = cellRef.current?.querySelector<HTMLElement>('.hex-cover')
     const doc = document as VTDocument
     if (!doc.startViewTransition || !img) {
@@ -825,7 +832,7 @@ function SubclassHive({
   )
 }
 
-function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
+function ClassDetailPortrait({ src, alt, vt = true }: { src: string | null; alt: string; vt?: boolean }) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="class-detail-portrait">
@@ -833,7 +840,7 @@ function ClassDetailPortrait({ src, alt }: { src: string | null; alt: string }) 
         <img
           src={src}
           alt={alt}
-          style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
+          style={vt ? ({ viewTransitionName: 'class-hero-img' } as CSSProperties) : undefined}
           onError={() => setBroken(true)}
         />
       ) : (
@@ -860,8 +867,20 @@ const SUBCLASS_GROUP_LABEL: Record<string, string> = {
   Чародей: 'Происхождения чародея',
 }
 
-/** Деталь класса: id из оболочки/роута, onBack — reverse-VT в каталог (если задан). */
-export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => void }) {
+/**
+ * Деталь класса: id из оболочки/роута, onBack — reverse-VT в каталог (если задан).
+ * `embedded` — показ внутри конструктора персонажа: без «назад» и мультикласса,
+ * подкласс выбирается локально (не в адресе), переходы — в новой вкладке.
+ */
+export function ClassDetailView({
+  id,
+  onBack,
+  embedded = false,
+}: {
+  id: string
+  onBack?: () => void
+  embedded?: boolean
+}) {
   const location = useLocation()
   const { data: c, error } = useOne<GameClass>('classes', id)
   // из кэша — чтобы при возврате с подкласса соты были на месте сразу (для морфа)
@@ -920,7 +939,9 @@ export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => voi
 
   // Выбранный подкласс (?subclass=): его умения вписываются в таблицу/список класса
   const [searchParams, setSearchParams] = useSearchParams()
-  const subclassId = searchParams.get('subclass')
+  const [localSubclass, setLocalSubclass] = useState<string | null>(null)
+  const subclassId = embedded ? localSubclass : searchParams.get('subclass')
+  const heroRef = useRef<HTMLElement>(null)
   const { data: selectedSubDirect } = useOne<Subclass>('subclasses', subclassId ?? undefined)
   const selectedSub = useMemo(() => {
     if (!subclassId) return null
@@ -944,6 +965,11 @@ export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => voi
   )
   const toggleSubclass = (nextId: string | null) => {
     const picked = !!nextId && nextId !== subclassId
+    if (embedded) {
+      setLocalSubclass(picked ? nextId : null)
+      if (picked) heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
     const p = new URLSearchParams(searchParams)
     if (picked) p.set('subclass', nextId!)
     else p.delete('subclass')
@@ -957,155 +983,164 @@ export function ClassDetailView({ id, onBack }: { id: string; onBack?: () => voi
 
   const dieType = hitDieType(c.hit_dice)
 
+  const vt = (name: string) =>
+    embedded ? undefined : ({ viewTransitionName: name } as CSSProperties)
+
   return (
-    <section className="book-page class-detail-page">
-      {onBack ? (
-        <button type="button" className="back-link back-link--btn" onClick={onBack}>
-          <ArrowLeft aria-hidden="true" /> к классам
-        </button>
-      ) : (
-        <Link to="/classes" className="back-link">
-          <ArrowLeft aria-hidden="true" /> к классам
-        </Link>
-      )}
-
-      <header className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>
-        <div className="class-detail-stage">
-          <div className="class-detail-aura" aria-hidden="true" />
-          <img
-            className="class-detail-die"
-            src={DIE_NUM_IMAGE_URLS[dieType]}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            style={{ viewTransitionName: 'class-hero-die' } as CSSProperties}
-          />
-          <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} />
-
-          <div className="class-detail-meta">
-            <h1 className="class-detail-name-plate" style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}>
-              {c.class_name}
-            </h1>
-            <div className="card-chips class-detail-chips">
-              <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
-              {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
-            </div>
-          </div>
-
-          {selectedSub && (
-            <div className="class-detail-subhex">
-              <div className="class-detail-subhex-art">
-                <Link
-                  to={`/subclasses/${selectedSub.id}`}
-                  className="detail-hex detail-hex--sm"
-                  title={selectedSub.subclass_name}
-                >
-                  {realImage(selectedSub.image_gallery) ? (
-                    <img
-                      className="detail-hex-cover"
-                      src={realImage(selectedSub.image_gallery)!}
-                      alt={selectedSub.subclass_name}
-                    />
-                  ) : (
-                    <span className="detail-hex-fallback"><Shield aria-hidden="true" /></span>
-                  )}
-                </Link>
-                <button
-                  type="button"
-                  className="hex-pick hex-pick--bottom"
-                  onClick={() => toggleSubclass(null)}
-                  title="Убрать подкласс"
-                  aria-label="Убрать подкласс"
-                >
-                  <X aria-hidden="true" />
-                </button>
-              </div>
-              <span className="class-detail-subhex-name">{selectedSub.subclass_name}</span>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <Divider />
-
-      <div className="class-cta-row">
-        {c.is_caster && (
-          <Link
-            to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`}
-            className="spell-cta"
-          >
-            <Sparkles aria-hidden="true" />
-            Заклинания класса
+    <OpenLinksInNewTab.Provider value={embedded}>
+      <section className="book-page class-detail-page">
+        {embedded ? null : onBack ? (
+          <button type="button" className="back-link back-link--btn" onClick={onBack}>
+            <ArrowLeft aria-hidden="true" /> к классам
+          </button>
+        ) : (
+          <Link to="/classes" className="back-link">
+            <ArrowLeft aria-hidden="true" /> к классам
           </Link>
         )}
-        {subclasses.length > 0 && (
-          <button
-            type="button"
-            className="spell-cta spell-cta--ghost subclass-jump"
-            onClick={scrollToSubclasses}
-          >
-            <Users aria-hidden="true" />
-            {selectedSub
-              ? 'Сменить архетип'
-              : `${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}
-            <ArrowDown aria-hidden="true" />
-          </button>
-        )}
-        <MulticlassButton fromLabel={c.class_name} />
-      </div>
 
-      {hasClassProficiencies(proficiencies) && (
-        <div className="stat-rows">
-          <StatRow label="Доспехи" value={proficiencies.armor} />
-          <StatRow label="Оружие" value={proficiencies.weapons} />
-          <StatRow label="Инструменты" value={proficiencies.tools} />
-          <StatRow label="Спасброски" value={proficiencies.savingThrows} />
-          <StatRow label="Навыки" value={proficiencies.skills} />
+        <header ref={heroRef} className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>
+          <div className="class-detail-stage">
+            <div className="class-detail-aura" aria-hidden="true" />
+            <img
+              className="class-detail-die"
+              src={DIE_NUM_IMAGE_URLS[dieType]}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              style={vt('class-hero-die')}
+            />
+            <ClassDetailPortrait src={realImage(c.image_gallery)} alt={c.class_name} vt={!embedded} />
+
+            <div className="class-detail-meta">
+              <h1 className="class-detail-name-plate" style={vt('class-hero-title')}>
+                {c.class_name}
+              </h1>
+              <div className="card-chips class-detail-chips">
+                <Chip icon={<DieChipIcon type={dieType} />}>к{c.hit_dice} хитов</Chip>
+                {c.is_caster && <Chip icon={Sparkles}>заклинатель</Chip>}
+              </div>
+            </div>
+
+            {selectedSub && (
+              <div className="class-detail-subhex">
+                <div className="class-detail-subhex-art">
+                  <Link
+                    to={`/subclasses/${selectedSub.id}`}
+                    className="detail-hex detail-hex--sm"
+                    title={selectedSub.subclass_name}
+                    target={embedded ? '_blank' : undefined}
+                    rel={embedded ? 'noopener' : undefined}
+                  >
+                    {realImage(selectedSub.image_gallery) ? (
+                      <img
+                        className="detail-hex-cover"
+                        src={realImage(selectedSub.image_gallery)!}
+                        alt={selectedSub.subclass_name}
+                      />
+                    ) : (
+                      <span className="detail-hex-fallback"><Shield aria-hidden="true" /></span>
+                    )}
+                  </Link>
+                  <button
+                    type="button"
+                    className="hex-pick hex-pick--bottom"
+                    onClick={() => toggleSubclass(null)}
+                    title="Убрать подкласс"
+                    aria-label="Убрать подкласс"
+                  >
+                    <X aria-hidden="true" />
+                  </button>
+                </div>
+                <span className="class-detail-subhex-name">{selectedSub.subclass_name}</span>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <Divider />
+
+        <div className="class-cta-row">
+          {c.is_caster && (
+            <Link
+              to={`/spells?class=${encodeURIComponent(c.class_name.toLowerCase())}`}
+              className="spell-cta"
+              target={embedded ? '_blank' : undefined}
+              rel={embedded ? 'noopener' : undefined}
+            >
+              <Sparkles aria-hidden="true" />
+              Заклинания класса
+            </Link>
+          )}
+          {subclasses.length > 0 && (
+            <button
+              type="button"
+              className="spell-cta spell-cta--ghost subclass-jump"
+              onClick={scrollToSubclasses}
+            >
+              <Users aria-hidden="true" />
+              {selectedSub
+                ? 'Сменить архетип'
+                : `${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}
+              <ArrowDown aria-hidden="true" />
+            </button>
+          )}
+          {!embedded && <MulticlassButton fromLabel={c.class_name} />}
         </div>
-      )}
-      {hasStartingEquipment(c.starting_equipment, c.starting_equipment_text) && (
-        <DetailSection title="Стартовое снаряжение">
-          <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} backLabel={c.class_name} />
-        </DetailSection>
-      )}
-      {isHtml ? (
-        <section className="detail-section">
-          <ClassArticle
-            html={c.description!}
-            subclassSectionHtml={subclassSection}
-            subclassFeatures={subclassFeatures}
-            isCaster={!!c.is_caster}
-            backLabel={c.class_name}
-          />
-        </section>
-      ) : (
-        <>
-          <DetailSection title="Описание">
-            <Rich text={descText} />
+
+        {hasClassProficiencies(proficiencies) && (
+          <div className="stat-rows">
+            <StatRow label="Доспехи" value={proficiencies.armor} />
+            <StatRow label="Оружие" value={proficiencies.weapons} />
+            <StatRow label="Инструменты" value={proficiencies.tools} />
+            <StatRow label="Спасброски" value={proficiencies.savingThrows} />
+            <StatRow label="Навыки" value={proficiencies.skills} />
+          </div>
+        )}
+        {hasStartingEquipment(c.starting_equipment, c.starting_equipment_text) && (
+          <DetailSection title="Стартовое снаряжение">
+            <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} backLabel={c.class_name} />
           </DetailSection>
-          {table && (
-            <DetailSection title="Таблица развития">
-              <ClassProgressionTable
-                table={table}
-                onOpenSubclasses={subclasses.length > 0 ? scrollToSubclasses : undefined}
+        )}
+        {isHtml ? (
+          <section className="detail-section">
+            <ClassArticle
+              html={c.description!}
+              subclassSectionHtml={subclassSection}
+              subclassFeatures={subclassFeatures}
+              isCaster={!!c.is_caster}
+              backLabel={c.class_name}
+            />
+          </section>
+        ) : (
+          <>
+            <DetailSection title="Описание">
+              <Rich text={descText} />
+            </DetailSection>
+            {table && (
+              <DetailSection title="Таблица развития">
+                <ClassProgressionTable
+                  table={table}
+                  onOpenSubclasses={subclasses.length > 0 ? scrollToSubclasses : undefined}
+                />
+              </DetailSection>
+            )}
+          </>
+        )}
+        {subclasses.length > 0 && (
+          <div ref={subsRef}>
+            <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
+              <SubclassHive
+                subclasses={subclasses}
+                selectedId={subclassId}
+                returningId={returningSub}
+                onToggle={toggleSubclass}
               />
             </DetailSection>
-          )}
-        </>
-      )}
-      {subclasses.length > 0 && (
-        <div ref={subsRef}>
-          <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
-            <SubclassHive
-              subclasses={subclasses}
-              selectedId={subclassId}
-              returningId={returningSub}
-              onToggle={toggleSubclass}
-            />
-          </DetailSection>
-        </div>
-      )}
-    </section>
+          </div>
+        )}
+      </section>
+    </OpenLinksInNewTab.Provider>
   )
 }
 
@@ -1161,27 +1196,30 @@ function RaceFact({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
   )
 }
 
-export function RaceDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const { data: r, error } = useOne<Race>('races', id)
-  const book = useBookRef(r?.book_source_id)
+/**
+ * Тело страницы расы: герой с портретом, факты, языки, описание и подрасы.
+ * Его же показывает попап выбора расы в конструкторе персонажа — поэтому
+ * `embedded` убирает переходы, которые увели бы из конструктора.
+ */
+export function RaceDetailBody({
+  race: r,
+  world,
+  embedded = false,
+}: {
+  race: Race
+  world: BookWorld | null
+  embedded?: boolean
+}) {
+  const book = useBookRef(r.book_source_id)
   const [subraces, setSubraces] = useState<Subrace[]>([])
 
   useEffect(() => {
-    if (!id) return
     setSubraces([])
-    getSubList<Subrace>('races', id, 'subraces').then(setSubraces).catch(() => {})
-  }, [id])
-
-  if (error) return <p className="status-line is-error">Раса не найдена: {error}</p>
-  if (!r) return <p className="status-line">Изучаем родословные…</p>
+    getSubraces(r.id).then(setSubraces).catch(() => {})
+  }, [r.id])
 
   return (
-    <section className="book-page race-detail-page">
-      <Link to="/races" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к расам
-      </Link>
-
+    <OpenLinksInNewTab.Provider value={embedded}>
       <header className="race-detail-hero">
         <div className="race-detail-stage">
           <div className="race-detail-aura" aria-hidden="true" />
@@ -1191,7 +1229,7 @@ export function RaceDetailPage() {
           <div className="class-detail-meta race-detail-meta">
             <h1
               className="class-detail-name-plate race-detail-name-plate"
-              style={{ viewTransitionName: 'class-hero-title' } as CSSProperties}
+              style={embedded ? undefined : ({ viewTransitionName: 'class-hero-title' } as CSSProperties)}
             >
               {r.race_name}
             </h1>
@@ -1200,6 +1238,16 @@ export function RaceDetailPage() {
                 {r.race_type ? `Вид: ${creatureTypeRu(r.race_type)}` : 'раса'}
               </span>
               <SourceBadge book={book} />
+              {world?.id &&
+                (embedded ? (
+                  <span className="chip">
+                    <Landmark aria-hidden="true" /> {world.name}
+                  </span>
+                ) : (
+                  <Link to={`/settings/${world.id}`} className="chip chip--link">
+                    <Landmark aria-hidden="true" /> {world.name}
+                  </Link>
+                ))}
             </div>
             <AbilityBoosts scores={r.increase_ability_scores} className="race-detail-boosts" />
           </div>
@@ -1244,25 +1292,57 @@ export function RaceDetailPage() {
       {subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
           <div className="subrace-grid">
-            {subraces.map((sr) => (
-              <Link key={sr.id} to={`/subraces/${sr.id}`} className="subrace-card">
-                <span className="subrace-card-name">{sr.subrace_name}</span>
-                <AbilityBoosts scores={sr.increase_ability_scores} />
-                {(sr.darkvision_override != null || sr.speed_bonus > 0) && (
-                  <div className="card-chips">
-                    {sr.speed_bonus > 0 && <Chip icon={Footprints}>скорость +{sr.speed_bonus} фт.</Chip>}
-                    {sr.darkvision_override != null && <Chip icon={Eye}>тьма {sr.darkvision_override} фт.</Chip>}
-                  </div>
-                )}
-                <TermDesc text={sr.traits ?? sr.description} className="card-desc subrace-card-desc" />
-                <span className="subrace-card-go">
-                  подробнее <ArrowRight aria-hidden="true" />
-                </span>
-              </Link>
-            ))}
+            {subraces.map((sr) => {
+              const body = (
+                <>
+                  <span className="subrace-card-name">{sr.subrace_name}</span>
+                  <AbilityBoosts scores={sr.increase_ability_scores} />
+                  {(sr.darkvision_override != null || sr.speed_bonus > 0) && (
+                    <div className="card-chips">
+                      {sr.speed_bonus > 0 && <Chip icon={Footprints}>скорость +{sr.speed_bonus} фт.</Chip>}
+                      {sr.darkvision_override != null && <Chip icon={Eye}>тьма {sr.darkvision_override} фт.</Chip>}
+                    </div>
+                  )}
+                  <TermDesc text={sr.traits ?? sr.description} className="card-desc subrace-card-desc" />
+                </>
+              )
+              // в конструкторе подраса выбирается следующим шагом — без перехода
+              return embedded ? (
+                <div key={sr.id} className="subrace-card">
+                  {body}
+                </div>
+              ) : (
+                <Link key={sr.id} to={`/subraces/${sr.id}`} className="subrace-card">
+                  {body}
+                  <span className="subrace-card-go">
+                    подробнее <ArrowRight aria-hidden="true" />
+                  </span>
+                </Link>
+              )
+            })}
           </div>
         </DetailSection>
       )}
+    </OpenLinksInNewTab.Provider>
+  )
+}
+
+export function RaceDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: r, error } = useOne<Race>('races', id)
+  // фоном — арт мира, в книге которого раса появилась
+  const world = useBookWorld(r?.book_source_id)
+
+  if (error) return <p className="status-line is-error">Раса не найдена: {error}</p>
+  if (!r) return <p className="status-line">Изучаем родословные…</p>
+
+  return (
+    <section className={`book-page race-detail-page${world ? ' has-world' : ''}`}>
+      {world && <WorldBackdrop art={world.art} />}
+      <Link to="/races" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к расам
+      </Link>
+      <RaceDetailBody race={r} world={world} />
     </section>
   )
 }
@@ -1518,10 +1598,27 @@ function HeroHexArt({
 export function BackgroundDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: bg, error } = useOne<Background>('backgrounds', id)
-  const book = useBookRef(bg?.book_source_id)
-  const abilities = useMemo(() => abilitiesFromSkills(bg?.skill_proficiencies), [bg?.skill_proficiencies])
   if (error) return <p className="status-line is-error">Предыстория не найдена: {error}</p>
   if (!bg) return <p className="status-line">Листаем летопись…</p>
+
+  return (
+    <section className="book-page bg-detail-page">
+      <Link to="/backgrounds" className="back-link">
+        <ArrowLeft aria-hidden="true" /> к предысториям
+      </Link>
+      <BackgroundDetailBody bg={bg} />
+    </section>
+  )
+}
+
+/**
+ * Тело страницы предыстории: шапка, плашки владений, умение, снаряжение и
+ * описание. Его же показывает попап выбора предыстории в конструкторе —
+ * там `embedded` открывает ссылки (заклинания и т.п.) в новой вкладке.
+ */
+export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background; embedded?: boolean }) {
+  const book = useBookRef(bg.book_source_id)
+  const abilities = useMemo(() => abilitiesFromSkills(bg.skill_proficiencies), [bg.skill_proficiencies])
 
   const featureHtml = isHtmlDescription(bg.feature_description) ? bg.feature_description! : null
   const descHtml = isHtmlDescription(bg.description) ? bg.description! : null
@@ -1533,11 +1630,7 @@ export function BackgroundDetailPage() {
     featurePlain.length > 0 && !plainText(bg.description).includes(featurePlain.slice(0, 60))
 
   return (
-    <section className="book-page bg-detail-page">
-      <Link to="/backgrounds" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к предысториям
-      </Link>
-
+    <OpenLinksInNewTab.Provider value={embedded}>
       <header className="bg-hero">
         {/* тот же арт размытым фоном — шапка перестаёт быть пустой справа */}
         {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
@@ -1613,7 +1706,7 @@ export function BackgroundDetailPage() {
           </DetailSection>
         )
       )}
-    </section>
+    </OpenLinksInNewTab.Provider>
   )
 }
 
@@ -1624,20 +1717,33 @@ export function BackgroundDetailPage() {
 export function FeatDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: f, error } = useOne<Feat>('feats', id)
-  const book = useBookRef(f?.book_source_id)
   if (error) return <p className="status-line is-error">Черта не найдена: {error}</p>
   if (!f) return <p className="status-line">Листаем свод дарований…</p>
-
-  const abilityEntries = Object.entries(f.increase_ability_scores ?? {})
-  const descHtml = isHtmlDescription(f.description) ? f.description! : null
-  const art = realImage(f.image_gallery)
 
   return (
     <section className="book-page bg-detail-page">
       <Link to="/feats" className="back-link">
         <ArrowLeft aria-hidden="true" /> к чертам
       </Link>
+      <FeatDetailBody f={f} />
+    </section>
+  )
+}
 
+/**
+ * Тело страницы черты: шапка с артом, прибавками и требованием и описание.
+ * Его же показывает окно выбора черты в конструкторе — там `embedded`
+ * открывает ссылки (заклинания и т.п.) в новой вкладке.
+ */
+export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: boolean }) {
+  const book = useBookRef(f.book_source_id)
+
+  const abilityEntries = Object.entries(f.increase_ability_scores ?? {})
+  const descHtml = isHtmlDescription(f.description) ? f.description! : null
+  const art = realImage(f.image_gallery)
+
+  return (
+    <OpenLinksInNewTab.Provider value={embedded}>
       <header className="bg-hero">
         {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
         <span className="bg-hero-aura" aria-hidden="true" />
@@ -1688,7 +1794,7 @@ export function FeatDetailPage() {
           </DetailSection>
         )
       )}
-    </section>
+    </OpenLinksInNewTab.Provider>
   )
 }
 

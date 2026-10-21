@@ -6,6 +6,7 @@
 import type { Background, CharacterVisibility, GameClass, Race, Spell, Subclass, Subrace } from '../api'
 import type { AbilityName } from '../types/character'
 import { ABILITY_KEYS } from '../types/character'
+import type { GearPick } from './startingGear'
 
 /** Способ получения характеристик */
 export type AbilityMethod = 'roll' | 'array' | 'pointbuy' | 'manual'
@@ -23,6 +24,12 @@ export const POINT_BUY_COST: Record<number, number> = {
 
 export const POINT_BUY_BUDGET = 27
 
+/** Один бросок 4к6: все четыре кости и сумма трёх старших */
+export interface AbilityRoll {
+  values: number[]
+  total: number
+}
+
 /** Решения игрока на одном уровне класса */
 export interface LevelChoice {
   level: number
@@ -35,6 +42,8 @@ export interface LevelChoice {
   asi: Partial<Record<AbilityName, number>>
   /** выбрана черта вместо усиления характеристик */
   featName: string | null
+  /** UUID черты — сервер хранит черты по id */
+  featId: string | null
   /** новые заклинания и заговоры, выбранные на этом уровне */
   spells: Spell[]
   cantrips: Spell[]
@@ -60,6 +69,8 @@ export interface CharacterDraft {
   baseScores: Record<AbilityName, number | null>
   /** выпавшие значения, ещё не разложенные по характеристикам */
   rolledPool: number[]
+  /** броски 4к6 с самими костями — карточки шага характеристик */
+  abilityRolls: AbilityRoll[]
 
   name: string
   avatarUrl: string
@@ -78,6 +89,12 @@ export interface CharacterDraft {
   backstory: string
 
   visibility: CharacterVisibility
+
+  /** стартовое снаряжение: ключ гранта → выбранный вариант и предметы */
+  gear: Record<string, GearPick>
+
+  /** подготовленные заклинания (жрец, друид, паладин, изобретатель, волшебник) */
+  preparedSpells: Spell[]
 
   levels: LevelChoice[]
 }
@@ -99,6 +116,7 @@ export function emptyLevelChoice(level: number): LevelChoice {
     skills: [],
     asi: {},
     featName: null,
+    featId: null,
     spells: [],
     cantrips: [],
     done: false,
@@ -125,6 +143,7 @@ export function initialDraft(visibility: CharacterVisibility): CharacterDraft {
     abilityMethod: 'roll',
     baseScores: blankScores(),
     rolledPool: [],
+    abilityRolls: [],
     name: '',
     avatarUrl: '',
     alignment: '',
@@ -141,6 +160,8 @@ export function initialDraft(visibility: CharacterVisibility): CharacterDraft {
     flaws: '',
     backstory: '',
     visibility,
+    gear: {},
+    preparedSpells: [],
     levels: [emptyLevelChoice(1)],
   }
 }

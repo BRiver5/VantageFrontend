@@ -4,8 +4,9 @@
  * характеристики, умение класса или подкласса.
  *
  * Визуально это продолжение оверлея результата броска (dice-reveal): та же
- * золотая рамка, искры и звук появления числа. Сцены играются очередью, их
- * можно пропустить кнопкой или Esc.
+ * золотая рамка, искры и звук появления числа. Сцены играются очередью;
+ * сыгранная сцена улетает жетоном в ленту наверху экрана, а в конце вся лента
+ * собирается итогом уровня. Пропустить можно кнопкой или Esc.
  */
 import {
   useCallback,
@@ -45,9 +46,10 @@ export type CelebrationScene =
 
 const SPARK_ANGLES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
 
-/** Сколько держится одна сцена */
-const SCENE_MS = 2400
-const SCENE_MS_SHORT = 900
+/** Сколько держится одна сцена и итог в конце */
+const SCENE_MS = 1600
+const SCENE_MS_SHORT = 800
+const SUMMARY_MS = 1800
 
 interface SceneView {
   kicker: string
@@ -161,6 +163,45 @@ function sceneView(scene: CelebrationScene): SceneView {
   }
 }
 
+/** Короткая подпись сцены для жетона в ленте наверху */
+function sceneChip(scene: CelebrationScene): string {
+  switch (scene.kind) {
+    case 'level':
+      return `${scene.level} уровень`
+    case 'hp':
+      return `+${scene.amount} хитов`
+    case 'slot':
+      return `${ordinal(scene.circle)} ×${scene.count}`
+    case 'ability':
+      return `${ABILITY_LABELS[scene.ability].abbr} ${scene.from} → ${scene.to}`
+    case 'spell':
+    case 'cantrip':
+    case 'skill':
+    case 'feature':
+    case 'feat':
+    case 'subclass':
+      return scene.name
+  }
+}
+
+/** Жетоны полученного: иконка сцены + короткая подпись */
+function Trail({ scenes, className }: { scenes: CelebrationScene[]; className: string }) {
+  return (
+    <ul className={className} aria-label="Получено за уровень">
+      {scenes.map((s, i) => (
+        <li
+          key={i}
+          className={`celebrate-chip celebrate-chip--${s.kind}`}
+          style={{ '--i': i } as CSSProperties}
+        >
+          {sceneView(s).icon}
+          <span>{sceneChip(s)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function CelebrationOverlay({
   scenes,
   onClose,
@@ -185,7 +226,8 @@ export default function CelebrationOverlay({
   const next = useCallback(() => {
     clearTimer()
     setIndex((i) => {
-      if (i + 1 >= scenes.length) {
+      // за последней сценой — итог (index === scenes.length), из итога — выход
+      if (i >= scenes.length) {
         onClose()
         return i
       }
@@ -204,8 +246,12 @@ export default function CelebrationOverlay({
       onClose()
       return
     }
-    playAddResult()
-    timer.current = setTimeout(next, reducedMotion ? SCENE_MS_SHORT : SCENE_MS)
+    const summary = index >= scenes.length
+    if (!summary) playAddResult()
+    timer.current = setTimeout(
+      next,
+      summary ? SUMMARY_MS : reducedMotion ? SCENE_MS_SHORT : SCENE_MS,
+    )
     return clearTimer
   }, [index, scenes.length, next, clearTimer, onClose, reducedMotion])
 
@@ -228,10 +274,31 @@ export default function CelebrationOverlay({
   }, [skipAll, next])
 
   const scene = scenes[index]
-  if (!scene) return null
+  const portalTarget = document.getElementById('root') ?? document.body
+
+  // итог: вся лента полученного по центру
+  if (!scene) {
+    if (scenes.length === 0) return null
+    return createPortal(
+      <div className="celebrate-overlay" role="dialog" aria-modal="true" aria-label="Итог уровня" onClick={next}>
+        <div className="celebrate-frame" aria-hidden="true">
+          <Corners size={52} gold />
+        </div>
+        <div className="celebrate-content celebrate-summary">
+          <span className="celebrate-icon" aria-hidden="true">
+            <Star aria-hidden="true" />
+          </span>
+          <p className="celebrate-kicker gold-text" role="status" aria-live="polite">
+            Получено за уровень
+          </p>
+          <Trail scenes={scenes} className="celebrate-trail celebrate-trail--summary" />
+        </div>
+      </div>,
+      portalTarget,
+    )
+  }
 
   const view = sceneView(scene)
-  const portalTarget = document.getElementById('root') ?? document.body
 
   return createPortal(
     <div
@@ -248,6 +315,8 @@ export default function CelebrationOverlay({
         <span className="dice-reveal-edge dice-reveal-edge--left" />
         <span className="dice-reveal-edge dice-reveal-edge--right" />
       </div>
+
+      {index > 0 && <Trail scenes={scenes.slice(0, index)} className="celebrate-trail" />}
 
       <div className="celebrate-content" key={`${index}-${scene.kind}`}>
         <span className="celebrate-icon" aria-hidden="true">{view.icon}</span>

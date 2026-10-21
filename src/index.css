@@ -2055,7 +2055,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   flex-direction: column;
   gap: 1px;
 }
-.class-card-stats dt {
+.class-card-stats dt,
+.class-card-stats .ccs-dt {
   font-family: var(--font-display);
   font-size: 0.66rem;
   font-weight: 700;
@@ -2063,7 +2064,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   letter-spacing: 0.06em;
   color: var(--gold-3);
 }
-.class-card-stats dd {
+.class-card-stats dd,
+.class-card-stats .ccs-dd {
   margin: 0;
   font-size: 0.94rem;
   line-height: 1.3;
@@ -5256,6 +5258,9 @@ a.term-link:hover {
 }
 @keyframes beast-world-in { from { opacity: 0; scale: 1.04; } }
 .has-world .beast-art-aura { opacity: 0.6; }
+/* страница расы: тот же фон мира за героем-портретом */
+.race-detail-page { position: relative; isolation: isolate; }
+.has-world .race-detail-aura { opacity: 0.7; }
 
 a.chip--link { text-decoration: none; transition: color 0.15s ease, box-shadow 0.15s ease; }
 a.chip--link:hover { color: var(--gold-4); box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55); }
@@ -7022,7 +7027,13 @@ a.chip--link:hover { color: var(--gold-4); box-shadow: inset 0 0 0 1px rgba(228,
   letter-spacing: 0.08em;
 }
 .cs-btn--lg svg { width: 18px; height: 18px; }
-.cs-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.cs-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+/* недоступная кнопка — затемнена и не реагирует (напр. «Все шесть брошены») */
+.cs-btn:disabled {
+  cursor: default;
+  filter: grayscale(0.7) brightness(0.55);
+  opacity: 0.75;
+}
 .cs-btn--ghost {
   color: var(--silver-2);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
@@ -9407,96 +9418,386 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 }
 .chars-banner p { color: var(--text-dim); margin-top: 4px; font-size: 0.92rem; }
 .chars-banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.chars-empty {
+/* ---------- Лобби героев: знамёна в центре, свободные слоты по бокам ---------- */
+
+.lobby {
+  --lobby-cut: 16px;
+  /* угловатая карточка — срезанные углы, как у панелей и плашек сайта */
+  --lobby-chamfer: polygon(
+    var(--lobby-cut) 0, calc(100% - var(--lobby-cut)) 0,
+    100% var(--lobby-cut), 100% calc(100% - var(--lobby-cut)),
+    calc(100% - var(--lobby-cut)) 100%, var(--lobby-cut) 100%,
+    0 calc(100% - var(--lobby-cut)), 0 var(--lobby-cut)
+  );
+  /* знамя: срезанный верх и острый «хвост» вниз */
+  --lobby-pennant: polygon(
+    var(--lobby-cut) 0, calc(100% - var(--lobby-cut)) 0,
+    100% var(--lobby-cut), 100% 86%, 50% 100%, 0 86%, 0 var(--lobby-cut)
+  );
+  --slot-w: clamp(130px, 12vw, 170px);
+  --slot-h: clamp(320px, 52vh, 420px);
+  --hero-w: clamp(170px, 15vw, 220px);
+  --hero-h: calc(var(--slot-h) + 40px);
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 160px);
+}
+
+.lobby-head { text-align: center; }
+.lobby-head .section-title { margin: 0; }
+.lobby-sub {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.98rem;
+}
+.lobby .chars-banner { margin: 18px auto 0; width: min(760px, 100%); }
+.lobby-loading { text-align: center; margin: auto; }
+
+/* сцена: прожектор сверху и «пол» под карточками */
+.lobby-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin: 28px 0 8px;
+  isolation: isolate;
+}
+.lobby-stage::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: min(900px, 100%);
+  height: 120%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at 50% 45%, rgba(196, 154, 60, 0.1), rgba(124, 130, 139, 0.05) 40%, transparent 70%);
+  pointer-events: none;
+}
+.lobby-stage::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 8%;
+  right: 8%;
+  bottom: 6px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 154, 60, 0.4), transparent);
+}
+
+.lobby-row {
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  gap: clamp(12px, 1.6vw, 22px);
+  width: 100%;
+  overflow-x: auto;
+  padding: 16px 8px 36px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.lobby-row > * {
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  animation: lobby-in 0.45s ease backwards;
+}
+.lobby-row > :nth-child(2) { animation-delay: 0.05s; }
+.lobby-row > :nth-child(3) { animation-delay: 0.1s; }
+.lobby-row > :nth-child(4) { animation-delay: 0.15s; }
+.lobby-row > :nth-child(5) { animation-delay: 0.2s; }
+.lobby-row > :nth-child(n + 6) { animation-delay: 0.25s; }
+@keyframes lobby-in { from { opacity: 0; transform: translateY(16px); } }
+
+/* ---------- Свободный слот ---------- */
+
+.lobby-slot {
+  position: relative;
+  display: block;
+  width: var(--slot-w);
+  height: var(--slot-h);
+  padding: 1px;
+  clip-path: var(--lobby-chamfer);
+  background: linear-gradient(160deg, rgba(168, 175, 186, 0.42), rgba(168, 175, 186, 0.1) 50%, rgba(168, 175, 186, 0.36));
+  text-decoration: none;
+  transition: background 0.22s ease, transform 0.22s ease;
+}
+.lobby-slot-inner {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  min-height: calc(100vh - 240px);
-  padding: 24px 0 48px;
-  text-align: center;
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--lobby-chamfer);
+  background: linear-gradient(180deg, rgba(28, 32, 42, 0.5), rgba(14, 16, 22, 0.78));
+  transition: background 0.22s ease;
 }
-.chars-empty-title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
-  letter-spacing: 0.04em;
-  color: var(--parchment);
-}
-.chars-empty-hex {
-  display: grid;
-  place-items: center;
-  width: min(210px, 52vw);
-  aspect-ratio: 1 / var(--hex-aspect);
-  clip-path: var(--hex-point);
-  background: var(--gold-grad);
-  text-decoration: none;
-  position: relative;
-  transition: filter 0.2s ease, transform 0.2s ease;
-}
-.chars-empty-hex::before {
+/* полоса-акцент сверху, проявляется при наведении */
+.lobby-slot-inner::before {
   content: '';
   position: absolute;
-  inset: 3px;
-  clip-path: var(--hex-point);
-  background: radial-gradient(circle at 50% 42%, var(--bg-3), var(--bg-0) 78%);
+  top: 0;
+  left: var(--lobby-cut);
+  right: var(--lobby-cut);
+  height: 2px;
+  background: var(--gold-grad);
+  opacity: 0;
+  transition: opacity 0.22s ease;
 }
-.chars-empty-hex svg {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  stroke-width: 1.5;
-  color: var(--gold-3);
-  transition: color 0.2s ease, transform 0.2s ease;
+.lobby-slot svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.2;
+  color: rgba(168, 175, 186, 0.55);
+  transition: color 0.22s ease, transform 0.22s ease;
 }
-.chars-empty-hex:hover,
-.chars-empty-hex:focus-visible {
-  filter: drop-shadow(0 0 16px rgba(228, 196, 110, 0.35));
-  transform: translateY(-2px);
+.lobby-slot:hover,
+.lobby-slot:focus-visible {
   outline: none;
+  transform: translateY(-4px);
+  background: linear-gradient(160deg, rgba(228, 196, 110, 0.7), rgba(196, 154, 60, 0.2) 50%, rgba(228, 196, 110, 0.6));
 }
-.chars-empty-hex:hover svg,
-.chars-empty-hex:focus-visible svg {
-  color: var(--gold-4);
-  transform: scale(1.08);
+.lobby-slot:hover .lobby-slot-inner,
+.lobby-slot:focus-visible .lobby-slot-inner {
+  background: linear-gradient(0deg, rgba(196, 154, 60, 0.16), rgba(28, 32, 42, 0.55) 60%, rgba(14, 16, 22, 0.78));
 }
-.chars-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.lobby-slot:hover .lobby-slot-inner::before,
+.lobby-slot:focus-visible .lobby-slot-inner::before { opacity: 1; }
+.lobby-slot:hover svg,
+.lobby-slot:focus-visible svg { color: var(--gold-3); transform: scale(1.15); }
+
+/* главный слот, когда героев ещё нет */
+.lobby-slot--main {
+  width: var(--hero-w);
+  height: var(--hero-h);
+  padding: 2px;
+  background: var(--gold-grad);
 }
-.chars-card {
-  display: flex;
-  align-items: stretch;
-  background: var(--panel);
-  border: 1px solid color-mix(in srgb, var(--silver-1) 40%, transparent);
+.lobby-slot--main .lobby-slot-inner {
+  animation: lobby-breathe 3.2s ease-in-out 0.5s infinite;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(228, 196, 110, 0.16), transparent 60%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-0));
 }
-.chars-card-main {
-  flex: 1;
-  padding: 16px 18px;
-  text-decoration: none;
-  color: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.chars-card-main:hover { background: rgba(255, 255, 255, 0.03); }
-.chars-card-name {
+.lobby-slot--main svg { width: 54px; height: 54px; color: var(--gold-3); stroke-width: 1.3; }
+.lobby-slot-label {
   font-family: var(--font-display);
-  font-size: 1.35rem;
-  color: var(--parchment);
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-3);
 }
-.chars-card-meta { font-size: 0.88rem; color: var(--text-dim); }
-.chars-card-del {
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  padding: 0 16px;
-  cursor: pointer;
+@keyframes lobby-breathe { 50% { box-shadow: inset 0 0 46px rgba(228, 196, 110, 0.22); } }
+
+/* ---------- Знамя героя ---------- */
+
+.lobby-hero {
+  position: relative;
+  width: var(--hero-w);
 }
-.chars-card-del:hover { color: #e07070; }
+.lobby-hero-link {
+  position: relative;
+  display: block;
+  height: var(--hero-h);
+  text-decoration: none;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.5));
+  transition: transform 0.22s ease;
+}
+.lobby-hero:hover .lobby-hero-link,
+.lobby-hero-link:focus-visible { transform: translateY(-5px); outline: none; }
+
+.lobby-hero-frame {
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  clip-path: var(--lobby-pennant);
+  background: var(--gold-grad);
+}
+.lobby-hero-art {
+  position: absolute;
+  inset: 2px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  clip-path: var(--lobby-pennant);
+  background:
+    repeating-linear-gradient(135deg, rgba(196, 154, 60, 0.05) 0 14px, transparent 14px 28px),
+    linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.lobby-hero-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  transition: transform 0.3s ease;
+}
+.lobby-hero:hover .lobby-hero-art img { transform: scale(1.04); }
+.lobby-hero-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(13, 14, 17, 0.75) 70%, rgba(13, 14, 17, 0.95));
+}
+.lobby-hero-fallback {
+  width: 42%;
+  height: 42%;
+  margin-bottom: 30%;
+  color: rgba(196, 154, 60, 0.35);
+  stroke-width: 0.9;
+}
+
+.lobby-hero-vis {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--gold-3);
+  background: rgba(13, 14, 17, 0.7);
+  clip-path: var(--hex-point);
+}
+.lobby-hero-vis svg { width: 13px; height: 13px; }
+
+/* светлая плашка с именем поперёк знамени */
+.lobby-hero-plate {
+  position: absolute;
+  z-index: 2;
+  left: -6px;
+  right: -6px;
+  bottom: 24%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 18px 6px;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(180deg, var(--gold-4), var(--gold-3));
+  text-align: center;
+}
+.lobby-hero-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: 0.04em;
+  color: var(--bg-0);
+}
+.lobby-hero-meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(13, 14, 17, 0.72);
+}
+
+/* гекс уровня на острие знамени */
+.lobby-hero-level {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: -14px;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: calc(46px * var(--hex-aspect));
+  transform: translateX(-50%);
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+}
+.lobby-hero-level span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--gold-4);
+}
+
+.lobby-hero-del {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  clip-path: var(--hex-point);
+  background: rgba(13, 14, 17, 0.8);
+  color: var(--silver-2);
+  opacity: 0;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+.lobby-hero-del svg { width: 15px; height: 15px; }
+.lobby-hero:hover .lobby-hero-del,
+.lobby-hero-del:focus-visible { opacity: 1; }
+.lobby-hero-del:hover { color: #e07070; }
+
+/* ---------- Нижняя панель: большая кнопка между линиями ---------- */
+
+.lobby-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 10px 0 24px;
+}
+.lobby-actions-line {
+  flex: 0 1 220px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 154, 60, 0.55));
+}
+.lobby-actions-line:last-child { transform: scaleX(-1); }
+.lobby-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 52px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  color: var(--bg-0);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+.lobby-start svg { width: 20px; height: 20px; }
+.lobby-start:hover,
+.lobby-start:focus-visible { filter: brightness(1.1) drop-shadow(0 0 16px rgba(228, 196, 110, 0.35)); transform: translateY(-1px); outline: none; }
+
+@media (max-width: 720px) {
+  .lobby { --slot-w: 120px; --slot-h: 300px; --hero-w: 170px; }
+  .lobby-row { justify-content: flex-start; padding-inline: 16px; }
+  .lobby-actions-line { display: none; }
+  .lobby-start { padding: 14px 36px; font-size: 1.02rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-row > *,
+  .lobby-slot--main .lobby-slot-inner { animation: none; }
+}
+
 
 .cs-toolbar-left {
   display: flex;
@@ -9563,6 +9864,8 @@ a.se-hex-pick:hover { color: var(--gold-4); }
    ============================================================ */
 
 .cw {
+  position: relative;
+  isolation: isolate;
   padding-top: clamp(20px, 3vw, 36px);
   padding-bottom: 120px;
 }
@@ -9721,48 +10024,66 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-search input:focus { outline: none; }
 .cw-search input::placeholder { color: var(--text-dim); font-style: italic; }
 
-.cw-filters {
+/* кнопка «Фильтры» рядом с поиском и панель галочек — оформление из каталога */
+.cw-filter-menu { position: relative; z-index: 40; align-self: stretch; }
+.cw-filter-menu .quest-filter-btn { height: 100%; }
+/* панель раскрывается от правого края кнопки влево — кнопка стоит справа от
+   поиска, и центрированная панель вылезала за край окна (в попапе черт — обрезалась) */
+.cw-filter-panel {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: min(620px, calc(100vw - 40px));
+}
+/* легенду fieldset браузер рисует поверх верхней рамки — разделитель групп
+   её перечёркивал; плавающая легенда уходит внутрь блока */
+.cw-check-group > legend { float: left; width: 100%; padding: 0; }
+.cw-check-group > .cw-checks { clear: both; }
+
+.cw-check-group { border: none; padding: 0; margin: 0; min-width: 0; }
+.cw-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 2px 14px;
+  margin-top: 8px;
+}
+.cw-check {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   align-items: center;
-  gap: 8px 18px;
-  max-width: 960px;
+  gap: 9px;
+  padding: 5px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.9rem;
+  transition: background 0.14s ease, color 0.14s ease;
 }
-.cw-filter-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+.cw-check:hover { background: rgba(196, 154, 60, 0.08); }
+.cw-check input { position: absolute; opacity: 0; pointer-events: none; }
+.cw-check-box {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.5px rgba(168, 175, 186, 0.45);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
 }
-.cw-filter-label {
-  color: var(--text-dim);
-  font-size: 0.74rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-right: 2px;
-}
-.cw-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 11px;
-  border: 1px solid rgba(168, 175, 186, 0.24);
-  border-radius: 999px;
-  background: rgba(13, 14, 17, 0.5);
-  color: var(--silver-2);
-  font-size: 0.8rem;
-  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
-}
-.cw-filter:hover { color: var(--gold-3); border-color: rgba(196, 154, 60, 0.45); }
-.cw-filter.is-on {
-  color: var(--bg-0);
-  border-color: transparent;
+.cw-check-box svg { width: 12px; height: 12px; color: var(--bg-0); stroke-width: 3; }
+.cw-check.is-on { color: var(--gold-4); }
+.cw-check.is-on .cw-check-box {
   background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  box-shadow: none;
 }
-.cw-filter--reset { color: var(--text-dim); border-style: dashed; }
-.cw-filter--reset svg { width: 12px; height: 12px; }
+.cw-check:has(input:focus-visible) .cw-check-box { box-shadow: 0 0 0 2px var(--gold-3); }
+.cw-check-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- Сетка карточек выбора ---------- */
 
@@ -9770,15 +10091,16 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
+  /* по вертикали — запас под выезжающий язычок «Подробнее» */
+  gap: 44px 16px;
 }
 
+.cw-pick-grid { --pick-w: 196px; }
 .cw-pick {
-  --pick-w: 196px;
   position: relative;
   display: flex;
   flex-direction: column;
-  width: var(--pick-w);
+  width: 100%;
   text-align: center;
   padding: 0 0 14px;
   border: 1px solid transparent;
@@ -9969,6 +10291,584 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 }
 .cw-card-check svg { width: 14px; height: 14px; color: var(--bg-0); }
 
+/* ---------- Карточки рас и классов — как в каталоге, но кнопкой ---------- */
+
+.cw-catalog-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 48px 22px;
+  padding: 34px 0 8px;
+}
+.cw-catalog-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+/* в кнопке разметка на span — возвращаем блочность слоям каталожной карточки */
+.cw-catalog-card .class-card-visual { display: block; }
+.cw-catalog-card .race-rail-cell { padding: 0 3px; }
+.cw-catalog-card:focus-visible { outline: none; }
+.cw-catalog-card:focus-visible .class-card-panel { box-shadow: 0 0 0 2px var(--gold-2); }
+
+.cw-catalog-card .cw-pick-badge,
+.cw-catalog-card .cw-card-check { z-index: 6; }
+
+.cw-catalog-card.is-selected .class-card-panel {
+  background:
+    linear-gradient(168deg, rgba(28, 32, 42, 0.97), rgba(14, 16, 22, 0.98)) padding-box,
+    var(--gold-grad) border-box;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48), var(--glow-gold);
+}
+.cw-catalog-card.is-selected .class-card-name-plate {
+  background: var(--gold-grad);
+  color: var(--gold-4);
+}
+.cw-catalog-card.is-selected .class-card-glow {
+  background: linear-gradient(to top, rgba(228, 196, 110, 0.5), rgba(196, 154, 60, 0.22) 40%, transparent 100%);
+}
+
+@media (max-width: 720px) {
+  .cw-catalog-grid { gap: 40px 14px; }
+  .cw-pick-slot--catalog { flex-basis: calc(50% - 7px); }
+}
+
+/* класс: свечение за костью и фигурой — фиолетовое у заклинателей, красное у
+   остальных; тем же цветом подкрашен столб света над панелью */
+.cw-class-card { --class-glow: 150, 110, 230; }
+.cw-class-card.is-martial { --class-glow: 210, 64, 52; }
+.cw-class-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 52%;
+  width: 104%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--class-glow), 0.42) 0%,
+    rgba(var(--class-glow), 0.16) 42%,
+    transparent 68%
+  );
+  pointer-events: none;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+.cw-class-card:hover .cw-class-aura { transform: translate(-50%, -50%) scale(1.07); }
+.cw-class-card .class-card-glow {
+  background: linear-gradient(
+    to top,
+    rgba(var(--class-glow), 0.4) 0%,
+    rgba(var(--class-glow), 0.18) 38%,
+    rgba(var(--class-glow), 0.06) 68%,
+    transparent 100%
+  );
+}
+
+/* ---------- Карточки предысторий — как в каталоге, но ниже и без описания ---------- */
+
+.cw-bg-grid {
+  --bg-card-h: 120px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* по вертикали — запас под выезжающий язычок «Подробнее» */
+  gap: 44px 22px;
+}
+/* место слева под гекс, который выступает за карточку на половину ширины */
+.cw-pick-slot--bg { padding-left: calc(var(--bg-hex-w) / 2); }
+.card.card--bg.cw-bg-card {
+  --bg-card-h: 120px;
+  padding: 10px 12px 10px calc(var(--bg-hex-w) / 2 + 12px);
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cw-bg-card .bg-card-body { justify-content: flex-start; gap: 7px; }
+/* навыки — одной строкой, лишнее обрезается: карточка не растёт в высоту */
+.cw-bg-card .bg-card-skills {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+.cw-bg-card .bg-card-skills .chip { flex-shrink: 0; padding: 2px 12px; }
+.cw-bg-card .bg-card-foot { margin-top: auto; }
+.cw-bg-card .card-name {
+  font-size: 1.08rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--parchment);
+  text-overflow: ellipsis;
+}
+.cw-bg-card .bg-card-skills .chip svg { width: 11px; height: 11px; color: var(--gold-2); }
+.cw-bg-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--gold-2); }
+.cw-bg-card .cw-card-check { z-index: 3; }
+/* выбранная — золотая рамка и золотой гекс */
+.card.card--bg.cw-bg-card.is-selected {
+  background:
+    linear-gradient(180deg, rgba(32, 30, 26, 0.97), rgba(16, 15, 13, 0.98)) padding-box,
+    var(--gold-grad) border-box;
+  box-shadow: var(--glow-gold);
+}
+.cw-bg-card.is-selected .bg-card-hex { background: var(--gold-grad); }
+.cw-bg-card.is-selected .card-name { color: var(--gold-4); }
+
+@media (max-width: 1100px) {
+  .cw-bg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .cw-bg-grid { grid-template-columns: minmax(0, 1fr); }
+  .cw-pick-slot--bg { padding-left: 0; }
+  .card.card--bg.cw-bg-card { padding: 12px; }
+}
+
+/* обёртка любой карточки выбора: карточка + язычок «Подробнее» под ней */
+.cw-pick-slot {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  isolation: isolate;
+}
+.cw-pick-slot > :first-child { z-index: 1; flex: 1 1 auto; min-width: 0; }
+.cw-pick-grid > .cw-pick-slot { flex: 0 0 var(--pick-w); }
+/* ширина карточки расы строго фиксирована: иначе длинная рейка («Маленький ·
+   60 фт.») раздвигает её по min-content, портрет 3:4 становится выше, а панель
+   с прибавками — ниже, чем у соседей */
+.cw-pick-slot--catalog { flex: 0 0 250px; }
+
+/* растянутый серебряный полугекс — нижняя половина гекса с плашки имени */
+.cw-more {
+  --tab-cut: 16px;
+  position: absolute;
+  z-index: 0;
+  top: 100%;
+  left: 50%;
+  width: 64%;
+  height: 32px;
+  padding: 0 0 2px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--tab-cut)) 100%, var(--tab-cut) 100%);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  cursor: pointer;
+  /* спрятан под панелью карточки, при наведении выезжает вниз */
+  transform: translate(-50%, -100%);
+  opacity: 0;
+  transition: transform 0.24s ease, opacity 0.2s ease, color 0.16s ease;
+}
+.cw-more::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 1.5px 1.5px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--tab-cut) + 1px) 100%, calc(var(--tab-cut) - 1px) 100%);
+  background: linear-gradient(180deg, rgba(18, 20, 28, 0.99), rgba(36, 40, 52, 0.98));
+}
+.cw-pick-slot:hover .cw-more,
+.cw-pick-slot:focus-within .cw-more {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+.cw-more:hover,
+.cw-more:focus-visible { color: var(--gold-4); outline: none; }
+
+/* без наведения (тач) язычок виден всегда */
+@media (hover: none) {
+  .cw-more { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* гекс «есть подрасы»: справа снизу портрета, над плашкой с именем */
+.cw-race-branch {
+  position: absolute;
+  z-index: 6;
+  right: 14px;
+  bottom: 82px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: calc(40px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+}
+.cw-race-branch > span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-race-branch svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+  color: var(--gold-3);
+}
+
+
+
+/* ---------- Шаг «Снаряжение» ---------- */
+
+.cw-gear-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.cw-gear-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  min-width: 150px;
+  padding: 10px 26px;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+}
+.cw-gear-stat svg { grid-row: span 2; width: 22px; height: 22px; color: var(--gold-2); }
+.cw-gear-stat b {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--parchment);
+  line-height: 1.1;
+}
+.cw-gear-stat i {
+  font-style: normal;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.cw-gear-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cw-gear-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(196, 154, 60, 0.25);
+}
+
+.cw-gear-grant { display: flex; flex-direction: column; gap: 8px; }
+.cw-gear-label { color: var(--silver-2); font-size: 0.86rem; font-style: italic; }
+
+.cw-gear-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+.cw-gear-or {
+  align-self: center;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* вариант — угловатая карточка; выбранный в золотой рамке */
+.cw-gear-option {
+  --cut: 12px;
+  --chamfer: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+  display: flex;
+  padding: 1px;
+  clip-path: var(--chamfer);
+  background: linear-gradient(160deg, rgba(168, 175, 186, 0.4), rgba(168, 175, 186, 0.1) 50%, rgba(168, 175, 186, 0.34));
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+/* внешний слой — рамка, внутренний — тёмный фон с тем же срезом углов */
+.cw-gear-option-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  clip-path: var(--chamfer);
+  background: linear-gradient(180deg, rgba(28, 32, 42, 0.96), rgba(14, 16, 22, 0.98));
+}
+.cw-gear-option-btn {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.cw-gear-option-btn { cursor: pointer; }
+.cw-gear-grant.is-choice .cw-gear-option:not(.is-active) { opacity: 0.6; }
+.cw-gear-grant.is-choice .cw-gear-option:not(.is-active):hover { opacity: 0.9; }
+.cw-gear-grant.is-choice .cw-gear-option.is-active {
+  background: var(--gold-grad);
+}
+.cw-gear-grant.is-choice .cw-gear-option.is-active .cw-gear-option-inner {
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(196, 154, 60, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.96), rgba(14, 16, 22, 0.98));
+}
+
+.cw-gear-marker {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: calc(30px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--gold-3);
+}
+.cw-gear-option.is-active .cw-gear-marker {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  color: var(--bg-0);
+}
+
+.cw-gear-items { display: flex; flex-wrap: wrap; gap: 10px; }
+.cw-gear-note {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* плитка предмета: картинка на подсвеченной «подставке», подпись под ней */
+.cw-gear-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 96px;
+  text-align: center;
+}
+.cw-gear-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(228, 196, 110, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(36, 40, 50, 0.9), rgba(13, 14, 17, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22), 0 6px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease;
+}
+.cw-gear-option.is-active .cw-gear-face { box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45), 0 6px 14px rgba(0, 0, 0, 0.35); }
+.cw-gear-tile:hover .cw-gear-face { transform: translateY(-2px); }
+.cw-gear-face img {
+  max-width: 62px;
+  max-height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+.cw-gear-face svg { width: 30px; height: 30px; color: rgba(196, 154, 60, 0.55); }
+.cw-gear-face b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--gold-3);
+}
+.cw-gear-tile.is-open .cw-gear-face {
+  background: rgba(13, 14, 17, 0.5);
+  box-shadow: inset 0 0 0 1.5px rgba(196, 154, 60, 0.5);
+}
+.cw-gear-qty {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5);
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold-4);
+}
+/* монеты внутри предмета (кошель с 15 зм) — бейдж с картинкой монеты */
+.cw-gear-purse {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px 2px 3px;
+  border-radius: 999px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--gold-4);
+}
+.cw-gear-name {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* кошель в сводке: золотая монета вместо значка и монеты по валютам */
+.cw-gear-stat--purse img:first-child { grid-row: span 2; }
+.cw-gear-coins { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.cw-gear-coins span { display: inline-flex; align-items: center; gap: 4px; }
+
+.cw-gear-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+/* кнопка выбора предмета: картинка + название + урон/КД */
+.cw-gsel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid rgba(196, 154, 60, 0.45);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.cw-gsel:hover,
+.cw-gsel.is-open { border-color: var(--gold-3); box-shadow: 0 0 0 3px rgba(196, 154, 60, 0.12); }
+.cw-gsel.is-empty { border-style: dashed; }
+.cw-gsel.is-empty .cw-gsel-text b { color: var(--gold-3); }
+.cw-gsel-face {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+  background: radial-gradient(circle at 50% 58%, rgba(228, 196, 110, 0.14), rgba(13, 14, 17, 0.7) 70%);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
+}
+.cw-gsel-face img { max-width: 36px; max-height: 36px; object-fit: contain; }
+.cw-gsel-face svg { width: 20px; height: 20px; color: rgba(196, 154, 60, 0.6); }
+.cw-gsel-face b { font-family: var(--font-display); color: var(--gold-3); }
+.cw-gsel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-gsel-text b {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cw-gsel-text i { font-style: normal; font-size: 0.76rem; color: var(--text-dim); }
+.cw-gsel-chevron { width: 16px; height: 16px; color: var(--gold-2); transition: transform 0.18s ease; }
+.cw-gsel.is-open .cw-gsel-chevron { transform: rotate(180deg); }
+
+/* выпадающее меню — в body, над всем, кроме попапов */
+.cw-gsel-pop {
+  position: fixed;
+  z-index: 190;
+  display: flex;
+  flex-direction: column;
+  max-height: min(360px, 60vh);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgba(228, 196, 110, 0.7), rgba(168, 175, 186, 0.2) 45%, rgba(228, 196, 110, 0.5)) border-box;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  animation: cw-gsel-in 0.16s ease;
+}
+.cw-gsel-pop.is-up { animation-name: cw-gsel-in-up; }
+@keyframes cw-gsel-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes cw-gsel-in-up { from { opacity: 0; transform: translateY(6px); } }
+.cw-gsel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.14);
+}
+.cw-gsel-search svg { width: 15px; height: 15px; color: var(--gold-2); }
+.cw-gsel-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.cw-gsel-search input:focus { outline: none; }
+.cw-gsel-list {
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+}
+.cw-gsel-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 8px 5px 5px;
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cw-gsel-opt:hover,
+.cw-gsel-opt:focus-visible { background: rgba(196, 154, 60, 0.12); outline: none; }
+.cw-gsel-opt.is-on { background: rgba(196, 154, 60, 0.18); }
+.cw-gsel-opt.is-on .cw-gsel-text b { color: var(--gold-4); }
+.cw-gsel-price { flex-shrink: 0; font-size: 0.8rem; }
+.cw-gsel-check { width: 16px; height: 16px; color: var(--gold-3); flex-shrink: 0; }
+.cw-gsel-empty { padding: 12px; text-align: center; color: var(--text-dim); font-style: italic; }
+
+.cw-gear-fallback {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+@media (max-width: 720px) {
+  .cw-gear-options { flex-direction: column; }
+  .cw-gear-or { align-self: flex-start; }
+  .cw-gear-stat { min-width: 0; flex: 1 1 40%; padding: 8px 20px; }
+}
+
 /* ---------- Попап выбора ---------- */
 
 .cw-modal-layer {
@@ -9999,6 +10899,52 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
   animation: cw-modal-rise 0.22s ease;
 }
+
+/* арт мира расы за шапкой попапа — как обои в бестиарии, книзу растворяется */
+.cw-modal-world {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: min(520px, 75%);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 100%);
+}
+.cw-modal-world > span {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  opacity: 0.5;
+  filter: saturate(0.85) brightness(0.8);
+  animation: beast-world-in 1.2s ease both;
+}
+.cw-modal-world > span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(40% 60% at 25% 50%, rgba(13, 14, 17, 0.5), transparent 75%),
+    linear-gradient(90deg, rgba(13, 14, 17, 0.35) 0%, transparent 14%, transparent 86%, rgba(13, 14, 17, 0.35) 100%);
+}
+.cw-modal-scroll,
+.cw-modal-foot { position: relative; z-index: 1; }
+
+/* попап-«страница»: внутри та же разметка и стили, что у страницы расы на сайте */
+.cw-modal--sheet {
+  width: min(1120px, 100%);
+  max-height: min(92vh, 1000px);
+}
+.cw-modal--sheet .cw-modal-scroll { padding: 28px clamp(16px, 3vw, 40px) 24px; }
+.cw-modal--sheet .cw-modal-world { height: min(680px, 72%); }
+/* в колонке попапа герой не вылезает за края, а сцена чуть ниже, чем на странице */
+.cw-sheet-race .race-detail-hero { margin: 0; }
+.cw-sheet-race .race-detail-stage { min-height: clamp(380px, 54vh, 580px); }
+.cw-sheet-race .race-facts { margin-bottom: 18px; }
+.cw-sheet-class .class-detail-hero { margin: 0; }
+.cw-sheet-class .class-detail-stage { min-height: clamp(400px, 56vh, 600px); }
+.cw-sheet-class .book-page { padding-top: 0; }
 
 .cw-modal-close {
   position: absolute;
@@ -10125,47 +11071,200 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   line-height: 1.55;
 }
 
-/* ---------- Выбор уровня ---------- */
+/* ---------- Выбор уровня: дорога героя ---------- */
 
-.cw-levels {
+.cw-path-step { gap: 26px; }
+
+/* медальон выбранного уровня и название ступени */
+.cw-path-hero {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 24px;
+  flex-wrap: wrap;
 }
-
-.cw-level-hex {
+.cw-path-medal {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: calc(46px * var(--hex-aspect));
+  width: 118px;
+  height: calc(118px * var(--hex-aspect));
   clip-path: var(--hex-point);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+  background: var(--gold-grad);
+  filter: drop-shadow(0 0 22px rgba(228, 196, 110, 0.35));
+}
+.cw-path-medal > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 50% 38%, var(--bg-3), var(--bg-0) 78%);
+}
+.cw-path-medal b {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 3.2rem;
   font-weight: 700;
-  color: var(--silver-2);
-  transition: transform 0.16s ease, background 0.2s ease, color 0.2s ease;
-}
-.cw-level-hex:hover { transform: translateY(-2px); color: var(--gold-3); }
-.cw-level-hex.is-passed {
-  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
+  line-height: 1;
   color: var(--gold-4);
+  animation: cw-path-pop 0.35s ease;
 }
-.cw-level-hex.is-active {
-  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
-  color: var(--bg-0);
-  box-shadow: var(--glow-gold);
+.cw-path-medal i {
+  font-style: normal;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-2);
 }
+@keyframes cw-path-pop { from { transform: scale(0.6); opacity: 0; } }
+.cw-path-tier { display: flex; flex-direction: column; gap: 3px; max-width: 360px; }
+.cw-path-tier-roman {
+  font-size: 0.74rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cw-path-tier b {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  letter-spacing: 0.06em;
+}
+.cw-path-tier i { font-style: italic; color: var(--text-dim); font-size: 0.92rem; }
 
-.cw-level-summary {
+/* дорога: полосы ступеней, узлы и вехи */
+.cw-path {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 760px;
-  margin: 0 auto;
-  width: 100%;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: thin;
+}
+.cw-path-tiers,
+.cw-path-track {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  min-width: 760px;
+}
+.cw-path-tierband {
+  margin: 0 3px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(168, 175, 186, 0.18);
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.cw-path-tierband.is-current { color: var(--gold-3); border-bottom-color: var(--gold-2); }
+
+.cw-path-track { position: relative; padding-top: 4px; }
+/* линия от центра первого узла до центра последнего; золото — до выбранного */
+.cw-path-line {
+  position: absolute;
+  top: calc(4px + 20px * var(--hex-aspect));
+  left: 2.5%;
+  right: 2.5%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--gold-2) 0 var(--fill),
+    rgba(168, 175, 186, 0.18) var(--fill) 100%
+  );
+  box-shadow: 0 0 10px rgba(228, 196, 110, 0.18);
+  transition: background 0.25s ease;
+}
+.cw-path-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.cw-path-hex {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: calc(40px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.25);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--silver-2);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.2s ease, color 0.2s ease;
+}
+.cw-path-hex:hover { transform: translateY(-3px); color: var(--gold-3); }
+.cw-path-node.is-passed .cw-path-hex {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
+  color: var(--gold-4);
+}
+.cw-path-node.is-active .cw-path-hex {
+  transform: scale(1.18);
+  background: linear-gradient(180deg, var(--gold-4), var(--gold-2));
+  color: var(--bg-0);
+  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.6));
+}
+
+/* вехи: у каждой свой цвет; впереди — приглушены */
+.cw-path-marks { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 18px; }
+.cw-path-mark { display: grid; place-items: center; opacity: 0.35; transition: opacity 0.2s ease; }
+.cw-path-node.is-passed .cw-path-mark,
+.cw-path-node.is-active .cw-path-mark { opacity: 1; }
+.cw-path-mark svg,
+.cw-path-legend svg { width: 15px; height: 15px; }
+.cw-path-mark--sub { color: #9fb6e0; }
+.cw-path-mark--asi { color: var(--gold-3); }
+.cw-path-mark--spell { color: #b79cf0; }
+.cw-path-mark--pb { color: #85c98f; }
+
+.cw-path-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  font-size: 0.8rem;
+}
+.cw-path-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* сводка строкой с разделителями */
+.cw-path-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cw-path-stats > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 22px;
+}
+.cw-path-stats > span + span { border-left: 1px solid rgba(196, 154, 60, 0.25); }
+.cw-path-stats b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--parchment);
+}
+.cw-path-stats i {
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cw-path-stats > span.is-off b { color: var(--text-dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-path-medal b { animation: none; }
 }
 
 /* ---------- Характеристики ---------- */
@@ -10207,73 +11306,327 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-roll-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .cw-roll-btn { font-size: 0.95rem; padding: 11px 22px; }
 
-.cw-rolls {
+/* ячейки бросков 4к6: итог в гексе, под ним четыре кости с точками */
+.cw-rollslots {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
 }
-.cw-roll {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  background: rgba(13, 14, 17, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
-}
-.cw-roll-dice { display: flex; gap: 4px; }
-.cw-roll-die {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  background: var(--bg-3);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.26);
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--silver-3);
-}
-.cw-roll-die.is-dropped {
-  opacity: 0.4;
-  text-decoration: line-through;
-  color: var(--text-dim);
-}
-.cw-roll-total {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.cw-pool {
+.cw-rollslot {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   align-items: center;
-  padding: 12px;
-  background: rgba(13, 14, 17, 0.4);
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.2);
+  gap: 10px;
+  padding: 14px 6px 12px;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(196, 154, 60, 0.14), transparent 65%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.95), rgba(14, 16, 22, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35);
+  animation: cw-roll-flip 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
 }
-.cw-pool-label { color: var(--text-dim); font-size: 0.86rem; font-style: italic; }
-.cw-pool-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.cw-pool-chip {
+button.cw-rollslot {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+button.cw-rollslot:hover { transform: translateY(-3px); }
+button.cw-rollslot:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--gold-3); }
+/* выбранная — ждёт, пока её положат в характеристику */
+.cw-rollslot.is-picked {
+  transform: translateY(-4px);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(228, 196, 110, 0.32), transparent 70%),
+    linear-gradient(180deg, rgba(40, 36, 28, 0.98), rgba(18, 16, 14, 0.98));
+  box-shadow: inset 0 0 0 2px var(--gold-3), 0 0 22px rgba(228, 196, 110, 0.3);
+}
+/* назначенная — приглушена, сверху видно, куда ушла */
+.cw-rollslot.is-assigned { opacity: 0.55; }
+.cw-rollslot.is-assigned:hover { opacity: 0.85; }
+.cw-rollslot-owner {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(196, 154, 60, 0.2);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold-4);
+}
+
+@keyframes cw-roll-flip {
+  from { opacity: 0; transform: perspective(500px) rotateX(70deg) translateY(-10px); }
+}
+.cw-rollslot-num {
+  position: absolute;
+  top: 6px;
+  left: 12px;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+.cw-rollslot-hex {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: calc(44px * var(--hex-aspect));
+  width: 58px;
+  height: calc(58px * var(--hex-aspect));
   clip-path: var(--hex-point);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  background: var(--gold-grad);
+  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.25));
+}
+.cw-rollslot-hex > span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 50% 40%, var(--bg-3), var(--bg-0) 80%);
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.cw-rollslot-hex b { font-weight: 700; line-height: 1; }
+.cw-rollslot-dice { display: flex; gap: 4px; }
+
+/* пустая ячейка: тусклый гекс с римским номером */
+.cw-rollslot.is-empty {
+  animation: none;
+  background: rgba(13, 14, 17, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.16);
+}
+.cw-rollslot.is-empty .cw-rollslot-hex {
+  background: linear-gradient(160deg, rgba(168, 175, 186, 0.35), rgba(168, 175, 186, 0.12));
+  filter: none;
+}
+.cw-rollslot.is-empty .cw-rollslot-hex > span {
+  background: var(--bg-1);
+  font-size: 1rem;
+  color: var(--text-dim);
+}
+.cw-rollslot.is-empty .cw-rollslot-hex svg { width: 22px; height: 22px; color: var(--gold-3); }
+.cw-rollslot-caption {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* покупка за очки: запас, полоска из 27 делений и цены значений */
+.cw-points { align-items: center; }
+.cw-points-main { display: flex; align-items: center; gap: 16px; }
+.cw-points-hex { width: 76px; height: calc(76px * var(--hex-aspect)); }
+.cw-points-hex > span { font-size: 2.1rem; }
+.cw-points-hex.is-done { filter: grayscale(0.6) brightness(0.8); }
+.cw-points-text { display: flex; flex-direction: column; gap: 2px; }
+.cw-points-text b {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  color: var(--parchment);
+}
+.cw-points-text i { font-style: normal; font-size: 0.86rem; color: var(--text-dim); }
+
+.cw-points-bar {
+  display: grid;
+  grid-template-columns: repeat(27, minmax(0, 1fr));
+  gap: 3px;
+  width: min(100%, 720px);
+}
+.cw-points-bar i {
+  height: 10px;
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+  background: rgba(168, 175, 186, 0.14);
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.cw-points-bar i.is-left {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-1));
+  box-shadow: 0 0 6px rgba(228, 196, 110, 0.35);
+}
+
+.cw-points-costs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.cw-points-cost {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(13, 14, 17, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.16);
+}
+.cw-points-cost b { font-family: var(--font-display); font-size: 1.1rem; color: var(--text); }
+.cw-points-cost i { font-style: normal; font-size: 0.72rem; color: var(--text-dim); }
+.cw-points-cost.is-used { box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.6); }
+.cw-points-cost.is-used b { color: var(--gold-4); }
+.cw-points-cost em {
+  position: absolute;
+  top: -7px;
+  right: -6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--gold-2);
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--bg-0);
+}
+
+/* грань к6 с точками */
+.cw-d6 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  border-radius: 4px;
+  background: linear-gradient(160deg, var(--parchment), #c9bc9c);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+.cw-d6 i { display: block; }
+.cw-d6 i.is-on {
+  width: 4px;
+  height: 4px;
+  margin: auto;
+  border-radius: 50%;
+  background: var(--bg-0);
+}
+.cw-d6.is-dropped {
+  position: relative;
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.cw-d6.is-dropped::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  height: 2px;
+  background: #e07070;
+  transform: rotate(-35deg);
+}
+
+/* характеристики 2×3 слева, навыки справа */
+.cw-ab-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.cw-ab-layout .cw-abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.cw-skills {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.2) 45%, rgba(124, 130, 139, 0.7)) border-box;
+}
+.cw-skills-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  font-size: 0.92rem;
+}
+.cw-skill-group { display: flex; flex-direction: column; gap: 2px; }
+.cw-skill-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(196, 154, 60, 0.2);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.cw-skill-group-head b { font-size: 0.9rem; color: var(--parchment); }
+.cw-skill {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.cw-skill-mark {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+}
+.cw-skill.is-prof .cw-skill-mark { background: var(--gold-2); box-shadow: none; }
+.cw-skill-mark svg { width: 10px; height: 10px; color: var(--bg-0); stroke-width: 3; }
+.cw-skill.is-prof .cw-skill-name { color: var(--gold-4); }
+.cw-skill-val {
+  min-width: 2.4em;
+  text-align: right;
+  font-family: var(--font-display);
   font-weight: 700;
   color: var(--parchment);
-  transition: transform 0.16s ease;
 }
-.cw-pool-chip:hover { transform: translateY(-2px); }
-.cw-pool-chip.is-picked {
-  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
-  color: var(--bg-0);
-  box-shadow: var(--glow-gold);
+.cw-skill-group.is-pending { opacity: 0.55; }
+.cw-skill-passive {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(168, 175, 186, 0.16);
+  font-size: 0.88rem;
+  color: var(--silver-2);
+}
+.cw-skill-passive svg { width: 15px; height: 15px; color: var(--gold-2); }
+.cw-skill-passive b { font-family: var(--font-display); color: var(--parchment); }
+
+/* новое значение вспыхивает золотом */
+.cw-skill-flash { display: inline-block; animation: cw-skill-flash 0.7s ease; }
+@keyframes cw-skill-flash {
+  0% { color: var(--gold-4); text-shadow: 0 0 12px rgba(228, 196, 110, 0.8); transform: scale(1.25); }
+  100% { text-shadow: none; transform: none; }
+}
+
+@media (max-width: 980px) {
+  .cw-ab-layout { grid-template-columns: minmax(0, 1fr); }
+  .cw-skills { position: static; }
+  .cw-rollslots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-rollslot,
+  .cw-skill-flash { animation: none; }
+}
+
+.cw-pool-label {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  font-style: italic;
 }
 
 .cw-abilities {
@@ -10364,21 +11717,425 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 
 .cw-identity {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-  gap: 18px;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
 }
-.cw-identity-main { display: flex; flex-direction: column; gap: 14px; }
-.cw-identity-portrait {
+.cw-identity-form { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cw-id-section { display: flex; flex-direction: column; gap: 14px; }
+/* в колонке раздела flex-basis полей (160px) стал бы высотой — отключаем */
+.cw-id-section > .cw-field { flex: none; }
+.cw-id-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.cw-id-row { display: flex; flex-wrap: wrap; gap: 14px 28px; }
+.cw-id-sub { display: flex; flex-direction: column; gap: 7px; }
+.cw-id-label {
+  color: var(--gold-2);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cw-id-label i { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--text-dim); }
+.cw-id-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px 14px;
+}
+.cw-id-grid--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cw-field--wide { grid-column: 1 / -1; }
+.cw-field-note { color: var(--text-dim); font-size: 0.76rem; font-style: italic; }
+
+/* имя и инструменты подсказок в одну строку */
+.cw-name-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.cw-name-row .cw-field--name { flex: 1 1 280px; }
+.cw-name-tools { display: flex; gap: 6px; padding-bottom: 6px; }
+
+/* маленькие кнопки «случайное», «варианты» */
+.cw-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(196, 154, 60, 0.4);
+  background: rgba(13, 14, 17, 0.5);
+  color: var(--gold-3);
+  font: inherit;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.cw-mini-btn svg { width: 14px; height: 14px; transition: transform 0.18s ease; }
+.cw-mini-btn:hover { background: rgba(196, 154, 60, 0.14); color: var(--gold-4); }
+.cw-mini-btn.is-on { background: rgba(196, 154, 60, 0.2); color: var(--gold-4); }
+.cw-mini-btn.is-on svg:last-child { transform: rotate(180deg); }
+
+/* подсказки имён из статьи расы */
+.cw-names {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 12px;
+  background: rgba(13, 14, 17, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.2);
+  scrollbar-width: thin;
+}
+.cw-names-group { display: flex; flex-direction: column; gap: 6px; }
+.cw-names-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.cw-name-chip {
+  padding: 3px 10px;
+  border-radius: 3px;
+  background: rgba(36, 40, 50, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.cw-name-chip:hover { background: rgba(196, 154, 60, 0.2); color: var(--gold-4); }
+
+/* кнопка мировоззрения: гекс с сокращением + название */
+.cw-align-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 4px 4px;
+  border-radius: 4px;
+  border: 1px dashed rgba(196, 154, 60, 0.5);
+  background: rgba(13, 14, 17, 0.45);
+  color: var(--gold-3);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.cw-align-btn:hover { border-color: var(--gold-3); background: rgba(196, 154, 60, 0.1); }
+.cw-align-btn.is-set { border-style: solid; color: var(--parchment); }
+.cw-align-btn-hex {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: calc(32px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--bg-0);
+}
+
+/* карточка героя: крупный портрет, зона для своей картинки */
+.cw-hero-card {
   position: sticky;
   top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+}
+.cw-hero-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%, 0 18px);
+  background:
+    radial-gradient(ellipse at 50% 80%, rgba(196, 154, 60, 0.18), transparent 65%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+.cw-hero-art > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cw-hero-art .cw-portrait { padding: 22px 14px 0; }
+.cw-hero-align {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: calc(44px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--bg-0);
+}
+/* зона перетаскивания — проявляется при наведении и при перетаскивании файла */
+.cw-hero-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 16px 46px;
+  border: 2px dashed transparent;
+  background: linear-gradient(180deg, transparent 45%, rgba(13, 14, 17, 0.75));
+  color: var(--parchment);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.cw-hero-drop svg { width: 26px; height: 26px; color: var(--gold-3); }
+.cw-hero-art:hover .cw-hero-drop,
+.cw-hero-drop:focus-visible { opacity: 1; outline: none; }
+.cw-hero-art.is-drag .cw-hero-drop {
+  opacity: 1;
+  justify-content: center;
+  border-color: var(--gold-3);
+  background: rgba(196, 154, 60, 0.18);
+}
+.cw-hero-clear {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(13, 14, 17, 0.8);
+  color: var(--silver-2);
+  cursor: pointer;
+}
+.cw-hero-clear svg { width: 16px; height: 16px; }
+.cw-hero-clear:hover { color: #e07070; }
+.cw-hero-plate {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: calc(100% + 12px);
+  margin-top: -28px;
+  padding: 13px 28px 11px;
+  clip-path: var(--hex-wide-blunt);
+  background: var(--silver-grad);
+  isolation: isolate;
   text-align: center;
 }
-.cw-identity-portrait .cw-card-art { aspect-ratio: 3 / 4; }
-.cw-personality { display: flex; flex-direction: column; gap: 14px; }
+.cw-hero-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  z-index: -1;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(168deg, rgba(36, 40, 52, 0.98), rgba(18, 20, 28, 0.99));
+}
+.cw-hero-plate b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--parchment);
+}
+.cw-hero-plate b.is-empty { color: var(--text-dim); }
+.cw-hero-plate i { font-style: normal; font-size: 0.8rem; letter-spacing: 0.06em; color: var(--gold-3); }
+
+/* переключатель видимости листа */
+.cw-seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cw-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+  color: var(--silver-2);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.cw-seg-btn svg { width: 15px; height: 15px; }
+.cw-seg-btn:hover { color: var(--gold-3); }
+.cw-seg-btn.is-on {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  box-shadow: none;
+  color: var(--bg-0);
+  font-weight: 600;
+}
+
+/* облик: график роста с ползунками слева, пол / возраст / дополнительно справа */
+.cw-look {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 18px 26px;
+  align-items: start;
+}
+.cw-look-chart { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cw-look-chart .beast-size-chart { height: 280px; min-height: 0; max-height: none; flex: none; }
+.cw-look-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.cw-look-extra { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.cw-look-extra .cw-id-grid { width: 100%; }
+.cw-plain-input {
+  width: 100%;
+  padding: 8px 12px;
+  color: var(--text);
+  background: rgba(13, 14, 17, 0.45);
+  border: 1px solid rgba(168, 175, 186, 0.22);
+  font: inherit;
+  font-size: 0.95rem;
+}
+.cw-plain-input:focus { outline: none; border-color: var(--gold-2); }
+
+/* ползунок: золотая заполненная часть до бегунка */
+.cw-slider { display: flex; flex-direction: column; gap: 6px; }
+.cw-slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cw-slider-value { display: inline-flex; align-items: baseline; gap: 6px; }
+.cw-slider-value i { font-style: italic; font-size: 0.82rem; color: var(--gold-3); margin-right: 4px; }
+/* поле точного значения — компактное, без стрелок */
+.cw-slider-num {
+  width: 70px;
+  padding: 3px 8px;
+  border: 1px solid rgba(168, 175, 186, 0.25);
+  border-radius: 3px;
+  background: rgba(13, 14, 17, 0.5);
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.cw-slider-num::-webkit-outer-spin-button,
+.cw-slider-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cw-slider-num:focus { outline: none; border-color: var(--gold-2); }
+.cw-slider-unit { font-size: 0.82rem; color: var(--text-dim); }
+.cw-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--gold-2) 0 var(--pct), rgba(168, 175, 186, 0.2) var(--pct) 100%);
+  cursor: pointer;
+}
+.cw-slider.is-default .cw-range {
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.4) 0 var(--pct), rgba(168, 175, 186, 0.2) var(--pct) 100%);
+}
+.cw-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--gold-4), var(--gold-2));
+  box-shadow: 0 0 0 3px rgba(13, 14, 17, 0.9), 0 0 10px rgba(228, 196, 110, 0.4);
+}
+.cw-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--gold-4), var(--gold-2));
+  box-shadow: 0 0 0 3px rgba(13, 14, 17, 0.9), 0 0 10px rgba(228, 196, 110, 0.4);
+}
+.cw-range:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(196, 154, 60, 0.4); }
+
+@media (max-width: 760px) {
+  .cw-look { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* поле характера с вариантами из предыстории */
+.cw-pfield-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.cw-pfield-tools { display: flex; gap: 5px; }
+.cw-pfield-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  background: rgba(13, 14, 17, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.22);
+  scrollbar-width: thin;
+}
+.cw-pfield-list button {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 3px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+.cw-pfield-list button:hover { background: rgba(196, 154, 60, 0.12); }
+.cw-pfield-list b { flex-shrink: 0; font-family: var(--font-display); color: var(--gold-3); }
+
+/* схема мировоззрений */
+.cw-align-modal { width: min(640px, 100%); }
+.cw-align-modal .cw-modal-title { text-align: center; margin-bottom: 14px; }
+.cw-align-chart-wrap { display: flex; justify-content: center; }
+.cw-align-chart { width: min(480px, 100%); height: auto; overflow: visible; }
+.cw-align-frame { fill: rgba(13, 14, 17, 0.5); stroke: rgba(168, 175, 186, 0.6); stroke-width: 2; }
+.cw-align-region {
+  fill: rgba(36, 40, 50, 0.35);
+  stroke: rgba(196, 154, 60, 0.75);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill 0.16s ease;
+  outline: none;
+}
+.cw-align-region.is-hover { fill: rgba(196, 154, 60, 0.18); }
+.cw-align-region.is-on { fill: rgba(228, 196, 110, 0.38); }
+.cw-align-text { pointer-events: none; text-anchor: middle; }
+.cw-align-abbr {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--parchment);
+  text-anchor: middle;
+}
+.cw-align-name {
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--silver-3);
+  text-anchor: middle;
+}
+.cw-align-text.is-on .cw-align-abbr { fill: var(--gold-4); }
+.cw-align-text.is-on .cw-align-name { fill: var(--gold-4); }
+.cw-align-corner {
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-style: italic;
+  fill: var(--gold-3);
+}
+.cw-align-about {
+  min-height: 64px;
+  margin-top: 14px;
+  text-align: center;
+}
+.cw-align-about b { font-family: var(--font-display); color: var(--gold-3); letter-spacing: 0.04em; }
+.cw-align-about p { margin-top: 4px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
 
 .cw-field {
   display: flex;
@@ -10425,63 +12182,6 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-field-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
 /* ---------- Прокачка по уровням ---------- */
-
-.cw-ladder {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.cw-ladder-step {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: calc(34px * var(--hex-aspect));
-  clip-path: var(--hex-point);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--silver-2);
-}
-.cw-ladder-step svg { width: 14px; height: 14px; }
-.cw-ladder-step:disabled { opacity: 0.35; cursor: default; }
-.cw-ladder-step.is-done {
-  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
-  color: var(--gold-4);
-}
-.cw-ladder-step.is-active {
-  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
-  color: var(--bg-0);
-  box-shadow: var(--glow-gold);
-}
-
-.cw-level-card {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-}
-.cw-level-card-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.cw-level-done {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--gold-3);
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.cw-level-done svg { width: 14px; height: 14px; }
 
 .cw-block {
   display: flex;
@@ -10561,7 +12261,8 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 .cw-subclasses {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
+  gap: 44px 12px;
+  padding-bottom: 32px;
 }
 .cw-subclass {
   display: flex;
@@ -10761,87 +12462,365 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 }
 .cw-accept { margin-top: 0; }
 
-/* ---------- Итог ---------- */
+/* ---------- Прокачка: дорога уровней ---------- */
 
-.cw-review {
+.cw-climb {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  width: min(100%, calc(var(--n) * 64px));
+  margin: 0 auto;
 }
-.cw-review-hero {
+/* линия между центрами крайних узлов; золото — до текущего уровня */
+.cw-climb-line {
+  position: absolute;
+  top: calc(19px * var(--hex-aspect));
+  left: calc(50% / var(--n));
+  right: calc(50% / var(--n));
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-2) 0 var(--fill), rgba(168, 175, 186, 0.18) var(--fill) 100%);
+  box-shadow: 0 0 10px rgba(228, 196, 110, 0.18);
+}
+.cw-climb-node {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+}
+.cw-climb-node:disabled { cursor: default; }
+.cw-climb-hex {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: calc(38px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.25);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--silver-2);
+  transition: transform 0.16s ease, background 0.2s ease;
+}
+.cw-climb-hex svg { width: 16px; height: 16px; stroke-width: 3; }
+.cw-climb-node:not(:disabled):hover .cw-climb-hex { transform: translateY(-3px); color: var(--gold-3); }
+.cw-climb-node:disabled .cw-climb-hex { opacity: 0.4; }
+.cw-climb-node.is-done .cw-climb-hex {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
+  color: var(--gold-4);
+}
+.cw-climb-node.is-active .cw-climb-hex {
+  transform: scale(1.2);
+  background: linear-gradient(180deg, var(--gold-4), var(--gold-2));
+  color: var(--bg-0);
+  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.6));
+}
+
+/* ---------- Прокачка: уровень без рамки ---------- */
+
+.cw-lvl {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  text-align: center;
+  gap: 26px;
+  max-width: 940px;
+  width: 100%;
+  margin: 0 auto;
 }
-.cw-review-hero .cw-card-art { aspect-ratio: 3 / 4; }
-.cw-review-hero .cw-dossier-line,
-.cw-review-hero .cw-card-chips { justify-content: center; }
-
-.cw-review-abilities { display: flex; flex-direction: column; gap: 12px; }
-.cw-review-ability-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
+.cw-lvl-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
 }
-.cw-review-ability {
+.cw-lvl-medal { width: 96px; height: calc(96px * var(--hex-aspect)); }
+.cw-lvl-medal b { font-size: 2.6rem; }
+.cw-lvl-title { display: flex; flex-direction: column; gap: 4px; }
+.cw-lvl-title b {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+  letter-spacing: 0.06em;
+}
+.cw-lvl-title span { color: var(--text-dim); font-size: 0.92rem; font-style: italic; }
+.cw-lvl-die {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 12px 8px;
-  background: rgba(13, 14, 17, 0.4);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
+  gap: 2px;
+  filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.2));
 }
-.cw-review-ability-abbr {
+.cw-lvl-die i { font-style: normal; font-family: var(--font-display); color: var(--gold-3); font-size: 0.85rem; }
+/* печать «принят» */
+.cw-lvl .cw-level-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, rgba(133, 201, 143, 0.28), rgba(133, 201, 143, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(133, 201, 143, 0.5);
+  color: #a9dcb1;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cw-lvl .cw-level-done svg { width: 14px; height: 14px; }
+
+/* разделы: заголовок с золотой линией до края, без рамок */
+.cw-lvl .cw-block { display: flex; flex-direction: column; gap: 12px; }
+.cw-lvl .cw-block-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--gold-2);
-  font-size: 0.8rem;
 }
-.cw-review-ability b {
-  font-family: var(--font-display);
-  font-size: 1.7rem;
+.cw-lvl .cw-block-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.55), transparent);
+}
+.cw-lvl .cw-block-title svg { width: 18px; height: 18px; }
+.cw-lvl .cw-block-count {
+  order: 2;
+  margin-left: 0;
   color: var(--parchment);
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
 }
-.cw-review-ability em { font-style: normal; color: var(--gold-3); font-size: 0.95rem; }
-.cw-review-save {
-  font-style: normal;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
+
+/* хиты жетонами: [кость → значение] + [ТЕЛ] = [итог] */
+.cw-hp-eq { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cw-hp-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+}
+.cw-hp-token b { font-family: var(--font-display); font-size: 1.3rem; color: var(--parchment); }
+.cw-hp-token i { font-style: normal; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.cw-hp-token--total {
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.32), rgba(196, 154, 60, 0.1));
+  box-shadow: inset 0 0 0 1px var(--gold-2);
+}
+.cw-hp-token--total svg { width: 18px; height: 18px; color: #e07070; }
+.cw-hp-token--total b { color: var(--gold-4); }
+.cw-hp-op { font-family: var(--font-display); font-size: 1.3rem; color: var(--gold-2); }
+
+/* умения уровня — карточками в две колонки */
+.cw-lvl .cw-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+}
+.cw-lvl .cw-feature {
+  padding: 14px 16px;
+  border-left: none;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background:
+    radial-gradient(ellipse at 0 0, rgba(196, 154, 60, 0.14), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.85), rgba(14, 16, 22, 0.9));
+  box-shadow: inset 2px 0 0 var(--gold-2);
+}
+.cw-lvl .cw-feature--sub {
+  background:
+    radial-gradient(ellipse at 0 0, rgba(150, 110, 230, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.85), rgba(14, 16, 22, 0.9));
+  box-shadow: inset 2px 0 0 #a58be6;
+}
+
+/* принятие уровня — по центру, подсказка над кнопкой */
+.cw-lvl .cw-level-foot {
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: none;
+}
+/* свечение — у самой кнопки, тенью: его ничто не обрезает */
+.cw-lvl .cw-accept:not(:disabled) {
+  filter: drop-shadow(0 0 18px rgba(228, 196, 110, 0.35));
+}
+.cw-lvl .cw-level-foot .cw-foot-hint { flex: none; }
+
+/* ---------- Выбор черты ---------- */
+
+.cw-feat-picker { display: flex; flex-direction: column; gap: 10px; }
+.cw-feat-current { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cw-feat-current .cw-feat-card { width: 100%; }
+
+/* заглушка до выбора — крупная пунктирная кнопка */
+.cw-feat-empty {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px dashed rgba(196, 154, 60, 0.55);
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 0 50%, rgba(196, 154, 60, 0.12), transparent 60%), rgba(13, 14, 17, 0.4);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.cw-feat-empty:hover { border-color: var(--gold-3); background-color: rgba(196, 154, 60, 0.08); }
+.cw-feat-empty svg { grid-row: span 2; width: 30px; height: 30px; color: var(--gold-3); }
+.cw-feat-empty b { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold-3); }
+.cw-feat-empty span { color: var(--text-dim); font-size: 0.86rem; }
+
+/* карточка черты: квадратная картинка слева, текст справа */
+.cw-feat-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background: linear-gradient(180deg, rgba(28, 32, 42, 0.92), rgba(14, 16, 22, 0.95));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+button.cw-feat-card { cursor: pointer; }
+button.cw-feat-card:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.6); }
+.cw-feat-card.is-selected,
+.cw-feat-card.is-static {
+  background:
+    radial-gradient(ellipse at 0 0, rgba(196, 154, 60, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.92), rgba(14, 16, 22, 0.95));
+  box-shadow: inset 0 0 0 1.5px var(--gold-2);
+}
+.cw-feat-art {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-feat-art img { width: 100%; height: 100%; object-fit: cover; }
+.cw-feat-art svg { width: 30px; height: 30px; color: rgba(196, 154, 60, 0.5); }
+.cw-feat-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cw-feat-name { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); }
+.cw-feat-card.is-selected .cw-feat-name { color: var(--gold-4); }
+.cw-feat-req {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #e3a07a;
+}
+.cw-feat-req svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* требование выполнено — черту можно взять */
+.cw-feat-req.is-met { color: #85c98f; }
+.cw-feat-desc { font-size: 0.84rem; line-height: 1.45; color: var(--text-dim); }
+
+/* черта, которую не взять: приглушена, причина — под требованием */
+.cw-feat-card.is-locked { opacity: 0.55; filter: grayscale(0.5); }
+.cw-feat-lock {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #e88e86;
+}
+.cw-feat-lock svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 2px; }
+.cw-feat-locked { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.cw-feat-locked-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
-
-.cw-review-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 18px;
-  align-items: start;
-  margin-top: 18px;
+.cw-feat-locked-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(168, 175, 186, 0.3), transparent);
 }
-.cw-review-cols > .cw-panel { display: flex; flex-direction: column; gap: 10px; }
+.cw-feat-locked-title svg { width: 16px; height: 16px; }
 
-/* ---------- Нижняя панель навигации ---------- */
+/* «Подробнее» — в правом верхнем углу карточки, поверх неё */
+.cw-feat-slot { position: relative; display: flex; }
+.cw-feat-slot > .cw-feat-card { flex: 1; min-width: 0; padding-right: 110px; }
+.cw-feat-more {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 175, 186, 0.3);
+  background: rgba(13, 14, 17, 0.75);
+  color: var(--silver-2);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.cw-feat-more svg { width: 13px; height: 13px; }
+.cw-feat-more:hover { color: var(--gold-4); border-color: var(--gold-2); }
+.cw-feat-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cw-feat-detail-foot { justify-content: center; }
+.cw-feat-modal .cw-sheet-bg .bg-hero { margin-top: 12px; }
+
+/* окно-каталог черт */
+.cw-feat-modal { width: min(1040px, 100%); }
+.cw-feat-modal .cw-modal-title { text-align: center; margin-bottom: 12px; }
+.cw-feat-count { margin: 8px 0; text-align: center; font-size: 0.8rem; color: var(--text-dim); }
+.cw-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 10px;
+}
+
+/* ---------- Ошибка создания и панель шагов ---------- */
 
 .cw-error { text-align: center; margin-top: 14px; }
 
+/* панель шагов закреплена внизу экрана (рендерится в body), справа от сайдбара;
+   выше карточек и портретов, но ниже попапов (200) и костей (150) */
 .cw-foot {
-  position: sticky;
+  position: fixed;
+  z-index: 60;
+  left: var(--sidebar-w);
+  right: 0;
   bottom: 0;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding: 14px 18px;
   border-top: 1px solid transparent;
   background:
     linear-gradient(rgba(13, 14, 17, 0.95), rgba(13, 14, 17, 0.95)) padding-box,
     var(--gold-grad-h) border-box;
   backdrop-filter: blur(6px);
+  transition: left 0.28s ease;
+}
+.cw-foot-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px clamp(16px, 3vw, 40px);
 }
 .cw-foot-hint {
   flex: 1;
@@ -10850,8 +12829,559 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   font-size: 0.85rem;
   font-style: italic;
 }
+/* подвал сайта не прячется под закреплённой панелью шагов */
+body:has(.cw-foot) .footer { padding-bottom: 84px; }
+/* кнопка и лоток кубиков поднимаются над закреплённой панелью шагов */
+body:has(.cw-foot) .dice-dock { bottom: 94px; }
 .cw-next { margin-left: auto; }
 .cw-create { margin-top: 0; }
+
+/* ---------- Итог: лист героя в духе бестиария ---------- */
+
+.cw-sheet { gap: 18px; }
+
+/* шапка: портрет, кто это, полоса главных чисел */
+.cw-sheet-hero {
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  padding: 18px 22px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgba(228, 196, 110, 0.1), transparent 55%) padding-box,
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(228, 196, 110, 0.6), rgba(124, 130, 139, 0.18) 45%, rgba(228, 196, 110, 0.45)) border-box;
+}
+.cw-sheet-portrait {
+  position: relative;
+  flex: 0 0 150px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%, 0 14px);
+  background: radial-gradient(ellipse at 50% 80%, rgba(196, 154, 60, 0.2), transparent 65%), linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-sheet-portrait > img { width: 100%; height: 100%; object-fit: cover; }
+.cw-sheet-portrait .cw-portrait { padding: 10px 6px 0; }
+.cw-sheet-portrait .cw-hero-align { width: 34px; height: calc(34px * var(--hex-aspect)); font-size: 0.78rem; top: 8px; right: 8px; }
+.cw-sheet-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cw-sheet-name {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+.cw-sheet-who { font-size: 1rem; color: var(--parchment); letter-spacing: 0.02em; }
+.cw-sheet-sub { font-size: 0.86rem; color: var(--text-dim); font-style: italic; }
+
+.cw-sheet-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+.cw-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 7px 16px 7px 12px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.26);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.cw-stat svg { grid-row: span 2; width: 18px; height: 18px; color: var(--gold-2); }
+.cw-stat b { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.05; color: var(--parchment); }
+.cw-stat i { font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.cw-stat--ac { box-shadow: inset 0 0 0 1.5px var(--gold-2); }
+.cw-stat--ac b { color: var(--gold-4); font-size: 1.45rem; }
+.cw-stat--hp svg { color: #e07070; }
+.cw-stat--hp b { font-size: 1.45rem; }
+.cw-stat--roll { cursor: pointer; transition: box-shadow 0.15s ease, translate 0.15s ease; }
+.cw-stat--roll:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.7); translate: 0 -1px; }
+
+/* сетка карточек: бой крупно слева, характеристики и навыки рядом */
+.cw-sheet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-auto-flow: row dense;
+  gap: 16px;
+}
+.cw-sheet-card { padding: 18px 20px 18px; }
+.cw-sheet-card .beast-card-title { margin-bottom: 12px; }
+.cw-sheet-aside {
+  order: 2;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--parchment);
+}
+.cw-sheet-card--combat { grid-row: span 2; }
+.cw-sheet-card--persona { grid-column: 1 / -1; }
+
+/* экономия хода — значки по типу действия */
+.cw-economy,
+.cw-class-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-class-actions { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(168, 175, 186, 0.16); }
+.cw-eco,
+.cw-cact {
+  --eco: 228, 196, 110;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 3px 9px;
+  border-radius: 999px;
+  background: rgba(var(--eco), 0.1);
+  box-shadow: inset 0 0 0 1px rgba(var(--eco), 0.45);
+  color: rgb(var(--eco));
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.cw-eco svg,
+.cw-cact svg { width: 13px; height: 13px; fill: rgba(var(--eco), 0.25); }
+.cw-eco--bonus { --eco: 232, 161, 90; }
+.cw-eco--reaction { --eco: 127, 178, 232; }
+.cw-eco--free { --eco: 183, 156, 240; }
+.cw-eco--move { --eco: 133, 201, 143; }
+.cw-eco--extra { --eco: 228, 196, 110; font-weight: 700; }
+.cw-cact { color: var(--parchment); }
+
+/* атаки: имя, кнопки попадания и урона */
+.cw-attacks { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.cw-atk {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(36, 40, 50, 0.7), rgba(13, 14, 17, 0.4));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.14);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+.cw-atk.is-crit {
+  background: linear-gradient(90deg, rgba(95, 174, 100, 0.22), rgba(13, 14, 17, 0.4));
+  box-shadow: inset 0 0 0 1px rgba(133, 201, 143, 0.6), 0 0 14px rgba(95, 174, 100, 0.25);
+}
+.cw-atk-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: calc(34px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+}
+.cw-atk-icon svg { width: 16px; height: 16px; color: var(--gold-3); }
+.cw-atk--spell .cw-atk-icon svg { color: #b79cf0; }
+.cw-atk-name { display: flex; flex-direction: column; min-width: 0; }
+.cw-atk-name b { font-weight: 600; color: var(--parchment); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-atk-name i { font-style: normal; font-size: 0.74rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-atk-btns { display: flex; gap: 6px; }
+.cw-atk-btn {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 5px;
+  min-width: 76px;
+  padding: 4px 14px 4px 10px;
+  clip-path: var(--hex-chip);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s ease, translate 0.15s ease;
+}
+.cw-atk-btn:hover:not(:disabled) { filter: brightness(1.15); translate: 0 -1px; }
+.cw-atk-btn svg { grid-row: span 2; width: 14px; height: 14px; }
+.cw-atk-btn b { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.05; }
+.cw-atk-btn i { font-style: normal; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.cw-atk-btn--hit { background: linear-gradient(180deg, var(--gold-3), var(--gold-2)); color: var(--bg-0); }
+.cw-atk-btn--hit i { color: rgba(13, 14, 17, 0.7); }
+.cw-atk-btn--dmg {
+  background: linear-gradient(180deg, rgba(160, 60, 52, 0.55), rgba(70, 24, 22, 0.85));
+  box-shadow: inset 0 0 0 1px rgba(224, 112, 112, 0.5);
+  color: #f3d2cd;
+}
+.cw-atk-btn--dmg i { color: rgba(243, 210, 205, 0.7); }
+.cw-atk.is-crit .cw-atk-btn--dmg { background: linear-gradient(180deg, #5fae64, #2e6b33); box-shadow: none; color: #f0fff0; }
+
+/* характеристики: проверка крупно, спасбросок под ней */
+.cw-abil-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cw-abil { display: flex; flex-direction: column; gap: 4px; }
+.cw-abil-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px 6px;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.26);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.cw-abil-check:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.7); }
+.cw-abil-check i { font-style: normal; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--gold-2); }
+.cw-abil-check b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; color: var(--parchment); }
+.cw-abil-check em { font-style: normal; font-size: 0.86rem; color: var(--gold-3); }
+.cw-abil-save {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgba(13, 14, 17, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.cw-abil-save b { color: var(--text); }
+.cw-abil.is-prof .cw-abil-save { box-shadow: inset 0 0 0 1px var(--gold-2); color: var(--gold-3); }
+.cw-abil.is-prof .cw-abil-save b { color: var(--gold-4); }
+.cw-abil-save:hover:not(:disabled) { color: var(--gold-4); }
+
+/* навыки: с владением — подсвечены */
+.cw-skill-buttons { gap: 6px; }
+.cw-skill-buttons .beast-skill { font-size: 0.84rem; padding: 3px 14px 3px 5px; gap: 8px; }
+.cw-skill-buttons .beast-skill-bonus { width: 30px; height: 22px; font-size: 0.82rem; }
+.cw-skill-buttons .beast-skill:not(.is-prof) .beast-skill-bonus { background: linear-gradient(180deg, var(--bg-3), var(--bg-1)); color: var(--text); box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3); }
+.cw-skill-buttons .beast-skill:not(.is-prof) { opacity: 0.75; }
+
+/* инвентарь сеткой */
+.cw-inv-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cw-inv-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 55%, rgba(228, 196, 110, 0.1), rgba(13, 14, 17, 0.65) 70%);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+}
+.cw-inv-cell.is-empty { background: rgba(13, 14, 17, 0.35); box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.08); }
+.cw-inv-cell.is-equipped { box-shadow: inset 0 0 0 1.5px var(--gold-2), 0 0 8px rgba(228, 196, 110, 0.2); }
+.cw-inv-cell img { max-width: 80%; max-height: 80%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+.cw-inv-cell > svg { width: 42%; height: 42%; color: rgba(196, 154, 60, 0.5); }
+.cw-inv-qty {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 1px 2px #000;
+}
+.cw-inv-worn { position: absolute; left: 3px; top: 3px; width: 11px; height: 11px; color: var(--gold-3); }
+.cw-purse { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.cw-purse span { display: inline-flex; align-items: center; gap: 6px; }
+.cw-purse b { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); }
+
+/* магия */
+.cw-magic-stats { display: flex; gap: 8px; margin-bottom: 10px; }
+.cw-magic-stats span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  border-radius: 3px;
+  background: rgba(120, 90, 210, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(183, 156, 240, 0.35);
+}
+.cw-magic-stats b { font-family: var(--font-display); font-size: 1.3rem; color: #d9cbff; }
+.cw-magic-stats i { font-style: normal; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+.cw-slots { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; }
+.cw-slot { display: inline-flex; align-items: center; gap: 4px; }
+.cw-slot i { font-style: normal; font-family: var(--font-display); font-size: 0.85rem; color: #b79cf0; margin-right: 2px; }
+.cw-slot-gem {
+  width: 11px;
+  height: calc(11px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 40% 35%, #e6dbff, #8c6ee0);
+}
+.cw-spell-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.cw-spell-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 6px;
+  border-radius: 3px;
+  background: rgba(120, 90, 210, 0.1);
+  font-size: 0.82rem;
+}
+.cw-spell-chip i { font-style: normal; font-size: 0.72rem; color: #b79cf0; }
+
+/* умения — компактный список с цветной меткой источника */
+.cw-feat-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 3px 14px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cw-feat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 10px;
+  border-left: 2px solid var(--gold-1);
+  font-size: 0.86rem;
+}
+.cw-feat-line b { flex: 1; min-width: 0; font-weight: 600; color: var(--text); }
+.cw-feat-line i { font-style: normal; font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
+.cw-feat-line--subclass { border-left-color: #a58be6; }
+.cw-feat-line--subrace,
+.cw-feat-line--race { border-left-color: #85c98f; }
+.cw-feat-line--background { border-left-color: #7fb2e8; }
+.cw-feat-line--feat { border-left-color: #e8a15a; }
+
+/* владения и характер */
+.cw-profs { display: flex; flex-direction: column; gap: 8px; }
+.cw-profs dt { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-2); }
+.cw-profs dd { margin: 1px 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text); white-space: pre-line; }
+
+/* история бросков — закреплена справа внизу, над панелью шагов */
+.cw-rolllog {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 18px;
+  width: min(320px, calc(100vw - 36px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(18, 20, 26, 0.97), rgba(13, 14, 17, 0.97)) padding-box,
+    linear-gradient(160deg, rgba(228, 196, 110, 0.65), rgba(168, 175, 186, 0.2) 50%, rgba(228, 196, 110, 0.45)) border-box;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+body:has(.cw-foot) .cw-rolllog { bottom: 92px; }
+.cw-rolllog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.14);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.cw-rolllog-head > svg { width: 15px; height: 15px; }
+.cw-rolllog-head span { flex: 1; }
+.cw-rolllog-head button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.cw-rolllog-head button:hover { color: var(--gold-4); background: rgba(196, 154, 60, 0.12); }
+.cw-rolllog-head button svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
+.cw-rolllog.is-collapsed .cw-rolllog-head button:last-child svg { transform: rotate(180deg); }
+/* последний бросок — крупно и с подсветкой появления */
+.cw-rolllog-last {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  padding: 10px 12px;
+  background: radial-gradient(ellipse at 100% 50%, rgba(228, 196, 110, 0.16), transparent 60%);
+  animation: cw-rolllog-in 0.45s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.cw-rolllog-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-2); }
+.cw-rolllog-math { grid-row: 2; font-size: 0.84rem; color: var(--text-dim); }
+.cw-rolllog-math b { color: var(--text); }
+.cw-rolllog-last strong {
+  grid-row: span 2;
+  grid-column: 2;
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--gold-3);
+}
+.cw-rolllog-last.is-crit { background: radial-gradient(ellipse at 100% 50%, rgba(95, 174, 100, 0.28), transparent 65%); }
+.cw-rolllog-last.is-crit strong { color: #8fd194; text-shadow: 0 0 12px rgba(95, 174, 100, 0.6); }
+.cw-rolllog-last.is-fumble { background: radial-gradient(ellipse at 100% 50%, rgba(200, 90, 80, 0.26), transparent 65%); }
+.cw-rolllog-last.is-fumble strong { color: #ee8d82; }
+@keyframes cw-rolllog-in { from { opacity: 0; transform: translateX(16px); } }
+.cw-rolllog-list {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border-top: 1px solid rgba(168, 175, 186, 0.1);
+  scrollbar-width: thin;
+}
+.cw-rolllog-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 12px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.cw-rolllog-list li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-rolllog-list li b { font-family: var(--font-display); color: var(--text); }
+.cw-rolllog-list li.is-crit b { color: #8fd194; }
+.cw-rolllog-list li.is-fumble b { color: #ee8d82; }
+
+/* умения — пункты кнопками, описание всплывает рядом */
+.cw-feat-line > button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: help;
+}
+.cw-feat-line > button:hover b,
+.cw-feat-line > button:focus-visible b { color: var(--gold-4); }
+.cw-hint-pop {
+  position: fixed;
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgba(228, 196, 110, 0.7), rgba(168, 175, 186, 0.2) 50%, rgba(228, 196, 110, 0.5)) border-box;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  animation: cw-gsel-in 0.14s ease;
+  scrollbar-width: thin;
+}
+.cw-hint-pop b { font-family: var(--font-display); font-size: 1.05rem; }
+.cw-hint-pop i { font-style: normal; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+.cw-hint-pop p { margin-top: 6px; font-size: 0.88rem; line-height: 1.55; color: var(--text); white-space: pre-line; }
+
+/* инвентарь: клетки — кнопки, открывают предмет в панели */
+button.cw-inv-cell { font: inherit; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.15s ease; }
+button.cw-inv-cell:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 0 0 1.5px var(--gold-3); }
+button.cw-inv-cell:disabled { cursor: default; }
+
+/* ---------- Шаг «Заклинания» ---------- */
+
+.cw-spells-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 28px;
+}
+.cw-spells-top .cw-magic-stats { margin: 0; min-width: min(100%, 460px); }
+.cw-spells-top .cw-slots { margin: 0; }
+.cw-spells-section { display: flex; flex-direction: column; gap: 10px; }
+.cw-sp-picked { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-sp-picked svg { width: 12px; height: 12px; }
+.cw-sp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 6px;
+}
+.cw-sp {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(36, 40, 50, 0.75), rgba(13, 14, 17, 0.45));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.16);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.cw-sp.is-on {
+  background: linear-gradient(90deg, rgba(120, 90, 210, 0.3), rgba(13, 14, 17, 0.45));
+  box-shadow: inset 0 0 0 1.5px #a58be6;
+}
+.cw-sp.is-locked { opacity: 0.45; }
+.cw-sp-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.cw-sp-main { cursor: pointer; }
+button.cw-sp-main:disabled { cursor: not-allowed; }
+.cw-sp:not(.is-locked):not(.is-fixed):hover { box-shadow: inset 0 0 0 1px rgba(183, 156, 240, 0.6); }
+.cw-sp-circle {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: calc(28px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, #8c6ee0, #4a3592);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #f1ebff;
+}
+.cw-sp-school { flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px; }
+.cw-sp-school img { width: 26px; height: 26px; object-fit: contain; }
+.cw-sp-school svg { width: 18px; height: 18px; color: #b79cf0; }
+.cw-sp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cw-sp-body b { font-weight: 600; font-size: 0.92rem; color: var(--parchment); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-sp-body i { font-style: normal; font-size: 0.74rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-sp-tags { display: flex; gap: 3px; }
+.cw-sp-tags em {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(183, 156, 240, 0.16);
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #cbb8ff;
+}
+.cw-sp-mark { width: 16px; height: 16px; flex-shrink: 0; color: #cbb8ff; }
+.cw-sp-more {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  border-left: 1px solid rgba(168, 175, 186, 0.12);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.cw-sp-more:hover { color: var(--gold-4); background: rgba(196, 154, 60, 0.08); }
+.cw-sp-more svg { width: 15px; height: 15px; }
+.cw-sp-hero { width: 70%; height: auto; margin: auto; filter: drop-shadow(0 0 18px rgba(183, 156, 240, 0.35)); }
+
+/* тост броска не прячется под панелью шагов */
+body:has(.cw-foot) .beast-toast { bottom: 100px; }
+
+@media (max-width: 980px) {
+  .cw-sheet-grid { grid-template-columns: minmax(0, 1fr); }
+  .cw-sheet-card--combat { grid-row: auto; }
+}
+@media (max-width: 640px) {
+  .cw-sheet-hero { flex-direction: column; align-items: center; text-align: center; }
+  .cw-sheet-portrait { flex-basis: auto; width: 150px; }
+  .cw-sheet-stats { justify-content: center; }
+  .cw-atk { grid-template-columns: 34px minmax(0, 1fr); }
+  .cw-atk-btns { grid-column: 1 / -1; }
+}
 
 /* ============================================================
    Сцены награды (level-up) — продолжение оверлея броска
@@ -10986,20 +13516,80 @@ a.se-hex-pick:hover { color: var(--gold-4); }
 
 .celebrate-skip { cursor: pointer; }
 
+/* лента полученного наверху: сыгранная сцена улетает сюда жетоном */
+.celebrate-trail {
+  position: absolute;
+  z-index: 2;
+  top: clamp(30px, 6vh, 64px);
+  left: 50%;
+  translate: -50% 0;
+  width: min(92vw, 900px);
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.celebrate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  clip-path: var(--hex-chip);
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.3), rgba(40, 34, 22, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55);
+  color: var(--parchment);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  animation: celebrate-chip-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.celebrate-chip svg { width: 15px; height: 15px; color: var(--gold-4); }
+.celebrate-chip--hp svg { color: #e07070; }
+.celebrate-chip--slot svg,
+.celebrate-chip--spell svg,
+.celebrate-chip--cantrip svg { color: #b79cf0; }
+.celebrate-chip--ability svg { color: #85c98f; }
+/* жетон вылетает из центра экрана, где только что была сцена */
+@keyframes celebrate-chip-in {
+  from { opacity: 0; transform: translateY(32vh) scale(1.8); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+
+/* итог уровня: вся лента по центру, жетоны появляются по очереди */
+.celebrate-summary { gap: 18px; }
+.celebrate-trail--summary {
+  position: static;
+  translate: none;
+  width: min(86vw, 760px);
+  gap: 10px;
+}
+.celebrate-trail--summary .celebrate-chip {
+  padding: 9px 20px;
+  font-size: 1rem;
+  animation: celebrate-chip-pop 0.35s ease both;
+  animation-delay: calc(var(--i) * 60ms);
+}
+.celebrate-trail--summary .celebrate-chip svg { width: 18px; height: 18px; }
+@keyframes celebrate-chip-pop {
+  from { opacity: 0; transform: scale(0.7); }
+}
+
 /* ---------- Адаптив ---------- */
 
 @media (max-width: 980px) {
-  .cw-identity,
-  .cw-review { grid-template-columns: minmax(0, 1fr); }
-  .cw-identity-portrait { position: static; }
+  .cw-identity { grid-template-columns: minmax(0, 1fr); }
+  .cw-hero-card { position: static; width: min(280px, 100%); margin: 0 auto; }
+  .cw-id-grid--two { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 720px) {
   .cw-rail-label { display: none; }
   .cw-rail { gap: 6px; }
-  .cw-foot { gap: 10px; padding: 12px; }
+  .cw-foot-inner { gap: 10px; padding: 12px; }
   .cw-foot-hint { display: none; }
-  .cw-pick { --pick-w: calc(50% - 8px); }
+  .cw-pick-grid { --pick-w: calc(50% - 8px); }
   .cw-modal-layer { padding: 0; place-items: end stretch; }
   .cw-modal { max-height: 94vh; width: 100%; }
   .cw-modal-scroll { padding: 18px 16px 8px; }
@@ -11018,5 +13608,7 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   .celebrate-content,
   .celebrate-value,
   .celebrate-name,
-  .celebrate-slot-gem { animation: none; }
+  .celebrate-slot-gem,
+  .celebrate-chip,
+  .celebrate-trail--summary .celebrate-chip { animation: none; }
 }

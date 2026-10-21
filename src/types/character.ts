@@ -38,6 +38,11 @@ export type NamedSource = {
   source?: string | null
 }
 
+/** Снимок подрасы в листе (SubraceSnapshot на сервере) */
+export type SubraceInfo = NamedSource & {
+  increase_ability_scores?: Record<string, number>
+}
+
 export type RaceInfo = NamedSource & {
   size?: string | null
   speed?: number | null
@@ -117,7 +122,7 @@ export type Character = {
   basic_info: {
     name: string
     race: RaceInfo
-    subrace: NamedSource | null
+    subrace: SubraceInfo | null
     classes: CharacterClassEntry[]
     total_level: number
     background?: NamedSource | null
