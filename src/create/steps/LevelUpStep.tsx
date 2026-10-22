@@ -18,7 +18,7 @@ import {
   Swords,
   TrendingUp,
 } from 'lucide-react'
-import { cleanDescription, realImage } from '../../api'
+import { realImage } from '../../api'
 import type { Feat, Spell, Subclass } from '../../api'
 import { DieImage, hitDieType } from '../../dice/diceAssets'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
@@ -45,6 +45,8 @@ import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay
 import { useCatalogList } from '../useCatalog'
 import { RichText } from '../../terms/terms'
 import { FeatPicker } from './FeatPicker'
+import { featureText } from '../featureText'
+import type { GrantedSpell } from '../grantedSpells'
 import { checkPrereq, type PrereqContext } from '../prereq'
 import { ChoiceModal, FactChip, ModalSection, MoreTab, StepHeader } from './ui'
 
@@ -62,30 +64,6 @@ interface LevelRequirements {
   newSlots: { circle: number; count: number }[]
   classFeatures: FeatureEntry[]
   subFeatures: FeatureEntry[]
-}
-
-/**
- * Текст умения без повтора заголовка: в статье класса описание начинается с
- * «БОЖЕСТВЕННОЕ ЧУВСТВО 1-й уровень, умение паладина …» — название, уровень и
- * класс и так видны на карточке. Обрезаем по целому слову.
- */
-function featureText(html: string, name: string, owner: string, max = 260): string {
-  let text = cleanDescription(html)
-  if (text.toLocaleLowerCase('ru').startsWith(name.toLocaleLowerCase('ru'))) {
-    text = text.slice(name.length)
-  }
-  // «1-й уровень, умение паладина …» / «3-й уровень, особенность Клятвы преданности …»
-  text = text
-    .replace(/^[\s.:—-]*\d+-?(?:й|го)?\s+уров\S*[,.]?\s*/iu, '')
-    .replace(/^(?:умение|особенность|черта|способность)\s+/iu, '')
-  // слова владельца в любом падеже («паладина», «Клятвы преданности») — по основам
-  const stems = new Set(owner.toLocaleLowerCase('ru').replace(/ё/g, 'е').split(/\s+/).map((w) => w.slice(0, 4)))
-  const words = text.split(/\s+/)
-  let skip = 0
-  while (skip < words.length && stems.has(words[skip].toLocaleLowerCase('ru').replace(/ё/g, 'е').slice(0, 4))) skip++
-  text = words.slice(skip).join(' ').trim()
-  if (text.length <= max) return text
-  return text.slice(0, max).replace(/\s+\S*$/u, '').replace(/[,.;:]$/, '') + '…'
 }
 
 /** Хиты уровня жетонами: [кость → значение] + [ТЕЛ ±n] = [итог] */
@@ -128,10 +106,13 @@ export default function LevelUpStep({
   bundle,
   bundleLoading,
   subclassFeatures,
+  granted,
 }: StepProps & {
   bundle: ClassBundle | null
   bundleLoading: boolean
   subclassFeatures: FeatureEntry[]
+  /** заклинания от расы и подкласса с уровнем получения */
+  granted: GrantedSpell[]
 }) {
   const dice = useDice()
   const [subDetails, setSubDetails] = useState<Subclass | null>(null)
@@ -262,6 +243,11 @@ export default function LevelUpStep({
 
   const hpGain = Math.max(1, hitPointsForLevel(choice, hitDie) + conMod)
 
+  // что раса и подкласс дают именно на этом уровне
+  const grantedNow = granted.filter(
+    (g) => g.level === level && (g.origin === 'race' || (draft.subclass && level >= subclassLevel)),
+  )
+
   // требования черт проверяем на тот уровень, где черта берётся
   const prereqContext: PrereqContext = {
     level,
@@ -311,6 +297,14 @@ export default function LevelUpStep({
     }
 
     if (choice.featName) built.push({ kind: 'feat', name: choice.featName })
+
+    for (const g of grantedNow) {
+      built.push(
+        g.spell.spell_level === 0
+          ? { kind: 'cantrip', name: g.spell.spell_name }
+          : { kind: 'spell', name: g.spell.spell_name, circle: g.spell.spell_level },
+      )
+    }
 
     for (const slot of req.newSlots) {
       built.push({ kind: 'slot', circle: slot.circle, count: slot.count })
@@ -666,6 +660,30 @@ export default function LevelUpStep({
           </section>
         )}
 
+        {/* ---------- дарованные заклинания: от расы и подкласса ---------- */}
+        {grantedNow.length > 0 && (
+          <section className="cw-block">
+            <h4 className="cw-block-title">
+              <Sparkles aria-hidden="true" /> Дарованные заклинания
+            </h4>
+            <div className="cw-granted">
+              {grantedNow.map((g) => (
+                <span key={g.spell.id} className={`cw-granted-item cw-granted-item--${g.origin}`}>
+                  <span className="cw-sp-circle">{g.spell.spell_level === 0 ? '◈' : g.spell.spell_level}</span>
+                  <span className="cw-granted-text">
+                    <b>{g.spell.spell_name}</b>
+                    <i>
+                      {g.origin === 'race'
+                        ? `доступно от расы${g.spell.spell_level === 0 ? ' · заговор' : ' · раз в продолжительный отдых'}`
+                        : `от подкласса «${g.from}» · всегда подготовлено`}
+                    </i>
+                  </span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ---------- умения уровня ---------- */}
         {(req.classFeatures.length > 0 || req.subFeatures.length > 0) && (
           <section className="cw-block">
@@ -676,13 +694,13 @@ export default function LevelUpStep({
               {req.classFeatures.map((f) => (
                 <li key={`c-${f.name}`} className="cw-feature">
                   <b>{f.name}</b>
-                  <span>{featureText(f.html, f.name, className)}</span>
+                  <span>{featureText(f.html, f.name, className, 260)}</span>
                 </li>
               ))}
               {req.subFeatures.map((f) => (
                 <li key={`s-${f.name}`} className="cw-feature cw-feature--sub">
                   <b>{f.name}</b>
-                  <span>{featureText(f.html, f.name, draft.subclass?.subclass_name ?? className)}</span>
+                  <span>{featureText(f.html, f.name, draft.subclass?.subclass_name ?? className, 260)}</span>
                 </li>
               ))}
             </ul>

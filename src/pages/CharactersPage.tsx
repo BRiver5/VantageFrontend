@@ -16,6 +16,7 @@ import {
   markLegacyMigrated,
   sheetDataToCharacter,
 } from '../characters/sheetMigration'
+import { parsePortrait } from '../characters/portrait'
 import { useCatalogList } from '../create/useCatalog'
 import type { CharacterVisibility } from '../types/auth'
 
@@ -56,7 +57,7 @@ function HeroBanner({
 }) {
   const [broken, setBroken] = useState(false)
   const info = c.basic_info
-  const art = info?.avatar_url?.trim() || fallbackArt
+  const art = parsePortrait(info?.avatar_url).src || fallbackArt
   const classes = info?.classes?.map((cl) => `${cl.name} ${cl.level}`).join(' / ')
   const vis = VISIBILITY[c.visibility] ?? VISIBILITY.private
   const VisIcon = vis.icon

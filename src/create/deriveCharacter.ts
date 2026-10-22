@@ -7,7 +7,7 @@
  * получает уже заполненного персонажа, а не заготовку с десятками.
  */
 import { cleanDescription } from '../api'
-import type { EquipmentIndex } from '../api'
+import type { Equipment, EquipmentIndex } from '../api'
 import { skillKeysFromNames } from '../skills'
 import { ABILITY_KEYS, emptyCharacter } from '../types/character'
 import type {
@@ -18,7 +18,9 @@ import type {
 } from '../types/character'
 import type { FeatureEntry } from '../classArticle'
 import { scoreOf, type CharacterDraft, type LevelChoice } from './draft'
-import { inventoryItem, resolveGear, weaponAttack, wornDefense } from './startingGear'
+import { featureText } from './featureText'
+import type { GrantedSpell } from './grantedSpells'
+import { customInventory, inventoryItem, resolveGear, weaponAttack, wornDefense } from './startingGear'
 import {
   abilityFromAny,
   abilityMod,
@@ -99,12 +101,14 @@ function toSheetFeature(
   entry: FeatureEntry,
   source: SheetFeature['source'],
   featureSource: string | null,
+  ownerName: string,
 ): SheetFeature {
   return {
     name: entry.name,
     source,
     level: entry.level,
-    description: cleanDescription(entry.html),
+    // без повтора «НАЗВАНИЕ 1-й уровень, умение паладина» в начале описания
+    description: featureText(entry.html, entry.name, ownerName),
     feature_source: featureSource,
   }
 }
@@ -133,6 +137,8 @@ export interface DeriveInput {
   playerDisplayName?: string | null
   /** каталог снаряжения — из него берутся предметы стартового набора */
   equipmentIndex?: EquipmentIndex | null
+  /** заклинания от расы и подкласса (с уровнем получения) */
+  granted?: GrantedSpell[]
 }
 
 export function buildCharacter({
@@ -141,6 +147,7 @@ export function buildCharacter({
   subclassFeatures,
   playerDisplayName,
   equipmentIndex = null,
+  granted = [],
 }: DeriveInput): CharacterCreate {
   const className = draft.cls?.class_name ?? 'Воин'
   const raceName = draft.race?.race_name ?? 'Человек'
@@ -216,18 +223,26 @@ export function buildCharacter({
   /* ---------- стартовое снаряжение: инвентарь, доспех, атаки ---------- */
 
   const gear = resolveGear(draft, equipmentIndex)
+  // ручной инвентарь с итога (если ещё актуален) — вместо стартового набора
+  const custom = customInventory(draft)
   const worn = wornDefense(
-    gear.items.map((g) => g.eq),
+    custom ? custom.flatMap((it) => (it.equipment ? [it.equipment] : [])) : gear.items.map((g) => g.eq),
     className,
     scores,
   )
   base.combat.armor_class = worn.ac
   base.combat.shield = worn.shield !== null
 
-  const items = gear.items.map(({ eq, quantity }, i) => {
-    const slot = eq === worn.armor ? 'armor' : eq === worn.shield ? 'shield' : null
-    return inventoryItem(eq, quantity, i, { equipped: slot !== null, slot })
-  })
+  const slotOf = (eq: Equipment | null) => (eq === worn.armor ? 'armor' : eq === worn.shield ? 'shield' : null)
+  const items = custom
+    ? custom.map((it) => {
+        const slot = slotOf(it.equipment)
+        return { ...it, equipped: slot !== null, equip_slot: slot }
+      })
+    : gear.items.map(({ eq, quantity }, i) => {
+        const slot = slotOf(eq)
+        return inventoryItem(eq, quantity, i, { equipped: slot !== null, slot })
+      })
   base.inventory = {
     ...base.inventory,
     items,
@@ -247,10 +262,10 @@ export function buildCharacter({
   const features: SheetFeature[] = [
     ...classFeatures
       .filter((f) => f.level <= level)
-      .map((f) => toSheetFeature(f, 'class', draft.cls?.id ?? null)),
+      .map((f) => toSheetFeature(f, 'class', draft.cls?.id ?? null, className)),
     ...subclassFeatures
       .filter((f) => f.level <= level)
-      .map((f) => toSheetFeature(f, 'subclass', draft.subclass?.id ?? null)),
+      .map((f) => toSheetFeature(f, 'subclass', draft.subclass?.id ?? null, subclassName ?? className)),
   ]
 
   if (draft.subrace?.traits) {
@@ -324,6 +339,21 @@ export function buildCharacter({
       cantrips_amount: Math.max(cantripsAt(className, level), pickedCantrips.length),
       prepared_spells_max: preparedSpellsMax(className, level, mod),
     }
+  }
+
+  // дарованные расой и подклассом — всегда «подготовлены»; у не-заклинателей
+  // (тёмный эльф-воин) это единственные заклинания листа
+  const have = new Set(base.spellcasting.spells_known.map((s) => s.name))
+  for (const g of granted) {
+    if (g.level > level || have.has(g.spell.spell_name)) continue
+    have.add(g.spell.spell_name)
+    base.spellcasting.spells_known.push({
+      name: g.spell.spell_name,
+      level: g.spell.spell_level,
+      prepared: true,
+      spell_source: g.spell.spell_source ?? null,
+      snapshot: { granted: g.origin, from: g.from, from_level: g.level, spell_id: g.spell.id },
+    })
   }
 
   /* ---------- шапка листа ---------- */

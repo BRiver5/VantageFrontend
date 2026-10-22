@@ -24,6 +24,7 @@ import {
 import { finalScores } from '../deriveCharacter'
 import type { StepProps } from '../draft'
 import { useCatalogList } from '../useCatalog'
+import type { GrantedSpell } from '../grantedSpells'
 import {
   ChoiceModal,
   FactChip,
@@ -142,7 +143,11 @@ function SpellDetails({ spell, onClose }: { spell: Spell; onClose: () => void })
   )
 }
 
-export default function SpellsStep({ draft, update }: StepProps) {
+export default function SpellsStep({
+  draft,
+  update,
+  granted,
+}: StepProps & { granted: GrantedSpell[] }) {
   const className = draft.cls?.class_name ?? ''
   const level = draft.targetLevel
   const kind = casterKind(className, draft.cls?.is_caster)
@@ -161,6 +166,10 @@ export default function SpellsStep({ draft, update }: StepProps) {
   const maxCircle = Math.max(0, ...slots.map(([c]) => Number(c)))
 
   const cantrips = draft.levels.flatMap((l) => l.cantrips)
+  // дарованное расой и подклассом до выбранного уровня
+  const grantedHere = granted.filter(
+    (g) => g.level <= level && (g.origin === 'race' || !!draft.subclass),
+  )
   const known = draft.levels.flatMap((l) => l.spells)
   const prepared = draft.preparedSpells
   const preparedIds = new Set(prepared.map((s) => s.id))
@@ -227,6 +236,7 @@ export default function SpellsStep({ draft, update }: StepProps) {
     <div className="cw-step cw-spells-step">
       <StepHeader title="Книга заклинаний" />
 
+      {kind !== 'none' && (
       <div className="cw-spells-top">
         <div className="cw-magic-stats">
           <span>
@@ -263,6 +273,27 @@ export default function SpellsStep({ draft, update }: StepProps) {
           </div>
         )}
       </div>
+
+      )}
+
+      {grantedHere.length > 0 && (
+        <section className="cw-spells-section">
+          <h3 className="cw-id-title">Дарованные · {grantedHere.length}</h3>
+          <p className="cw-field-note">
+            Приходят сами — от расы и подкласса; уровень получения указан на карточке.
+          </p>
+          <div className="cw-sp-grid">
+            {grantedHere.map((g) => (
+              <div key={g.spell.id} className="cw-sp-granted">
+                <SpellCard spell={g.spell} state="fixed" onDetails={() => setDetails(g.spell)} />
+                <span className={`cw-sp-origin cw-sp-origin--${g.origin}`}>
+                  {g.origin === 'race' ? 'раса' : g.from} · с {g.level} ур.
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {cantrips.length > 0 && (
         <section className="cw-spells-section">

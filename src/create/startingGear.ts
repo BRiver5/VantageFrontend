@@ -36,13 +36,23 @@ const COIN_CURRENCY: Record<string, Currency> = {
 }
 
 /** Монета ли это — вместо предмета она уходит в кошелёк */
-function coinOf(slug: string): Currency | null {
+export function coinOf(slug: string): Currency | null {
   if (COIN_CURRENCY[slug]) return COIN_CURRENCY[slug]
   const m = /^(copper|silver|electrum|gold|platinum)-coin/.exec(slug)
   if (!m) return null
   return ({ copper: 'cp', silver: 'sp', electrum: 'ep', gold: 'gp', platinum: 'pp' } as const)[
     m[1] as 'copper' | 'silver' | 'electrum' | 'gold' | 'platinum'
   ]
+}
+
+/** Слепок того, из чего собран стартовый инвентарь — для проверки ручной правки */
+export function gearKey(draft: CharacterDraft): string {
+  return JSON.stringify([draft.cls?.id ?? null, draft.background?.id ?? null, draft.gear])
+}
+
+/** Ручной инвентарь черновика, если он ещё соответствует выбору снаряжения */
+export function customInventory(draft: CharacterDraft): InventoryItemInstance[] | null {
+  return draft.inventory && draft.inventoryKey === gearKey(draft) ? draft.inventory : null
 }
 
 /** Все гранты класса и предыстории с ключами для черновика */

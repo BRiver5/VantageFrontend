@@ -4,7 +4,7 @@
  * уровню. В лист персонажа всё это превращает deriveCharacter.
  */
 import type { Background, CharacterVisibility, GameClass, Race, Spell, Subclass, Subrace } from '../api'
-import type { AbilityName } from '../types/character'
+import type { AbilityName, InventoryItemInstance } from '../types/character'
 import { ABILITY_KEYS } from '../types/character'
 import type { GearPick } from './startingGear'
 
@@ -96,6 +96,14 @@ export interface CharacterDraft {
   /** подготовленные заклинания (жрец, друид, паладин, изобретатель, волшебник) */
   preparedSpells: Spell[]
 
+  /**
+   * Инвентарь, изменённый вручную на итоге. Действует, пока совпадает
+   * `inventoryKey` — слепок выбора снаряжения: сменили класс, предысторию или
+   * варианты — ручная правка устарела и инвентарь собирается заново.
+   */
+  inventory: InventoryItemInstance[] | null
+  inventoryKey: string
+
   levels: LevelChoice[]
 }
 
@@ -162,6 +170,8 @@ export function initialDraft(visibility: CharacterVisibility): CharacterDraft {
     visibility,
     gear: {},
     preparedSpells: [],
+    inventory: null,
+    inventoryKey: '',
     levels: [emptyLevelChoice(1)],
   }
 }

@@ -21,7 +21,9 @@ import { buildCharacter } from './deriveCharacter'
 import { initialDraft, resizeLevels, type CharacterDraft, type DraftUpdate } from './draft'
 import { ABILITY_KEYS } from '../types/character'
 import { useClassBundle, useSubclassFeatures } from './useClassBundle'
-import { useSubraces } from './useCatalog'
+import { useCatalogList, useSubraces } from './useCatalog'
+import { grantedSpells } from './grantedSpells'
+import type { Spell } from '../api'
 import { useEquipmentIndex } from '../equipmentIndex'
 import { WorldBackdrop } from '../creatureSheet'
 import { useBookWorld } from '../worldArt'
@@ -111,6 +113,23 @@ export default function CreateCharacterWizard() {
   const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null)
   const subclassFeatures = useSubclassFeatures(bundle, draft.subclass?.id ?? null)
   const equipmentIndex = useEquipmentIndex()
+  // каталог заклинаний — и для расовых (у любого класса), и для подкласса
+  const { items: spellCatalog } = useCatalogList<Spell>('spells')
+  const granted = useMemo(
+    () =>
+      grantedSpells(
+        {
+          raceName: draft.race?.race_name ?? '',
+          raceText: draft.race?.description,
+          subraceName: draft.subrace?.subrace_name ?? null,
+          subraceText: draft.subrace?.traits ?? draft.subrace?.description,
+          className: draft.cls?.class_name ?? '',
+          subclassName: draft.subclass?.subclass_name ?? null,
+        },
+        spellCatalog,
+      ),
+    [draft.race, draft.subrace, draft.cls, draft.subclass, spellCatalog],
+  )
 
   // целевой уровень управляет длиной списка решений по уровням
   useEffect(() => {
@@ -134,12 +153,15 @@ export default function CreateCharacterWizard() {
       { id: 'levelup', label: 'Прокачка' },
     )
     // заклинания — только у заклинателей
-    if (draft.cls && casterKind(draft.cls.class_name, draft.cls.is_caster) !== 'none') {
+    if (
+      (draft.cls && casterKind(draft.cls.class_name, draft.cls.is_caster) !== 'none') ||
+      granted.some((g) => g.level <= draft.targetLevel)
+    ) {
       list.push({ id: 'spells', label: 'Заклинания' })
     }
     list.push({ id: 'review', label: 'Итог' })
     return list
-  }, [subraces.length, draft.cls])
+  }, [subraces.length, draft.cls, granted, draft.targetLevel])
 
   const safeIdx = Math.min(stepIdx, steps.length - 1)
   const step = steps[safeIdx]
@@ -204,6 +226,7 @@ export default function CreateCharacterWizard() {
         subclassFeatures,
         playerDisplayName: user?.display_name ?? null,
         equipmentIndex,
+        granted,
       })
       const created = await createCharacter(body)
       if (!created.id) throw new Error('Сервер не вернул id персонажа')
@@ -251,15 +274,17 @@ export default function CreateCharacterWizard() {
             bundle={bundle}
             bundleLoading={classLoading}
             subclassFeatures={subclassFeatures}
+            granted={granted}
           />
         )}
-        {step.id === 'spells' && <SpellsStep draft={draft} update={update} />}
+        {step.id === 'spells' && <SpellsStep draft={draft} update={update} granted={granted} />}
         {step.id === 'review' && (
           <ReviewStep
             draft={draft}
             update={update}
             bundle={bundle}
             subclassFeatures={subclassFeatures}
+            granted={granted}
           />
         )}
       </div>
