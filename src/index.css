@@ -15594,3 +15594,34 @@ button.cw-orb:disabled { cursor: default; }
   .cw-wpn-art { width: 48px; height: 48px; }
   .cw-wpn-dice { grid-column: 1 / -1; justify-content: flex-end; }
 }
+
+/* ---------- прокачка: заговоры и заклинания выпадающими меню, как оружие в снаряжении ---------- */
+.cw-spsel-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; margin-top: 8px; }
+.cw-spsel { position: relative; display: flex; min-width: 0; }
+.cw-spsel .cw-gsel { flex: 1; min-width: 0; }
+.cw-spsel .cw-gsel-text { min-width: 0; }
+.cw-spsel .cw-gsel-text b,
+.cw-spsel .cw-gsel-text i { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-spsel-face { background: radial-gradient(circle at 50% 40%, rgba(183, 156, 240, 0.35), rgba(30, 22, 60, 0.9) 75%); }
+.cw-spsel-face img { width: 72%; height: 72%; object-fit: contain; }
+.cw-spsel-face svg { width: 20px; height: 20px; color: #d9cbff; }
+.cw-spsel-face b { color: #d9cbff; }
+/* «подробнее» и «очистить» — поверх правого края выбранного меню */
+.cw-spsel-tools { position: absolute; top: 50%; right: 34px; display: flex; gap: 2px; translate: 0 -50%; }
+.cw-spsel-tools button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(13, 14, 17, 0.6);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.cw-spsel-tools button:hover { color: var(--gold-4); background: rgba(196, 154, 60, 0.18); }
+.cw-spsel-tools svg { width: 14px; height: 14px; }
+.cw-spsel:has(.cw-spsel-tools) .cw-gsel-text { margin-right: 58px; }
+.cw-spsel-tags { display: flex; gap: 3px; margin-left: auto; }
+.cw-spsel-tags em { padding: 0 6px; border-radius: 999px; background: rgba(183, 156, 240, 0.16); color: #d9cbff; font-style: normal; font-size: 0.66rem; }
+.cw-spsel-pop .cw-gsel-list { max-height: 360px; }

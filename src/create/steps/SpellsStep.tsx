@@ -46,7 +46,7 @@ function SchoolIcon({ school }: { school: string | null }) {
 }
 
 /** Карточка заклинания: круг, школа, время и дистанция, концентрация/ритуал */
-function SpellCard({
+export function SpellCard({
   spell,
   state,
   onToggle,
@@ -99,7 +99,7 @@ function SpellCard({
   )
 }
 
-function SpellDetails({ spell, onClose }: { spell: Spell; onClose: () => void }) {
+export function SpellDetails({ spell, onClose }: { spell: Spell; onClose: () => void }) {
   const comps = [
     spell.components?.verbal && 'В',
     spell.components?.somatic && 'С',
