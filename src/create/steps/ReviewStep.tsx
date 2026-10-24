@@ -1,6 +1,6 @@
 /**
- * Последний шаг — итог. Лист собирается тем же buildCharacter, что и при
- * создании, поэтому здесь ровно то, что уйдёт на сервер. Вид листа — общий
+ * Последний шаг — итог. Лист — предпросмотр (buildCharacter): на сервер уходит
+ * только выбор игрока, а числа сохранённого героя считает движок. Вид листа — общий
  * с сохранённым персонажем (CharacterSheet); ячейки и расовая магия здесь
  * тратятся «на пробу» и живут только до ухода со страницы.
  */
@@ -43,7 +43,12 @@ export default function ReviewStep({
   return (
     <CharacterSheet
       sheet={sheet}
-      heading={<StepHeader title="Герой готов" />}
+      heading={
+        <StepHeader
+          title="Герой готов"
+          lead="Это предпросмотр: после создания все числа листа — КД, спасброски, хиты, ячейки и умения — посчитает сервер по вашему выбору."
+        />
+      }
       portrait={draft.avatarUrl.trim() || null}
       fallbackPortrait={realImage(draft.race?.image_gallery)}
       play={{ slotsUsed, setSlotsUsed, racialUsed, setRacialUsed }}

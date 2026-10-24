@@ -19,3 +19,6 @@ export function clearAccessToken(): void {
     /* ignore */
   }
 }
+
+/** Токен истёк (обновления нет — 7 дней): API сообщает, AuthProvider выходит */
+export const TOKEN_EXPIRED_EVENT = 'vantage:token-expired'

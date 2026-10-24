@@ -9,6 +9,7 @@ import {
   realImage,
   type Character,
   type GameClass,
+  type Race,
 } from '../api'
 import {
   hasLegacySheet,
@@ -48,17 +49,23 @@ function EmptySlot({ main = false }: { main?: boolean }) {
 /** Знамя героя: портрет, плашка с именем, гекс уровня внизу */
 function HeroBanner({
   c,
-  fallbackArt,
+  classById,
+  raceName,
   onDelete,
 }: {
   c: Character
-  fallbackArt: string | null
+  classById: Map<string, GameClass>
+  raceName: string | null
   onDelete: () => void
 }) {
   const [broken, setBroken] = useState(false)
-  const info = c.basic_info
-  const art = parsePortrait(info?.avatar_url).src || fallbackArt
-  const classes = info?.classes?.map((cl) => `${cl.name} ${cl.level}`).join(' / ')
+  // в документе v2 только ссылки — названия и арт класса берём из каталога
+  const first = classById.get(c.classes?.[0]?.class_id ?? '')
+  const art = parsePortrait(c.avatar_url).src || realImage(first?.image_gallery)
+  const classes = (c.classes ?? [])
+    .map((cl) => `${classById.get(cl.class_id)?.class_name ?? 'Класс'} ${cl.level}`)
+    .join(' / ')
+  const level = (c.classes ?? []).reduce((s, cl) => s + cl.level, 0) || 1
   const vis = VISIBILITY[c.visibility] ?? VISIBILITY.private
   const VisIcon = vis.icon
 
@@ -78,19 +85,19 @@ function HeroBanner({
           <VisIcon aria-hidden="true" />
         </span>
         <span className="lobby-hero-plate">
-          <span className="lobby-hero-name">{info?.name || 'Без имени'}</span>
+          <span className="lobby-hero-name">{c.character_name || 'Без имени'}</span>
           <span className="lobby-hero-meta">
-            {[classes, info?.race?.name].filter(Boolean).join(' · ')}
+            {[classes, raceName].filter(Boolean).join(' · ')}
           </span>
         </span>
         <span className="lobby-hero-level" title="Уровень">
-          <span>{info?.total_level ?? 1}</span>
+          <span>{level}</span>
         </span>
       </Link>
       <button
         type="button"
         className="lobby-hero-del"
-        aria-label={`Удалить «${info?.name || 'персонажа'}»`}
+        aria-label={`Удалить «${c.character_name || 'персонажа'}»`}
         title="Удалить"
         onClick={onDelete}
       >
@@ -108,12 +115,11 @@ export default function CharactersPage() {
   const [showImport, setShowImport] = useState(false)
   const [importing, setImporting] = useState(false)
   const { items: classes } = useCatalogList<GameClass>('classes')
+  const { items: races } = useCatalogList<Race>('races')
 
   // арт класса — портрет знамени, если у героя нет своего аватара
-  const classArt = useMemo(
-    () => new Map(classes.map((c) => [c.class_name, realImage(c.image_gallery)])),
-    [classes],
-  )
+  const classById = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes])
+  const raceById = useMemo(() => new Map(races.map((r) => [r.id, r.race_name])), [races])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -136,7 +142,7 @@ export default function CharactersPage() {
 
   const onDelete = async (c: Character) => {
     if (!c.id) return
-    if (!confirm(`Удалить «${c.basic_info?.name || 'персонажа'}»?`)) return
+    if (!confirm(`Удалить «${c.character_name || 'персонажа'}»?`)) return
     try {
       await deleteCharacter(c.id)
       setItems((prev) => prev.filter((x) => x.id !== c.id))
@@ -158,7 +164,9 @@ export default function CharactersPage() {
     }
     setImporting(true)
     try {
-      const created = await createCharacter(sheetDataToCharacter(data))
+      const byName = (name: string) =>
+        classes.find((c) => c.class_name.toLocaleLowerCase('ru') === name.trim().toLocaleLowerCase('ru'))?.id ?? null
+      const created = await createCharacter(sheetDataToCharacter(data, byName))
       markLegacyMigrated()
       setShowImport(false)
       if (created.id) navigate(`/characters/${created.id}`)
@@ -223,7 +231,8 @@ export default function CharactersPage() {
                 <HeroBanner
                   key={c.id}
                   c={c}
-                  fallbackArt={classArt.get(c.basic_info?.classes?.[0]?.name ?? '') ?? null}
+                  classById={classById}
+                  raceName={c.race_id ? (raceById.get(c.race_id) ?? null) : null}
                   onDelete={() => void onDelete(c)}
                 />
               ))

@@ -1,4 +1,4 @@
-import { getAccessToken } from './auth/token'
+import { clearAccessToken, getAccessToken, TOKEN_EXPIRED_EVENT } from './auth/token'
 import type {
   LoginBody,
   PatchMeBody,
@@ -6,10 +6,18 @@ import type {
   TokenResponse,
   UserMe,
 } from './types/auth'
-import type { Character, CharacterCreate } from './types/character'
+import type {
+  Character,
+  CharacterEvent,
+  CharacterInput,
+  LevelUpResult,
+  RunInputs,
+  RunResult,
+  Sheet,
+} from './types/character'
 import { characterPayload } from './types/character'
 
-export type { Character, CharacterCreate } from './types/character'
+export type { Character, CharacterInput, Sheet } from './types/character'
 export type {
   LoginBody,
   PatchMeBody,
@@ -23,7 +31,7 @@ export type {
   Locale,
   UserRole,
 } from './types/auth'
-export { emptyCharacter, ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from './types/character'
+export { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from './types/character'
 export { DEFAULT_DICE_PREFERENCES } from './types/auth'
 
 /**
@@ -89,6 +97,12 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
     }
   }
 
+  // токен с запросом ушёл, а сервер его не принял — значит, истёк: выходим
+  if (res.status === 401 && headers.Authorization) {
+    clearAccessToken()
+    window.dispatchEvent(new Event(TOKEN_EXPIRED_EVENT))
+  }
+
   if (!res.ok) {
     const detail =
       data && typeof data === 'object' && data !== null && 'detail' in data
@@ -118,30 +132,37 @@ export function patchMe(body: PatchMeBody): Promise<UserMe> {
   return request<UserMe>('/auth/me', { method: 'PATCH', body, auth: true })
 }
 
-/* ---------- Characters ---------- */
+/* ---------- Characters (schema v2) ---------- */
 
-export async function listMyCharacters(): Promise<Character[]> {
-  const data = await request<Character[] | { items: Character[] }>('/me/characters', { auth: true })
+/** Ответ списка: массив или страница { items } — сервер отдаёт по-разному */
+function itemsOf<T>(data: T[] | { items: T[] } | null): T[] {
   if (Array.isArray(data)) return data
   if (data && typeof data === 'object' && Array.isArray(data.items)) return data.items
   return []
 }
 
-export function listCharacters(opts: { mine?: boolean; q?: string } = {}): Promise<Character[]> {
+export async function listMyCharacters(): Promise<Character[]> {
+  return itemsOf(await request<Character[] | { items: Character[] }>('/me/characters', { auth: true }))
+}
+
+export async function listCharacters(opts: { mine?: boolean; q?: string } = {}): Promise<Character[]> {
   const params = new URLSearchParams()
   if (opts.mine) params.set('mine', 'true')
   if (opts.q) params.set('q', opts.q)
   const qs = params.toString()
-  return request<Character[]>(`/characters${qs ? `?${qs}` : ''}`, {
-    auth: opts.mine ? true : 'optional',
-  })
+  return itemsOf(
+    await request<Character[] | { items: Character[] }>(`/characters${qs ? `?${qs}` : ''}`, {
+      auth: opts.mine ? true : 'optional',
+    }),
+  )
 }
 
 export function getCharacter(id: string): Promise<Character> {
   return request<Character>(`/characters/${id}`, { auth: 'optional' })
 }
 
-export function createCharacter(body: CharacterCreate | Character): Promise<Character> {
+/** Создать: только выбор игрока; способности по источникам сервер выдаст сам */
+export function createCharacter(body: CharacterInput): Promise<Character> {
   return request<Character>('/characters', {
     method: 'POST',
     body: characterPayload(body),
@@ -149,16 +170,139 @@ export function createCharacter(body: CharacterCreate | Character): Promise<Char
   })
 }
 
-export function updateCharacter(id: string, body: Partial<Character> | Character): Promise<Character> {
+/** PATCH — только изменённые поля; поля движка сервер не принимает */
+export function updateCharacter(id: string, body: CharacterInput): Promise<Character> {
   return request<Character>(`/characters/${id}`, {
     method: 'PATCH',
-    body: characterPayload(body as Character),
+    body: characterPayload(body),
     auth: true,
   })
 }
 
 export function deleteCharacter(id: string): Promise<void> {
   return request<void>(`/characters/${id}`, { method: 'DELETE', auth: true })
+}
+
+/* ---------- Лист и движок ---------- */
+
+const ch = (id: string, path = '') => `/characters/${id}${path}`
+
+/** Вычисленный лист: все числа, ресурсы, ячейки и доступные действия */
+export function getSheet(id: string): Promise<Sheet> {
+  return request<Sheet>(ch(id, '/sheet'), { auth: 'optional' })
+}
+
+/** Действие способности; при needs_input повторяется с накопленными ответами */
+export function runAction(
+  id: string,
+  grantId: string,
+  actionKey: string,
+  inputs: RunInputs = {},
+  dryRun = false,
+): Promise<RunResult> {
+  return request<RunResult>(ch(id, `/actions/${encodeURIComponent(grantId)}/${encodeURIComponent(actionKey)}`), {
+    method: 'POST',
+    body: { inputs, dry_run: dryRun },
+    auth: true,
+  })
+}
+
+/** Отдых; для короткого — сколько костей хитов какого класса бросить */
+export function rest(id: string, kind: 'short' | 'long', hitDice: Record<string, number> = {}): Promise<RunResult> {
+  return request<RunResult>(ch(id, '/rest'), {
+    method: 'POST',
+    body: kind === 'short' ? { kind, hit_dice: hitDice } : { kind },
+    auth: true,
+  })
+}
+
+export type TurnEvent = 'turn.start' | 'turn.end' | 'combat.start' | 'combat.end'
+
+export function sendEvent(id: string, name: TurnEvent, payload: Record<string, unknown> = {}): Promise<RunResult> {
+  return request<RunResult>(ch(id, `/events/${name}`), { method: 'POST', body: { payload }, auth: true })
+}
+
+/** Новый уровень в классе; новый class_id — мультикласс; без hp_roll — среднее */
+export function levelUp(
+  id: string,
+  body: { class_id: string; subclass_id?: string | null; hp_roll?: number | null },
+): Promise<LevelUpResult> {
+  return request<LevelUpResult>(ch(id, '/level-up'), { method: 'POST', body, auth: true })
+}
+
+export function resolvePending(id: string, decisionId: string, inputs: RunInputs = {}): Promise<RunResult> {
+  return request<RunResult>(ch(id, `/pending/${encodeURIComponent(decisionId)}`), {
+    method: 'POST',
+    body: { inputs },
+    auth: true,
+  })
+}
+
+export function dismissPending(id: string, decisionId: string): Promise<Sheet> {
+  return request<Sheet>(ch(id, `/pending/${encodeURIComponent(decisionId)}`), { method: 'DELETE', auth: true })
+}
+
+export function attachAbility(
+  id: string,
+  slug: string,
+  choices: Record<string, unknown> = {},
+): Promise<{ grant_id: string; sheet: Sheet }> {
+  return request(ch(id, '/abilities'), { method: 'POST', body: { slug, choices }, auth: true })
+}
+
+export function detachAbility(id: string, grantId: string): Promise<Sheet> {
+  return request<Sheet>(ch(id, `/abilities/${encodeURIComponent(grantId)}`), { method: 'DELETE', auth: true })
+}
+
+export function toggleAbility(id: string, grantId: string, enabled: boolean): Promise<Sheet> {
+  return request<Sheet>(ch(id, `/abilities/${encodeURIComponent(grantId)}`), {
+    method: 'PATCH',
+    body: { enabled },
+    auth: true,
+  })
+}
+
+export function syncAbilities(id: string): Promise<{ changes: string[]; sheet: Sheet }> {
+  return request(ch(id, '/sync'), { method: 'POST', auth: true })
+}
+
+export function listEvents(id: string, limit = 50): Promise<CharacterEvent[]> {
+  return request<CharacterEvent[]>(ch(id, `/events?limit=${limit}`), { auth: true })
+}
+
+export function undoEvent(id: string, eventId: string): Promise<Sheet> {
+  return request<Sheet>(ch(id, `/events/${encodeURIComponent(eventId)}/undo`), { method: 'POST', auth: true })
+}
+
+/** Правка мастера (только админ): хранимые значения и оверрайды; null снимает оверрайд */
+export function patchStore(
+  id: string,
+  body: { set?: Record<string, unknown>; overrides?: Record<string, unknown> },
+): Promise<Sheet> {
+  return request<Sheet>(ch(id, '/store'), { method: 'PATCH', body, auth: true })
+}
+
+/** Словари движка: русские подписи навыков, типов урона, состояний */
+export interface EngineDictionaries {
+  abilities: { value: string; label: string }[]
+  skills: { value: string; label: string; ability: string }[]
+  damage_types: { value: string; label: string }[]
+  conditions: { value: string; label: string }[]
+  classes: { value: string; label: string }[]
+}
+
+let dictionariesPromise: Promise<EngineDictionaries | null> | null = null
+
+export function getEngineDictionaries(): Promise<EngineDictionaries | null> {
+  if (!dictionariesPromise) {
+    dictionariesPromise = request<{ dictionaries?: EngineDictionaries }>('/engine/catalog')
+      .then((c) => c.dictionaries ?? null)
+      .catch(() => {
+        dictionariesPromise = null
+        return null
+      })
+  }
+  return dictionariesPromise
 }
 
 export interface Setting {
@@ -215,6 +359,10 @@ export interface GameClass {
   starting_equipment?: EquipmentGrant[] | null
   /** сырой текст из книги, включая альтернативу «взять золото вместо снаряжения» */
   starting_equipment_text?: string | null
+  /** стабильный ключ класса в листе: char.class.<slug>.level */
+  slug?: string | null
+  /** уровень, на котором выбирается подкласс */
+  subclass_level?: number | null
 }
 
 export interface Subclass {

@@ -1,27 +1,46 @@
 /**
- * Сохранённый персонаж — тот же лист, что на итоге конструктора, но живой:
- * хиты, ячейки, кости хитов, состояния, кошелёк, инвентарь и записи правятся
- * прямо в листе и сохраняются на сервер с небольшой задержкой. Остальное —
- * в окне «Правка листа». Чужой публичный лист открывается для просмотра:
- * играть в нём можно, но на сервер ничего не уходит.
+ * Сохранённый персонаж — тот же лист, что на итоге конструктора, но живой и
+ * собранный сервером: все числа приходят из `/sheet`, действия, отдых, ход и
+ * уровень выполняет движок. Сам документ (инвентарь, кошелёк, записи,
+ * видимость) правится прямо в листе и сохраняется с небольшой задержкой;
+ * остальное — в окне «Правка листа». Чужой публичный лист открывается для
+ * просмотра: бросать кости можно, менять — нет.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Check, ChevronLeft, CloudOff, Eye, Globe, Loader2, Lock, PencilLine } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  CloudOff,
+  Eye,
+  Globe,
+  GraduationCap,
+  Loader2,
+  Lock,
+  PencilLine,
+  RefreshCw,
+  TriangleAlert,
+  Undo2,
+  X,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { getCharacter, realImage, updateCharacter, type Character, type GameClass, type Race } from '../api'
+import { realImage } from '../api'
 import { useAuth } from '../auth/AuthContext'
+import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
-import { formatPortrait, parsePortrait } from '../characters/portrait'
-import { WorldBackdrop } from '../creatureSheet'
-import { sheetPlayFromCharacter } from '../characters/sheetPlay'
+import { JournalModal, LevelUpDialog, PendingBanner, ShortRestDialog } from '../characters/EngineDialogs'
+import type { EngineView } from '../characters/EnginePanel'
+import type { StageEngine } from '../characters/HeroStage'
+import { parsePortrait } from '../characters/portrait'
 import { SheetEditor } from '../characters/SheetEditor'
-import { normalizeCharacter, recalcCharacter } from '../characters/recalc'
-import { useCatalogList } from '../create/useCatalog'
-import type { CharacterCreate } from '../types/character'
+import { sheetPlayFromServer } from '../characters/sheetPlay'
+import { buildSheetView, valuesOf } from '../characters/sheetView'
+import { useCharacterEngine } from '../characters/useCharacterEngine'
+import { useNames } from '../characters/useNames'
+import { WorldBackdrop } from '../creatureSheet'
+import { getEngineDictionaries, type EngineDictionaries } from '../api'
+import type { InventoryItemInstance, SheetView } from '../types/character'
 import type { CharacterVisibility } from '../types/auth'
-
-type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
 const VISIBILITY: Record<CharacterVisibility, { icon: LucideIcon; label: string }> = {
   private: { icon: Lock, label: 'Только вы' },
@@ -29,7 +48,8 @@ const VISIBILITY: Record<CharacterVisibility, { icon: LucideIcon; label: string 
   public: { icon: Globe, label: 'Публичный' },
 }
 
-const SAVE_DELAY = 700
+/** Сколько держится тост «Сделано · Отменить» */
+const TOAST_MS = 7000
 
 export default function CharacterEditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -38,104 +58,82 @@ export default function CharacterEditorPage() {
   const tab = (params.get('tab') as SheetTab | null) ?? 'main'
   const setTab = (t: SheetTab) => setParams(t === 'main' ? {} : { tab: t }, { replace: true })
   const { user } = useAuth()
-  const [character, setCharacter] = useState<Character | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [saveState, setSaveState] = useState<SaveState>('idle')
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const eng = useCharacterEngine(id)
+  const { character, sheet } = eng
+  const { names, races, classes } = useNames(character)
+  const [dict, setDict] = useState<EngineDictionaries | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // правка, ещё не ушедшая на сервер (её дошлём при уходе со страницы)
-  const pending = useRef<Character | null>(null)
-
-  const { items: races } = useCatalogList<Race>('races')
-  const { items: classes } = useCatalogList<GameClass>('classes')
+  const [journalOpen, setJournalOpen] = useState(false)
+  const [restOpen, setRestOpen] = useState(false)
+  const [levelOpen, setLevelOpen] = useState(false)
 
   useEffect(() => {
-    if (!id) return
-    let cancelled = false
-    setLoadError(null)
-    setCharacter(null)
-    getCharacter(id)
-      .then((c) => {
-        if (!cancelled) setCharacter(normalizeCharacter(c))
-      })
-      .catch((e) => {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Не найден')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  // свой лист сохраняем; у чужого player_id другой — его можно только листать
-  const owner = !!character && !!user && (!character.player_id || character.player_id === user.id)
-
-  const persist = useCallback(async (c: Character) => {
-    if (!c.id) return
-    setSaveState('saving')
-    setSaveError(null)
-    try {
-      await updateCharacter(c.id, c)
-      if (pending.current === c) pending.current = null
-      setSaveState((s) => (s === 'saving' ? 'saved' : s))
-    } catch (e) {
-      setSaveState('error')
-      setSaveError(e instanceof Error ? e.message : 'Ошибка сохранения')
-    }
+    void getEngineDictionaries().then(setDict)
   }, [])
 
-  // несколько правок за один клик (отдых: хиты, ячейки, расовая магия) идут
-  // друг за другом — каждая строится на результате предыдущей
-  const latest = useRef<Character | null>(null)
-  latest.current = character
-  const patch = useCallback(
-    (fn: (c: Character) => Character) => {
-      const prev = latest.current
-      if (!prev) return
-      const next = fn(prev)
-      latest.current = next
-      setCharacter(next)
-      if (!owner) return
-      pending.current = next
-      setSaveState('pending')
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => void persist(next), SAVE_DELAY)
-    },
-    [owner, persist],
+  // свой лист — играть и сохранять; админ видит и меняет всё
+  const admin = user?.role === 'admin'
+  const owner = !!character && !!user && (admin || character.player_id === user.id)
+
+  const view = useMemo(
+    () => (character && sheet ? buildSheetView(character, sheet, names, dict) : null),
+    [character, sheet, names, dict],
   )
 
-  // уход со страницы не теряет последнюю правку
+  // тост с отменой гаснет сам
+  const { outcome, clearOutcome } = eng
   useEffect(() => {
-    const onUnload = (e: BeforeUnloadEvent) => {
-      if (pending.current) e.preventDefault()
-    }
-    window.addEventListener('beforeunload', onUnload)
-    return () => {
-      window.removeEventListener('beforeunload', onUnload)
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      const last = pending.current
-      if (last?.id) void updateCharacter(last.id, last).catch(() => {})
-    }
-  }, [])
+    if (!outcome) return
+    const t = setTimeout(clearOutcome, TOAST_MS)
+    return () => clearTimeout(t)
+  }, [outcome, clearOutcome])
 
-  // лист отдаёт правки в виде CharacterCreate — id и player_id остаются от сохранённого
+  const { patchDoc } = eng
+  /** Правки листа (записи, кошелёк) — в документ; числа листа здесь не меняются */
   const sheetPatch = useCallback(
-    (fn: (c: CharacterCreate) => CharacterCreate) => patch((c) => ({ ...c, ...fn(c) }) as Character),
-    [patch],
+    (fn: (c: SheetView) => SheetView) => {
+      if (!view) return
+      const next = fn(view)
+      patchDoc((c) => ({
+        ...(next.personality !== view.personality ? { personality: next.personality } : {}),
+        ...(next.backstory !== view.backstory ? { backstory: next.backstory } : {}),
+        ...(next.notes !== view.notes ? { notes: next.notes } : {}),
+        ...(next.inventory.currency !== view.inventory.currency
+          ? { inventory: { ...c.inventory, currency: next.inventory.currency } }
+          : {}),
+      }))
+    },
+    [view, patchDoc],
+  )
+
+  /** Инвентарь: монеты из контейнера — в кошелёк; КД и умения предметов пересчитает сервер */
+  const onInventory = useCallback(
+    (items: InventoryItemInstance[], coins?: Partial<Record<keyof SheetView['inventory']['currency'], number>>) =>
+      patchDoc((c) => {
+        const currency = { ...c.inventory.currency }
+        for (const [k, v] of Object.entries(coins ?? {})) currency[k as keyof typeof currency] += v ?? 0
+        // атаки удалённого оружия уходят вместе с ним
+        const ids = new Set(items.map((it) => it.instance_id))
+        const attacks = c.attacks.filter((a) => !a.inventory_instance_id || ids.has(a.inventory_instance_id))
+        return {
+          inventory: { ...c.inventory, items, currency },
+          ...(attacks.length !== c.attacks.length ? { attacks } : {}),
+        }
+      }),
+    [patchDoc],
   )
 
   const fallbackPortrait = useMemo(() => {
     if (!character) return null
-    const race = character.basic_info.race
-    const r = races.find((x) => x.id === race.source || x.race_name === race.name)
-    const cl = classes.find((x) => x.class_name === character.basic_info.classes[0]?.name)
+    const r = races.find((x) => x.id === character.race_id)
+    const cl = classes.find((x) => x.id === character.classes[0]?.class_id)
     return realImage(r?.image_gallery) ?? realImage(cl?.image_gallery)
   }, [character, races, classes])
 
-  if (loadError) {
+  if (eng.loadError) {
     return (
       <section className="cw cw-live">
-        <p className="auth-error">{loadError}</p>
+        <p className="auth-error">{eng.loadError}</p>
         <Link to="/characters" className="cs-btn">
           К списку
         </Link>
@@ -143,7 +141,7 @@ export default function CharacterEditorPage() {
     )
   }
 
-  if (!character) {
+  if (!character || !sheet || !view) {
     return (
       <section className="cw cw-live">
         <p className="muted cw-live-loading">
@@ -155,20 +153,62 @@ export default function CharacterEditorPage() {
 
   const vis = VISIBILITY[character.visibility] ?? VISIBILITY.private
   const VisIcon = vis.icon
-  const play = sheetPlayFromCharacter(character, sheetPatch)
-  const pic = parsePortrait(character.basic_info.avatar_url)
+  const pic = parsePortrait(character.avatar_url)
+  const master = admin ? eng.master : undefined
 
-  const status =
-    !owner
-      ? { icon: Eye, text: 'Просмотр — изменения не сохраняются' }
-      : saveState === 'error'
-        ? { icon: CloudOff, text: saveError ?? 'Ошибка сохранения' }
-        : saveState === 'saving' || saveState === 'pending'
-          ? { icon: Loader2, text: 'Сохранение…' }
-          : saveState === 'saved'
-            ? { icon: Check, text: 'Сохранено' }
-            : null
+  const play = sheetPlayFromServer(view, {
+    master,
+    setSpent: owner
+      ? (next) =>
+          patchDoc((c) => ({
+            spells: c.spells.map((sp) => {
+              const snap = (sp.snapshot ?? {}) as Record<string, unknown>
+              const spent = next.has(sp.name)
+              return !!snap.spent === spent ? sp : { ...sp, snapshot: { ...snap, spent } }
+            }),
+          }))
+      : undefined,
+  })
+
+  /** Продолжительный отдых: сервер восстанавливает всё своё, расовую магию — документ */
+  const longRest = () =>
+    eng.longRest(() => {
+      if (play.racialUsed.size) play.setRacialUsed(() => new Set())
+    })
+
+  const engineView: EngineView = {
+    sheet,
+    busy: eng.busy,
+    canPlay: owner,
+    onAction: (a) => eng.action(a.grant_id, a.key, a.label),
+    onTurn: eng.turn,
+    onLongRest: longRest,
+    onShortRest: () => setRestOpen(true),
+    onJournal: () => setJournalOpen(true),
+  }
+
+  const stage: StageEngine = {
+    busy: eng.busy,
+    inspiration: valuesOf(sheet).num('char.inspiration'),
+    onLongRest: owner ? longRest : undefined,
+    onShortRest: owner ? () => setRestOpen(true) : undefined,
+    onJournal: owner ? () => setJournalOpen(true) : undefined,
+    master,
+  }
+
+  const save = eng.saveState
+  const status = !owner
+    ? { icon: Eye, text: 'Просмотр — изменения не сохраняются' }
+    : save === 'error'
+      ? { icon: CloudOff, text: eng.saveError ?? 'Ошибка сохранения' }
+      : save === 'saving' || save === 'pending'
+        ? { icon: Loader2, text: 'Сохранение…' }
+        : save === 'saved'
+          ? { icon: Check, text: 'Сохранено' }
+          : null
   const StatusIcon = status?.icon
+  const flow = eng.flow
+  const banner = eng.conflict ?? eng.notice
 
   return (
     <section className={`cw cw-live${pic.background ? ' has-world' : ''}`}>
@@ -179,11 +219,11 @@ export default function CharacterEditorPage() {
         </Link>
         <div className="cw-live-actions">
           {status && StatusIcon && (
-            <span className={`cw-save cw-save--${owner ? saveState : 'view'}`} role="status">
+            <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">
               <StatusIcon aria-hidden="true" />
               {status.text}
-              {saveState === 'error' && owner && (
-                <button type="button" className="cw-mini-btn" onClick={() => void persist(character)}>
+              {save === 'error' && owner && (
+                <button type="button" className="cw-mini-btn" onClick={() => void eng.retrySave()}>
                   повторить
                 </button>
               )}
@@ -196,7 +236,7 @@ export default function CharacterEditorPage() {
                 <select
                   value={character.visibility}
                   aria-label="Кто видит лист"
-                  onChange={(e) => patch((c) => ({ ...c, visibility: e.target.value as CharacterVisibility }))}
+                  onChange={(e) => patchDoc(() => ({ visibility: e.target.value as CharacterVisibility }))}
                 >
                   {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => (
                     <option key={v} value={v}>
@@ -205,6 +245,9 @@ export default function CharacterEditorPage() {
                   ))}
                 </select>
               </label>
+              <button type="button" className="cs-btn" onClick={() => setLevelOpen(true)} disabled={eng.busy || view.basic_info.total_level >= 20}>
+                <GraduationCap aria-hidden="true" /> Новый уровень
+              </button>
               <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
                 <PencilLine aria-hidden="true" /> Правка листа
               </button>
@@ -213,41 +256,96 @@ export default function CharacterEditorPage() {
         </div>
       </header>
 
+      {banner && (
+        <div className={`eng-banner${eng.conflict ? ' is-conflict' : ''}`} role="alert">
+          {eng.conflict ? <RefreshCw aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+          <span>{banner}</span>
+          <button type="button" className="cw-mini-btn" onClick={eng.dismissNotice} aria-label="Скрыть">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      <PendingBanner
+        decisions={sheet.pending_decisions}
+        canPlay={owner}
+        busy={eng.busy}
+        onDecide={(d) => eng.decide(d.id, d.label)}
+        onDismiss={(d) => void eng.dismiss(d.id)}
+      />
+
+      {admin && sheet.warnings.length > 0 && (
+        <details className="eng-warnings">
+          <summary>Предупреждения движка · {sheet.warnings.length}</summary>
+          <ul>
+            {sheet.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <CharacterSheet
-        sheet={character}
+        sheet={view}
         portrait={pic.src}
         face={pic.face}
         paged
         tab={tab}
         onTab={setTab}
-        logKey={character.id ?? null}
-        inspiration={pic.inspiration ?? (character.combat.inspiration ? 1 : 0)}
-        onInspiration={(n) =>
-          patch((c) => {
-            // счётчик — во фрагменте ссылки портрета, на сервере только «есть/нет»
-            const cur = parsePortrait(c.basic_info.avatar_url)
-            return {
-              ...c,
-              basic_info: { ...c.basic_info, avatar_url: formatPortrait({ ...cur, inspiration: n }) },
-              combat: { ...c.combat, inspiration: n > 0 },
-            }
-          })
-        }
         fallbackPortrait={fallbackPortrait}
         play={play}
-        onPatch={sheetPatch}
+        onPatch={owner ? sheetPatch : undefined}
         onPortraitClick={owner ? () => setEditOpen(true) : undefined}
-        onInventory={(items, coins) =>
-          patch((c) => {
-            // монеты, высыпанные из кошеля или набора, — в кошелёк героя
-            const currency = { ...c.inventory.currency }
-            for (const [k, v] of Object.entries(coins ?? {})) currency[k as keyof typeof currency] += v ?? 0
-            return recalcCharacter({ ...c, inventory: { ...c.inventory, items, currency } }, { armor: true, attacks: true })
-          })
-        }
+        onInventory={owner ? onInventory : () => {}}
+        engine={engineView}
+        stage={stage}
+        serverLog={eng.outcome}
+        onToggleAbility={owner ? (g, on) => void eng.toggle(g, on) : undefined}
       />
 
-      {editOpen && <SheetEditor character={character} onSave={(next) => patch(() => next)} onClose={() => setEditOpen(false)} />}
+      {flow && (flow.prompt || flow.message) && <ActionDialog flow={flow} onAnswer={eng.answer} onClose={eng.closeFlow} />}
+
+      {eng.outcome && (
+        <div className="eng-toast" role="status">
+          <Check aria-hidden="true" />
+          <span>
+            <b>{eng.outcome.title}</b>
+            {eng.outcome.log.length > 0 && <i>{eng.outcome.log[eng.outcome.log.length - 1].message}</i>}
+          </span>
+          {owner && eng.outcome.eventId && (
+            <button type="button" className="cw-mini-btn" onClick={() => void eng.undo(eng.outcome!.eventId!)} disabled={eng.busy}>
+              <Undo2 aria-hidden="true" /> отменить
+            </button>
+          )}
+          <button type="button" className="cw-mini-btn" onClick={eng.clearOutcome} aria-label="Скрыть">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {restOpen && (
+        <ShortRestDialog character={character} sheet={sheet} names={names} onRest={eng.shortRest} onClose={() => setRestOpen(false)} />
+      )}
+      {levelOpen && (
+        <LevelUpDialog character={character} names={names} classes={classes} onLevelUp={eng.levelUp} onClose={() => setLevelOpen(false)} />
+      )}
+      {journalOpen && (
+        <JournalModal
+          characterId={character.id}
+          revision={sheet.revision}
+          canUndo={owner}
+          onUndo={(eventId) => void eng.undo(eventId)}
+          onClose={() => setJournalOpen(false)}
+        />
+      )}
+      {editOpen && (
+        <SheetEditor
+          character={character}
+          view={view}
+          onSave={(patch) => patchDoc(() => patch)}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </section>
   )
 }

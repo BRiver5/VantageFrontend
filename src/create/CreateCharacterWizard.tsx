@@ -14,10 +14,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
-import { createCharacter } from '../api'
+import { createCharacter, levelUp } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Divider } from '../ornaments'
-import { buildCharacter } from './deriveCharacter'
+import { buildCharacter, draftToInput, levelUpPlan } from './deriveCharacter'
 import { initialDraft, resizeLevels, type CharacterDraft, type DraftUpdate } from './draft'
 import { ABILITY_KEYS } from '../types/character'
 import { useClassBundle, useSubclassFeatures } from './useClassBundle'
@@ -220,7 +220,9 @@ export default function CreateCharacterWizard() {
     setBusy(true)
     setError(null)
     try {
-      const body = buildCharacter({
+      // предпросмотр нужен только ради снаряжения, атак и заклинаний —
+      // числа листа сервер посчитает сам
+      const preview = buildCharacter({
         draft,
         classFeatures: bundle?.features ?? [],
         subclassFeatures,
@@ -228,8 +230,14 @@ export default function CreateCharacterWizard() {
         equipmentIndex,
         granted,
       })
-      const created = await createCharacter(body)
+      const created = await createCharacter(draftToInput(draft, preview))
       if (!created.id) throw new Error('Сервер не вернул id персонажа')
+      // уровни выше первого — по одному, как при игре: хиты и умения выдаёт сервер
+      try {
+        for (const step of levelUpPlan(draft)) await levelUp(created.id, step)
+      } catch {
+        // герой уже создан — остальные уровни можно добрать кнопкой «Новый уровень»
+      }
       navigate(`/characters/${created.id}`, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось создать персонажа')

@@ -1,19 +1,22 @@
 /**
- * Превращение черновика визарда в готовый лист персонажа.
+ * Черновик визарда → персонаж.
  *
- * Всё, что в D&D выводится из расы, класса, предыстории и уровня, считается
- * здесь: характеристики с расовыми бонусами и усилениями, хиты, бонус
- * мастерства, владения, ячейки заклинаний и список умений. Редактор листа
- * получает уже заполненного персонажа, а не заготовку с десятками.
+ * `buildCharacter` собирает предпросмотр листа для шага «Итог» (характеристики
+ * с бонусами, хиты, владения, ячейки, умения) — только чтобы показать героя
+ * до сохранения. На сервер уходит другое: `draftToInput` — лишь выбор игрока
+ * (раса, класс, предыстория, базовые характеристики без расовых бонусов,
+ * снаряжение, заклинания, описание), а уровни выше первого — по одному через
+ * `levelUpPlan` и `POST /level-up`. Все числа сохранённого героя считает сервер.
  */
 import { cleanDescription } from '../api'
 import type { Equipment, EquipmentIndex } from '../api'
 import { skillKeysFromNames } from '../skills'
-import { ABILITY_KEYS, emptyCharacter } from '../types/character'
+import { ABILITY_KEYS, ABILITY_SHORT, emptySheetView } from '../types/character'
 import type {
   AbilityName,
-  CharacterCreate,
+  CharacterInput,
   FeatureEntry as SheetFeature,
+  SheetView,
   SpellKnown,
 } from '../types/character'
 import type { FeatureEntry } from '../classArticle'
@@ -148,7 +151,7 @@ export function buildCharacter({
   playerDisplayName,
   equipmentIndex = null,
   granted = [],
-}: DeriveInput): CharacterCreate {
+}: DeriveInput): SheetView {
   const className = draft.cls?.class_name ?? 'Воин'
   const raceName = draft.race?.race_name ?? 'Человек'
   const level = draft.targetLevel
@@ -156,7 +159,7 @@ export function buildCharacter({
   const scores = finalScores(draft)
   const pb = proficiencyBonus(level)
 
-  const base = emptyCharacter({
+  const base = emptySheetView({
     name: draft.name.trim() || 'Новый герой',
     raceName,
     className,
@@ -411,4 +414,67 @@ export function buildCharacter({
   base.backstory = draft.backstory
 
   return base
+}
+
+/* ---------- что уходит на сервер ---------- */
+
+/** На каком уровне класса выбирается подкласс */
+export function subclassLevel(draft: CharacterDraft): number {
+  return draft.subclass?.level_available ?? draft.cls?.subclass_level ?? 3
+}
+
+/**
+ * Тело создания персонажа v2. Характеристики — без расовых бонусов (их добавит
+ * сервер), но с усилениями уровней: у движка они пока только текстом, иначе
+ * выбор игрока потерялся бы. Снаряжение, атаки и заклинания берутся из
+ * предпросмотра — это описательные блоки документа.
+ */
+export function draftToInput(draft: CharacterDraft, preview: SheetView): CharacterInput {
+  const asi = asiTotals(draft.levels)
+  const base_scores = Object.fromEntries(
+    ABILITY_KEYS.map((k) => [ABILITY_SHORT[k], Math.min(20, scoreOf(draft.baseScores, k) + (asi[k] ?? 0))]),
+  ) as CharacterInput['base_scores']
+  const age = parseInt(draft.age, 10)
+  return {
+    character_name: draft.name.trim() || 'Новый герой',
+    visibility: draft.visibility,
+    race_id: draft.race?.id ?? null,
+    subrace_id: draft.subrace?.id ?? null,
+    background_id: draft.background?.id ?? null,
+    feat_ids: uniqueStrings(draft.levels.map((l) => l.featId)),
+    // первый уровень класса; остальные — повышением уровня
+    classes: draft.cls
+      ? [{ class_id: draft.cls.id, level: 1, subclass_id: subclassLevel(draft) <= 1 ? (draft.subclass?.id ?? null) : null, hp_rolls: [] }]
+      : [],
+    base_scores,
+    experience_points: 0,
+    alignment: draft.alignment || null,
+    inventory: preview.inventory,
+    attacks: preview.attacks,
+    spells: preview.spellcasting.spells_known,
+    personality: { traits: draft.traits, ideals: draft.ideals, bonds: draft.bonds, flaws: draft.flaws },
+    gender: draft.gender,
+    age: Number.isNaN(age) ? null : age,
+    height: draft.height,
+    weight: draft.weight,
+    eyes: draft.eyes,
+    hair: draft.hair,
+    skin: draft.skin,
+    avatar_url: draft.avatarUrl.trim() || null,
+    backstory: draft.backstory,
+  }
+}
+
+/** Повышения уровня после создания: 2-й уровень и выше, с броском хитов и подклассом */
+export function levelUpPlan(draft: CharacterDraft): { class_id: string; subclass_id: string | null; hp_roll: number | null }[] {
+  if (!draft.cls) return []
+  const sub = subclassLevel(draft)
+  return draft.levels
+    .filter((l) => l.level > 1)
+    .map((l) => ({
+      class_id: draft.cls!.id,
+      subclass_id: l.level >= sub ? (draft.subclass?.id ?? null) : null,
+      // без броска — среднее, его сервер посчитает сам
+      hp_roll: l.hpMode === 'average' ? null : l.hpRoll,
+    }))
 }

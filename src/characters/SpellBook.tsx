@@ -78,14 +78,18 @@ function Constellation({
   circle,
   max,
   used,
+  locked = false,
   onToggle,
 }: {
   circle: number
   max: number
   used: number
+  /** ячейки меняет сервер — звёзды только показывают */
+  locked?: boolean
   onToggle: (spent: boolean) => void
 }) {
   const pts = skyPoints(circle, max)
+  // used < 0 — ячейки сверх максимума (очки чародейства): все звёзды горят
   const lit = (i: number) => i < max - used
   const edges = pts.slice(1).map((_, i) => [i, i + 1] as const)
   if (CLOSED.has(circle) && pts.length >= 4) edges.push([pts.length - 1, 0] as const)
@@ -98,7 +102,7 @@ function Constellation({
   }
 
   return (
-    <div className={`cw-sky${left === 0 ? ' is-empty' : ''}`}>
+    <div className={`cw-sky${left === 0 ? ' is-empty' : ''}${locked ? ' is-locked' : ''}${left > max ? ' is-over' : ''}`}>
       <svg viewBox="0 0 100 60" aria-label={`${circle} круг: ${left} из ${max} ячеек`}>
         <g className="cw-sky-dust" aria-hidden="true">
           {DUST.map(([x, y], i) => (
@@ -122,14 +126,14 @@ function Constellation({
               key={i}
               className={`cw-star${spent ? ' is-spent' : ''}`}
               transform={`translate(${x} ${y})`}
-              role="button"
-              tabIndex={0}
-              aria-label={`${circle} круг: ${spent ? 'вернуть' : 'потратить'} ячейку`}
-              onClick={() => onToggle(spent)}
-              onKeyDown={key(spent)}
+              role={locked ? undefined : 'button'}
+              tabIndex={locked ? undefined : 0}
+              aria-label={locked ? undefined : `${circle} круг: ${spent ? 'вернуть' : 'потратить'} ячейку`}
+              onClick={locked ? undefined : () => onToggle(spent)}
+              onKeyDown={locked ? undefined : key(spent)}
               style={{ '--twinkle': `${(i * 0.73 + circle * 0.41) % 3}s` } as CSSProperties}
             >
-              <title>{spent ? 'Вернуть ячейку' : 'Потратить ячейку'}</title>
+              <title>{locked ? (spent ? 'Потрачена' : 'Свободна') : spent ? 'Вернуть ячейку' : 'Потратить ячейку'}</title>
               <circle className="cw-star-hit" r="9" />
               <circle className="cw-star-ring" r="3.2" />
               <path className="cw-star-flare" d={STAR} />
@@ -162,7 +166,7 @@ export function SpellBook({
   play: SheetPlay
   roller: SheetRoller
 }) {
-  const { slotsUsed, setSlotsUsed, racialUsed, setRacialUsed } = play
+  const { slotsUsed, setSlotsUsed, racialUsed, setRacialUsed, slotsLocked = false } = play
   const [open, setOpen] = useState<Known | null>(null)
   const { items: catalog } = useCatalogList<Spell>('spells', sc.spells_known.length > 0)
   const lookup = useMemo(() => {
@@ -251,6 +255,7 @@ export function SpellBook({
                   circle={s.circle}
                   max={s.max}
                   used={s.used}
+                  locked={slotsLocked}
                   onToggle={(spent) => toggleSlot(s.circle, spent)}
                 />
               ))}
@@ -320,6 +325,7 @@ export function SpellBook({
           sc={sc}
           slotsLeft={left}
           racialSpent={racialUsed.has(open.name)}
+          slotsLocked={slotsLocked}
           roller={roller}
           onCast={(how) => castWith(open, how)}
           onClose={() => setOpen(null)}
@@ -335,6 +341,7 @@ function SpellModal({
   sc,
   slotsLeft,
   racialSpent,
+  slotsLocked,
   roller,
   onCast,
   onClose,
@@ -344,6 +351,7 @@ function SpellModal({
   sc: Spellcasting
   slotsLeft: (circle: number) => number
   racialSpent: boolean
+  slotsLocked: boolean
   roller: SheetRoller
   onCast: (how: 'free' | 'racial' | 'ritual' | number) => void
   onClose: () => void
@@ -383,8 +391,11 @@ function SpellModal({
   } else {
     cast = (
       <span className="cw-cast-opts">
-        {options.length === 0 && <span className="cw-field-note">Нет ячеек подходящего круга.</span>}
-        {options.map((o) => (
+        {slotsLocked && (
+          <span className="cw-field-note">Ячейки тратятся действиями способностей на листе; вернуть их — отдыхом.</span>
+        )}
+        {!slotsLocked && options.length === 0 && <span className="cw-field-note">Нет ячеек подходящего круга.</span>}
+        {!slotsLocked && options.map((o) => (
           <button
             key={o.circle}
             type="button"

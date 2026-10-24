@@ -7,10 +7,11 @@
  * «Умения» — умения, черты и владения; «Характер» — портрет во весь рост,
  * внешность и записи. Итог визарда — одна страница с теми же карточками.
  *
- * Без `onPatch` лист — витрина (итог визарда). С `onPatch` он «живой»: хиты,
- * спасброски от смерти, кости хитов, состояния, кошелёк и записи правятся
- * прямо в листе и уходят наверх. Всё, что бросается, бросается кликом —
- * общими 3D-костями, с историей бросков в углу экрана.
+ * Без `onPatch` лист — витрина (итог визарда, предпросмотр). У сохранённого
+ * героя все числа приходят с сервера (`/sheet`): игровая панель `engine`
+ * шлёт действия, отдых и ход движку, а `onPatch` правит только документ —
+ * кошелёк и записи. Всё, что бросается, бросается кликом — общими 3D-костями,
+ * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -47,17 +48,20 @@ import { useCatalogList } from '../create/useCatalog'
 import { Corners } from '../ornaments'
 import { RichText } from '../terms/terms'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
-import type { AbilityName, AttackEntry, CharacterCreate, InventoryItemInstance } from '../types/character'
+import type { AbilityName, AttackEntry, InventoryItemInstance, LogEntry, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
 import { ChoicePortrait } from '../create/steps/ui'
 import { alignmentAbbr } from '../create/steps/AlignmentChart'
 import { HeroStage } from './HeroStage'
-import { useHpLog } from './hpLog'
 import { InventoryBoard } from './InventoryBoard'
 import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
 import type { FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay, SheetRoller } from './sheetPlay'
+import { EnginePanel, type EngineView } from './EnginePanel'
+import { abilityPath, whyText } from './sheetView'
+import type { Outcome } from './useCharacterEngine'
+import type { StageEngine } from './HeroStage'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -262,13 +266,17 @@ interface FeatureRow {
   title: string
   sub: string
   text: string
+  /** умение движка: можно включить или отключить */
+  grantId?: string
+  status?: string
+  active?: boolean
 }
 
 /** Страницы листа: самое нужное за столом — на первой */
 export type SheetTab = 'main' | 'magic' | 'features' | 'story'
 
 export interface CharacterSheetProps {
-  sheet: CharacterCreate
+  sheet: SheetView
   /** свой портрет героя (ссылка) и запасной — арт расы */
   portrait: string | null
   fallbackPortrait: string | null
@@ -287,12 +295,24 @@ export interface CharacterSheetProps {
   paged?: boolean
   tab?: SheetTab
   onTab?: (tab: SheetTab) => void
-  /** сколько вдохновений накоплено и как их менять (сервер хранит только «есть/нет») */
-  inspiration?: number
-  onInspiration?: (n: number) => void
-  /** ключ журнала хитов в браузере — id персонажа; без него журнал живёт в памяти */
-  logKey?: string | null
+  /** игровая панель сохранённого героя: действия, ресурсы, ход, отдых */
+  engine?: EngineView
+  /** сцена героя: отдых, журнал и правка мастера */
+  stage?: StageEngine
+  /** итог последнего действия сервера — его броски идут в историю */
+  serverLog?: Outcome | null
+  /** включить или отключить умение (только своё) */
+  onToggleAbility?: (grantId: string, enabled: boolean) => void
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  text_only: 'только текст — механика не автоматизирована',
+  partial: 'автоматизировано частично',
+  full: 'автоматизировано',
+}
+
+/** «1d20» / «2d6» из лога сервера → число граней */
+const sidesOf = (dice: unknown) => Number(/d(\d+)/i.exec(String(dice ?? ''))?.[1]) || 0
 
 export default function CharacterSheet({
   sheet,
@@ -307,11 +327,11 @@ export default function CharacterSheet({
   paged = false,
   tab: tabProp,
   onTab,
-  inspiration,
-  onInspiration,
-  logKey = null,
+  engine,
+  stage,
+  serverLog = null,
+  onToggleAbility,
 }: CharacterSheetProps) {
-  const hpLog = useHpLog(logKey)
   const [ownTab, setOwnTab] = useState<SheetTab>('main')
   const tab = tabProp ?? ownTab
   const setTab = (t: SheetTab) => (onTab ? onTab(t) : setOwnTab(t))
@@ -326,7 +346,6 @@ export default function CharacterSheet({
   const { items: featCatalog } = useCatalogList<Feat>('feats', sheet.feats.length > 0)
 
   const info = sheet.basic_info
-  const { setSlotsUsed, setRacialUsed } = play
 
   /* ---------- броски ---------- */
 
@@ -368,34 +387,33 @@ export default function CharacterSheet({
 
   const roller: SheetRoller = { rolling: dice.rolling, critFor, rollD20, rollDamage, rollDice, note }
 
-  /** Долгий отдых: ячейки и расовая магия; в живом листе — ещё хиты и половина костей хитов */
-  const longRest = () => {
-    setSlotsUsed(() => ({}))
-    setRacialUsed(() => new Set())
-    const hp = sheet.combat.hit_points
-    if (live && hp.current < hp.max) hpLog.push({ kind: 'rest', amount: hp.max - hp.current, from: hp.current, to: hp.max })
-    onPatch?.((c) => {
-      const lvl = c.basic_info.total_level
-      return {
-        ...c,
-        combat: {
-          ...c.combat,
-          hit_points: { ...c.combat.hit_points, current: c.combat.hit_points.max, temp: 0 },
-          hit_dice: { ...c.combat.hit_dice, remaining: Math.min(lvl, c.combat.hit_dice.remaining + Math.max(1, Math.floor(lvl / 2))) },
-          death_saves: { successes: 0, failures: 0 },
-        },
+  // броски сервера (действия, отдых) — в ту же историю; кубики уже брошены там
+  useEffect(() => {
+    if (!serverLog) return
+    const shown = serverLog.log.filter((l: LogEntry) => l.kind === 'roll' && Array.isArray(l.data?.rolls))
+    setRolls((prev) => {
+      let next = prev
+      const push = (r: Omit<RollShown, 'id'>) => (next = [{ ...r, id: (next[0]?.id ?? 0) + 1 }, ...next].slice(0, 30))
+      for (const l of shown) {
+        const rolled = l.data!.rolls!
+        const sum = rolled.reduce((a, b) => a + b, 0)
+        const total = typeof l.data?.total === 'number' ? l.data.total : sum
+        push({ label: `${serverLog.title}: ${l.message.split(':')[0]}`, dice: rolled, sides: sidesOf(l.data?.dice), bonus: total - sum, total })
       }
+      if (shown.length === 0) push({ label: serverLog.title, dice: [], sides: 0, bonus: 0, total: '✓' })
+      return next
     })
-    note('☾', live ? 'Долгий отдых: хиты и ячейки восстановлены' : 'Долгий отдых: ячейки восстановлены')
-  }
+  }, [serverLog])
 
-  /* ---------- производные ---------- */
+  /* ---------- значения листа ---------- */
 
   const cls = info.classes[0] ?? { name: '—', level: info.total_level }
   const level = info.total_level
   const pb = sheet.proficiency_bonus
   const score = (k: AbilityName) => sheet.ability_scores[k].score
-  const mod = (k: AbilityName) => abilityMod(score(k))
+  // у листа с сервера модификатор и спасбросок готовые; у черновика визарда — по таблице
+  const mod = (k: AbilityName) => sheet.ability_scores[k].modifier ?? abilityMod(score(k))
+  const why = (path: string) => whyText(sheet.breakdown, path)
   const strMod = mod('strength')
   const perAction = attacksPerAction(cls.name, level)
   const combat = sheet.combat
@@ -436,7 +454,8 @@ export default function CharacterSheet({
     const entry = sheet.skills[s.key]
     const prof = !!entry?.proficient
     const expert = prof && !!entry?.expertise
-    return { ...s, prof, expert, bonus: mod(s.ability) + (expert ? pb * 2 : prof ? pb : 0) }
+    const ability = entry?.ability ?? s.ability
+    return { ...s, ability, prof, expert, bonus: entry?.modifier ?? mod(ability) + (expert ? pb * 2 : prof ? pb : 0) }
   }).sort((a, b) => Number(b.prof) - Number(a.prof) || a.label.localeCompare(b.label, 'ru'))
 
   // feature_source в листе — UUID; в подписи показываем название владельца
@@ -455,11 +474,14 @@ export default function CharacterSheet({
 
   const featureRows: FeatureRow[] = [
     ...sheet.features.map((f, i) => ({
-      key: `${f.name}-${i}`,
+      key: f.grant_id ?? `${f.name}-${i}`,
       source: f.source,
       title: f.name,
       sub: [SOURCE_LABEL[f.source] ?? '', ownerOf(f.source), f.level ? `${f.level} ур.` : ''].filter(Boolean).join(' · '),
       text: f.description,
+      grantId: f.grant_id,
+      status: f.implementation_status,
+      active: f.active,
     })),
     ...sheet.feats.map((featId) => {
       const feat = featCatalog.find((x) => x.id === featId)
@@ -492,15 +514,17 @@ export default function CharacterSheet({
         {ABILITY_KEYS.map((k) => {
           const label = ABILITY_LABELS[k]
           const saveProf = sheet.ability_scores[k].saving_throw_proficient
-          const save = mod(k) + (saveProf ? pb : 0)
+          const save = sheet.ability_scores[k].save ?? mod(k) + (saveProf ? pb : 0)
+          const scoreWhy = why(abilityPath(k, 'score'))
+          const saveWhy = why(abilityPath(k, 'save'))
           return (
             <div key={k} className={`cw-abil${saveProf ? ' is-prof' : ''}`}>
               <button
                 type="button"
-                className="cw-abil-check"
+                className={`cw-abil-check${scoreWhy ? ' has-why' : ''}`}
                 onClick={() => void rollD20(`${label.label}, проверка`, mod(k))}
                 disabled={dice.rolling}
-                title={`Проверка: к20 ${signed(mod(k))}`}
+                title={[`Проверка: к20 ${signed(mod(k))}`, scoreWhy].filter(Boolean).join('\n')}
               >
                 <i>{label.abbr}</i>
                 <b>{score(k)}</b>
@@ -508,10 +532,10 @@ export default function CharacterSheet({
               </button>
               <button
                 type="button"
-                className="cw-abil-save"
+                className={`cw-abil-save${saveWhy ? ' has-why' : ''}`}
                 onClick={() => void rollD20(`${label.label}, спасбросок`, save)}
                 disabled={dice.rolling}
-                title={saveProf ? 'Спасбросок — владение' : 'Спасбросок'}
+                title={[saveProf ? 'Спасбросок — владение' : 'Спасбросок', saveWhy].filter(Boolean).join('\n')}
               >
                 спас <b>{signed(save)}</b>
               </button>
@@ -520,20 +544,23 @@ export default function CharacterSheet({
         })}
       </div>
       <div className="beast-skills cw-skill-buttons cw-skill-cols">
-        {skillRows.map((s) => (
+        {skillRows.map((s) => {
+          const skillWhy = why(`char.skills.${s.key}.bonus`)
+          return (
           <button
             key={s.key}
             type="button"
-            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}`}
+            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}${skillWhy ? ' has-why' : ''}`}
             onClick={() => void rollD20(s.label, s.bonus)}
             disabled={dice.rolling}
-            title={s.expert ? 'Компетентность: двойной бонус мастерства' : undefined}
+            title={[s.expert ? 'Компетентность: двойной бонус мастерства' : '', skillWhy].filter(Boolean).join('\n') || undefined}
           >
             <span className="beast-skill-bonus">{signed(s.bonus)}</span>
             <span className="beast-skill-name">{s.label}</span>
             <span className="beast-skill-ab">{ABILITY_LABELS[s.ability].abbr}</span>
           </button>
-        ))}
+          )
+        })}
       </div>
       <p className="cw-passive">
         <Eye aria-hidden="true" /> пассивная внимательность <b>{combat.passive_perception}</b>
@@ -653,9 +680,18 @@ export default function CharacterSheet({
   const spellBook = hasMagic && <SpellBook spellcasting={spell} play={play} roller={roller} />
 
   const featureTile = (f: FeatureRow) => (
-    <button key={f.key} type="button" className={`cw-ftile cw-feat-line--${f.source}`} onClick={() => setOpenFeature(f)}>
+    <button
+      key={f.key}
+      type="button"
+      className={`cw-ftile cw-feat-line--${f.source}${f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
+      onClick={() => setOpenFeature(f)}
+      title={f.status ? STATUS_LABEL[f.status] : undefined}
+    >
       <b>{f.title}</b>
-      <i>{f.sub}</i>
+      <i>
+        {f.sub}
+        {f.active === false && ' · неактивно'}
+      </i>
       <BookOpen className="cw-ftile-ico" aria-hidden="true" />
     </button>
   )
@@ -882,11 +918,7 @@ export default function CharacterSheet({
             fallbackPortrait={fallbackPortrait}
             onPortraitClick={onPortraitClick}
             roller={roller}
-            onPatch={onPatch}
-            onLongRest={longRest}
-            hpLog={hpLog}
-            inspiration={inspiration ?? (combat.inspiration ? 1 : 0)}
-            onInspiration={onInspiration}
+            stage={stage}
           />
           <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
             {tabs.map(({ id, label, icon: Icon, badge }) => (
@@ -906,6 +938,7 @@ export default function CharacterSheet({
           <div key={current} className={`cw-page cw-page--${current}`} role="tabpanel">
             {current === 'main' && (
               <>
+                {engine && <EnginePanel engine={engine} />}
                 {abilitiesCard}
                 {combatCard}
                 {invCard}
@@ -944,11 +977,28 @@ export default function CharacterSheet({
           visual={<BookOpen className="cw-smodal-glyph" aria-hidden="true" />}
           onClose={() => setOpenFeature(null)}
           actions={
-            <button type="button" className="cs-btn cw-next" onClick={() => setOpenFeature(null)}>
-              Закрыть
-            </button>
+            <>
+              {onToggleAbility && openFeature.grantId && (
+                <button
+                  type="button"
+                  className="cs-btn cs-btn--ghost"
+                  onClick={() => {
+                    onToggleAbility(openFeature.grantId!, openFeature.active === false)
+                    setOpenFeature(null)
+                  }}
+                >
+                  {openFeature.active === false ? 'Включить' : 'Отключить'}
+                </button>
+              )}
+              <button type="button" className="cs-btn cw-next" onClick={() => setOpenFeature(null)}>
+                Закрыть
+              </button>
+            </>
           }
         >
+          {openFeature.status && (
+            <p className={`cw-field-note cw-fstatus is-${openFeature.status}`}>{STATUS_LABEL[openFeature.status] ?? openFeature.status}</p>
+          )}
           {openFeature.text ? <RichText text={openFeature.text} /> : <p className="cw-field-note">Описания нет.</p>}
         </SheetModal>
       )}

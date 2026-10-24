@@ -19,7 +19,7 @@ import {
   type RegisterBody,
   type UserMe,
 } from '../api'
-import { clearAccessToken, getAccessToken, setAccessToken } from './token'
+import { clearAccessToken, getAccessToken, setAccessToken, TOKEN_EXPIRED_EVENT } from './token'
 
 type AuthContextValue = {
   user: UserMe | null
@@ -95,6 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setUser(null)
   }, [])
+
+  // любой запрос получил 401 с токеном — сессия кончилась, снова вход
+  useEffect(() => {
+    window.addEventListener(TOKEN_EXPIRED_EVENT, logout)
+    return () => window.removeEventListener(TOKEN_EXPIRED_EVENT, logout)
+  }, [logout])
 
   const updateMe = useCallback(async (body: PatchMeBody) => {
     const me = await patchMe(body)

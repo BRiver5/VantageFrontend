@@ -1,7 +1,8 @@
 /** Состояние листа «до отдыха»: потраченные ячейки и расовая магия */
-import type { CharacterCreate } from '../types/character'
+import type { SheetView } from '../types/character'
 
-export type SheetPatch = (fn: (c: CharacterCreate) => CharacterCreate) => void
+/** Правка полей листа, которые хранит документ: записи, кошелёк, инвентарь */
+export type SheetPatch = (fn: (c: SheetView) => SheetView) => void
 
 /** Потраченные ячейки по кругам и расовые заклинания, использованные до отдыха */
 export interface SheetPlay {
@@ -9,50 +10,49 @@ export interface SheetPlay {
   setSlotsUsed: (fn: (prev: Record<string, number>) => Record<string, number>) => void
   racialUsed: Set<string>
   setRacialUsed: (fn: (prev: Set<string>) => Set<string>) => void
+  /**
+   * Ячейки хранит сервер: игрок тратит их только действиями способностей,
+   * напрямую — лишь мастер. true — звёзды и сотворение ячейкой недоступны.
+   */
+  slotsLocked?: boolean
 }
 
-/** Состояние «до отдыха» внутри самого листа: ячейки — в spell_slots.used, расовые — в snapshot.spent */
-export function sheetPlayFromCharacter(sheet: CharacterCreate, patch: SheetPatch): SheetPlay {
-  const slotsUsed = Object.fromEntries(
-    Object.entries(sheet.spellcasting.spell_slots).map(([c, s]) => [c, s.used ?? 0]),
-  )
-  const racialUsed = new Set(
-    sheet.spellcasting.spells_known
-      .filter((sp) => (sp.snapshot as { spent?: boolean } | null)?.spent)
-      .map((sp) => sp.name),
-  )
+/** Расовые заклинания, отмеченные потраченными до отдыха (snapshot.spent в документе) */
+export function spentRacial(spells: SheetView['spellcasting']['spells_known']): Set<string> {
+  return new Set(spells.filter((sp) => (sp.snapshot as { spent?: boolean } | null)?.spent).map((sp) => sp.name))
+}
+
+/**
+ * Состояние «до отдыха» у сохранённого героя: ячейки — из листа сервера
+ * (меняет их только мастер через `master`), расовая магия — в документе.
+ */
+export function sheetPlayFromServer(
+  view: SheetView,
+  opts: {
+    master?: (set: Record<string, unknown>) => void
+    setSpent?: (next: Set<string>) => void
+  },
+): SheetPlay {
+  const slotsUsed = Object.fromEntries(Object.entries(view.spellcasting.spell_slots).map(([c, s]) => [c, s.used]))
+  const racialUsed = spentRacial(view.spellcasting.spells_known)
   return {
     slotsUsed,
     racialUsed,
-    setSlotsUsed: (fn) =>
-      patch((c) => {
-        const used = fn(
-          Object.fromEntries(Object.entries(c.spellcasting.spell_slots).map(([k, s]) => [k, s.used ?? 0])),
-        )
-        const spell_slots = Object.fromEntries(
-          Object.entries(c.spellcasting.spell_slots).map(([k, s]) => [k, { ...s, used: used[k] ?? 0 }]),
-        )
-        return { ...c, spellcasting: { ...c.spellcasting, spell_slots } }
-      }),
-    setRacialUsed: (fn) =>
-      patch((c) => {
-        const prev = new Set(
-          c.spellcasting.spells_known
-            .filter((sp) => (sp.snapshot as { spent?: boolean } | null)?.spent)
-            .map((sp) => sp.name),
-        )
-        const next = fn(prev)
-        const spells_known = c.spellcasting.spells_known.map((sp) => {
-          const spent = next.has(sp.name)
-          const snap = (sp.snapshot ?? {}) as Record<string, unknown>
-          if (!!snap.spent === spent) return sp
-          return { ...sp, snapshot: { ...snap, spent } }
-        })
-        return { ...c, spellcasting: { ...c.spellcasting, spells_known } }
-      }),
+    slotsLocked: !opts.master,
+    setSlotsUsed: (fn) => {
+      if (!opts.master) return
+      const next = fn(slotsUsed)
+      const set: Record<string, unknown> = {}
+      for (const [c, used] of Object.entries(next)) {
+        if (used === slotsUsed[c]) continue
+        const pact = view.spellcasting.spell_slots[c]?.pact
+        set[pact ? 'slots.pact.used' : `slots.spell.${c}.used`] = Math.max(0, used)
+      }
+      if (Object.keys(set).length) opts.master(set)
+    },
+    setRacialUsed: (fn) => opts.setSpent?.(fn(racialUsed)),
   }
 }
-
 
 /** Броски листа: одна история и один «крит на следующий урон» на все карточки */
 export interface SheetRoller {

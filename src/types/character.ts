@@ -12,6 +12,9 @@ export type AbilityName =
 export type AbilityScoreBlock = {
   score: number
   saving_throw_proficient: boolean
+  /** готовые числа с сервера; без них (черновик визарда) считаются из score */
+  modifier?: number
+  save?: number
 }
 
 export type SkillEntry = {
@@ -66,6 +69,10 @@ export type FeatureEntry = {
   level?: number | null
   description: string
   feature_source?: string | null
+  /** умение движка: grant_id, статус автоматизации и активно ли сейчас */
+  grant_id?: string
+  implementation_status?: string
+  active?: boolean
 }
 
 export type SpellKnown = {
@@ -79,6 +86,8 @@ export type SpellKnown = {
 export type SpellSlot = {
   max: number
   used: number
+  /** ячейки договора колдуна (slots.pact на сервере) */
+  pact?: boolean
 }
 
 export type Spellcasting = {
@@ -113,12 +122,13 @@ export type CharacterInventory = {
   carrying_capacity_max?: number | null
 }
 
-export type Character = {
-  id?: string
-  meta: { version: string; source: string }
+/**
+ * Вид листа — то, что рисуют CharacterSheet, HeroStage и SpellBook. Это не
+ * документ сервера: у сохранённого героя его собирает sheetView.ts из
+ * персонажа v2 и вычисленного листа (`/sheet`), у черновика визарда — buildCharacter.
+ */
+export type SheetView = {
   visibility: CharacterVisibility
-  player_id: string | null
-  campaign_id: string | null
   basic_info: {
     name: string
     race: RaceInfo
@@ -164,16 +174,251 @@ export type Character = {
   feats: string[]
   spellcasting: Spellcasting
   inventory: CharacterInventory
-  personality: { traits: string; ideals: string; bonds: string; flaws: string }
+  personality: Personality
   backstory: string
   notes: string
-  class_resources: unknown[]
+  /** «откуда число»: вклады по пути значения (только у листа с сервера) */
+  breakdown?: Record<string, Contribution[]>
 }
 
-/** Payload for create — omit server-owned fields */
-export type CharacterCreate = Omit<Character, 'id' | 'player_id'> & {
-  player_id?: string | null
+export type Personality = { traits: string; ideals: string; bonds: string; flaws: string }
+
+/* ---------- персонаж v2: только входные данные ---------- */
+
+/** Короткие ключи характеристик — так их хранит сервер */
+export type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
+
+export const ABILITY_SHORT: Record<AbilityName, AbilityKey> = {
+  strength: 'str',
+  dexterity: 'dex',
+  constitution: 'con',
+  intelligence: 'int',
+  wisdom: 'wis',
+  charisma: 'cha',
 }
+
+export type ClassLevel = {
+  class_id: string
+  level: number
+  subclass_id: string | null
+  /** броски хитов за уровни после первого; null — среднее */
+  hp_rolls: (number | null)[]
+}
+
+export type AcquiredAbility = {
+  /** ключ для действий и вкл/выкл */
+  grant_id: string
+  slug: string
+  source_kind: string
+  source_id: string | null
+  choices: Record<string, unknown>
+  enabled: boolean
+  /** выдана источником — удалить нельзя, только отключить */
+  auto: boolean
+}
+
+export type PendingDecision = {
+  id: string
+  kind: 'choice' | 'listener'
+  grant_id: string
+  label: string
+}
+
+export type Character = {
+  id: string
+  schema_version: 2
+  /** растёт на каждое действие движка */
+  revision: number
+  visibility: CharacterVisibility
+  character_name: string
+  player_id: string | null
+  player_display_name: string | null
+  campaign_id: string | null
+
+  race_id: string | null
+  subrace_id: string | null
+  background_id: string | null
+  feat_ids: string[]
+  classes: ClassLevel[]
+  /** без расовых бонусов — их добавляет сервер */
+  base_scores: Record<AbilityKey, number>
+  experience_points: number
+  alignment: string | null
+
+  // состояние движка — только читать
+  abilities: AcquiredAbility[]
+  store: Record<string, unknown>
+  active_effects: unknown[]
+  pending_decisions: PendingDecision[]
+  manual_overrides: Record<string, unknown>
+
+  inventory: CharacterInventory
+  attacks: AttackEntry[]
+  spells: SpellKnown[]
+  personality: Personality
+  gender: string
+  age: number | null
+  height: string
+  weight: string
+  eyes: string
+  skin: string
+  hair: string
+  appearance: string
+  avatar_url: string | null
+  backstory: string
+  notes: string
+  created_at?: string
+  updated_at?: string
+}
+
+/** Поля, которые меняет только движок или сервер: PATCH с ними отвечает 422 */
+const ENGINE_FIELDS = [
+  'id',
+  'schema_version',
+  'revision',
+  'player_id',
+  'abilities',
+  'store',
+  'active_effects',
+  'pending_decisions',
+  'manual_overrides',
+  'created_at',
+  'updated_at',
+] as const
+
+/** Тело POST/PATCH: всё, что выбирает и пишет игрок */
+export type CharacterInput = Partial<Omit<Character, (typeof ENGINE_FIELDS)[number]>>
+
+/** Убирает поля движка и сервера из тела запроса */
+export function characterPayload(c: CharacterInput | Partial<Character>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...c }
+  for (const k of ENGINE_FIELDS) delete out[k]
+  delete out.legacy_v1
+  delete out.meta
+  return out
+}
+
+/* ---------- вычисленный лист ---------- */
+
+export type ActionEconomy = 'action' | 'bonus_action' | 'reaction' | 'free' | 'none'
+
+export type SheetAction = {
+  grant_id: string
+  ability_slug: string
+  ability_name: string
+  key: string
+  label: string
+  description: string | null
+  action_economy: string
+  enabled: boolean
+  /** почему недоступно — в подсказку */
+  reason: string | null
+  cost: { path: string; amount: string }[]
+}
+
+export type SheetResource = {
+  key: string
+  label: string
+  current: number
+  max: number
+  declared_by: string
+  recharge: string[]
+}
+
+export type SheetSlot = { pool: 'spell' | 'pact'; level: number; current: number; max: number }
+
+export type SheetAbility = {
+  grant_id: string
+  slug: string
+  name: string
+  implementation_status: string
+  source_kind: string
+  source_id: string | null
+  active: boolean
+  description: string
+  choices: Record<string, unknown>
+}
+
+export type SheetEffect = { id: string; label: string; expires: string; rounds_left: number | null }
+
+export type Contribution = { source: string; op: string; value: unknown }
+
+export type Sheet = {
+  character_id: string
+  revision: number
+  /** все значения по пути: char.ac, char.abilities.str.score… */
+  values: Record<string, unknown>
+  breakdown: Record<string, Contribution[]>
+  resources: SheetResource[]
+  slots: SheetSlot[]
+  actions: SheetAction[]
+  abilities: SheetAbility[]
+  active_effects: SheetEffect[]
+  pending_decisions: PendingDecision[]
+  warnings: string[]
+}
+
+/* ---------- действия и поп-апы ---------- */
+
+export type PromptOption = { value: unknown; label: string; description?: string }
+
+export type PromptInput = {
+  key: string
+  label: string
+  /** number | bool | text | choice | multi_choice | slot_level | creature | spell | skill | ability_score | damage_type | ability */
+  type: string
+  required: boolean
+  description?: string | null
+  min?: number | null
+  max?: number | null
+  step?: number | null
+  count?: number | null
+  default?: unknown
+  options?: PromptOption[] | null
+}
+
+export type Prompt = {
+  key: string
+  title: string
+  description?: string | null
+  confirm_label?: string | null
+  inputs: PromptInput[]
+}
+
+export type LogEntry = {
+  kind: string
+  message: string
+  data?: { rolls?: number[]; total?: number; dice?: string; [k: string]: unknown }
+}
+
+export type RunStatus = 'completed' | 'needs_input' | 'invalid' | 'rejected' | 'error'
+
+/** Ответ действия, отдыха, события хода и отложенного решения */
+export type RunResult = {
+  status: RunStatus
+  prompt?: Prompt | null
+  message?: string | null
+  errors?: Record<string, string> | null
+  log?: LogEntry[]
+  mutations?: unknown[]
+  event_id?: string
+  sheet?: Sheet
+}
+
+/** Ответы на поп-апы: inputs[prompt.key] = { <input.key>: значение } */
+export type RunInputs = Record<string, Record<string, unknown>>
+
+export type CharacterEvent = {
+  id: string
+  kind: string
+  label: string
+  log: LogEntry[]
+  mutations: unknown[]
+  created_at: string
+  undone: boolean
+}
+
+export type LevelUpResult = { changes: string[]; sheet: Sheet }
 
 export const ABILITY_KEYS: AbilityName[] = [
   'strength',
@@ -234,7 +479,7 @@ function defaultAbilityScores(): Record<AbilityName, AbilityScoreBlock> {
   ) as Record<AbilityName, AbilityScoreBlock>
 }
 
-export function emptyCharacter(
+export function emptySheetView(
   defaults?: Partial<{
     name: string
     raceName: string
@@ -243,14 +488,12 @@ export function emptyCharacter(
     visibility: CharacterVisibility
     hitDie: number
   }>,
-): CharacterCreate {
+): SheetView {
   const level = defaults?.level ?? 1
   const className = defaults?.className ?? 'Воин'
   const hitDie = defaults?.hitDie ?? 10
   return {
-    meta: { version: '1.0', source: 'vantage' },
     visibility: defaults?.visibility ?? 'private',
-    campaign_id: null,
     basic_info: {
       name: defaults?.name ?? 'Новый герой',
       race: { name: defaults?.raceName ?? 'Человек' },
@@ -312,12 +555,5 @@ export function emptyCharacter(
     personality: { traits: '', ideals: '', bonds: '', flaws: '' },
     backstory: '',
     notes: '',
-    class_resources: [],
   }
-}
-
-/** Strip server-owned fields before PATCH/POST body */
-export function characterPayload(c: Character | CharacterCreate): Record<string, unknown> {
-  const { id: _id, player_id: _pid, ...rest } = c as Character
-  return rest
 }

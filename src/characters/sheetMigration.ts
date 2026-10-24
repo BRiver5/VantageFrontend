@@ -1,4 +1,4 @@
-import { emptyCharacter, type AbilityName, type CharacterCreate } from '../types/character'
+import type { AbilityName, CharacterInput } from '../types/character'
 
 /** Legacy flat localStorage sheet (`vantage-character-sheet`) */
 export type SheetData = Record<string, string | boolean>
@@ -13,27 +13,6 @@ const SHORT_TO_ABILITY: Record<string, AbilityName> = {
   int: 'intelligence',
   wis: 'wisdom',
   cha: 'charisma',
-}
-
-const SKILL_MAP: Record<string, string> = {
-  acrobatics: 'acrobatics',
-  animal: 'animal_handling',
-  arcana: 'arcana',
-  athletics: 'athletics',
-  deception: 'deception',
-  history: 'history',
-  insight: 'insight',
-  intimidation: 'intimidation',
-  investigation: 'investigation',
-  medicine: 'medicine',
-  nature: 'nature',
-  perception: 'perception',
-  performance: 'performance',
-  persuasion: 'persuasion',
-  religion: 'religion',
-  sleight: 'sleight_of_hand',
-  stealth: 'stealth',
-  survival: 'survival',
 }
 
 function num(v: string | boolean | undefined, fallback = 0): number {
@@ -86,58 +65,19 @@ export function loadLegacySheet(): SheetData | null {
   }
 }
 
-export function sheetDataToCharacter(data: SheetData): CharacterCreate {
+/**
+ * Старый плоский лист из браузера → тело создания персонажа v2. Класс ищется
+ * в каталоге по названию; числа листа (КД, хиты, навыки) не переносятся — их
+ * посчитает сервер, а характеристики уходят как базовые (раса не выбрана,
+ * бонусы не задвоятся).
+ */
+export function sheetDataToCharacter(data: SheetData, classIdByName: (name: string) => string | null): CharacterInput {
   const { className, level } = parseClassLevel(str(data.classlevel))
-  const c = emptyCharacter({
-    name: str(data.name) || 'Импортированный герой',
-    raceName: str(data.race) || 'Человек',
-    className,
-    level,
-  })
+  const classId = classIdByName(className)
 
-  c.basic_info.background = str(data.background)
-    ? { name: str(data.background) }
-    : null
-  c.basic_info.alignment = str(data.alignment)
-  c.basic_info.experience_points = num(data.xp, 0)
-  c.basic_info.player_display_name = str(data.player) || null
-
-  for (const [short, ability] of Object.entries(SHORT_TO_ABILITY)) {
-    c.ability_scores[ability] = {
-      score: num(data[`${short}_score`], 10),
-      saving_throw_proficient: Boolean(data[`save_${short}`]),
-    }
-  }
-
-  c.proficiency_bonus = num(data.profbonus, 2)
-
-  for (const [oldKey, newKey] of Object.entries(SKILL_MAP)) {
-    if (c.skills[newKey]) {
-      c.skills[newKey] = {
-        ...c.skills[newKey],
-        proficient: Boolean(data[`skill_${oldKey}`]),
-      }
-    }
-  }
-
-  c.combat.armor_class = num(data.ac, 10)
-  c.combat.initiative = num(data.initiative, 0)
-  c.combat.speed = num(data.speed, 30)
-  c.combat.hit_points = {
-    max: num(data.hp_max, 10),
-    current: num(data.hp_current, num(data.hp_max, 10)),
-    temp: num(data.hp_temp, 0),
-  }
-  c.combat.hit_dice = {
-    total: str(data.hd_total) || str(data.hd) || `${level}d10`,
-    remaining: level,
-  }
-  c.combat.death_saves = {
-    successes: [data.ds_s1, data.ds_s2, data.ds_s3].filter(Boolean).length,
-    failures: [data.ds_f1, data.ds_f2, data.ds_f3].filter(Boolean).length,
-  }
-  c.combat.passive_perception = num(data.passive, 10)
-  c.combat.inspiration = Boolean(data.inspiration)
+  const base_scores = Object.fromEntries(
+    Object.keys(SHORT_TO_ABILITY).map((short) => [short, num(data[`${short}_score`], 10)]),
+  ) as CharacterInput['base_scores']
 
   const attacks = [1, 2, 3]
     .map((i) => ({
@@ -146,59 +86,55 @@ export function sheetDataToCharacter(data: SheetData): CharacterCreate {
       dmg: str(data[`atk${i}_dmg`]),
     }))
     .filter((a) => a.name)
-  c.attacks = attacks.map((a) => ({
-    name: a.name,
-    type: 'other' as const,
-    attack_bonus: num(a.bonus, 0),
-    damage: a.dmg,
-    damage_type: '',
-    range: '',
-    properties: [],
-    inventory_instance_id: null,
-  }))
+    .map((a) => ({
+      name: a.name,
+      type: 'other' as const,
+      attack_bonus: num(a.bonus, 0),
+      damage: a.dmg,
+      damage_type: '',
+      range: '',
+      properties: [],
+      inventory_instance_id: null,
+    }))
 
-  c.inventory.currency = {
-    cp: num(data.coin_cp),
-    sp: num(data.coin_sp),
-    ep: num(data.coin_ep),
-    gp: num(data.coin_gp),
-    pp: num(data.coin_pp),
-  }
+  // всё, чему в v2 нет поля, — в заметки, чтобы ничего не потерялось
+  const notes = [
+    str(data.equipment).trim() && `Снаряжение (импорт):\n${str(data.equipment)}`,
+    str(data.otherprof).trim() && `Владения и языки (импорт):\n${str(data.otherprof)}`,
+    str(data.features).trim() && `Умения (импорт):\n${str(data.features)}`,
+    str(data.background).trim() && `Предыстория (импорт): ${str(data.background)}`,
+    !classId && `Класс (импорт): ${className} ${level}`,
+    str(data.atk_text),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 
-  const equipText = str(data.equipment)
-  if (equipText.trim()) {
-    c.notes = [c.notes, `Снаряжение (импорт):\n${equipText}`].filter(Boolean).join('\n\n')
-  }
-
-  const otherProf = str(data.otherprof)
-  if (otherProf.trim()) {
-    c.proficiencies.languages = otherProf.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
-  }
-
-  c.personality = {
-    traits: str(data.personality),
-    ideals: str(data.ideals),
-    bonds: str(data.bonds),
-    flaws: str(data.flaws),
-  }
-
-  const features = str(data.features)
-  if (features.trim()) {
-    c.features = [
-      {
-        name: 'Импортированные умения',
-        source: 'other',
-        description: features,
-        level: null,
-        feature_source: null,
+  return {
+    character_name: str(data.name) || 'Импортированный герой',
+    visibility: 'private',
+    alignment: str(data.alignment) || null,
+    experience_points: num(data.xp, 0),
+    player_display_name: str(data.player) || null,
+    classes: classId ? [{ class_id: classId, level, subclass_id: null, hp_rolls: [] }] : [],
+    base_scores,
+    attacks,
+    inventory: {
+      grid_width: 7,
+      items: [],
+      currency: {
+        cp: num(data.coin_cp),
+        sp: num(data.coin_sp),
+        ep: num(data.coin_ep),
+        gp: num(data.coin_gp),
+        pp: num(data.coin_pp),
       },
-    ]
+    },
+    personality: {
+      traits: str(data.personality),
+      ideals: str(data.ideals),
+      bonds: str(data.bonds),
+      flaws: str(data.flaws),
+    },
+    notes,
   }
-
-  const atkText = str(data.atk_text)
-  if (atkText.trim()) {
-    c.notes = [c.notes, atkText].filter(Boolean).join('\n\n')
-  }
-
-  return c
 }

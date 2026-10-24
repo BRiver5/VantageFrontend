@@ -1,14 +1,12 @@
 /**
- * Правка листа — профессиональный редактор для тех, кто знает правила.
+ * Правка листа — редактор входных данных персонажа (схема v2).
  *
  * Слева — оглавление разделов (подсвечивается тот, что сейчас на экране),
  * справа — сами разделы: герой и портрет, происхождение и внешность, классы
- * с мультиклассом и уровнями, характеристики, навыки, бой и хиты, атаки,
- * магия вплоть до ячеек каждого круга и списка заклинаний, умения и черты,
- * владения, кошелёк, личность. У производных чисел (КД, инициатива, пассивная
- * внимательность, бонус мастерства, кости хитов, Сл заклинаний) есть режим
- * «авто» — посчитать по правилам — и «вручную». Правки копятся в окне и
- * применяются разом; закрыть с несохранёнными правками — только с подтверждением.
+ * с мультиклассом, базовые характеристики, атаки, заклинания, черты, кошелёк,
+ * личность. Всё вычисляемое (КД, спасброски, навыки, хиты, ячейки, умения)
+ * считает сервер — здесь только выбор игрока. Правки копятся в окне и уходят
+ * одним PATCH с изменёнными полями; закрыть с несохранёнными — с подтверждением.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -19,12 +17,9 @@ import {
   Compass,
   Dumbbell,
   GraduationCap,
-  HeartPulse,
   ImagePlus,
-  Languages,
   NotebookPen,
   Plus,
-  Sparkles,
   Swords,
   Trash2,
   UserRound,
@@ -32,42 +27,20 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { Background, Feat, GameClass, Race, Spell } from '../api'
+import { getSubList, type Background, type Feat, type GameClass, type Race, type Spell, type Subclass } from '../api'
 import { CoinImg } from '../coins'
-import {
-  abilityMod,
-  cantripsAt,
-  casterKind,
-  preparedSpellsMax,
-  proficiencyBonus,
-  spellSlotsAt,
-  spellcastingAbility,
-} from '../create/dnd5e'
 import { ALIGNMENTS } from '../create/steps/AlignmentChart'
 import { imageFileToDataUrl } from '../create/flavor'
-import { useCatalogList } from '../create/useCatalog'
-import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
-import type { AbilityName, AttackEntry, Character, FeatureEntry } from '../types/character'
-import {
-  AreaField,
-  AutoNum,
-  CatalogSearch,
-  ChipList,
-  EdField,
-  EdSection,
-  NumField,
-  Segmented,
-  Stepper,
-  TextField,
-  Toggle,
-} from './editorFields'
+import { useCatalogList, useSubraces } from '../create/useCatalog'
+import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT } from '../types/character'
+import type { AttackEntry, Character, CharacterInput, ClassLevel, SheetView, SpellKnown } from '../types/character'
+import { AreaField, CatalogSearch, EdField, EdSection, Stepper, TextField, Toggle } from './editorFields'
 import { FaceAvatar, FaceCropper } from './FacePortrait'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
-import { derive, recalcCharacter } from './recalc'
+import { abilityPath, whyText } from './sheetView'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
-const HIT_DICE = [6, 8, 10, 12] as const
 const COINS = [
   ['pp', 'Платиновые'],
   ['gp', 'Золотые'],
@@ -81,24 +54,11 @@ const SECTIONS: { id: string; title: string; icon: LucideIcon }[] = [
   { id: 'origin', title: 'Происхождение', icon: Compass },
   { id: 'classes', title: 'Класс и уровень', icon: GraduationCap },
   { id: 'abilities', title: 'Характеристики', icon: Dumbbell },
-  { id: 'skills', title: 'Навыки', icon: Sparkles },
-  { id: 'combat', title: 'Бой и хиты', icon: HeartPulse },
   { id: 'attacks', title: 'Атаки', icon: Swords },
-  { id: 'magic', title: 'Магия', icon: Wand2 },
-  { id: 'features', title: 'Умения и черты', icon: BookOpen },
-  { id: 'profs', title: 'Владения', icon: Languages },
+  { id: 'magic', title: 'Заклинания', icon: Wand2 },
+  { id: 'feats', title: 'Черты', icon: BookOpen },
   { id: 'purse', title: 'Кошелёк', icon: Coins },
   { id: 'persona', title: 'Личность', icon: NotebookPen },
-]
-
-const FEATURE_SOURCES: { value: FeatureEntry['source']; label: string }[] = [
-  { value: 'class', label: 'класс' },
-  { value: 'subclass', label: 'подкласс' },
-  { value: 'race', label: 'раса' },
-  { value: 'subrace', label: 'подраса' },
-  { value: 'background', label: 'предыстория' },
-  { value: 'feat', label: 'черта' },
-  { value: 'other', label: 'прочее' },
 ]
 
 const ATTACK_TYPES: { value: AttackEntry['type']; label: string }[] = [
@@ -107,8 +67,6 @@ const ATTACK_TYPES: { value: AttackEntry['type']; label: string }[] = [
   { value: 'spell', label: 'заклинание' },
   { value: 'other', label: 'другое' },
 ]
-
-type SkillState = 'none' | 'prof' | 'expert'
 
 /** Картинка ссылкой или файлом с устройства (файл ужимается и встраивается в лист) */
 function ImageSource({
@@ -226,163 +184,64 @@ function XpField({ value, onChange }: { value: number; onChange: (v: number) => 
   )
 }
 
-/** Одно умение: строка с названием, источником и уровнем; описание раскрывается */
-function FeatureRow({
-  f,
-  onChange,
-  onRemove,
-}: {
-  f: FeatureEntry
-  onChange: (next: FeatureEntry) => void
-  onRemove: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className={`ed-feat${open ? ' is-open' : ''} ed-src--${f.source}`}>
-      <div className="ed-feat-row">
-        <input className="ed-input ed-feat-name" value={f.name} onChange={(e) => onChange({ ...f, name: e.target.value })} aria-label="Название" />
-        <select className="ed-input ed-select" value={f.source} onChange={(e) => onChange({ ...f, source: e.target.value as FeatureEntry['source'] })} aria-label="Источник">
-          {FEATURE_SOURCES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <Stepper value={f.level ?? 0} min={0} max={20} onChange={(v) => onChange({ ...f, level: v || null })} />
-        <button type="button" className={`ed-btn ed-btn--icon${open ? ' is-on' : ''}`} onClick={() => setOpen((v) => !v)} title="Описание" aria-expanded={open}>
-          <NotebookPen aria-hidden="true" />
-        </button>
-        <button type="button" className="ed-btn ed-btn--icon is-danger" onClick={onRemove} title="Удалить умение" aria-label="Удалить умение">
-          <Trash2 aria-hidden="true" />
-        </button>
-      </div>
-      {open && (
-        <textarea
-          className="ed-input ed-area"
-          rows={5}
-          value={f.description}
-          placeholder="Что даёт умение, сколько раз, восстановление…"
-          onChange={(e) => onChange({ ...f, description: e.target.value })}
-        />
-      )}
-    </div>
-  )
-}
-
 export function SheetEditor({
   character,
+  view,
   onSave,
   onClose,
 }: {
   character: Character
-  onSave: (next: Character) => void
+  /** текущий лист — показать итоговые значения рядом с базовыми */
+  view: SheetView
+  /** только изменённые поля документа */
+  onSave: (patch: CharacterInput) => void
   onClose: () => void
 }) {
   const [c, setC] = useState(character)
-  const initialPic = useMemo(() => parsePortrait(character.basic_info.avatar_url), [character])
+  const initialPic = useMemo(() => parsePortrait(character.avatar_url), [character])
   const [pic, setPic] = useState(initialPic)
   const face = pic.face ?? DEFAULT_FACE
   const setFace = useCallback((next: FaceCrop) => setPic((p) => ({ ...p, face: next })), [])
-  const inspiration = pic.inspiration ?? (c.combat.inspiration ? 1 : 0)
-
-  // производное «авто», если сохранённое совпадает с расчётом по правилам
-  const [initialAuto] = useState(() => {
-    const d = derive(character)
-    return {
-      ac: d.ac != null && d.ac === character.combat.armor_class,
-      initiative: d.initiative === character.combat.initiative,
-      passive: d.passive === character.combat.passive_perception,
-      spell: d.spellDc != null && d.spellDc === character.spellcasting.spell_save_dc && d.spellAttack === character.spellcasting.spell_attack_bonus,
-      proficiency: d.proficiency === character.proficiency_bonus,
-      hitDice: d.hitDice === character.combat.hit_dice.total,
-    }
-  })
-  const [auto, setAuto] = useState(initialAuto)
-  const setAutoKey = (key: keyof typeof auto, v: boolean) => setAuto((a) => ({ ...a, [key]: v }))
 
   const { items: classCatalog } = useCatalogList<GameClass>('classes')
   const { items: raceCatalog } = useCatalogList<Race>('races')
   const { items: bgCatalog } = useCatalogList<Background>('backgrounds')
   const { items: spellCatalog } = useCatalogList<Spell>('spells')
   const { items: featCatalog } = useCatalogList<Feat>('feats')
+  const { items: subraces } = useSubraces(c.race_id)
+  const [subclasses, setSubclasses] = useState<Record<string, Subclass[]>>({})
 
-  /* ---------- текущее состояние и расчёт по правилам ---------- */
-
-  const bi = c.basic_info
-  const level = Math.max(1, bi.classes.reduce((s, cl) => s + cl.level, 0))
-  const pb = auto.proficiency ? proficiencyBonus(level) : c.proficiency_bonus
-  const view: Character = { ...c, proficiency_bonus: pb, basic_info: { ...bi, total_level: level } }
-  const d = derive(view)
-  const sc = c.spellcasting
-  const mainCaster = bi.classes.find((cl) => casterKind(cl.name, cl.is_caster) !== 'none') ?? bi.classes[0]
-  const castMod = sc.spellcasting_ability ? abilityMod(c.ability_scores[sc.spellcasting_ability].score) : 0
+  // подклассы каждого выбранного класса — для селектов
+  useEffect(() => {
+    for (const cl of c.classes) {
+      if (!cl.class_id || subclasses[cl.class_id]) continue
+      void getSubList<Subclass>('classes', cl.class_id, 'subclasses').then((list) =>
+        setSubclasses((prev) => ({ ...prev, [cl.class_id]: list })),
+      )
+    }
+  }, [c.classes, subclasses])
 
   /* ---------- правки ---------- */
 
-  const setInfo = (patch: Partial<Character['basic_info']>) => setC((p) => ({ ...p, basic_info: { ...p.basic_info, ...patch } }))
-  const setCombat = (patch: Partial<Character['combat']>) => setC((p) => ({ ...p, combat: { ...p.combat, ...patch } }))
-  const setHp = (patch: Partial<Character['combat']['hit_points']>) =>
-    setC((p) => ({ ...p, combat: { ...p.combat, hit_points: { ...p.combat.hit_points, ...patch } } }))
-  const setSc = (patch: Partial<Character['spellcasting']>) => setC((p) => ({ ...p, spellcasting: { ...p.spellcasting, ...patch } }))
-  const setAbility = (k: AbilityName, patch: Partial<Character['ability_scores'][AbilityName]>) =>
-    setC((p) => ({ ...p, ability_scores: { ...p.ability_scores, [k]: { ...p.ability_scores[k], ...patch } } }))
-  const setClasses = (fn: (list: Character['basic_info']['classes']) => Character['basic_info']['classes']) =>
-    setC((p) => {
-      const classes = fn(p.basic_info.classes)
-      return { ...p, basic_info: { ...p.basic_info, classes, total_level: Math.max(1, classes.reduce((s, cl) => s + cl.level, 0)) } }
-    })
-  const setClass = (i: number, patch: Partial<Character['basic_info']['classes'][number]>) =>
-    setClasses((list) => list.map((cl, j) => (j === i ? { ...cl, ...patch } : cl)))
-  /** Знакомый класс из каталога: кость хитов, заклинательство и ссылка на источник — сразу */
-  const pickClassName = (i: number, name: string) => {
-    const known = classCatalog.find((x) => x.class_name.toLocaleLowerCase('ru') === name.trim().toLocaleLowerCase('ru'))
-    setClass(
-      i,
-      known
-        ? { name: known.class_name, hit_die: known.hit_dice, is_caster: known.is_caster, source: known.id, spellcasting_ability: spellcastingAbility(known.class_name) }
-        : { name },
-    )
-  }
-  const setSkill = (key: string, state: SkillState) =>
-    setC((p) => {
-      const cur = p.skills[key]
-      if (!cur) return p
-      return { ...p, skills: { ...p.skills, [key]: { ...cur, proficient: state !== 'none', expertise: state === 'expert' } } }
-    })
-  const setSlot = (circle: number, patch: { max?: number; used?: number }) =>
-    setC((p) => {
-      const key = String(circle)
-      const cur = p.spellcasting.spell_slots[key] ?? { max: 0, used: 0 }
-      const next = { ...cur, ...patch }
-      next.used = Math.min(next.used, next.max)
-      return { ...p, spellcasting: { ...p.spellcasting, spell_slots: { ...p.spellcasting.spell_slots, [key]: next } } }
-    })
-  const slotsByRules = () => {
-    if (!mainCaster) return
-    const table = spellSlotsAt(casterKind(mainCaster.name, mainCaster.is_caster), mainCaster.level)
-    setC((p) => {
-      const spell_slots = Object.fromEntries(
-        Array.from({ length: 9 }, (_, i) => String(i + 1))
-          .filter((k) => table[k])
-          .map((k) => [k, { max: table[k], used: Math.min(table[k], p.spellcasting.spell_slots[k]?.used ?? 0) }]),
-      )
-      return { ...p, spellcasting: { ...p.spellcasting, spell_slots } }
-    })
-  }
+  const set = (patch: Partial<Character>) => setC((p) => ({ ...p, ...patch }))
+  const setClasses = (fn: (list: ClassLevel[]) => ClassLevel[]) => setC((p) => ({ ...p, classes: fn(p.classes) }))
+  const setClass = (i: number, patch: Partial<ClassLevel>) => setClasses((list) => list.map((cl, j) => (j === i ? { ...cl, ...patch } : cl)))
   const setAttacks = (fn: (list: AttackEntry[]) => AttackEntry[]) => setC((p) => ({ ...p, attacks: fn(p.attacks) }))
-  const setFeatures = (fn: (list: FeatureEntry[]) => FeatureEntry[]) => setC((p) => ({ ...p, features: fn(p.features) }))
-  const setProfs = (key: keyof Character['proficiencies'], list: string[]) =>
-    setC((p) => ({ ...p, proficiencies: { ...p.proficiencies, [key]: list } }))
+  const setSpells = (fn: (list: SpellKnown[]) => SpellKnown[]) => setC((p) => ({ ...p, spells: fn(p.spells) }))
+  const level = c.classes.reduce((s, cl) => s + cl.level, 0)
 
   /* ---------- сохранить / закрыть ---------- */
 
-  const dirty = useMemo(
-    () =>
-      JSON.stringify(c) !== JSON.stringify(character) ||
-      JSON.stringify(pic) !== JSON.stringify(initialPic) ||
-      JSON.stringify(auto) !== JSON.stringify(initialAuto),
-    [c, character, pic, initialPic, auto, initialAuto],
-  )
+  /** Изменённые поля документа — только они уходят PATCH-ем */
+  const patch = useMemo(() => {
+    const next: Character = { ...c, avatar_url: formatPortrait({ ...pic, face: pic.src ? face : null }) }
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(next) as (keyof Character)[]) {
+      if (JSON.stringify(next[key]) !== JSON.stringify(character[key])) out[key] = next[key]
+    }
+    return out as CharacterInput
+  }, [c, pic, face, character])
+  const dirty = Object.keys(patch).length > 0
 
   const requestClose = useCallback(() => {
     if (!dirty || confirm('Закрыть без сохранения? Правки пропадут.')) onClose()
@@ -397,31 +256,7 @@ export function SheetEditor({
   }, [requestClose])
 
   const save = () => {
-    const slots = Object.fromEntries(
-      Object.entries(c.spellcasting.spell_slots)
-        .filter(([, s]) => s.max > 0)
-        .map(([k, s]) => [k, { max: s.max, used: Math.min(s.used, s.max) }]),
-    )
-    const next: Character = {
-      ...view,
-      basic_info: { ...view.basic_info, avatar_url: formatPortrait({ ...pic, face: pic.src ? face : null }) },
-      combat: {
-        ...c.combat,
-        inspiration: inspiration > 0,
-        hit_points: { ...c.combat.hit_points, current: Math.min(c.combat.hit_points.current, c.combat.hit_points.max) },
-        hit_dice: { total: auto.hitDice ? d.hitDice : c.combat.hit_dice.total, remaining: Math.min(level, c.combat.hit_dice.remaining) },
-      },
-      spellcasting: { ...c.spellcasting, spell_slots: slots },
-    }
-    onSave(
-      recalcCharacter(next, {
-        armor: auto.ac,
-        attacks: true,
-        initiative: auto.initiative,
-        passive: auto.passive,
-        spell: auto.spell,
-      }),
-    )
+    onSave(patch)
     onClose()
   }
 
@@ -449,19 +284,17 @@ export function SheetEditor({
   /* ---------- разделы ---------- */
 
   const count: Record<string, number | undefined> = {
-    classes: bi.classes.length > 1 ? bi.classes.length : undefined,
+    classes: c.classes.length > 1 ? c.classes.length : undefined,
     attacks: c.attacks.length || undefined,
-    magic: sc.spells_known.length || undefined,
-    features: c.features.length + c.feats.length || undefined,
+    magic: c.spells.length || undefined,
+    feats: c.feat_ids.length || undefined,
   }
   const weaponAttacks = c.attacks.filter((a) => a.inventory_instance_id)
   const ownAttacks = c.attacks.map((a, i) => ({ a, i })).filter(({ a }) => !a.inventory_instance_id)
-  const preparedCount = sc.spells_known.filter((s) => s.prepared && s.level > 0).length
-  const spellsByCircle = Array.from({ length: 10 }, (_, lvl) =>
-    sc.spells_known.map((s, i) => ({ s, i })).filter(({ s }) => s.level === lvl),
-  )
-  const knownSpellNames = useMemo(() => new Set(sc.spells_known.map((s) => s.name)), [sc.spells_known])
-  const featNames = useMemo(() => new Set(c.feats.map((id) => featCatalog.find((f) => f.id === id)?.feat_name ?? id)), [c.feats, featCatalog])
+  const spellsByCircle = Array.from({ length: 10 }, (_, lvl) => c.spells.map((s, i) => ({ s, i })).filter(({ s }) => s.level === lvl))
+  const knownSpellNames = useMemo(() => new Set(c.spells.map((s) => s.name)), [c.spells])
+  const featNames = useMemo(() => new Set(c.feat_ids.map((id) => featCatalog.find((f) => f.id === id)?.feat_name ?? id)), [c.feat_ids, featCatalog])
+  const originChanged = c.race_id !== character.race_id || c.subrace_id !== character.subrace_id || c.background_id !== character.background_id
 
   return createPortal(
     <div className="cw-modal-layer" onClick={requestClose}>
@@ -471,7 +304,7 @@ export function SheetEditor({
           <FaceAvatar src={pic.src} crop={pic.src ? face : { ...DEFAULT_FACE, shape: 'hex' }} className="ed-head-face" />
           <span className="ed-head-titles">
             <i>Правка листа</i>
-            <b>{bi.name || 'Без имени'}</b>
+            <b>{c.character_name || 'Без имени'}</b>
           </span>
           <span className="ed-head-stats">
             <span>
@@ -480,22 +313,16 @@ export function SheetEditor({
             </span>
             <span>
               <i>мастерство</i>
-              <b>{signed(pb)}</b>
+              <b>{signed(view.proficiency_bonus)}</b>
             </span>
             <span>
               <i>КД</i>
-              <b>{auto.ac && d.ac != null ? d.ac : c.combat.armor_class}</b>
+              <b>{view.combat.armor_class}</b>
             </span>
             <span>
               <i>хиты</i>
-              <b>{c.combat.hit_points.max}</b>
+              <b>{view.combat.hit_points.max}</b>
             </span>
-            {sc.is_spellcaster && (
-              <span>
-                <i>Сл закл.</i>
-                <b>{auto.spell && d.spellDc != null ? d.spellDc : (sc.spell_save_dc ?? '—')}</b>
-              </span>
-            )}
           </span>
           <button type="button" className="ed-close" onClick={requestClose} aria-label="Закрыть">
             <X aria-hidden="true" />
@@ -514,13 +341,18 @@ export function SheetEditor({
         </nav>
 
         <div className="ed-main" ref={mainRef} onScroll={onScroll}>
+          <p className="ed-lead-note">
+            Здесь — только то, что выбирает и пишет игрок. Числа листа (КД, спасброски, навыки, хиты, ячейки) считает сервер
+            по расе, классам, чертам и надетым предметам.
+          </p>
+
           {/* ---------- герой ---------- */}
-          <EdSection id="hero" icon={UserRound} title="Герой" lead="Имя, портрет и его рамка, фон листа, опыт и вдохновение.">
+          <EdSection id="hero" icon={UserRound} title="Герой" lead="Имя, портрет и его рамка, фон листа, опыт и мировоззрение.">
             <div className="ed-grid">
-              <TextField label="Имя" value={bi.name} onChange={(v) => setInfo({ name: v })} wide />
-              <TextField label="Игрок" value={bi.player_display_name ?? ''} onChange={(v) => setInfo({ player_display_name: v || null })} />
+              <TextField label="Имя" value={c.character_name} onChange={(v) => set({ character_name: v.slice(0, 120) })} wide />
+              <TextField label="Игрок" value={c.player_display_name ?? ''} onChange={(v) => set({ player_display_name: v || null })} />
               <EdField label="Мировоззрение" as="label">
-                <select className="ed-input ed-select" value={bi.alignment ?? ''} onChange={(e) => setInfo({ alignment: e.target.value })}>
+                <select className="ed-input ed-select" value={c.alignment ?? ''} onChange={(e) => set({ alignment: e.target.value || null })}>
                   <option value="">—</option>
                   {Object.values(ALIGNMENTS).map((a) => (
                     <option key={a.abbr} value={a.name}>
@@ -529,8 +361,7 @@ export function SheetEditor({
                   ))}
                 </select>
               </EdField>
-              <XpField value={bi.experience_points ?? 0} onChange={(v) => setInfo({ experience_points: v })} />
-              <NumField label="Вдохновение" value={inspiration} min={0} max={99} onChange={(v) => setPic((p) => ({ ...p, inspiration: v }))} />
+              <XpField value={c.experience_points} onChange={(v) => set({ experience_points: v })} />
               <ImageSource label="Портрет" value={pic.src} maxSide={900} onChange={(src) => setPic((p) => ({ ...p, src }))} />
             </div>
             {pic.src && (
@@ -549,58 +380,82 @@ export function SheetEditor({
           </EdSection>
 
           {/* ---------- происхождение ---------- */}
-          <EdSection id="origin" icon={Compass} title="Происхождение" lead="Раса, подраса и предыстория — названия на листе; внешность — для страницы «Характер».">
-            <datalist id="ed-races">
-              {raceCatalog.map((r) => (
-                <option key={r.id} value={r.race_name} />
-              ))}
-            </datalist>
-            <datalist id="ed-backgrounds">
-              {bgCatalog.map((b) => (
-                <option key={b.id} value={b.background_name} />
-              ))}
-            </datalist>
+          <EdSection
+            id="origin"
+            icon={Compass}
+            title="Происхождение"
+            lead="Раса, подраса и предыстория из каталога. Их бонусы, владения и умения сервер выдаст сам после сохранения."
+          >
             <div className="ed-grid">
               <EdField label="Раса" as="label">
-                <input className="ed-input" list="ed-races" value={bi.race.name} onChange={(e) => setInfo({ race: { ...bi.race, name: e.target.value } })} />
+                <select
+                  className="ed-input ed-select"
+                  value={c.race_id ?? ''}
+                  onChange={(e) => set({ race_id: e.target.value || null, subrace_id: null })}
+                >
+                  <option value="">—</option>
+                  {[...raceCatalog]
+                    .sort((a, b) => a.race_name.localeCompare(b.race_name, 'ru'))
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.race_name}
+                      </option>
+                    ))}
+                </select>
               </EdField>
-              <TextField
-                label="Подраса"
-                value={bi.subrace?.name ?? ''}
-                placeholder="нет"
-                onChange={(v) => setInfo({ subrace: v.trim() ? { ...(bi.subrace ?? {}), name: v } : null })}
-              />
+              <EdField label="Подраса" as="label">
+                <select
+                  className="ed-input ed-select"
+                  value={c.subrace_id ?? ''}
+                  disabled={subraces.length === 0}
+                  onChange={(e) => set({ subrace_id: e.target.value || null })}
+                >
+                  <option value="">{subraces.length ? '—' : 'нет'}</option>
+                  {subraces.map((sr) => (
+                    <option key={sr.id} value={sr.id}>
+                      {sr.subrace_name}
+                    </option>
+                  ))}
+                </select>
+              </EdField>
               <EdField label="Предыстория" as="label">
-                <input
-                  className="ed-input"
-                  list="ed-backgrounds"
-                  value={bi.background?.name ?? ''}
-                  placeholder="нет"
-                  onChange={(e) => setInfo({ background: e.target.value.trim() ? { ...(bi.background ?? {}), name: e.target.value } : null })}
-                />
+                <select className="ed-input ed-select" value={c.background_id ?? ''} onChange={(e) => set({ background_id: e.target.value || null })}>
+                  <option value="">—</option>
+                  {[...bgCatalog]
+                    .sort((a, b) => a.background_name.localeCompare(b.background_name, 'ru'))
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.background_name}
+                      </option>
+                    ))}
+                </select>
               </EdField>
             </div>
+            {originChanged && <p className="ed-warn">Смена расы или предыстории заменит выданные ими умения — сервер пересоберёт их при сохранении.</p>}
             <div className="ed-sub">
               <h5>Внешность</h5>
               <div className="ed-grid">
-                <TextField label="Пол" value={bi.gender ?? ''} onChange={(v) => setInfo({ gender: v })} />
+                <TextField label="Пол" value={c.gender} onChange={(v) => set({ gender: v })} />
                 <EdField label="Возраст" as="label">
                   <input
                     className="ed-input"
                     inputMode="numeric"
-                    value={bi.age ?? ''}
+                    value={c.age ?? ''}
                     placeholder="—"
                     onChange={(e) => {
                       const n = parseInt(e.target.value, 10)
-                      setInfo({ age: Number.isNaN(n) ? null : Math.max(0, n) })
+                      set({ age: Number.isNaN(n) ? null : Math.max(0, n) })
                     }}
                   />
                 </EdField>
-                <TextField label="Рост" value={bi.height ?? ''} onChange={(v) => setInfo({ height: v })} />
-                <TextField label="Вес" value={bi.weight ?? ''} onChange={(v) => setInfo({ weight: v })} />
-                <TextField label="Глаза" value={bi.eyes ?? ''} onChange={(v) => setInfo({ eyes: v })} />
-                <TextField label="Волосы" value={bi.hair ?? ''} onChange={(v) => setInfo({ hair: v })} />
-                <TextField label="Кожа" value={bi.skin ?? ''} onChange={(v) => setInfo({ skin: v })} />
+                <TextField label="Рост" value={c.height} onChange={(v) => set({ height: v })} />
+                <TextField label="Вес" value={c.weight} onChange={(v) => set({ weight: v })} />
+                <TextField label="Глаза" value={c.eyes} onChange={(v) => set({ eyes: v })} />
+                <TextField label="Волосы" value={c.hair} onChange={(v) => set({ hair: v })} />
+                <TextField label="Кожа" value={c.skin} onChange={(v) => set({ skin: v })} />
+              </div>
+              <div className="ed-grid">
+                <AreaField label="Облик" rows={3} value={c.appearance} onChange={(v) => set({ appearance: v })} />
               </div>
             </div>
           </EdSection>
@@ -610,23 +465,18 @@ export function SheetEditor({
             id="classes"
             icon={GraduationCap}
             title="Класс и уровень"
-            lead="Мультикласс — отдельной строкой. Знакомый класс из каталога сам подставит кость хитов и заклинательство."
+            lead="Обычно уровень повышают кнопкой «Новый уровень» на листе: там бросок хитов, выбор подкласса и список новых умений. Здесь — правка вручную."
             actions={
               <button
                 type="button"
                 className="ed-btn"
-                onClick={() => setClasses((list) => [...list, { name: '', level: 1, hit_die: 8, is_caster: false, subclass_name: null, subclass_source: null, source: null, spellcasting_ability: null }])}
+                onClick={() => setClasses((list) => [...list, { class_id: '', level: 1, subclass_id: null, hp_rolls: [] }])}
                 disabled={level >= 20}
               >
                 <Plus aria-hidden="true" /> мультикласс
               </button>
             }
           >
-            <datalist id="ed-classes">
-              {classCatalog.map((cl) => (
-                <option key={cl.id} value={cl.class_name} />
-              ))}
-            </datalist>
             <div className="ed-table ed-table--classes">
               <div className="ed-tr ed-th">
                 <span>Класс</span>
@@ -635,185 +485,94 @@ export function SheetEditor({
                 <span>Кость хитов</span>
                 <span />
               </div>
-              {bi.classes.map((cl, i) => (
-                <div key={i} className="ed-tr">
-                  <input className="ed-input" list="ed-classes" value={cl.name} placeholder="класс" onChange={(e) => pickClassName(i, e.target.value)} aria-label="Класс" />
-                  <input
-                    className="ed-input"
-                    value={cl.subclass_name ?? ''}
-                    placeholder="нет"
-                    onChange={(e) => setClass(i, { subclass_name: e.target.value || null })}
-                    aria-label="Подкласс"
-                  />
-                  <Stepper value={cl.level} min={1} max={20 - (level - cl.level)} onChange={(v) => setClass(i, { level: v })} />
-                  <Segmented
-                    size="sm"
-                    value={cl.hit_die ?? 8}
-                    onChange={(v) => setClass(i, { hit_die: v })}
-                    options={HIT_DICE.map((n) => ({ value: n, label: `к${n}` }))}
-                  />
-                  <button
-                    type="button"
-                    className="ed-btn ed-btn--icon is-danger"
-                    onClick={() => setClasses((list) => list.filter((_, j) => j !== i))}
-                    disabled={bi.classes.length <= 1}
-                    title="Убрать класс"
-                    aria-label="Убрать класс"
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              ))}
+              {c.classes.map((cl, i) => {
+                const cat = classCatalog.find((x) => x.id === cl.class_id)
+                const subs = subclasses[cl.class_id] ?? []
+                return (
+                  <div key={i} className="ed-tr">
+                    <select
+                      className="ed-input ed-select"
+                      value={cl.class_id}
+                      onChange={(e) => setClass(i, { class_id: e.target.value, subclass_id: null })}
+                      aria-label="Класс"
+                    >
+                      <option value="">— класс —</option>
+                      {classCatalog.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.class_name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="ed-input ed-select"
+                      value={cl.subclass_id ?? ''}
+                      disabled={subs.length === 0}
+                      onChange={(e) => setClass(i, { subclass_id: e.target.value || null })}
+                      aria-label="Подкласс"
+                    >
+                      <option value="">{cat?.subclass_level && cl.level < cat.subclass_level ? `с ${cat.subclass_level} ур.` : 'нет'}</option>
+                      {subs.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.subclass_name}
+                        </option>
+                      ))}
+                    </select>
+                    <Stepper
+                      value={cl.level}
+                      min={1}
+                      max={20 - (level - cl.level)}
+                      onChange={(v) =>
+                        // броски хитов — по одному на уровень после первого
+                        setClass(i, { level: v, hp_rolls: cl.hp_rolls.slice(0, Math.max(0, i === 0 ? v - 1 : v)) })
+                      }
+                    />
+                    <span className="ed-readout">к{cat?.hit_dice ?? '—'}</span>
+                    <button
+                      type="button"
+                      className="ed-btn ed-btn--icon is-danger"
+                      onClick={() => setClasses((list) => list.filter((_, j) => j !== i))}
+                      disabled={c.classes.length <= 1}
+                      title="Убрать класс"
+                      aria-label="Убрать класс"
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
             <div className="ed-grid">
               <EdField label="Общий уровень" hint="сумма классов">
                 <span className="ed-readout">{level}</span>
               </EdField>
-              <AutoNum
-                label="Бонус мастерства"
-                auto={auto.proficiency}
-                computed={proficiencyBonus(level)}
-                value={c.proficiency_bonus}
-                onAuto={(v) => setAutoKey('proficiency', v)}
-                onChange={(v) => setC((p) => ({ ...p, proficiency_bonus: v }))}
-                min={0}
-                max={10}
-                sign
-              />
-              <div className={`ed-field ed-auto${auto.hitDice ? ' is-auto' : ''}`}>
-                <span className="ed-label">
-                  Кости хитов
-                  <button type="button" className={`ed-auto-tag${auto.hitDice ? ' is-on' : ''}`} onClick={() => setAutoKey('hitDice', !auto.hitDice)}>
-                    <Wand2 aria-hidden="true" /> {auto.hitDice ? 'авто' : 'вручную'}
-                  </button>
-                </span>
-                <input
-                  className="ed-input"
-                  value={auto.hitDice ? d.hitDice : c.combat.hit_dice.total}
-                  disabled={auto.hitDice}
-                  onChange={(e) => setCombat({ hit_dice: { ...c.combat.hit_dice, total: e.target.value } })}
-                />
-              </div>
-              <NumField
-                label="Костей осталось"
-                value={Math.min(level, c.combat.hit_dice.remaining)}
-                min={0}
-                max={level}
-                onChange={(v) => setCombat({ hit_dice: { ...c.combat.hit_dice, remaining: v } })}
-              />
             </div>
           </EdSection>
 
           {/* ---------- характеристики ---------- */}
-          <EdSection id="abilities" icon={Dumbbell} title="Характеристики" lead="Значения с уже учтёнными бонусами расы и усилениями; спасброски с владением отмечены.">
+          <EdSection
+            id="abilities"
+            icon={Dumbbell}
+            title="Характеристики"
+            lead="Базовые значения — бросок или покупка очков ДО расовых бонусов. Бонусы расы, черт и предметов сервер добавит сам; справа — итог на листе."
+          >
             <div className="ed-abils">
               {ABILITY_KEYS.map((k) => {
-                const block = c.ability_scores[k]
-                const m = abilityMod(block.score)
+                const short = ABILITY_SHORT[k]
+                const base = c.base_scores[short] ?? 10
+                const total = view.ability_scores[k]
                 return (
-                  <div key={k} className={`ed-abil${block.saving_throw_proficient ? ' is-prof' : ''}`}>
+                  <div key={k} className={`ed-abil${total.saving_throw_proficient ? ' is-prof' : ''}`}>
                     <span className="ed-abil-head">
                       <b>{ABILITY_LABELS[k].abbr}</b>
                       <i>{ABILITY_LABELS[k].label}</i>
                     </span>
-                    <Stepper value={block.score} min={1} max={30} onChange={(v) => setAbility(k, { score: v })} />
-                    <span className="ed-abil-mod">
-                      <i>мод</i> <b>{signed(m)}</b>
-                    </span>
-                    <span className="ed-abil-save">
-                      <Toggle on={block.saving_throw_proficient} onChange={(v) => setAbility(k, { saving_throw_proficient: v })} label="спасбросок" />
-                      <b>{signed(m + (block.saving_throw_proficient ? pb : 0))}</b>
+                    <Stepper value={base} min={1} max={30} onChange={(v) => set({ base_scores: { ...c.base_scores, [short]: v } })} />
+                    <span className="ed-abil-mod" title={whyText(view.breakdown, abilityPath(k, 'score'))}>
+                      <i>на листе</i> <b>{total.score}</b>
                     </span>
                   </div>
                 )
               })}
-            </div>
-          </EdSection>
-
-          {/* ---------- навыки ---------- */}
-          <EdSection id="skills" icon={Sparkles} title="Навыки" lead="Владение даёт бонус мастерства, компетентность — двойной.">
-            <div className="ed-skills">
-              {DEFAULT_SKILLS.map((s) => {
-                const e = c.skills[s.key]
-                const state: SkillState = e?.proficient ? (e.expertise ? 'expert' : 'prof') : 'none'
-                const total = abilityMod(c.ability_scores[s.ability].score) + (state === 'expert' ? pb * 2 : state === 'prof' ? pb : 0)
-                return (
-                  <div key={s.key} className={`ed-skill is-${state}`}>
-                    <span className="ed-skill-name">
-                      {s.label} <i>{ABILITY_LABELS[s.ability].abbr}</i>
-                    </span>
-                    <Segmented
-                      size="sm"
-                      value={state}
-                      onChange={(v) => setSkill(s.key, v)}
-                      options={[
-                        { value: 'none', label: '—', title: 'Без владения' },
-                        { value: 'prof', label: '◆', title: 'Владение' },
-                        { value: 'expert', label: '◆◆', title: 'Компетентность' },
-                      ]}
-                    />
-                    <b className="ed-skill-total">{signed(total)}</b>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="ed-grid">
-              <AutoNum
-                label="Пассивная внимательность"
-                auto={auto.passive}
-                computed={d.passive}
-                value={c.combat.passive_perception}
-                onAuto={(v) => setAutoKey('passive', v)}
-                onChange={(v) => setCombat({ passive_perception: v })}
-                min={0}
-                max={40}
-              />
-            </div>
-          </EdSection>
-
-          {/* ---------- бой и хиты ---------- */}
-          <EdSection id="combat" icon={HeartPulse} title="Бой и хиты" lead="КД по снаряжению считается так же, как при создании: лучший доспех, щит, защита без доспехов.">
-            <div className="ed-grid">
-              <AutoNum
-                label="Класс доспеха"
-                auto={auto.ac}
-                computed={d.ac}
-                value={c.combat.armor_class}
-                onAuto={(v) => setAutoKey('ac', v)}
-                onChange={(v) => setCombat({ armor_class: v })}
-                min={0}
-                max={40}
-                note={d.ac == null ? 'в инвентаре нет снаряжения — только вручную' : undefined}
-              />
-              <AutoNum
-                label="Инициатива"
-                auto={auto.initiative}
-                computed={d.initiative}
-                value={c.combat.initiative}
-                onAuto={(v) => setAutoKey('initiative', v)}
-                onChange={(v) => setCombat({ initiative: v })}
-                min={-10}
-                max={20}
-                sign
-              />
-              <NumField label="Скорость" hint="фт." value={c.combat.speed} min={0} max={200} onChange={(v) => setCombat({ speed: v })} />
-              <NumField label="Хиты: максимум" value={c.combat.hit_points.max} min={1} max={999} onChange={(v) => setHp({ max: v })} />
-              <NumField label="Хиты: текущие" value={c.combat.hit_points.current} min={0} max={c.combat.hit_points.max} onChange={(v) => setHp({ current: v })} />
-              <NumField label="Временные хиты" value={c.combat.hit_points.temp} min={0} max={999} onChange={(v) => setHp({ temp: v })} />
-              <NumField
-                label="Спасброски: успехи"
-                value={c.combat.death_saves.successes}
-                min={0}
-                max={3}
-                onChange={(v) => setCombat({ death_saves: { ...c.combat.death_saves, successes: v } })}
-              />
-              <NumField
-                label="Спасброски: провалы"
-                value={c.combat.death_saves.failures}
-                min={0}
-                max={3}
-                onChange={(v) => setCombat({ death_saves: { ...c.combat.death_saves, failures: v } })}
-              />
             </div>
           </EdSection>
 
@@ -822,7 +581,7 @@ export function SheetEditor({
             id="attacks"
             icon={Swords}
             title="Атаки"
-            lead="Оружие из инвентаря пересчитывается само; свои атаки — заклинания-атаки, естественное оружие, особые приёмы — вписываются здесь."
+            lead="Свои атаки — заклинания-атаки, естественное оружие, особые приёмы."
             actions={
               <button
                 type="button"
@@ -864,21 +623,21 @@ export function SheetEditor({
                   <span />
                 </div>
                 {ownAttacks.map(({ a, i }) => {
-                  const set = (patch: Partial<AttackEntry>) => setAttacks((list) => list.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+                  const setA = (p: Partial<AttackEntry>) => setAttacks((list) => list.map((x, j) => (j === i ? { ...x, ...p } : x)))
                   return (
                     <div key={i} className="ed-tr">
-                      <input className="ed-input" value={a.name} onChange={(e) => set({ name: e.target.value })} aria-label="Название" />
-                      <select className="ed-input ed-select" value={a.type} onChange={(e) => set({ type: e.target.value as AttackEntry['type'] })} aria-label="Вид">
+                      <input className="ed-input" value={a.name} onChange={(e) => setA({ name: e.target.value })} aria-label="Название" />
+                      <select className="ed-input ed-select" value={a.type} onChange={(e) => setA({ type: e.target.value as AttackEntry['type'] })} aria-label="Вид">
                         {ATTACK_TYPES.map((t) => (
                           <option key={t.value} value={t.value}>
                             {t.label}
                           </option>
                         ))}
                       </select>
-                      <Stepper value={a.attack_bonus} min={-10} max={30} sign onChange={(v) => set({ attack_bonus: v })} />
-                      <input className="ed-input" value={a.damage} placeholder="1к8+3" onChange={(e) => set({ damage: e.target.value })} aria-label="Урон" />
-                      <input className="ed-input" value={a.damage_type} placeholder="рубящий" onChange={(e) => set({ damage_type: e.target.value })} aria-label="Тип урона" />
-                      <input className="ed-input" value={a.range} placeholder="5 фт." onChange={(e) => set({ range: e.target.value })} aria-label="Дистанция" />
+                      <Stepper value={a.attack_bonus} min={-10} max={30} sign onChange={(v) => setA({ attack_bonus: v })} />
+                      <input className="ed-input" value={a.damage} placeholder="1к8+3" onChange={(e) => setA({ damage: e.target.value })} aria-label="Урон" />
+                      <input className="ed-input" value={a.damage_type} placeholder="рубящий" onChange={(e) => setA({ damage_type: e.target.value })} aria-label="Тип урона" />
+                      <input className="ed-input" value={a.range} placeholder="5 фт." onChange={(e) => setA({ range: e.target.value })} aria-label="Дистанция" />
                       <button
                         type="button"
                         className="ed-btn ed-btn--icon is-danger"
@@ -898,241 +657,83 @@ export function SheetEditor({
           </EdSection>
 
           {/* ---------- магия ---------- */}
-          <EdSection
-            id="magic"
-            icon={Wand2}
-            title="Магия"
-            lead="Заклинательная характеристика, ячейки каждого круга и список заклинаний."
-            actions={<Toggle on={sc.is_spellcaster} onChange={(v) => setSc({ is_spellcaster: v })} label="заклинатель" />}
-          >
-            <div className="ed-grid">
-              <EdField label="Базовая характеристика" wide>
-                <Segmented
-                  value={sc.spellcasting_ability ?? 'none'}
-                  onChange={(v) => setSc({ spellcasting_ability: v === 'none' ? null : (v as AbilityName) })}
-                  options={[
-                    { value: 'none', label: '—' },
-                    ...ABILITY_KEYS.map((k) => ({ value: k, label: ABILITY_LABELS[k].abbr, title: ABILITY_LABELS[k].label })),
-                  ]}
-                />
-              </EdField>
-              <AutoNum
-                label="Сл спасброска"
-                auto={auto.spell}
-                computed={d.spellDc}
-                value={sc.spell_save_dc ?? 0}
-                onAuto={(v) => setAutoKey('spell', v)}
-                onChange={(v) => setSc({ spell_save_dc: v })}
-                min={0}
-                max={30}
-              />
-              <AutoNum
-                label="Атака заклинанием"
-                auto={auto.spell}
-                computed={d.spellAttack}
-                value={sc.spell_attack_bonus ?? 0}
-                onAuto={(v) => setAutoKey('spell', v)}
-                onChange={(v) => setSc({ spell_attack_bonus: v })}
-                min={-5}
-                max={20}
-                sign
-              />
-              <NumField
-                label="Заговоров"
-                hint={mainCaster ? `по правилам ${cantripsAt(mainCaster.name, mainCaster.level)}` : undefined}
-                value={sc.cantrips_amount}
-                min={0}
-                max={12}
-                onChange={(v) => setSc({ cantrips_amount: v })}
-              />
-              <NumField
-                label="Готовится максимум"
-                hint={
-                  mainCaster && preparedSpellsMax(mainCaster.name, mainCaster.level, castMod) != null
-                    ? `по правилам ${preparedSpellsMax(mainCaster.name, mainCaster.level, castMod)}`
-                    : 'не готовит'
-                }
-                value={sc.prepared_spells_max ?? 0}
-                min={0}
-                max={40}
-                onChange={(v) => setSc({ prepared_spells_max: v || null })}
-              />
+          <EdSection id="magic" icon={Wand2} title="Заклинания" lead="Список известных и подготовленных заклинаний. Ячейки и Сл считает сервер.">
+            <CatalogSearch
+              items={spellCatalog}
+              label={(s) => s.spell_name}
+              sub={(s) => [s.spell_level === 0 ? 'заговор' : `${s.spell_level} круг`, s.school].filter(Boolean).join(' · ')}
+              exclude={knownSpellNames}
+              placeholder="Найти заклинание в каталоге и добавить…"
+              onPick={(s) =>
+                setSpells((list) => [
+                  ...list,
+                  { name: s.spell_name, level: s.spell_level, prepared: true, spell_source: s.spell_source ?? null, snapshot: { spell_id: s.id } },
+                ])
+              }
+            />
+            <div className="ed-spells">
+              {spellsByCircle.map((list, lvl) =>
+                list.length === 0 ? null : (
+                  <div key={lvl} className="ed-spell-group">
+                    <span className="ed-spell-circle">{lvl === 0 ? '◈ Заговоры' : `${ROMAN[lvl]} · ${lvl} круг`}</span>
+                    {list.map(({ s, i }) => {
+                      const granted = (s.snapshot as { granted?: string } | null)?.granted
+                      return (
+                        <div key={`${s.name}-${i}`} className={`ed-spell${s.prepared ? '' : ' is-off'}`}>
+                          <b>{s.name}</b>
+                          {granted && <em>{granted === 'race' ? 'раса' : 'подкласс'}</em>}
+                          {lvl > 0 && (
+                            <Toggle
+                              on={s.prepared}
+                              onChange={(v) => setSpells((all) => all.map((x, j) => (j === i ? { ...x, prepared: v } : x)))}
+                              label="подготовлено"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            className="ed-btn ed-btn--icon is-danger"
+                            onClick={() => setSpells((all) => all.filter((_, j) => j !== i))}
+                            title="Убрать заклинание"
+                            aria-label="Убрать заклинание"
+                          >
+                            <Trash2 aria-hidden="true" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ),
+              )}
+              {c.spells.length === 0 && <p className="ed-empty">Заклинаний нет — найдите их в каталоге выше.</p>}
             </div>
+          </EdSection>
 
-            <div className="ed-sub">
-              <h5>
-                Ячейки заклинаний
-                <span className="ed-sub-actions">
-                  {mainCaster && casterKind(mainCaster.name, mainCaster.is_caster) !== 'none' && (
-                    <button type="button" className="ed-btn" onClick={slotsByRules}>
-                      <Wand2 aria-hidden="true" /> по таблице: {mainCaster.name} {mainCaster.level}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="ed-btn"
-                    onClick={() =>
-                      setSc({
-                        spell_slots: Object.fromEntries(Object.entries(sc.spell_slots).map(([k, s]) => [k, { ...s, used: 0 }])),
-                      })
-                    }
-                  >
-                    <Check aria-hidden="true" /> вернуть потраченные
+          {/* ---------- черты ---------- */}
+          <EdSection
+            id="feats"
+            icon={BookOpen}
+            title="Черты"
+            lead="Черты из каталога. Их умения и бонусы выдаёт сервер; умения класса и расы — на странице «Умения» листа."
+          >
+            <div className="ed-chips">
+              {c.feat_ids.map((fid) => (
+                <span key={fid} className="ed-chip">
+                  {featCatalog.find((f) => f.id === fid)?.feat_name ?? 'Черта'}
+                  <button type="button" onClick={() => set({ feat_ids: c.feat_ids.filter((x) => x !== fid) })} aria-label="Убрать черту">
+                    <X aria-hidden="true" />
                   </button>
                 </span>
-              </h5>
-              <div className="ed-slots">
-                {Array.from({ length: 9 }, (_, i) => i + 1).map((circle) => {
-                  const slot = sc.spell_slots[String(circle)] ?? { max: 0, used: 0 }
-                  return (
-                    <div key={circle} className={`ed-slot${slot.max > 0 ? ' is-on' : ''}`}>
-                      <span className="ed-slot-num">{ROMAN[circle]}</span>
-                      <span className="ed-slot-label">ячеек</span>
-                      <Stepper value={slot.max} min={0} max={9} onChange={(v) => setSlot(circle, { max: v })} />
-                      <span className="ed-slot-label">потрачено</span>
-                      <Stepper value={slot.used} min={0} max={slot.max} onChange={(v) => setSlot(circle, { used: v })} disabled={slot.max === 0} />
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="ed-sub">
-              <h5>
-                Заклинания
-                <span className="ed-sub-note">
-                  {sc.spells_known.length} всего
-                  {sc.prepared_spells_max ? ` · подготовлено ${preparedCount} из ${sc.prepared_spells_max}` : ''}
-                </span>
-              </h5>
-              <CatalogSearch
-                items={spellCatalog}
-                label={(s) => s.spell_name}
-                sub={(s) => [s.spell_level === 0 ? 'заговор' : `${s.spell_level} круг`, s.school].filter(Boolean).join(' · ')}
-                exclude={knownSpellNames}
-                placeholder="Найти заклинание в каталоге и добавить…"
-                onPick={(s) =>
-                  setSc({
-                    spells_known: [
-                      ...sc.spells_known,
-                      { name: s.spell_name, level: s.spell_level, prepared: true, spell_source: s.spell_source ?? null, snapshot: { spell_id: s.id } },
-                    ],
-                  })
-                }
-              />
-              <div className="ed-spells">
-                {spellsByCircle.map((list, lvl) =>
-                  list.length === 0 ? null : (
-                    <div key={lvl} className="ed-spell-group">
-                      <span className="ed-spell-circle">{lvl === 0 ? '◈ Заговоры' : `${ROMAN[lvl]} · ${lvl} круг`}</span>
-                      {list.map(({ s, i }) => {
-                        const granted = (s.snapshot as { granted?: string } | null)?.granted
-                        return (
-                          <div key={`${s.name}-${i}`} className={`ed-spell${s.prepared ? '' : ' is-off'}`}>
-                            <b>{s.name}</b>
-                            {granted && <em>{granted === 'race' ? 'раса' : 'подкласс'}</em>}
-                            {lvl > 0 && (
-                              <Toggle
-                                on={s.prepared}
-                                onChange={(v) =>
-                                  setSc({ spells_known: sc.spells_known.map((x, j) => (j === i ? { ...x, prepared: v } : x)) })
-                                }
-                                label="подготовлено"
-                              />
-                            )}
-                            <button
-                              type="button"
-                              className="ed-btn ed-btn--icon is-danger"
-                              onClick={() => setSc({ spells_known: sc.spells_known.filter((_, j) => j !== i) })}
-                              title="Убрать заклинание"
-                              aria-label="Убрать заклинание"
-                            >
-                              <Trash2 aria-hidden="true" />
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ),
-                )}
-                {sc.spells_known.length === 0 && <p className="ed-empty">Заклинаний нет — найдите их в каталоге выше.</p>}
-              </div>
-            </div>
-          </EdSection>
-
-          {/* ---------- умения и черты ---------- */}
-          <EdSection
-            id="features"
-            icon={BookOpen}
-            title="Умения и черты"
-            lead="Умения класса, расы и предыстории — с описанием для попапа на листе. Черты — из каталога."
-            actions={
-              <button
-                type="button"
-                className="ed-btn"
-                onClick={() => setFeatures((list) => [...list, { name: 'Новое умение', source: 'other', level: null, description: '', feature_source: null }])}
-              >
-                <Plus aria-hidden="true" /> умение
-              </button>
-            }
-          >
-            <div className="ed-feats">
-              <div className="ed-feat-head">
-                <span>Название</span>
-                <span>Источник</span>
-                <span>Уровень</span>
-                <span />
-              </div>
-              {c.features.map((f, i) => (
-                <FeatureRow
-                  key={i}
-                  f={f}
-                  onChange={(next) => setFeatures((list) => list.map((x, j) => (j === i ? next : x)))}
-                  onRemove={() => setFeatures((list) => list.filter((_, j) => j !== i))}
-                />
               ))}
-              {c.features.length === 0 && <p className="ed-empty">Умений нет.</p>}
+              {c.feat_ids.length === 0 && <span className="ed-empty">черт нет</span>}
             </div>
-            <div className="ed-sub">
-              <h5>Черты</h5>
-              <div className="ed-chips">
-                {c.feats.map((id) => (
-                  <span key={id} className="ed-chip">
-                    {featCatalog.find((f) => f.id === id)?.feat_name ?? 'Черта'}
-                    <button type="button" onClick={() => setC((p) => ({ ...p, feats: p.feats.filter((x) => x !== id) }))} aria-label="Убрать черту">
-                      <X aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-                {c.feats.length === 0 && <span className="ed-empty">черт нет</span>}
-              </div>
-              <CatalogSearch
-                items={featCatalog}
-                label={(f) => f.feat_name}
-                sub={(f) => (f.prerequisite ? `требование: ${f.prerequisite}` : '')}
-                exclude={featNames}
-                placeholder="Найти черту в каталоге и добавить…"
-                onPick={(f) => setC((p) => ({ ...p, feats: [...p.feats, f.id] }))}
-              />
-            </div>
-          </EdSection>
-
-          {/* ---------- владения ---------- */}
-          <EdSection id="profs" icon={Languages} title="Владения" lead="Enter или запятая — добавить, × — убрать. Владение оружием влияет на бонус атаки.">
-            <div className="ed-grid ed-grid--two">
-              <EdField label="Доспехи" wide>
-                <ChipList items={c.proficiencies.armor} onChange={(v) => setProfs('armor', v)} placeholder="лёгкие доспехи…" />
-              </EdField>
-              <EdField label="Оружие" wide>
-                <ChipList items={c.proficiencies.weapons} onChange={(v) => setProfs('weapons', v)} placeholder="воинское оружие…" />
-              </EdField>
-              <EdField label="Инструменты" wide>
-                <ChipList items={c.proficiencies.tools} onChange={(v) => setProfs('tools', v)} placeholder="воровские инструменты…" />
-              </EdField>
-              <EdField label="Языки" wide>
-                <ChipList items={c.proficiencies.languages} onChange={(v) => setProfs('languages', v)} placeholder="Общий…" />
-              </EdField>
-            </div>
+            <CatalogSearch
+              items={featCatalog}
+              label={(f) => f.feat_name}
+              sub={(f) => (f.prerequisite ? `требование: ${f.prerequisite}` : '')}
+              exclude={featNames}
+              placeholder="Найти черту в каталоге и добавить…"
+              onPick={(f) => set({ feat_ids: [...c.feat_ids, f.id] })}
+            />
           </EdSection>
 
           {/* ---------- кошелёк ---------- */}
@@ -1144,7 +745,7 @@ export function SheetEditor({
                     value={c.inventory.currency[key]}
                     min={0}
                     max={9999999}
-                    onChange={(v) => setC((p) => ({ ...p, inventory: { ...p.inventory, currency: { ...p.inventory.currency, [key]: v } } }))}
+                    onChange={(v) => set({ inventory: { ...c.inventory, currency: { ...c.inventory.currency, [key]: v } } })}
                   />
                 </EdField>
               ))}
@@ -1167,13 +768,13 @@ export function SheetEditor({
                   label={label}
                   rows={3}
                   value={c.personality[key]}
-                  onChange={(v) => setC((p) => ({ ...p, personality: { ...p.personality, [key]: v } }))}
+                  onChange={(v) => set({ personality: { ...c.personality, [key]: v } })}
                 />
               ))}
             </div>
             <div className="ed-grid">
-              <AreaField label="История" rows={6} value={c.backstory} onChange={(v) => setC((p) => ({ ...p, backstory: v }))} />
-              <AreaField label="Заметки" rows={5} value={c.notes} onChange={(v) => setC((p) => ({ ...p, notes: v }))} />
+              <AreaField label="История" rows={6} value={c.backstory} onChange={(v) => set({ backstory: v })} />
+              <AreaField label="Заметки" rows={5} value={c.notes} onChange={(v) => set({ notes: v })} />
             </div>
           </EdSection>
         </div>
@@ -1184,7 +785,7 @@ export function SheetEditor({
           <button type="button" className="cs-btn cs-btn--ghost" onClick={requestClose}>
             Отмена
           </button>
-          <button type="button" className="cs-btn cw-next" onClick={save} disabled={!dirty}>
+          <button type="button" className="cs-btn cw-next" onClick={save} disabled={!dirty || !c.character_name.trim() || c.classes.some((cl) => !cl.class_id)}>
             <Check aria-hidden="true" /> Применить
           </button>
         </footer>
