@@ -567,7 +567,7 @@ export function SheetEditor({
                       <i>{ABILITY_LABELS[k].label}</i>
                     </span>
                     <Stepper value={base} min={1} max={30} onChange={(v) => set({ base_scores: { ...c.base_scores, [short]: v } })} />
-                    <span className="ed-abil-mod" title={whyText(view.breakdown, abilityPath(k, 'score'))}>
+                    <span className="ed-abil-mod" title={whyText(view.breakdown, abilityPath(k, 'score'), view.sourceNames)}>
                       <i>на листе</i> <b>{total.score}</b>
                     </span>
                   </div>

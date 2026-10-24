@@ -38,6 +38,7 @@ import SettingPage from './pages/SettingPage'
 import CharacterEditorPage from './pages/CharacterEditorPage'
 import CharactersPage from './pages/CharactersPage'
 import CreateCharacterWizard from './create/CreateCharacterWizard'
+import LevelUpWizard from './create/LevelUpWizard'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProfilePage from './pages/ProfilePage'
@@ -751,6 +752,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <CreateCharacterWizard />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/characters/:id/level-up"
+              element={
+                <RequireAuth>
+                  <LevelUpWizard />
                 </RequireAuth>
               }
             />

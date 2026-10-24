@@ -25,11 +25,21 @@ const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
 const circleName = (n: number) => (n === 0 ? 'Заговоры' : `${n} круг`)
 
-/** Дарованное ли заклинание: snapshot отмечает расу или подкласс */
-function grantedOrigin(sp: Known): 'race' | 'subclass' | null {
-  const g = (sp.snapshot as { granted?: string } | null)?.granted
-  return g === 'race' || g === 'subclass' ? g : null
+type GrantSnap = { granted?: string; uses?: string | null; note?: string | null }
+
+/** Дарованное ли заклинание: snapshot отмечает расу, подкласс или способность движка */
+function grantedOrigin(sp: Known): 'race' | 'subclass' | 'engine' | null {
+  const g = (sp.snapshot as GrantSnap | null)?.granted
+  return g === 'race' || g === 'subclass' || g === 'engine' ? g : null
 }
+
+/** Подпись дарованного: «1/продолжительный отдых», «всегда подготовлено» */
+const grantNote = (sp: Known) => {
+  const snap = sp.snapshot as GrantSnap | null
+  return [snap?.uses, snap?.note].filter(Boolean).join(' · ') || null
+}
+
+const ORIGIN_TAG: Record<string, string> = { race: 'раса', subclass: 'подкласс', engine: 'дар' }
 
 /* ---------- созвездия ячеек ---------- */
 
@@ -181,8 +191,10 @@ export function SpellBook({
     .filter((s) => s.max > 0)
     .sort((a, b) => a.circle - b.circle)
 
+  // круг дарованного заклинания сервер может не прислать — берём из каталога
+  const spells = sc.spells_known.map((sp) => (sp.level >= 0 ? sp : { ...sp, level: lookup(sp)?.spell_level ?? 0 }))
   const byCircle = new Map<number, Known[]>()
-  for (const sp of [...sc.spells_known].sort(
+  for (const sp of [...spells].sort(
     (a, b) => Number(b.prepared) - Number(a.prepared) || a.name.localeCompare(b.name, 'ru'),
   )) {
     byCircle.set(sp.level, [...(byCircle.get(sp.level) ?? []), sp])
@@ -303,7 +315,11 @@ export function SpellBook({
                       <span className="cw-scard-tags">
                         {data?.concentration && <em title="Концентрация">К</em>}
                         {data?.ritual && <em title="Ритуал">Р</em>}
-                        {origin && <em className="is-origin">{origin === 'race' ? 'раса' : 'подкласс'}</em>}
+                        {origin && (
+                          <em className="is-origin" title={grantNote(sp) ?? undefined}>
+                            {ORIGIN_TAG[origin]}
+                          </em>
+                        )}
                         {!sp.prepared && <em className="is-off">не подготовлено</em>}
                         {spent && <em className="is-off">использовано</em>}
                       </span>
@@ -382,6 +398,16 @@ function SpellModal({
         <Wand2 aria-hidden="true" /> Сотворить
       </button>
     )
+  } else if (origin === 'engine' && grantNote(sp)) {
+    // дар способности со своим лимитом: его считает движок, здесь — отметка в истории
+    cast = (
+      <span className="cw-cast-opts">
+        <span className="cw-field-note">{grantNote(sp)}</span>
+        <button type="button" className="cs-btn cw-next" onClick={() => onCast('free')}>
+          <Wand2 aria-hidden="true" /> Сотворить
+        </button>
+      </span>
+    )
   } else if (origin === 'race') {
     cast = (
       <button type="button" className="cs-btn cw-next" onClick={() => onCast('racial')} disabled={racialSpent}>
@@ -429,7 +455,7 @@ function SpellModal({
   return (
     <SheetModal
       title={sp.name}
-      kicker={[sp.level === 0 ? 'заговор' : `${sp.level} круг`, data?.school, origin === 'race' ? 'расовая магия' : origin === 'subclass' ? 'от подкласса' : null]
+      kicker={[sp.level === 0 ? 'заговор' : `${sp.level} круг`, data?.school, origin === 'race' ? 'расовая магия' : origin === 'subclass' ? 'от подкласса' : origin === 'engine' ? grantNote(sp) ?? 'дарованное' : null]
         .filter(Boolean)
         .join(' · ')}
       tone="magic"

@@ -9,7 +9,7 @@
  * вдохновение. Все числа — с сервера; у тех, что сложены из вкладов, в
  * подсказке расшифровка «откуда число».
  */
-import { useRef, useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Award,
   Camera,
@@ -17,7 +17,7 @@ import {
   Footprints,
   Heart,
   Minus,
-  Moon,
+  PawPrint,
   Plus,
   ScrollText,
   ShieldPlus,
@@ -33,7 +33,8 @@ import type { SheetView } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
 import { DEFAULT_FACE, FALLBACK_FACE, type FaceCrop } from './portrait'
 import type { SheetRoller } from './sheetPlay'
-import { whyText } from './sheetView'
+import type { VitalsOp } from '../api'
+import { useWhy, WhyDot } from './WhyPopover'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -111,20 +112,63 @@ function ArmorShield({ ac }: { ac: number }) {
 }
 
 /**
- * Что сцена умеет у сохранённого героя. Хиты, кости хитов, спасброски от
- * смерти и вдохновение хранит сервер: игрок их видит, а отдых и журнал идут
- * через движок. Править числа напрямую может только админ (правка мастера).
+ * Что сцена умеет у сохранённого героя. Хиты, временные хиты, спасброски от
+ * смерти и вдохновение хранит сервер: правки идут через движок (`onVitals`) —
+ * урон учитывает сопротивления и облик, всё попадает в журнал и отменяется.
  */
 export interface StageEngine {
   busy: boolean
   /** вдохновение — число (char.inspiration) */
   inspiration: number
-  onLongRest?: () => void
+  /** урон, лечение, временные хиты, вдохновение, спасброски — только у своего героя */
+  onVitals?: (op: VitalsOp, amount: number, opts?: { damageType?: string | null; success?: boolean }) => void
+  /** типы урона для меню (английский ключ → подпись) */
+  damageTypes?: { value: string; label: string }[]
   /** короткий отдых: окно выбора костей хитов */
   onShortRest?: () => void
-  onJournal?: () => void
-  /** правка мастера (только админ): хранимые значения листа */
-  master?: (set: Record<string, unknown>) => void
+  /** журнал хитов: урон, лечение, отдых */
+  onHpJournal?: () => void
+  /** активный облик (дикий облик): его хиты, имя и выход */
+  form?: { name: string; hp: number; max: number; onRevert?: () => void } | null
+}
+
+/** Кликабельное число с расшифровкой; без вкладов — просто блок */
+function WhyArea({
+  path,
+  title,
+  total,
+  baseLabel,
+  className,
+  style,
+  children,
+}: {
+  path: string
+  title: string
+  total?: number | string
+  baseLabel?: string
+  className: string
+  style?: CSSProperties
+  children: ReactNode
+}) {
+  const why = useWhy()
+  if (!why.has(path)) {
+    return (
+      <div className={className} style={style}>
+        {children}
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className={`${className} is-why`}
+      style={style}
+      onClick={(e) => why.open(e.currentTarget, { path, title, total, baseLabel })}
+      title="Откуда это число"
+    >
+      {children}
+    </button>
+  )
 }
 
 export function HeroStage({
@@ -145,92 +189,73 @@ export function HeroStage({
   stage?: StageEngine
 }) {
   const [amount, setAmount] = useState('')
+  const [dmgType, setDmgType] = useState('')
   const amountRef = useRef<HTMLInputElement>(null)
+  const why = useWhy()
 
   const info = sheet.basic_info
   const cls = info.classes[0] ?? { name: '—', level: info.total_level }
   const level = info.total_level
   const combat = sheet.combat
-  const hp = combat.hit_points
-  const master = stage?.master
+  const form = stage?.form ?? null
+  // в облике шестигранник показывает хиты зверя, свои — мелко под ним
+  const hp = form ? { current: form.hp, max: form.max, temp: combat.hit_points.temp } : combat.hit_points
+  const vitals = stage?.onVitals
   const busy = !!stage?.busy
   const inspiration = stage?.inspiration ?? (combat.inspiration ? 1 : 0)
   const hitDie = cls.hit_die ?? (Number(/[dк](\d+)/i.exec(combat.hit_dice.total)?.[1]) || 8)
   const ratio = hp.max > 0 ? Math.min(1, hp.current / hp.max) : 0
   const tone = hp.current === 0 ? 'down' : ratio <= 0.3 ? 'low' : ratio <= 0.6 ? 'mid' : 'ok'
-  const dying = hp.current === 0
-  const why = (path: string) => whyText(sheet.breakdown, path)
+  const dying = !form && combat.hit_points.current === 0
 
-  /* ---------- правка мастера: урон, лечение, временные хиты ---------- */
+  /* ---------- урон, лечение, временные хиты ---------- */
 
-  /** Урон съедает сначала временные хиты */
-  const takeDamage = (n: number) => {
-    const fromTemp = Math.min(hp.temp, n)
-    master?.({ 'char.hp.temp': hp.temp - fromTemp, 'char.hp.current': Math.max(0, hp.current - (n - fromTemp)) })
-    roller.note(`−${n}`, 'Урон (правка мастера)')
-  }
-  const heal = (n: number) => {
-    master?.({
-      'char.hp.current': Math.min(hp.max, hp.current + n),
-      ...(dying ? { 'char.death_saves.success': 0, 'char.death_saves.failure': 0 } : {}),
-    })
-    roller.note(`+${n}`, 'Лечение (правка мастера)')
-  }
-  /** Временные хиты не складываются — остаются большие */
-  const giveTemp = (n: number) => {
-    master?.({ 'char.hp.temp': Math.max(hp.temp, n) })
-    roller.note(`+${n}`, 'Временные хиты (правка мастера)')
-  }
-  const apply = (fn: (n: number) => void) => {
+  const apply = (op: 'damage' | 'heal' | 'temp') => {
     const n = Math.abs(parseInt(amount, 10))
     if (!n) {
       amountRef.current?.focus()
       return
     }
-    fn(n)
+    vitals?.(op, n, op === 'damage' ? { damageType: dmgType || null } : undefined)
     setAmount('')
   }
 
   const setDeath = (kind: 'successes' | 'failures', n: number) =>
-    master?.({ [kind === 'successes' ? 'char.death_saves.success' : 'char.death_saves.failure']: Math.max(0, Math.min(3, n)) })
+    vitals?.('death_save', Math.max(0, Math.min(3, n)), { success: kind === 'successes' })
 
   /** Спасбросок от смерти: 20 — встаёт с 1 хитом, 1 — два провала, 10+ — успех */
   const rollDeathSave = async () => {
     const die = await roller.rollD20('Спасбросок от смерти', 0)
-    if (die == null || !master) return
+    if (die == null || !vitals) return
     const ds = combat.death_saves
-    if (die === 20) {
-      master({ 'char.hp.current': 1, 'char.death_saves.success': 0, 'char.death_saves.failure': 0 })
-      roller.note('1', 'Натуральная 20 — герой приходит в себя')
-    } else if (die === 1) setDeath('failures', ds.failures + 2)
+    if (die === 20) vitals('heal', 1)
+    else if (die === 1) setDeath('failures', ds.failures + 2)
     else if (die >= 10) setDeath('successes', ds.successes + 1)
     else setDeath('failures', ds.failures + 1)
   }
 
   const crop = portrait ? (face ?? DEFAULT_FACE) : FALLBACK_FACE
   const race = info.subrace?.name ?? info.race.name
-  const acWhy = why('char.ac')
-  const hpWhy = why('char.hp.max')
 
   return (
-    <header className={`cw-hstage is-${tone}`}>
+    <header className={`cw-hstage is-${tone}${form ? ' is-form' : ''}`}>
       {/* ---------- слева: оборона и хиты ---------- */}
       <div className="cw-hstage-side cw-hstage-left">
-        <div className={`cw-orb cw-orb--ac${acWhy ? ' has-why' : ''}`} style={{ '--arc': 0 } as CSSProperties} title={acWhy}>
+        <WhyArea path="char.ac" title="Класс доспеха" total={combat.armor_class} baseLabel="10 + Ловкость" className="cw-orb cw-orb--ac" style={{ '--arc': 0 } as CSSProperties}>
           <span className="cw-orb-text">
             <b>Класс доспеха</b>
             <i>{combat.shield ? 'со щитом' : 'без щита'}</i>
           </span>
           <ArmorShield ac={combat.armor_class} />
-        </div>
+        </WhyArea>
 
         <div className="cw-orb cw-orb--hp" style={{ '--arc': 1 } as CSSProperties}>
-          {master && (
+          {vitals && (
             <form
               className="cw-hpctl"
               onSubmit={(e) => {
                 e.preventDefault()
-                apply(takeDamage)
+                apply('damage')
               }}
             >
               <label className="cw-hpctl-field">
@@ -246,22 +271,38 @@ export function HeroStage({
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </label>
-              <span className="cw-hpseg" role="group" aria-label="Правка мастера: хиты">
+              <span className="cw-hpseg" role="group" aria-label="Хиты">
                 <button type="submit" className="cw-hpseg-btn is-dmg" title="Нанести урон (Enter)" aria-label="Нанести урон" disabled={busy}>
                   <Swords aria-hidden="true" />
                 </button>
-                <button type="button" className="cw-hpseg-btn is-heal" onClick={() => apply(heal)} title="Вылечить" aria-label="Вылечить" disabled={busy}>
+                <button type="button" className="cw-hpseg-btn is-heal" onClick={() => apply('heal')} title="Вылечить" aria-label="Вылечить" disabled={busy}>
                   <Heart aria-hidden="true" />
                 </button>
-                <button type="button" className="cw-hpseg-btn is-temp" onClick={() => apply(giveTemp)} title="Временные хиты" aria-label="Временные хиты" disabled={busy}>
+                <button type="button" className="cw-hpseg-btn is-temp" onClick={() => apply('temp')} title="Временные хиты" aria-label="Временные хиты" disabled={busy}>
                   <ShieldPlus aria-hidden="true" />
                 </button>
               </span>
+              {stage?.damageTypes && stage.damageTypes.length > 0 && (
+                <select
+                  className="cw-hpctl-type"
+                  value={dmgType}
+                  onChange={(e) => setDmgType(e.target.value)}
+                  aria-label="Тип урона"
+                  title="Тип урона: сопротивления и иммунитеты учтутся"
+                >
+                  <option value="">тип урона</option>
+                  {stage.damageTypes.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </form>
           )}
 
           <div className="cw-hpwrap">
-            <div className={`cw-hphex is-${tone}${hpWhy ? ' has-why' : ''}`} style={{ '--fill': `${ratio * 100}%` } as CSSProperties} title={hpWhy}>
+            <div className={`cw-hphex is-${tone}`} style={{ '--fill': `${ratio * 100}%` } as CSSProperties}>
               <span className="cw-hphex-in">
                 <span className="cw-hphex-liquid" />
               </span>
@@ -276,13 +317,13 @@ export function HeroStage({
                           type="button"
                           className={combat.death_saves[kind] >= n ? 'is-on' : ''}
                           onClick={() => setDeath(kind, combat.death_saves[kind] === n ? n - 1 : n)}
-                          disabled={!master || busy}
+                          disabled={!vitals || busy}
                           aria-label={`${kind === 'successes' ? 'успехи' : 'провалы'}: ${n}`}
                         />
                       ))}
                     </span>
                   ))}
-                  {master && (
+                  {vitals && (
                     <button type="button" className="cw-hphex-roll" onClick={() => void rollDeathSave()} disabled={roller.rolling || busy}>
                       спасбросок
                     </button>
@@ -291,7 +332,18 @@ export function HeroStage({
               ) : (
                 <span className="cw-hphex-value">
                   <b key={hp.current}>{hp.current}</b>
-                  <i>из {hp.max}</i>
+                  {!form && why.has('char.hp.max') ? (
+                    <button
+                      type="button"
+                      className="cw-hphex-max is-why"
+                      onClick={(e) => why.open(e.currentTarget, { path: 'char.hp.max', title: 'Максимум хитов', total: hp.max, baseLabel: 'Кости хитов' })}
+                      title="Откуда это число"
+                    >
+                      из {hp.max}
+                    </button>
+                  ) : (
+                    <i>из {hp.max}</i>
+                  )}
                 </span>
               )}
               {hp.temp > 0 && (
@@ -300,9 +352,14 @@ export function HeroStage({
                 </span>
               )}
             </div>
-            {stage?.onJournal && (
-              <button type="button" className="cw-hphex-log" onClick={stage.onJournal} title="Журнал действий">
-                <ScrollText aria-hidden="true" /> журнал
+            {form && (
+              <span className="cw-hphex-own" title="Свои хиты — вернутся, когда облик спадёт">
+                <PawPrint aria-hidden="true" /> {form.name} · свои {combat.hit_points.current}/{combat.hit_points.max}
+              </span>
+            )}
+            {stage?.onHpJournal && (
+              <button type="button" className="cw-hphex-log" onClick={stage.onHpJournal} title="Журнал хитов: урон, лечение, отдых">
+                <ScrollText aria-hidden="true" /> журнал хитов
               </button>
             )}
           </div>
@@ -330,7 +387,17 @@ export function HeroStage({
 
       {/* ---------- центр: портрет и имя ---------- */}
       <div className="cw-hstage-center">
-        <HeroArt src={portrait ?? fallbackPortrait} crop={crop} onEdit={onPortraitClick} />
+        <HeroArt src={portrait ?? fallbackPortrait} crop={crop} onEdit={form ? undefined : onPortraitClick} />
+        {form && (
+          <span className="cw-form-badge">
+            <PawPrint aria-hidden="true" /> Дикий облик: {form.name}
+            {form.onRevert && (
+              <button type="button" className="cw-mini-btn" onClick={form.onRevert} disabled={busy}>
+                выйти
+              </button>
+            )}
+          </span>
+        )}
         <h1 className="cw-plate-name gold-text">{info.name}</h1>
       </div>
 
@@ -338,11 +405,11 @@ export function HeroStage({
       <div className="cw-hstage-side cw-hstage-right">
         <button
           type="button"
-          className={`cw-orb cw-orb--r is-roll${why('char.init') ? ' has-why' : ''}`}
+          className="cw-orb cw-orb--r is-roll"
           style={{ '--arc': 0 } as CSSProperties}
-          onClick={() => void roller.rollD20('Инициатива', combat.initiative)}
+          onClick={() => void roller.rollD20('Инициатива', combat.initiative, undefined, { kind: 'init' })}
           disabled={roller.rolling}
-          title={['Бросить инициативу', why('char.init')].filter(Boolean).join('\n')}
+          title="Бросить инициативу"
         >
           <span className="hex-badge cw-orb-hex">
             <span className="hex-badge-inner">
@@ -354,8 +421,9 @@ export function HeroStage({
             <b>Инициатива</b>
             <i>нажмите — бросок</i>
           </span>
+          <WhyDot req={{ path: 'char.init', title: 'Инициатива', total: combat.initiative, baseLabel: 'Ловкость' }} />
         </button>
-        <div className={`cw-orb cw-orb--r${why('char.speed.walk') ? ' has-why' : ''}`} style={{ '--arc': 1 } as CSSProperties} title={why('char.speed.walk')}>
+        <WhyArea path="char.speed.walk" title="Скорость" total={combat.speed} baseLabel="Раса" className="cw-orb cw-orb--r" style={{ '--arc': 1 } as CSSProperties}>
           <span className="hex-badge cw-orb-hex">
             <span className="hex-badge-inner">
               <Footprints aria-hidden="true" />
@@ -366,8 +434,8 @@ export function HeroStage({
             <b>Скорость</b>
             <i>{combat.speed} фт. за ход</i>
           </span>
-        </div>
-        <div className="cw-orb cw-orb--r" style={{ '--arc': 1 } as CSSProperties}>
+        </WhyArea>
+        <WhyArea path="char.pb" title="Бонус мастерства" total={sheet.proficiency_bonus} baseLabel="По уровню" className="cw-orb cw-orb--r" style={{ '--arc': 1 } as CSSProperties}>
           <span className="hex-badge cw-orb-hex">
             <span className="hex-badge-inner">
               <Award aria-hidden="true" />
@@ -378,7 +446,7 @@ export function HeroStage({
             <b>Мастерство</b>
             <i>бонус владения</i>
           </span>
-        </div>
+        </WhyArea>
         <div className={`cw-orb cw-orb--r cw-orb--insp${inspiration > 0 ? ' is-on' : ''}`} style={{ '--arc': 0 } as CSSProperties}>
           <span className="hex-badge cw-orb-hex">
             <span className="hex-badge-inner">
@@ -388,24 +456,18 @@ export function HeroStage({
           </span>
           <span className="cw-orb-text">
             <b>Вдохновение</b>
-            {master ? (
+            {vitals ? (
               <span className="cw-insp-ctl">
                 <button
                   type="button"
-                  onClick={() => master({ 'char.inspiration': inspiration - 1 })}
+                  onClick={() => vitals('inspiration', -1)}
                   disabled={inspiration <= 0 || busy}
                   title="Потратить вдохновение"
                   aria-label="Потратить вдохновение"
                 >
                   <Minus aria-hidden="true" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => master({ 'char.inspiration': inspiration + 1 })}
-                  disabled={busy}
-                  title="Дать вдохновение"
-                  aria-label="Дать вдохновение"
-                >
+                <button type="button" onClick={() => vitals('inspiration', 1)} disabled={busy} title="Получить вдохновение" aria-label="Получить вдохновение">
                   <Plus aria-hidden="true" />
                 </button>
               </span>
@@ -414,14 +476,6 @@ export function HeroStage({
             )}
           </span>
         </div>
-
-        {stage?.onLongRest && (
-          <div className="cw-hstage-tools">
-            <button type="button" className="cw-mini-btn" onClick={stage.onLongRest} disabled={busy} title="Хиты, ячейки, ресурсы и половина костей хитов">
-              <Moon aria-hidden="true" /> продолжительный отдых
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ---------- лента под сценой: раса · класс · подкласс · уровень ---------- */}
@@ -451,9 +505,6 @@ export function HeroStage({
               </span>
             ))}
           </div>
-        )}
-        {stage && !master && hp.current < hp.max && (
-          <p className="cw-field-note cw-hstage-note">Урон, лечение и временные хиты пока отмечает мастер.</p>
         )}
       </div>
     </header>

@@ -10,10 +10,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ApiError,
+  applyVitals,
   dismissPending,
   getCharacter,
   getSheet,
-  levelUp as apiLevelUp,
   patchStore,
   rest as apiRest,
   runAction,
@@ -23,6 +23,7 @@ import {
   undoEvent,
   updateCharacter,
   type TurnEvent,
+  type VitalsOp,
 } from '../api'
 import type {
   Character,
@@ -57,6 +58,14 @@ const TEXT_FIELDS = new Set<keyof Character>([
 ])
 
 const SAVE_DELAY = 700
+
+const VITALS_TITLE: Record<VitalsOp, string> = {
+  damage: 'Урон',
+  heal: 'Лечение',
+  temp: 'Временные хиты',
+  inspiration: 'Вдохновение',
+  death_save: 'Спасброски от смерти',
+}
 
 /** Действие с поп-апами: запрос повторяется целиком с накопленными ответами */
 export interface Flow {
@@ -315,6 +324,15 @@ export function useCharacterEngine(id: string | undefined) {
     [cid, startFlow],
   )
 
+  /** Хиты, вдохновение, спасброски от смерти — через движок, с журналом и отменой */
+  const vitals = useCallback(
+    (op: VitalsOp, amount: number, opts: { damageType?: string | null; success?: boolean; title?: string } = {}) =>
+      startFlow(opts.title ?? VITALS_TITLE[op], () =>
+        applyVitals(cid, { op, amount, damage_type: opts.damageType ?? null, success: opts.success ?? true }),
+      ),
+    [cid, startFlow],
+  )
+
   const dismiss = useCallback(
     (decisionId: string) => simple(() => dismissPending(cid, decisionId), applySheet),
     [cid, simple, applySheet],
@@ -322,23 +340,6 @@ export function useCharacterEngine(id: string | undefined) {
 
   const toggle = useCallback(
     (grantId: string, enabled: boolean) => simple(() => toggleAbility(cid, grantId, enabled), applySheet),
-    [cid, simple, applySheet],
-  )
-
-  /** Повышение уровня: лист и список изменений «+ slug» / «− slug» */
-  const levelUp = useCallback(
-    (body: { class_id: string; subclass_id?: string | null; hp_roll?: number | null }) =>
-      new Promise<string[] | null>((resolve) => {
-        void simple(
-          () => apiLevelUp(cid, body),
-          (res) => {
-            applySheet(res.sheet)
-            // класс и уровень — в документе: перечитываем его
-            void getCharacter(cid).then(setCharacter).catch(() => {})
-            resolve(res.changes)
-          },
-        ).then(() => resolve(null))
-      }),
     [cid, simple, applySheet],
   )
 
@@ -388,9 +389,9 @@ export function useCharacterEngine(id: string | undefined) {
     turn,
     dismiss,
     toggle,
-    levelUp,
     undo,
     master,
+    vitals,
   }
 }
 

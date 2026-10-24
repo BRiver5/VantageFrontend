@@ -1,14 +1,18 @@
 /**
  * Поп-ап действия. Сервер описывает, что спросить (`prompt.inputs`), клиент
  * рисует поля и отдаёт ответы; варианты, min и max каждый раз берутся из
- * свежего ответа — они зависят от прежних ответов. Закрыть поп-ап можно без
- * последствий: состояние персонажа меняется только на `completed`.
+ * свежего ответа — они зависят от прежних ответов. Поле с `visible_if`
+ * показывается, только пока условие истинно для текущих ответов, и скрытое
+ * не отправляется. Закрыть поп-ап можно без последствий: состояние персонажа
+ * меняется только на `completed`.
  */
 import { useMemo, useState } from 'react'
 import { Loader2, Search, TriangleAlert, Zap } from 'lucide-react'
 import type { PromptInput, PromptOption } from '../types/character'
 import { SheetModal } from './SheetModal'
 import type { Flow } from './useCharacterEngine'
+import { evalVisibleIf } from './visibleIf'
+import { CreaturePodium } from './CreaturePodium'
 
 /** Типы «один из списка»: у всех значение — value выбранного варианта */
 const SINGLE = new Set(['choice', 'slot_level', 'creature', 'spell', 'skill', 'ability_score', 'damage_type', 'ability'])
@@ -17,10 +21,13 @@ const SEARCHABLE = new Set(['creature', 'spell', 'ability'])
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
+/** Ответ — массив: multi_choice или список с count (два воззвания, три заклинания) */
+const isMulti = (inp: PromptInput) => inp.type === 'multi_choice' || !!inp.multiple
+
 function initialValue(inp: PromptInput): unknown {
-  if (inp.default !== undefined && inp.default !== null) return inp.default
+  if (inp.default !== undefined && inp.default !== null) return isMulti(inp) && !Array.isArray(inp.default) ? [inp.default] : inp.default
   if (inp.type === 'bool') return false
-  if (inp.type === 'multi_choice') return []
+  if (isMulti(inp)) return []
   if (inp.type === 'number') return inp.min ?? 0
   if (inp.type === 'text') return ''
   // единственный вариант выбираем сразу
@@ -38,7 +45,7 @@ function Options({
   onChange: (v: unknown) => void
 }) {
   const raw = inp.options
-  const multi = inp.type === 'multi_choice'
+  const multi = isMulti(inp)
   const [q, setQ] = useState('')
   const shown = useMemo(() => {
     const options = raw ?? []
@@ -48,11 +55,19 @@ function Options({
   const options = raw ?? []
   const searchable = SEARCHABLE.has(inp.type) || options.length > 12
 
-  if (options.length === 0) return <p className="cw-field-note act-empty">Вариантов нет — можно только отменить.</p>
+  if (options.length === 0) {
+    return (
+      <p className="cw-field-note act-empty">
+        {inp.filtered ? 'Нет подходящих вариантов.' : 'Вариантов нет.'}
+        {inp.required ? ' Это решение можно отложить или отклонить.' : ''}
+      </p>
+    )
+  }
 
   const picked = (o: PromptOption) => (multi ? ((value as unknown[]) ?? []).some((v) => same(v, o.value)) : same(value, o.value))
   const toggle = (o: PromptOption) => {
-    if (!multi) return onChange(o.value)
+    // необязательный выбор можно снять повторным нажатием
+    if (!multi) return onChange(picked(o) && !inp.required ? undefined : o.value)
     const cur = (value as unknown[]) ?? []
     onChange(picked(o) ? cur.filter((v) => !same(v, o.value)) : [...cur, o.value])
   }
@@ -120,6 +135,9 @@ function Field({
     control = (
       <textarea className="ed-input ed-area" rows={3} maxLength={2000} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
     )
+  } else if (inp.type === 'creature' && !isMulti(inp)) {
+    // дикий облик: звери каруселью на подиуме
+    control = <CreaturePodium inp={inp} value={value} onChange={onChange} />
   } else {
     control = <Options inp={inp} value={value} onChange={onChange} />
   }
@@ -127,7 +145,7 @@ function Field({
   const hint = [
     inp.description,
     inp.type === 'number' && (inp.min != null || inp.max != null) ? `от ${inp.min ?? '—'} до ${inp.max ?? '—'}` : null,
-    inp.type === 'multi_choice' && inp.count ? `выберите ровно ${inp.count}` : null,
+    isMulti(inp) && inp.count ? `выберите ровно ${inp.count}` : isMulti(inp) ? 'можно выбрать несколько' : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -137,6 +155,11 @@ function Field({
       <span className="act-label">
         {inp.label}
         {inp.required && <em aria-label="обязательно">*</em>}
+        {isMulti(inp) && inp.count ? (
+          <b className="act-count">
+            {Array.isArray(value) ? value.length : 0} / {inp.count}
+          </b>
+        ) : null}
       </span>
       {hint && <span className="act-hint">{hint}</span>}
       {control}
@@ -145,11 +168,26 @@ function Field({
   )
 }
 
-/** Можно ли отправить: обязательные заполнены, у multi_choice ровно count */
-function ready(inputs: PromptInput[], values: Record<string, unknown>): boolean {
-  return inputs.every((inp) => {
+/** Видимые сейчас поля: visible_if проверяется по ответам этого же поп-апа */
+const visibleInputs = (inputs: PromptInput[], values: Record<string, unknown>) =>
+  inputs.filter((inp) => evalVisibleIf(inp.visible_if, values))
+
+/** Ответ без скрытых полей и без незаполненных необязательных */
+function answerOf(inputs: PromptInput[], values: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const inp of visibleInputs(inputs, values)) {
     const v = values[inp.key]
-    if (inp.type === 'multi_choice') {
+    if (v === undefined || v === '') continue
+    out[inp.key] = v
+  }
+  return out
+}
+
+/** Можно ли отправить: обязательные видимые заполнены, у списков с count — ровно count */
+function ready(inputs: PromptInput[], values: Record<string, unknown>): boolean {
+  return visibleInputs(inputs, values).every((inp) => {
+    const v = values[inp.key]
+    if (isMulti(inp)) {
       const n = Array.isArray(v) ? v.length : 0
       return inp.count ? n === inp.count : !inp.required || n > 0
     }
@@ -179,6 +217,8 @@ export function ActionDialog({
 
   const failed = !!flow.message && !flow.busy
   const canSend = !!prompt && !flow.busy && ready(prompt.inputs, values)
+  const send = () => prompt && onAnswer(answerOf(prompt.inputs, values))
+  const shown = prompt ? visibleInputs(prompt.inputs, values) : []
 
   return (
     <SheetModal
@@ -193,7 +233,7 @@ export function ActionDialog({
             {failed && !prompt ? 'Закрыть' : 'Отмена'}
           </button>
           {prompt && (
-            <button type="button" className="cs-btn cw-next" disabled={!canSend} onClick={() => onAnswer(values)}>
+            <button type="button" className="cs-btn cw-next" disabled={!canSend} onClick={send}>
               {flow.busy ? <Loader2 className="cw-spin" aria-hidden="true" /> : null}
               {prompt.confirm_label || 'OK'}
             </button>
@@ -217,10 +257,11 @@ export function ActionDialog({
           className="act-form"
           onSubmit={(e) => {
             e.preventDefault()
-            if (canSend) onAnswer(values)
+            if (canSend) send()
           }}
         >
-          {prompt.inputs.map((inp) => (
+          {flow.errors?._ && <p className="act-message">{flow.errors._}</p>}
+          {shown.map((inp) => (
             <Field key={inp.key} inp={inp} value={values[inp.key]} error={flow.errors?.[inp.key]} onChange={(v) => set(inp.key, v)} />
           ))}
         </form>

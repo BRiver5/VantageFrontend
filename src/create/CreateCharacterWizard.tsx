@@ -14,9 +14,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
-import { createCharacter, levelUp } from '../api'
+import { ApiError, createCharacter, isLegacySchemaError, levelUp } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Divider } from '../ornaments'
+import { autoResolveDecisions } from './autoDecisions'
 import { buildCharacter, draftToInput, levelUpPlan } from './deriveCharacter'
 import { initialDraft, resizeLevels, type CharacterDraft, type DraftUpdate } from './draft'
 import { ABILITY_KEYS } from '../types/character'
@@ -109,7 +110,9 @@ export default function CreateCharacterWizard() {
     setDraft((prev) => ({ ...prev, ...patch }))
   }, [])
 
-  const { items: subraces } = useSubraces(draft.race?.id ?? null)
+  const { items: allSubraces } = useSubraces(draft.race?.id ?? null)
+  // самостоятельные подрасы выбираются на шаге расы, на шаге подрасы их нет
+  const subraces = useMemo(() => allSubraces.filter((sr) => !sr.replaces_race), [allSubraces])
   const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null)
   const subclassFeatures = useSubclassFeatures(bundle, draft.subclass?.id ?? null)
   const equipmentIndex = useEquipmentIndex()
@@ -142,7 +145,7 @@ export default function CreateCharacterWizard() {
 
   const steps = useMemo<StepDef[]>(() => {
     const list: StepDef[] = [{ id: 'race', label: 'Раса' }]
-    if (subraces.length > 0) list.push({ id: 'subrace', label: 'Подраса' })
+    if (subraces.length > 0 && !draft.subrace?.replaces_race) list.push({ id: 'subrace', label: 'Подраса' })
     list.push(
       { id: 'class', label: 'Класс' },
       { id: 'background', label: 'Предыстория' },
@@ -161,7 +164,7 @@ export default function CreateCharacterWizard() {
     }
     list.push({ id: 'review', label: 'Итог' })
     return list
-  }, [subraces.length, draft.cls, granted, draft.targetLevel])
+  }, [subraces.length, draft.subrace, draft.cls, granted, draft.targetLevel])
 
   const safeIdx = Math.min(stepIdx, steps.length - 1)
   const step = steps[safeIdx]
@@ -234,13 +237,27 @@ export default function CreateCharacterWizard() {
       if (!created.id) throw new Error('Сервер не вернул id персонажа')
       // уровни выше первого — по одному, как при игре: хиты и умения выдаёт сервер
       try {
-        for (const step of levelUpPlan(draft)) await levelUp(created.id, step)
+        for (const step of levelUpPlan(draft)) {
+          // 409 — ревизия ещё не догнала прошлый шаг: один повтор с новой ревизией
+          await levelUp(created.id, step).catch((e: unknown) => {
+            if (e instanceof ApiError && e.status === 409) return levelUp(created.id, step)
+            throw e
+          })
+        }
+        // навыки класса и ASI, выбранные на шагах, — ответами на выборы способностей
+        await autoResolveDecisions(created.id, draft)
       } catch {
-        // герой уже создан — остальные уровни можно добрать кнопкой «Новый уровень»
+        // герой уже создан — остальные уровни и выборы можно добрать на листе
       }
       navigate(`/characters/${created.id}`, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось создать персонажа')
+      setError(
+        isLegacySchemaError(err)
+          ? 'Сервер API ещё старой версии и не знает новую схему персонажа (v2). Создание заработает, когда на сервере развернут новый бэкенд.'
+          : err instanceof Error
+            ? err.message
+            : 'Не удалось создать персонажа',
+      )
     } finally {
       setBusy(false)
     }

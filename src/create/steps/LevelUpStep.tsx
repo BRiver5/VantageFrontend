@@ -28,12 +28,14 @@ import { DieImage, hitDieType } from '../../dice/diceAssets'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
 import type { AbilityName } from '../../types/character'
 import { skillKeysFromNames } from '../../skills'
+import { normSpellName } from '../../spellIndex'
 import {
   abilityMod,
   asiLevels,
   cantripsAt,
   casterKind,
   classSkillChoice,
+  multiclassSkillCount,
   isPreparedCaster,
   proficiencyBonus,
   spellSlotsAt,
@@ -106,6 +108,23 @@ function HpEquation({
   )
 }
 
+/**
+ * Повышение уровня у сохранённого героя: тот же шаг, но про один новый уровень
+ * одного класса. Уровень героя ≠ уровень класса при мультиклассе.
+ */
+export interface LevelUpOptions {
+  /** общий уровень героя после повышения — бонус мастерства и требования черт */
+  characterLevel?: number
+  /** первый уровень нового класса (мультикласс): хиты бросаются, навыков меньше */
+  multiclassEntry?: boolean
+  /** уже известные герою заклинания (normSpellName) — не предлагать снова */
+  knownSpells?: Set<string>
+  /** навыки, которыми герой уже владеет */
+  ownSkills?: Set<string>
+  /** показывать только последний уровень, без дороги уровней */
+  onlyLatest?: boolean
+}
+
 export default function LevelUpStep({
   draft,
   update,
@@ -113,12 +132,14 @@ export default function LevelUpStep({
   bundleLoading,
   subclassFeatures,
   granted,
+  options: opts = {},
 }: StepProps & {
   bundle: ClassBundle | null
   bundleLoading: boolean
   subclassFeatures: FeatureEntry[]
   /** заклинания от расы и подкласса с уровнем получения */
   granted: GrantedSpell[]
+  options?: LevelUpOptions
 }) {
   const dice = useDice()
   const [subDetails, setSubDetails] = useState<Subclass | null>(null)
@@ -132,13 +153,16 @@ export default function LevelUpStep({
   const nextPending = draft.levels.findIndex((l) => !l.done)
   // принятые уровни — линия дороги заливается до следующего непринятого
   const doneCount = draft.levels.filter((l) => l.done).length
-  const [cursor, setCursor] = useState(() => (nextPending === -1 ? 0 : nextPending))
+  const [cursor, setCursor] = useState(() => (opts.onlyLatest ? draft.levels.length - 1 : nextPending === -1 ? 0 : nextPending))
   const [scenes, setScenes] = useState<CelebrationScene[] | null>(null)
   const [diceError, setDiceError] = useState<string | null>(null)
 
   const active = Math.max(0, Math.min(cursor, draft.levels.length - 1))
   const choice = draft.levels[active] ?? emptyLevelChoice(1)
   const level = choice.level
+  // первый уровень класса даёт максимум кости — кроме мультикласса
+  const maxFirst = level === 1 && !opts.multiclassEntry
+  const charLevel = opts.characterLevel ?? level
 
   const subclassLevel =
     bundle?.subs.find((s) => s.level_available != null)?.level_available ??
@@ -180,8 +204,8 @@ export default function LevelUpStep({
 
     const circles = Object.keys(slotsNow).map(Number)
     return {
-      skillsNeeded: level === 1 ? classSkills.count : 0,
-      skillOptions: classSkills.options.filter((k) => !backgroundSkills.has(k)),
+      skillsNeeded: level === 1 ? (opts.multiclassEntry ? multiclassSkillCount(className) : classSkills.count) : 0,
+      skillOptions: classSkills.options.filter((k) => !backgroundSkills.has(k) && !opts.ownSkills?.has(k)),
       needsSubclass: level === subclassLevel && (bundle?.subs.length ?? 0) > 0,
       isAsi: asiLevels(className).includes(level),
       cantripsNeeded: cantripsAt(className, level) - cantripsAt(className, level - 1),
@@ -191,7 +215,7 @@ export default function LevelUpStep({
       classFeatures: (bundle?.features ?? []).filter((f) => f.level === level),
       subFeatures: subclassFeatures.filter((f) => f.level === level),
     }
-  }, [className, kind, level, prepared, subclassLevel, bundle, subclassFeatures, backgroundSkills])
+  }, [className, kind, level, prepared, subclassLevel, bundle, subclassFeatures, backgroundSkills, opts.multiclassEntry, opts.ownSkills])
 
   /** Уже выбранные на других уровнях заклинания — чтобы не дублировать */
   const takenSpellIds = useMemo(() => {
@@ -200,8 +224,12 @@ export default function LevelUpStep({
       for (const s of l.spells) set.add(s.id)
       for (const s of l.cantrips) set.add(s.id)
     }
+    // уже известные сохранённому герою — по названию
+    if (opts.knownSpells?.size) {
+      for (const s of allSpells) if (opts.knownSpells.has(normSpellName(s.spell_name))) set.add(s.id)
+    }
     return set
-  }, [draft.levels])
+  }, [draft.levels, opts.knownSpells, allSpells])
 
   const classSpells = useMemo(() => {
     const name = className.toLocaleLowerCase('ru')
@@ -228,7 +256,7 @@ export default function LevelUpStep({
 
   /* ---------- проверка готовности уровня ---------- */
 
-  const hpReady = level === 1 || choice.hpRoll != null
+  const hpReady = maxFirst || choice.hpRoll != null
   const skillsReady = choice.skills.length === req.skillsNeeded
   const subclassReady = !req.needsSubclass || draft.subclass !== null
   const asiReady =
@@ -253,7 +281,7 @@ export default function LevelUpStep({
 
   /* ---------- приём уровня и сцены награды ---------- */
 
-  const hpGain = Math.max(1, hitPointsForLevel(choice, hitDie) + conMod)
+  const hpGain = Math.max(1, (maxFirst ? hitDie : (choice.hpRoll ?? averageHitDie(hitDie))) + conMod)
 
   // что раса и подкласс дают именно на этом уровне
   const grantedNow = granted.filter(
@@ -262,7 +290,7 @@ export default function LevelUpStep({
 
   // требования черт проверяем на тот уровень, где черта берётся
   const prereqContext: PrereqContext = {
-    level,
+    level: charLevel,
     scores,
     raceName: draft.race?.race_name ?? '',
     subraceName: draft.subrace?.subrace_name ?? '',
@@ -343,7 +371,7 @@ export default function LevelUpStep({
 
   if (!choice) return null
 
-  const hpValue = level === 1 ? hitDie : (choice.hpRoll ?? averageHitDie(hitDie))
+  const hpValue = maxFirst ? hitDie : (choice.hpRoll ?? averageHitDie(hitDie))
 
   return (
     <div className="cw-step cw-step--levelup">
@@ -353,6 +381,7 @@ export default function LevelUpStep({
       />
 
       {/* дорога уровней: золото заливает линию до последнего принятого */}
+      {!opts.onlyLatest && (
       <nav
         className="cw-climb"
         aria-label="Уровни"
@@ -378,6 +407,7 @@ export default function LevelUpStep({
           </button>
         ))}
       </nav>
+      )}
 
       <div className="cw-lvl">
         <header className="cw-lvl-hero">
@@ -390,7 +420,7 @@ export default function LevelUpStep({
           <div className="cw-lvl-title">
             <b className="gold-text">{className}</b>
             <span>
-              бонус мастерства +{proficiencyBonus(level)}
+              {opts.characterLevel ? `${opts.characterLevel} ур. героя · ` : ''}бонус мастерства +{proficiencyBonus(charLevel)}
               {draft.subclass && level >= subclassLevel ? ` · ${draft.subclass.subclass_name}` : ''}
             </span>
           </div>
@@ -410,7 +440,7 @@ export default function LevelUpStep({
           <h4 className="cw-block-title">
             <Heart aria-hidden="true" /> Хиты
           </h4>
-          {level === 1 ? (
+          {maxFirst ? (
             <>
               <HpEquation die={hitDie} value={hitDie} conMod={conMod} total={hpGain} />
               <p className="cw-block-note">Первый уровень всегда даёт максимум кости хитов.</p>

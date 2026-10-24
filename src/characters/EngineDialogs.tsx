@@ -1,14 +1,15 @@
 /**
  * Окна игровых операций: короткий отдых (сколько костей хитов тратить),
- * повышение уровня (класс, подкласс, хиты и список изменений), журнал
- * действий с отменой последнего и плашка отложенных решений над листом.
+ * журнал действий (панель справа) и журнал хитов с отменой последнего,
+ * плашка отложенных решений над листом. Повышение уровня — отдельный мастер
+ * (create/LevelUpWizard).
  */
-import { useEffect, useMemo, useState } from 'react'
-import { BellRing, Check, Coffee, Dices, GraduationCap, Loader2, ScrollText, Undo2, X } from 'lucide-react'
-import { getSubList, listEvents, type GameClass, type Subclass } from '../api'
-import { useDice } from '../dice/diceControl'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { BellRing, Check, Coffee, Loader2, ScrollText, Undo2, X } from 'lucide-react'
+import { listEvents } from '../api'
 import type { Character, CharacterEvent, PendingDecision, Sheet } from '../types/character'
-import { Segmented, Stepper } from './editorFields'
+import { Stepper } from './editorFields'
 import { SheetModal } from './SheetModal'
 import { classSlugs, valuesOf, type Names } from './sheetView'
 
@@ -84,200 +85,6 @@ export function ShortRestDialog({
   )
 }
 
-/* ---------- повышение уровня ---------- */
-
-/** «+ phb14.druid.wild_shape» → «Wild shape» с плюсом; минус — снятое умение */
-function changeRow(change: string) {
-  const m = /^([+\-−])\s*(.+)$/.exec(change.trim())
-  const sign = m?.[1] === '+' ? '+' : m ? '−' : ''
-  const slug = m?.[2] ?? change
-  const name = slug.split('.').pop()?.replace(/_/g, ' ') ?? slug
-  return { sign, name: name.charAt(0).toUpperCase() + name.slice(1), slug }
-}
-
-export function LevelUpDialog({
-  character,
-  names,
-  classes,
-  onLevelUp,
-  onClose,
-}: {
-  character: Character
-  names: Names
-  classes: GameClass[]
-  onLevelUp: (body: { class_id: string; subclass_id?: string | null; hp_roll?: number | null }) => Promise<string[] | null>
-  onClose: () => void
-}) {
-  const dice = useDice()
-  const total = character.classes.reduce((s, c) => s + c.level, 0)
-  const [classId, setClassId] = useState(character.classes[0]?.class_id ?? '')
-  const [subclassId, setSubclassId] = useState<string | null>(null)
-  const [hpMode, setHpMode] = useState<'average' | 'roll'>('average')
-  const [hpRoll, setHpRoll] = useState<number | null>(null)
-  const [subclasses, setSubclasses] = useState<Subclass[]>([])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [changes, setChanges] = useState<string[] | null>(null)
-
-  const cls = classes.find((c) => c.id === classId) ?? null
-  const own = character.classes.find((c) => c.class_id === classId)
-  const nextLevel = (own?.level ?? 0) + 1
-  const subLevel = cls?.subclass_level ?? 3
-  const needSubclass = !own?.subclass_id && nextLevel >= subLevel
-  const die = cls?.hit_dice ?? 8
-
-  useEffect(() => {
-    setSubclassId(null)
-    setHpRoll(null)
-    if (!classId) return
-    let alive = true
-    getSubList<Subclass>('classes', classId, 'subclasses')
-      .then((list) => alive && setSubclasses(list))
-      .catch(() => alive && setSubclasses([]))
-    return () => {
-      alive = false
-    }
-  }, [classId])
-
-  // свои классы — первыми; остальное — мультикласс
-  const options = useMemo(() => {
-    const mine = new Set(character.classes.map((c) => c.class_id))
-    return [...classes].sort((a, b) => Number(mine.has(b.id)) - Number(mine.has(a.id)) || a.class_name.localeCompare(b.class_name, 'ru'))
-  }, [classes, character.classes])
-
-  const roll = async () => {
-    try {
-      const [v] = await dice.roll(`1d${die}`)
-      setHpRoll(v)
-    } catch {
-      setHpRoll(1 + Math.floor(Math.random() * die))
-    }
-  }
-
-  const submit = async () => {
-    setBusy(true)
-    setError(null)
-    const res = await onLevelUp({
-      class_id: classId,
-      subclass_id: needSubclass ? subclassId : undefined,
-      hp_roll: hpMode === 'roll' ? hpRoll : null,
-    })
-    setBusy(false)
-    if (res) setChanges(res)
-    else setError('Не удалось повысить уровень — подробности над листом.')
-  }
-
-  if (changes) {
-    const rows = changes.map(changeRow)
-    return (
-      <SheetModal
-        title={`Уровень ${total + 1}`}
-        kicker={cls ? `${cls.class_name} ${nextLevel}` : undefined}
-        tone="level"
-        visual={<GraduationCap className="cw-smodal-glyph" aria-hidden="true" />}
-        onClose={onClose}
-        actions={
-          <button type="button" className="cs-btn cw-next" onClick={onClose}>
-            Готово
-          </button>
-        }
-      >
-        {rows.length === 0 ? (
-          <p className="act-desc">Новых умений на этом уровне нет.</p>
-        ) : (
-          <ul className="eng-changes">
-            {rows.map((r) => (
-              <li key={r.slug} className={r.sign === '+' ? 'is-add' : r.sign ? 'is-del' : ''} title={r.slug}>
-                <b>{r.sign}</b> {r.name}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="cw-field-note">Если умения требуют выбора, он появится плашкой «Требует решения» над листом.</p>
-      </SheetModal>
-    )
-  }
-
-  return (
-    <SheetModal
-      title="Повышение уровня"
-      kicker={`сейчас ${total} ур.`}
-      tone="level"
-      visual={<GraduationCap className="cw-smodal-glyph" aria-hidden="true" />}
-      onClose={onClose}
-      actions={
-        <>
-          <button type="button" className="cs-btn cs-btn--ghost" onClick={onClose}>
-            Отмена
-          </button>
-          <button
-            type="button"
-            className="cs-btn cw-next"
-            disabled={busy || total >= 20 || !classId || (needSubclass && subclasses.length > 0 && !subclassId) || (hpMode === 'roll' && hpRoll == null)}
-            onClick={() => void submit()}
-          >
-            {busy ? <Loader2 className="cw-spin" aria-hidden="true" /> : <Check aria-hidden="true" />} Повысить
-          </button>
-        </>
-      }
-    >
-      {total >= 20 && <p className="act-message">Герой уже 20 уровня.</p>}
-      <div className="act-form">
-        <label className="act-field">
-          <span className="act-label">Класс</span>
-          <select className="ed-input ed-select" value={classId} onChange={(e) => setClassId(e.target.value)}>
-            {options.map((c) => {
-              const lvl = character.classes.find((x) => x.class_id === c.id)?.level
-              return (
-                <option key={c.id} value={c.id}>
-                  {c.class_name} {lvl ? `${lvl} → ${lvl + 1}` : '— мультикласс'}
-                </option>
-              )
-            })}
-          </select>
-        </label>
-
-        {needSubclass && (
-          <label className="act-field">
-            <span className="act-label">Подкласс</span>
-            <span className="act-hint">выбирается на {subLevel} уровне класса</span>
-            <select className="ed-input ed-select" value={subclassId ?? ''} onChange={(e) => setSubclassId(e.target.value || null)}>
-              <option value="">— выберите —</option>
-              {subclasses.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.subclass_name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {own?.subclass_id && <p className="cw-field-note">Подкласс: {names.subclass(own.subclass_id) ?? '—'}</p>}
-
-        <div className="act-field">
-          <span className="act-label">Хиты за уровень</span>
-          <span className="act-hint">к{die}; Телосложение прибавит сервер</span>
-          <span className="eng-hp">
-            <Segmented
-              value={hpMode}
-              onChange={setHpMode}
-              options={[
-                { value: 'average', label: `среднее (${Math.floor(die / 2) + 1})` },
-                { value: 'roll', label: 'бросок' },
-              ]}
-            />
-            {hpMode === 'roll' && (
-              <button type="button" className="cw-mini-btn" onClick={() => void roll()} disabled={dice.rolling}>
-                <Dices aria-hidden="true" /> {hpRoll == null ? `бросить к${die}` : `выпало ${hpRoll} — перебросить`}
-              </button>
-            )}
-          </span>
-        </div>
-        {error && <p className="act-message">{error}</p>}
-      </div>
-    </SheetModal>
-  )
-}
-
 /* ---------- журнал ---------- */
 
 const clock = (iso: string) => {
@@ -287,26 +94,43 @@ const clock = (iso: string) => {
   return today ? time : `${d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })}, ${time}`
 }
 
-export function JournalModal({
+/** Виды событий журнала хитов: урон, лечение, временные хиты, отдых */
+export const HP_EVENT_KINDS = new Set(['hp', 'rest'])
+
+const KIND_LABEL: Record<string, string> = {
+  action: 'действие',
+  hp: 'хиты',
+  rest: 'отдых',
+  event: 'ход',
+  pending: 'выбор',
+  level_up: 'уровень',
+  attach: 'умение',
+  detach: 'умение',
+  toggle: 'умение',
+  sync: 'умения',
+  override: 'мастер',
+}
+
+/** Лента событий: новые первыми, отменить можно только верхнюю неотменённую */
+function JournalList({
   characterId,
   revision,
   canUndo,
   onUndo,
-  onClose,
+  filter,
 }: {
   characterId: string
-  /** ревизия листа: журнал перечитывается после каждого действия и отмены */
   revision: number
   canUndo: boolean
   onUndo: (eventId: string) => void
-  onClose: () => void
+  filter?: (ev: CharacterEvent) => boolean
 }) {
   const [events, setEvents] = useState<CharacterEvent[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
-    listEvents(characterId, 50)
+    listEvents(characterId, 100)
       .then((list) => alive && setEvents(list))
       .catch((e) => alive && setError(errorText(e)))
     return () => {
@@ -314,33 +138,23 @@ export function JournalModal({
     }
   }, [characterId, revision])
 
-  // отменить можно только верхнюю, ещё не отменённую запись
   const top = events?.[0]
+  const shown = events?.filter((ev) => !filter || filter(ev)) ?? null
   return (
-    <SheetModal
-      title="Журнал"
-      kicker="действия, отдых, уровни"
-      tone="journal"
-      visual={<ScrollText className="cw-smodal-glyph" aria-hidden="true" />}
-      onClose={onClose}
-      actions={
-        <button type="button" className="cs-btn cw-next" onClick={onClose}>
-          Закрыть
-        </button>
-      }
-    >
+    <>
       {error && <p className="act-message">{error}</p>}
       {!events && !error && (
         <p className="muted act-wait">
           <Loader2 className="cw-spin" aria-hidden="true" /> Загрузка…
         </p>
       )}
-      {events?.length === 0 && <p className="cw-field-note">Пока пусто.</p>}
-      {events && events.length > 0 && (
+      {shown?.length === 0 && <p className="cw-field-note">Пока пусто.</p>}
+      {shown && shown.length > 0 && (
         <ol className="eng-journal">
-          {events.map((ev) => (
-            <li key={ev.id} className={ev.undone ? 'is-undone' : ''}>
+          {shown.map((ev) => (
+            <li key={ev.id} className={`${ev.undone ? 'is-undone' : ''} is-${ev.kind}`}>
               <header>
+                <span className="eng-journal-kind">{KIND_LABEL[ev.kind] ?? ev.kind}</span>
                 <b>{ev.label}</b>
                 <time>{clock(ev.created_at)}</time>
                 {ev.undone && <em>отменено</em>}
@@ -363,7 +177,63 @@ export function JournalModal({
           ))}
         </ol>
       )}
+    </>
+  )
+}
+
+interface JournalProps {
+  characterId: string
+  /** ревизия листа: журнал перечитывается после каждого действия и отмены */
+  revision: number
+  canUndo: boolean
+  onUndo: (eventId: string) => void
+  onClose: () => void
+}
+
+/** Журнал хитов — окно у шестигранника: только урон, лечение и отдых */
+export function JournalModal(props: JournalProps) {
+  return (
+    <SheetModal
+      title="Журнал хитов"
+      kicker="урон, лечение, отдых"
+      tone="journal"
+      visual={<ScrollText className="cw-smodal-glyph" aria-hidden="true" />}
+      onClose={props.onClose}
+      actions={
+        <button type="button" className="cs-btn cw-next" onClick={props.onClose}>
+          Закрыть
+        </button>
+      }
+    >
+      <JournalList {...props} filter={(ev) => HP_EVENT_KINDS.has(ev.kind)} />
     </SheetModal>
+  )
+}
+
+/** Журнал действий — панель справа: всё, что делал герой, с отменой последнего */
+export function JournalDrawer(props: JournalProps) {
+  const { onClose } = props
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return createPortal(
+    <div className="jr-layer" onClick={onClose}>
+      <aside className="jr-drawer" role="dialog" aria-label="Журнал действий" onClick={(e) => e.stopPropagation()}>
+        <header className="jr-head">
+          <ScrollText aria-hidden="true" />
+          <b>Журнал действий</b>
+          <button type="button" className="cw-mini-btn" onClick={onClose} aria-label="Закрыть">
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <div className="jr-body">
+          <JournalList {...props} />
+        </div>
+      </aside>
+    </div>,
+    document.body,
   )
 }
 

@@ -1,9 +1,14 @@
-/** Шаг 1 — раса: карточки как в каталоге рас, подробности — в попапе. */
+/**
+ * Шаг 1 — раса: карточки как в каталоге рас, подробности — в попапе.
+ * Самостоятельные подрасы (`replaces_race`: дуэргар MPMM, альтернативный
+ * человек, марки Эберрона) идут отдельными карточками: черты базовой расы к
+ * ним не применяются, поэтому выбирать их на шаге подрасы было бы неверно.
+ */
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Eye, Footprints, GitFork, Ruler, VenetianMask } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ABILITY_RU, realImage, sizeRu } from '../../api'
-import type { Race } from '../../api'
+import type { Race, Subrace } from '../../api'
 import { RaceDetailBody } from '../../pages/DetailPages'
 import { useBookWorld } from '../../worldArt'
 import type { StepProps } from '../draft'
@@ -144,9 +149,36 @@ function RaceModal({
   )
 }
 
+/** id карточки самостоятельной подрасы в общей сетке */
+const SUB = 'sub:'
+
+/** Самостоятельная подраса как карточка расы: свои бонусы, размер и скорость */
+function standaloneRace(sr: Subrace, parent: Race): Race {
+  return {
+    ...parent,
+    id: `${SUB}${sr.id}`,
+    race_name: sr.subrace_name,
+    description: sr.description ?? sr.traits ?? parent.description,
+    increase_ability_scores: sr.increase_ability_scores ?? {},
+    size: sr.size ?? parent.size,
+    speed: sr.speed ?? parent.speed,
+    darkvision: sr.darkvision_override ?? parent.darkvision,
+    book_source_id: sr.book_source_id ?? parent.book_source_id,
+  }
+}
+
 export default function RaceStep({ draft, update }: StepProps) {
-  const { items, loading, error } = useCatalogList<Race>('races')
-  const raceIds = useMemo(() => items.map((r) => r.id), [items])
+  const { items: races, loading, error } = useCatalogList<Race>('races')
+  const { items: subraces } = useCatalogList<Subrace>('subraces')
+  // самостоятельные подрасы — рядом с расами, со ссылкой на родителя
+  const standalone = useMemo(() => {
+    const byId = new Map(races.map((r) => [r.id, r]))
+    return subraces
+      .filter((sr) => sr.replaces_race && byId.has(sr.parent_race_id))
+      .map((sr) => ({ card: standaloneRace(sr, byId.get(sr.parent_race_id)!), sub: sr, parent: byId.get(sr.parent_race_id)! }))
+  }, [races, subraces])
+  const items = useMemo(() => [...races, ...standalone.map((x) => x.card)], [races, standalone])
+  const raceIds = useMemo(() => races.map((r) => r.id), [races])
   const withSubraces = useRacesWithSubraces(raceIds)
   const [open, setOpen] = useState<Race | null>(null)
 
@@ -183,9 +215,21 @@ export default function RaceStep({ draft, update }: StepProps) {
   const picker = usePicker(items, raceName, groups)
   const close = useCallback(() => setOpen(null), [])
 
+  const variantOf = (race: Race) => standalone.find((x) => x.card.id === race.id)
+  const isSelected = (race: Race) => {
+    const v = variantOf(race)
+    return v ? draft.subrace?.id === v.sub.id : draft.race?.id === race.id && !draft.subrace?.replaces_race
+  }
+
   const choose = (race: Race) => {
-    // смена расы сбрасывает подрасу — она привязана к родителю
-    if (draft.race?.id !== race.id) update({ race, subrace: null })
+    const v = variantOf(race)
+    if (v) {
+      // самостоятельная подраса: раса-родитель + сама подраса, шаг подрасы не нужен
+      update({ race: v.parent, subrace: v.sub })
+    } else if (draft.race?.id !== race.id || draft.subrace?.replaces_race) {
+      // смена расы сбрасывает подрасу — она привязана к родителю
+      update({ race, subrace: null })
+    }
     setOpen(null)
   }
 
@@ -204,7 +248,7 @@ export default function RaceStep({ draft, update }: StepProps) {
             key={race.id}
             race={race}
             hasSubraces={withSubraces.has(race.id)}
-            selected={draft.race?.id === race.id}
+            selected={isSelected(race)}
             onSelect={() => choose(race)}
             onDetails={() => setOpen(race)}
           />
@@ -214,7 +258,7 @@ export default function RaceStep({ draft, update }: StepProps) {
       {open && (
         <RaceModal
           race={open}
-          selected={draft.race?.id === open.id}
+          selected={isSelected(open)}
           onChoose={() => choose(open)}
           onClose={close}
         />

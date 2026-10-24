@@ -73,7 +73,8 @@ export function racialBonuses(draft: CharacterDraft): Partial<Record<AbilityName
       out[key] = (out[key] ?? 0) + value
     }
   }
-  add(draft.race?.increase_ability_scores)
+  // самостоятельная подраса заменяет расу целиком — бонусы расы не применяются
+  if (!draft.subrace?.replaces_race) add(draft.race?.increase_ability_scores)
   add(draft.subrace?.increase_ability_scores)
   return out
 }
@@ -205,7 +206,7 @@ export function buildCharacter({
   base.combat.hit_points.max = maxHitPoints(draft, hitDie, scores.constitution)
   base.combat.hit_points.current = base.combat.hit_points.max
   base.combat.hit_dice = { total: `${level}d${hitDie}`, remaining: level }
-  base.combat.speed = (draft.race?.speed ?? 30) + (draft.subrace?.speed_bonus ?? 0)
+  base.combat.speed = (draft.subrace?.speed ?? draft.race?.speed ?? 30) + (draft.subrace?.speed_bonus ?? 0)
   base.combat.initiative = dexMod
   base.combat.passive_perception =
     10 + wisMod + (base.skills.perception?.proficient ? pb : 0)
@@ -424,15 +425,14 @@ export function subclassLevel(draft: CharacterDraft): number {
 }
 
 /**
- * Тело создания персонажа v2. Характеристики — без расовых бонусов (их добавит
- * сервер), но с усилениями уровней: у движка они пока только текстом, иначе
- * выбор игрока потерялся бы. Снаряжение, атаки и заклинания берутся из
- * предпросмотра — это описательные блоки документа.
+ * Тело создания персонажа v2. Характеристики — базовые, без расовых бонусов и
+ * без усилений уровней: и то и другое добавит сервер (ASI — отложенным
+ * выбором, на который визард ответит сам, см. autoDecisions). Снаряжение,
+ * атаки и заклинания берутся из предпросмотра — это описательные блоки документа.
  */
 export function draftToInput(draft: CharacterDraft, preview: SheetView): CharacterInput {
-  const asi = asiTotals(draft.levels)
   const base_scores = Object.fromEntries(
-    ABILITY_KEYS.map((k) => [ABILITY_SHORT[k], Math.min(20, scoreOf(draft.baseScores, k) + (asi[k] ?? 0))]),
+    ABILITY_KEYS.map((k) => [ABILITY_SHORT[k], scoreOf(draft.baseScores, k)]),
   ) as CharacterInput['base_scores']
   const age = parseInt(draft.age, 10)
   return {

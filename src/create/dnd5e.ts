@@ -406,6 +406,15 @@ export function classSkillChoice(className: string): SkillChoice {
   return CLASS_SKILLS[classKey(className)] ?? { count: 2, options: ALL_SKILL_KEYS }
 }
 
+/**
+ * Сколько навыков даёт первый уровень класса при мультиклассе (PHB, гл. 6):
+ * бард — один любой, плут и следопыт — один из своего списка, остальные — ни одного.
+ */
+export function multiclassSkillCount(className: string): number {
+  const k = classKey(className)
+  return k === 'бард' || k === 'плут' || k === 'следопыт' ? 1 : 0
+}
+
 /** Модификатор характеристики */
 export function abilityMod(score: number): number {
   return Math.floor((score - 10) / 2)

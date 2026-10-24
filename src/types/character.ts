@@ -65,12 +65,16 @@ export type AttackEntry = {
 
 export type FeatureEntry = {
   name: string
-  source: 'class' | 'subclass' | 'race' | 'subrace' | 'background' | 'feat' | 'other'
+  /** choice — выдана другим выбором (боевой стиль, воззвание); item — надетым предметом */
+  source: 'class' | 'subclass' | 'race' | 'subrace' | 'background' | 'feat' | 'choice' | 'item' | 'other'
   level?: number | null
   description: string
   feature_source?: string | null
-  /** умение движка: grant_id, статус автоматизации и активно ли сейчас */
+  /** умение движка: grant_id, slug, статус автоматизации и активно ли сейчас */
   grant_id?: string
+  slug?: string
+  /** отключено игроком: сервер не выдаёт его в листе, но в списке оно остаётся */
+  disabled?: boolean
   implementation_status?: string
   active?: boolean
 }
@@ -179,6 +183,36 @@ export type SheetView = {
   notes: string
   /** «откуда число»: вклады по пути значения (только у листа с сервера) */
   breakdown?: Record<string, Contribution[]>
+  /** slug способности → её название: подписи вкладов в расшифровке */
+  sourceNames?: Record<string, string>
+  /** значения, которые выдают способности движка (у предпросмотра визарда нет) */
+  extras?: EngineExtras
+}
+
+/** Природное оружие и особые атаки способностей: когти, укус, клинки души */
+export type NaturalAttack = { name: string; dice: string; type?: string; ability?: string; note?: string }
+
+/** Заклинание от расы, подкласса или черты: «всегда подготовлено», «1/продолжительный отдых» */
+export type GrantedSpell = { name: string; level?: number; ability?: string; uses?: string; note?: string }
+
+export type EngineExtras = {
+  /** атак за действие «Атака» */
+  perAction: number
+  /** крит от этого значения к20 */
+  critMin: number
+  /** кость безоружного удара; 1 — без кости */
+  unarmedDie: number
+  maneuvers: string[]
+  /** особые правила-напоминания: char.flags.* */
+  flags: { key: string; label: string }[]
+  /** вычисляемые величины способностей: var.* */
+  vars: { key: string; label: string; value: string }[]
+  /** теги преимущества и помехи: ['str'] в ярости, ['melee_str'] у Безрассудной атаки */
+  adv: { check: string[]; save: string[]; attack: string[] }
+  disadv: { check: string[]; save: string[]; attack: string[] }
+  /** бонусы к атаке и урону по тегам: char.attack_bonus.ranged, char.dmg_bonus.melee_str (Ярость) */
+  attackBonus: Record<string, number>
+  dmgBonus: Record<string, number>
 }
 
 export type Personality = { traits: string; ideals: string; bonds: string; flaws: string }
@@ -222,6 +256,8 @@ export type PendingDecision = {
   kind: 'choice' | 'listener'
   grant_id: string
   label: string
+  /** ключ выбора способности; поп-ап ответа приходит с ключом `choice:<choice_key>` */
+  choice_key?: string | null
 }
 
 export type Character = {
@@ -375,6 +411,12 @@ export type PromptInput = {
   count?: number | null
   default?: unknown
   options?: PromptOption[] | null
+  /** ответ — массив, даже если type не multi_choice (spell, ability с count > 1) */
+  multiple?: boolean
+  /** варианты отобраны условием: пустой список — «нет подходящих», не ошибка */
+  filtered?: boolean
+  /** условие видимости по ответам этого поп-апа: `input.mode == 'plus11'` */
+  visible_if?: string | null
 }
 
 export type Prompt = {

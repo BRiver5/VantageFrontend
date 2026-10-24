@@ -1,5 +1,6 @@
 /** Состояние листа «до отдыха»: потраченные ячейки и расовая магия */
 import type { SheetView } from '../types/character'
+import type { RollContext } from './rollBonuses'
 
 /** Правка полей листа, которые хранит документ: записи, кошелёк, инвентарь */
 export type SheetPatch = (fn: (c: SheetView) => SheetView) => void
@@ -59,8 +60,9 @@ export interface SheetRoller {
   rolling: boolean
   /** атака, у которой выпала натуральная 20: её следующий урон — критический */
   critFor: string | null
-  rollD20: (label: string, bonus: number, attackKey?: string) => Promise<number | null>
-  rollDamage: (label: string, formula: string, attackKey: string) => Promise<void>
+  /** ctx — что за бросок: по нему выбираются преимущество и карточки бонусов */
+  rollD20: (label: string, bonus: number, attackKey?: string, ctx?: RollContext) => Promise<number | null>
+  rollDamage: (label: string, formula: string, attackKey: string, ctx?: RollContext) => Promise<void>
   rollDice: (label: string, n: number, sides: number, bonus: number) => Promise<number[] | null>
   /** запись в историю без броска (сотворено заклинание, отдых) */
   note: (total: string, label: string) => void

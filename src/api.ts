@@ -1,3 +1,4 @@
+import type { AbilityRef } from './abilities/abilityData'
 import { clearAccessToken, getAccessToken, TOKEN_EXPIRED_EVENT } from './auth/token'
 import type {
   LoginBody,
@@ -62,6 +63,30 @@ type RequestOpts = {
 }
 
 /**
+ * Текст ошибки FastAPI: строка как есть, ошибки валидации (422) — списком
+ * «поле: сообщение», а не «[object Object]».
+ */
+function detailText(detail: unknown): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e) => {
+        if (!e || typeof e !== 'object') return String(e)
+        const { loc, msg } = e as { loc?: unknown[]; msg?: string }
+        const field = (loc ?? []).filter((x) => x !== 'body').join('.')
+        return field ? `${field}: ${msg ?? ''}` : (msg ?? '')
+      })
+      .join('; ')
+  }
+  return JSON.stringify(detail)
+}
+
+/** Сервер ещё на старой схеме персонажа (v1): ждёт basic_info и т.п. */
+export function isLegacySchemaError(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 422 && /basic_info|ability_scores|combat/.test(e.message)
+}
+
+/**
  * Универсальный fetch к API. Каталог по-прежнему может использовать fetchPage/getOne;
  * auth и characters — через request().
  */
@@ -104,11 +129,8 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
   }
 
   if (!res.ok) {
-    const detail =
-      data && typeof data === 'object' && data !== null && 'detail' in data
-        ? String((data as { detail: unknown }).detail)
-        : `${path}: ${res.status}`
-    throw new ApiError(detail, res.status, data)
+    const raw = data && typeof data === 'object' && 'detail' in data ? (data as { detail: unknown }).detail : null
+    throw new ApiError(raw != null ? detailText(raw) : `${path}: ${res.status}`, res.status, data)
   }
 
   return data as T
@@ -216,6 +238,20 @@ export function rest(id: string, kind: 'short' | 'long', hitDice: Record<string,
   })
 }
 
+export type VitalsOp = 'damage' | 'heal' | 'temp' | 'inspiration' | 'death_save'
+
+/**
+ * Хиты от игрока: урон (с типом — учтутся сопротивления и облик), лечение,
+ * временные хиты, вдохновение (amount — прибавка, может быть отрицательной),
+ * спасброски от смерти (amount — новое значение дорожки success/failure).
+ */
+export function applyVitals(
+  id: string,
+  body: { op: VitalsOp; amount: number; damage_type?: string | null; success?: boolean },
+): Promise<RunResult> {
+  return request<RunResult>(ch(id, '/vitals'), { method: 'POST', body, auth: true })
+}
+
 export type TurnEvent = 'turn.start' | 'turn.end' | 'combat.start' | 'combat.end'
 
 export function sendEvent(id: string, name: TurnEvent, payload: Record<string, unknown> = {}): Promise<RunResult> {
@@ -291,6 +327,23 @@ export interface EngineDictionaries {
   classes: { value: string; label: string }[]
 }
 
+/** Словари и подписи переменных персонажа: var.sneak_attack_dice → «Кости скрытой атаки» */
+export interface EngineCatalog {
+  dictionaries: EngineDictionaries | null
+  labels: Record<string, string>
+}
+
+/** Каталог с переменными, которые объявили способности этого персонажа */
+export async function getEngineCatalog(characterId: string): Promise<EngineCatalog> {
+  const c = await request<{ dictionaries?: EngineDictionaries; paths?: { path: string; label?: string }[] }>(
+    `/engine/catalog?character_id=${encodeURIComponent(characterId)}`,
+    { auth: 'optional' },
+  )
+  const labels: Record<string, string> = {}
+  for (const p of c.paths ?? []) if (p.label) labels[p.path] = p.label
+  return { dictionaries: c.dictionaries ?? null, labels }
+}
+
 let dictionariesPromise: Promise<EngineDictionaries | null> | null = null
 
 export function getEngineDictionaries(): Promise<EngineDictionaries | null> {
@@ -363,6 +416,8 @@ export interface GameClass {
   slug?: string | null
   /** уровень, на котором выбирается подкласс */
   subclass_level?: number | null
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Subclass {
@@ -375,6 +430,8 @@ export interface Subclass {
   level_available: number | null
   is_caster: boolean
   book_source_id: string | null
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Subrace {
@@ -391,11 +448,23 @@ export interface Subrace {
   swimming_speed: number
   climbing_speed: number
   book_source_id: string | null
+  slug?: string | null
+  /** базовая скорость и размер подрасы, если отличаются от расы */
+  speed?: number | null
+  size?: string | null
+  /**
+   * Самостоятельный вариант (дуэргар MPMM, альтернативный человек, марки
+   * Эберрона): черты и характеристики базовой расы не применяются
+   */
+  replaces_race?: boolean
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Race {
   id: string
   race_name: string
+  slug?: string | null
   description: string | null
   image_gallery: string[] | null
   increase_ability_scores: Record<string, number> | null
@@ -410,6 +479,8 @@ export interface Race {
   age_of_adulthood: number | null
   max_age: number | null
   book_source_id: string | null
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Spell {
@@ -492,6 +563,8 @@ export interface Feat {
   increase_ability_scores: Record<string, number> | null
   image_gallery: string[] | null
   book_source_id: string | null
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Item {
@@ -661,6 +734,8 @@ export interface Background {
   feature_description: string | null
   image_gallery: string[] | null
   book_source_id: string | null
+  /** способности, которые источник выдаёт персонажу (slug и уровень) */
+  abilities?: AbilityRef[] | null
 }
 
 export interface Paged<T> {

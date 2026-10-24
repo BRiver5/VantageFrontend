@@ -77,6 +77,7 @@ import {
 import { EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
+import { AbilityList } from '../abilities/AbilityList'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
 import { ClassArticle, OpenLinksInNewTab, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
@@ -1127,6 +1128,11 @@ export function ClassDetailView({
             )}
           </>
         )}
+        {(c.abilities?.length ?? 0) > 0 && (
+          <DetailSection title="Способности и механика">
+            <AbilityList refs={c.abilities} />
+          </DetailSection>
+        )}
         {subclasses.length > 0 && (
           <div ref={subsRef}>
             <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
@@ -1289,6 +1295,12 @@ export function RaceDetailBody({
         </DetailSection>
       )}
 
+{(r.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={r.abilities} />
+        </DetailSection>
+      )}
+
       {subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
           <div className="subrace-grid">
@@ -1441,6 +1453,11 @@ export function SubclassDetailPage() {
           <Rich text={sc.description} />
         </DetailSection>
       )}
+      {(sc.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={sc.abilities} />
+        </DetailSection>
+      )}
     </DetailShell>
   )
 }
@@ -1520,6 +1537,11 @@ export function SubraceDetailPage() {
           <div className="card-chips">
             {sr.extra_languages.map((l) => <Chip key={l} icon={Users}>{l}</Chip>)}
           </div>
+        </DetailSection>
+      )}
+      {(sr.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={sr.abilities} />
         </DetailSection>
       )}
     </DetailShell>
@@ -1694,6 +1716,12 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
         </DetailSection>
       )}
 
+      {(bg.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={bg.abilities} />
+        </DetailSection>
+      )}
+
       {descHtml ? (
         // размеченное описание с dnd.su (таблицы, черты предыстории, списки)
         <section className="detail-section">
@@ -1781,6 +1809,12 @@ export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: bo
       </header>
 
       <Divider />
+
+      {(f.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={f.abilities} />
+        </DetailSection>
+      )}
 
       {descHtml ? (
         // размеченное описание с dnd.su (таблицы, списки, секции)

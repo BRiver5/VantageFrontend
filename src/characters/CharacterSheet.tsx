@@ -13,7 +13,7 @@
  * кошелёк и записи. Всё, что бросается, бросается кликом — общими 3D-костями,
  * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Award,
@@ -24,6 +24,7 @@ import {
   Crosshair,
   Dices,
   Eye,
+  EyeOff,
   Footprints,
   Hand,
   Heart,
@@ -32,6 +33,7 @@ import {
   Shield,
   ShieldCheck,
   Sparkles,
+  Star,
   Swords,
   Trash2,
   UserRound,
@@ -47,6 +49,8 @@ import { DIE_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { useCatalogList } from '../create/useCatalog'
 import { Corners } from '../ornaments'
 import { RichText } from '../terms/terms'
+import { AbilityText, parseAbilityText } from '../abilities/AbilityText'
+import { useAbility } from '../abilities/abilityData'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
 import type { AbilityName, AttackEntry, InventoryItemInstance, LogEntry, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
@@ -58,8 +62,12 @@ import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
 import type { FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay, SheetRoller } from './sheetPlay'
-import { EnginePanel, type EngineView } from './EnginePanel'
-import { abilityPath, whyText } from './sheetView'
+import { attackTags, d20Cards, rollMode, tagBonus, tagCards, type RollContext, type RollMode } from './rollBonuses'
+import { RollTheater, type RollReaction, type RollSpec } from '../dice/theater/RollTheater'
+import { ActionButton, activeStates, EnginePanel, type EngineView } from './EnginePanel'
+import { ResourceBand } from './ResourceBand'
+import { abilityPath } from './sheetView'
+import { WhyDot, WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
 
@@ -158,6 +166,8 @@ const SOURCE_LABEL: Record<string, string> = {
   subrace: 'особенность подрасы',
   background: 'умение предыстории',
   feat: 'черта',
+  choice: 'выбор',
+  item: 'от предмета',
   other: 'умение',
 }
 
@@ -168,10 +178,27 @@ const SOURCE_GROUPS: { title: string; sources: string[] }[] = [
   { title: 'Раса', sources: ['race', 'subrace'] },
   { title: 'Предыстория', sources: ['background'] },
   { title: 'Черты', sources: ['feat'] },
+  { title: 'Выбранные: стили, воззвания, предметы договора', sources: ['choice'] },
+  { title: 'Предметы', sources: ['item'] },
   { title: 'Прочее', sources: ['other'] },
 ]
 
 /* ---------- мелкие кирпичи ---------- */
+
+/** Текст умения: у способностей движка — опрятный, со ссылками и сводкой механики */
+function FeatureText({ row }: { row: FeatureRow }) {
+  const ability = useAbility(row.slug)
+  if (!row.slug) return row.text ? <RichText text={row.text} /> : <p className="cw-field-note">Описания нет.</p>
+  return (
+    <>
+      {row.text || ability?.description ? (
+        <AbilityText text={row.text || ability?.description} />
+      ) : (
+        <p className="cw-field-note">Описания нет.</p>
+      )}
+    </>
+  )
+}
 
 function Card({
   title,
@@ -266,8 +293,11 @@ interface FeatureRow {
   title: string
   sub: string
   text: string
-  /** умение движка: можно включить или отключить */
+  /** умение движка: можно включить или отключить, у него свои действия и ресурсы */
   grantId?: string
+  slug?: string
+  /** отключено игроком: бонусы не действуют, но умение остаётся в списке */
+  disabled?: boolean
   status?: string
   active?: boolean
 }
@@ -307,7 +337,7 @@ export interface CharacterSheetProps {
 
 const STATUS_LABEL: Record<string, string> = {
   text_only: 'только текст — механика не автоматизирована',
-  partial: 'автоматизировано частично',
+  partial: 'частично автоматизировано — часть правила применяйте вручную',
   full: 'автоматизировано',
 }
 
@@ -342,52 +372,118 @@ export default function CharacterSheet({
   const clearRolls = useCallback(() => setRolls([]), [])
   // атака, для которой выпала натуральная 20: её следующий урон — критический
   const [critFor, setCritFor] = useState<string | null>(null)
-  const [openFeature, setOpenFeature] = useState<FeatureRow | null>(null)
+  const [openFeatureKey, setOpenFeatureKey] = useState<string | null>(null)
+  const setOpenFeature = (f: FeatureRow | null) => setOpenFeatureKey(f?.key ?? null)
   const { items: featCatalog } = useCatalogList<Feat>('feats', sheet.feats.length > 0)
 
   const info = sheet.basic_info
+  // способности движка: крит с 19 у Чемпиона, атак за действие у Дополнительной атаки
+  const extras = sheet.extras
+  const critMin = extras?.critMin ?? 20
 
-  /* ---------- броски ---------- */
+  /* ---------- броски: 3D-кости, затем театр в духе BG3 ---------- */
 
   const show = (r: Omit<RollShown, 'id'>) =>
     setRolls((prev) => [{ ...r, id: (prev[0]?.id ?? 0) + 1 }, ...prev].slice(0, 30))
   const note = (total: string, label: string) => show({ label, dice: [], sides: 0, bonus: 0, total })
 
-  const rollD20 = async (label: string, bonus: number, attackKey?: string) => {
-    const values = await dice.roll(1, 20)
-    if (!values) return null
-    const die = values[0]
-    show({ label, dice: [die], sides: 20, bonus, total: die + bonus, crit: die === 20, fumble: die === 1 })
-    if (attackKey) setCritFor(die === 20 ? attackKey : null)
-    return die
+  // очередь показов: каждый бросок — свой «театр», по одному
+  const [theater, setTheater] = useState<RollSpec[]>([])
+  const theaterId = useRef(0)
+  const enqueue = useCallback(
+    (spec: Omit<RollSpec, 'id'>) => setTheater((q) => [...q, { ...spec, id: ++theaterId.current }]),
+    [],
+  )
+
+  /** Реакции после к20: вдохновение — перебросить и взять лучшее */
+  const d20Reactions = (): RollReaction[] => {
+    const spend = stage?.onVitals
+    if (!spend || (stage?.inspiration ?? 0) <= 0) return []
+    return [
+      {
+        key: 'inspiration',
+        label: 'Вдохновение',
+        hint: 'перебросить к20 и взять лучшее',
+        icon: Star,
+        run: async () => {
+          spend('inspiration', -1)
+          const v = await dice.roll(1, 20)
+          return v ? { newD20: v[0] } : null
+        },
+      },
+    ]
   }
 
-  const rollDamage = async (label: string, formula: string, attackKey: string) => {
+  const rollD20 = async (label: string, bonus: number, attackKey?: string, ctx?: RollContext) => {
+    // преимущество и помеха — из листа: Безрассудная атака, ярость на Силу
+    const { mode, label: modeLabel } = rollMode(sheet, ctx)
+    const values = await dice.roll(mode === 'normal' ? 1 : 2, 20)
+    if (!values) return null
+    const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : values[0]
+    // у атаки крит может начинаться раньше 20 (Улучшенные критические попадания)
+    const crit = kept >= (attackKey ? critMin : 20)
+    const tag = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
+    show({ label: `${label}${tag}`, dice: values, sides: 20, bonus, total: kept + bonus, crit, fumble: kept === 1 })
+    if (attackKey) setCritFor(crit ? attackKey : null)
+    enqueue({
+      title: label,
+      kind: 'd20',
+      dice: values.map((value) => ({ sides: 20, value })),
+      mode,
+      modeLabel,
+      bonuses: d20Cards(sheet, ctx, bonus),
+      critMin: attackKey ? critMin : 20,
+      reactions: ctx?.kind === 'death' ? [] : d20Reactions(),
+    })
+    return kept
+  }
+
+  const rollDamage = async (label: string, formula: string, attackKey: string, ctx?: RollContext) => {
     const parsed = parseDamage(formula)
     if (!parsed) return
     const crit = critFor === attackKey
+    // бонусы урона по тегам атаки: Ярость +2 к силовой рукопашной
+    const extra = ctx?.tags ? tagCards(sheet, 'dmgBonus', ctx.tags) : []
+    const extraSum = extra.reduce((s, c) => s + c.value, 0)
+    const modCard = parsed.bonus
+      ? [{ label: ctx?.ability ? ABILITY_LABELS[ctx.ability].label : 'Модификатор', value: parsed.bonus, kind: 'ability' as const }]
+      : []
     if (parsed.n === 0) {
-      show({ label, dice: [], sides: 0, bonus: parsed.bonus, total: Math.max(1, parsed.bonus) })
+      show({ label, dice: [], sides: 0, bonus: parsed.bonus + extraSum, total: Math.max(1, parsed.bonus + extraSum) })
       return
     }
     const n = crit ? parsed.n * 2 : parsed.n
     const values = await dice.roll(n, parsed.sides)
     if (!values) return
-    const total = Math.max(1, values.reduce((a, b) => a + b, 0) + parsed.bonus)
-    show({ label: crit ? `${label} · крит!` : label, dice: values, sides: parsed.sides, bonus: parsed.bonus, total, crit })
+    const total = Math.max(1, values.reduce((a, b) => a + b, 0) + parsed.bonus + extraSum)
+    const title = crit ? `${label} · крит!` : label
+    show({ label: title, dice: values, sides: parsed.sides, bonus: parsed.bonus + extraSum, total, crit })
     setCritFor(null)
+    enqueue({ title, kind: 'dice', dice: values.map((value) => ({ sides: parsed.sides, value })), mode: 'normal', bonuses: [...modCard, ...extra] })
   }
 
   const rollDice = async (label: string, n: number, sides: number, bonus: number) => {
     const values = await dice.roll(n, sides)
     if (!values) return null
     show({ label, dice: values, sides, bonus, total: values.reduce((a, b) => a + b, 0) + bonus })
+    enqueue({
+      title: label,
+      kind: 'dice',
+      dice: values.map((value) => ({ sides, value })),
+      mode: 'normal',
+      bonuses: bonus ? [{ label: 'Бонус', value: bonus, kind: 'other' }] : [],
+    })
     return values
   }
 
   const roller: SheetRoller = { rolling: dice.rolling, critFor, rollD20, rollDamage, rollDice, note }
 
-  // броски сервера (действия, отдых) — в ту же историю; кубики уже брошены там
+  /*
+   * Броски сервера (Скрытая атака, отдых): 3D-кости катятся для вида, а театр
+   * показывает числа сервера. Пришло одно значение к20 при преимуществе —
+   * вторую кость дорисовываем случайно не выше (при помехе — не ниже).
+   */
+  const rollDice3d = dice.roll
   useEffect(() => {
     if (!serverLog) return
     const shown = serverLog.log.filter((l: LogEntry) => l.kind === 'roll' && Array.isArray(l.data?.rolls))
@@ -403,7 +499,38 @@ export default function CharacterSheet({
       if (shown.length === 0) push({ label: serverLog.title, dice: [], sides: 0, bonus: 0, total: '✓' })
       return next
     })
-  }, [serverLog])
+    let cancelled = false
+    void (async () => {
+      for (const l of shown) {
+        if (cancelled) return
+        const rolled = l.data!.rolls!
+        const sides = sidesOf(l.data?.dice) || 6
+        const notation = String(l.data?.dice ?? '')
+        let mode: RollMode = /kh|adv/i.test(notation) ? 'adv' : /kl|dis/i.test(notation) ? 'dis' : 'normal'
+        let values = [...rolled]
+        if (sides === 20 && mode !== 'normal' && values.length === 1) {
+          const v = values[0]
+          const other = mode === 'adv' ? 1 + Math.floor(Math.random() * v) : v + Math.floor(Math.random() * (21 - v))
+          values = [v, other]
+        }
+        if (sides !== 20 || values.length !== 2) mode = 'normal'
+        // визуальный бросок: число костей и граней как у сервера
+        await rollDice3d(values.length, sides).catch(() => null)
+        const sum = (mode === 'normal' ? values : [values[0]]).reduce((a, b) => a + b, 0)
+        const total = typeof l.data?.total === 'number' ? l.data.total : sum
+        enqueue({
+          title: `${serverLog.title}: ${l.message.split(':')[0]}`,
+          kind: sides === 20 ? 'd20' : 'dice',
+          dice: values.map((value) => ({ sides, value })),
+          mode,
+          bonuses: total - sum ? [{ label: serverLog.title, value: total - sum, kind: 'feature' }] : [],
+        })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [serverLog]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- значения листа ---------- */
 
@@ -413,9 +540,8 @@ export default function CharacterSheet({
   const score = (k: AbilityName) => sheet.ability_scores[k].score
   // у листа с сервера модификатор и спасбросок готовые; у черновика визарда — по таблице
   const mod = (k: AbilityName) => sheet.ability_scores[k].modifier ?? abilityMod(score(k))
-  const why = (path: string) => whyText(sheet.breakdown, path)
   const strMod = mod('strength')
-  const perAction = attacksPerAction(cls.name, level)
+  const perAction = extras?.perAction ?? attacksPerAction(cls.name, level)
   const combat = sheet.combat
   const spell = sheet.spellcasting
   const items = sheet.inventory.items
@@ -433,12 +559,16 @@ export default function CharacterSheet({
       image: realImage(eq?.equipment_image_gallery),
     }
   })
+  // кость безоружного удара от Боевых искусств монаха: с ней можно бить Ловкостью
+  const unarmedDie = extras?.unarmedDie ?? 1
+  const unarmedMod = unarmedDie > 1 ? Math.max(strMod, mod('dexterity')) : strMod
+  const signedMod = unarmedMod ? (unarmedMod > 0 ? `+${unarmedMod}` : `${unarmedMod}`) : ''
   attacks.push({
     key: 'unarmed',
     name: 'Безоружный удар',
     type: 'melee',
-    attack_bonus: strMod + pb,
-    damage: String(Math.max(1, 1 + strMod)),
+    attack_bonus: unarmedMod + pb,
+    damage: unarmedDie > 1 ? `1d${unarmedDie}${signedMod}` : String(Math.max(1, 1 + unarmedMod)),
     damage_type: 'дробящий',
     range: '5 фт.',
     properties: [],
@@ -472,14 +602,30 @@ export default function CharacterSheet({
               ? (info.background?.name ?? null)
               : null
 
+  // включённые состояния (идёт ярость) — подсветка ресурса того же ключа
+  const activeKeys = new Set(engine ? activeStates(engine.sheet, engine.labels).map((x) => x.key) : [])
+
+  // элементы способности по grant_id: её кнопки и её счётчики
+  const actionsOf = (grantId: string) => engine?.sheet.actions.filter((a) => a.grant_id === grantId) ?? []
+  const resourcesOf = (slug: string | undefined) => (slug ? (engine?.sheet.resources.filter((r) => r.declared_by === slug) ?? []) : [])
+
   const featureRows: FeatureRow[] = [
     ...sheet.features.map((f, i) => ({
       key: f.grant_id ?? `${f.name}-${i}`,
       source: f.source,
       title: f.name,
-      sub: [SOURCE_LABEL[f.source] ?? '', ownerOf(f.source), f.level ? `${f.level} ур.` : ''].filter(Boolean).join(' · '),
+      // уровень получения — из служебной строки описания («3-й уровень, умение воина»)
+      sub: [
+        SOURCE_LABEL[f.source] ?? '',
+        ownerOf(f.source),
+        f.level ? `${f.level} ур.` : (/^\d+ ур\./.exec(parseAbilityText(f.description).meta[0] ?? '')?.[0] ?? ''),
+      ]
+        .filter(Boolean)
+        .join(' · '),
       text: f.description,
       grantId: f.grant_id,
+      slug: f.slug,
+      disabled: f.disabled,
       status: f.implementation_status,
       active: f.active,
     })),
@@ -506,6 +652,8 @@ export default function CharacterSheet({
     ['История', sheet.backstory] as const,
   ].filter(([, text]) => text.trim())
 
+  const openFeature = openFeatureKey ? (featureRows.find((f) => f.key === openFeatureKey) ?? null) : null
+
   /* ---------- карточки ---------- */
 
   const abilitiesCard = (
@@ -515,52 +663,50 @@ export default function CharacterSheet({
           const label = ABILITY_LABELS[k]
           const saveProf = sheet.ability_scores[k].saving_throw_proficient
           const save = sheet.ability_scores[k].save ?? mod(k) + (saveProf ? pb : 0)
-          const scoreWhy = why(abilityPath(k, 'score'))
-          const saveWhy = why(abilityPath(k, 'save'))
           return (
             <div key={k} className={`cw-abil${saveProf ? ' is-prof' : ''}`}>
               <button
                 type="button"
-                className={`cw-abil-check${scoreWhy ? ' has-why' : ''}`}
-                onClick={() => void rollD20(`${label.label}, проверка`, mod(k))}
+                className="cw-abil-check"
+                onClick={() => void rollD20(`${label.label}, проверка`, mod(k), undefined, { kind: 'check', ability: k })}
                 disabled={dice.rolling}
-                title={[`Проверка: к20 ${signed(mod(k))}`, scoreWhy].filter(Boolean).join('\n')}
+                title={`Проверка: к20 ${signed(mod(k))}`}
               >
                 <i>{label.abbr}</i>
                 <b>{score(k)}</b>
                 <em>{signed(mod(k))}</em>
+                <WhyDot req={{ path: abilityPath(k, 'score'), title: label.label, total: score(k), baseLabel: 'Базовое значение' }} />
               </button>
               <button
                 type="button"
-                className={`cw-abil-save${saveWhy ? ' has-why' : ''}`}
-                onClick={() => void rollD20(`${label.label}, спасбросок`, save)}
+                className="cw-abil-save"
+                onClick={() => void rollD20(`${label.label}, спасбросок`, save, undefined, { kind: 'save', ability: k })}
                 disabled={dice.rolling}
-                title={[saveProf ? 'Спасбросок — владение' : 'Спасбросок', saveWhy].filter(Boolean).join('\n')}
+                title={saveProf ? 'Спасбросок — владение' : 'Спасбросок'}
               >
                 спас <b>{signed(save)}</b>
+                <WhyDot req={{ path: abilityPath(k, 'save'), title: `Спасбросок: ${label.label}`, total: save }} />
               </button>
             </div>
           )
         })}
       </div>
       <div className="beast-skills cw-skill-buttons cw-skill-cols">
-        {skillRows.map((s) => {
-          const skillWhy = why(`char.skills.${s.key}.bonus`)
-          return (
+        {skillRows.map((s) => (
           <button
             key={s.key}
             type="button"
-            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}${skillWhy ? ' has-why' : ''}`}
-            onClick={() => void rollD20(s.label, s.bonus)}
+            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}`}
+            onClick={() => void rollD20(s.label, s.bonus, undefined, { kind: 'skill', skill: s.key, ability: s.ability })}
             disabled={dice.rolling}
-            title={[s.expert ? 'Компетентность: двойной бонус мастерства' : '', skillWhy].filter(Boolean).join('\n') || undefined}
+            title={s.expert ? 'Компетентность: двойной бонус мастерства' : undefined}
           >
             <span className="beast-skill-bonus">{signed(s.bonus)}</span>
             <span className="beast-skill-name">{s.label}</span>
             <span className="beast-skill-ab">{ABILITY_LABELS[s.ability].abbr}</span>
+            <WhyDot req={{ path: `char.skills.${s.key}.bonus`, title: s.label, total: s.bonus }} />
           </button>
-          )
-        })}
+        ))}
       </div>
       <p className="cw-passive">
         <Eye aria-hidden="true" /> пассивная внимательность <b>{combat.passive_perception}</b>
@@ -573,12 +719,23 @@ export default function CharacterSheet({
       title="Бой"
       icon={Swords}
       className="cw-sheet-card--combat"
-      aside={perAction > 1 ? `атак за действие: ×${perAction}` : null}
+      aside={[perAction > 1 ? `атак за действие: ×${perAction}` : '', critMin < 20 ? `крит от ${critMin}` : ''].filter(Boolean).join(' · ') || null}
     >
       <div className="cw-wpns">
         {attacks.map((a) => {
           const crit = critFor === a.key
+          // бонусы способностей по тегам атаки: к попаданию и к урону (Ярость +2)
+          const { tags, ability } = attackTags(a, sheet)
+          const ctx: RollContext = { kind: 'attack', ability, tags }
+          const hit = a.attack_bonus + tagBonus(sheet, 'attackBonus', tags)
+          const dmgExtra = tagBonus(sheet, 'dmgBonus', tags)
           const dmg = parseDamage(a.damage)
+          const dmgText = (formula: string) => {
+            const p = parseDamage(formula)
+            if (!p || !dmgExtra) return formatDice(formula) ?? formula
+            const b = p.bonus + dmgExtra
+            return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
+          }
           const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
           return (
             <div key={a.key} className={`cw-wpn${crit ? ' is-crit' : ''}`}>
@@ -590,19 +747,24 @@ export default function CharacterSheet({
               <span className="cw-wpn-dice">
                 <DieButton
                   sides={20}
-                  value={signed(a.attack_bonus)}
+                  value={signed(hit)}
                   label="атака"
-                  onClick={() => void rollD20(`${a.name}, попадание`, a.attack_bonus, a.key)}
+                  onClick={() =>
+                    void rollD20(`${a.name}, попадание`, hit, a.key, {
+                      ...ctx,
+                      bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
+                    })
+                  }
                   disabled={dice.rolling}
                   title="Бросок атаки: к20 + бонус"
                 />
                 {a.damage && (
                   <DieButton
                     sides={dmg?.sides ?? 0}
-                    value={formatDice(a.damage) ?? a.damage}
+                    value={dmgText(a.damage)}
                     label={crit ? 'крит ×2' : (a.damage_type || 'урон').toLocaleLowerCase('ru')}
                     hot={crit}
-                    onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key)}
+                    onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key, { kind: 'damage', ability, tags })}
                     disabled={dice.rolling}
                     title={crit ? 'Критическое попадание: кости урона удваиваются' : 'Бросок урона'}
                   />
@@ -610,10 +772,10 @@ export default function CharacterSheet({
                 {a.versatile && (
                   <DieButton
                     sides={parseDamage(a.versatile)?.sides ?? 0}
-                    value={formatDice(a.versatile)}
+                    value={dmgText(a.versatile)}
                     label="двуручно"
                     hot={crit}
-                    onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key)}
+                    onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key, { kind: 'damage', ability, tags })}
                     disabled={dice.rolling}
                     title="Универсальное оружие двумя руками"
                   />
@@ -634,7 +796,13 @@ export default function CharacterSheet({
                 sides={20}
                 value={signed(spell.spell_attack_bonus)}
                 label="атака"
-                onClick={() => void rollD20('Атака заклинанием', spell.spell_attack_bonus!)}
+                onClick={() =>
+                  void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
+                    kind: 'spell',
+                    ability: spell.spellcasting_ability ?? undefined,
+                    tags: ['spell'],
+                  })
+                }
                 disabled={dice.rolling}
               />
             </span>
@@ -683,15 +851,25 @@ export default function CharacterSheet({
     <button
       key={f.key}
       type="button"
-      className={`cw-ftile cw-feat-line--${f.source}${f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
+      className={`cw-ftile cw-feat-line--${f.source}${f.disabled ? ' is-disabled' : f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
       onClick={() => setOpenFeature(f)}
-      title={f.status ? STATUS_LABEL[f.status] : undefined}
+      title={f.disabled ? 'Отключено — бонусы не действуют' : f.status ? STATUS_LABEL[f.status] : undefined}
     >
-      <b>{f.title}</b>
+      <b>
+        {f.disabled && <EyeOff className="cw-ftile-lock" aria-label="отключено" />}
+        {f.title}
+      </b>
       <i>
         {f.sub}
-        {f.active === false && ' · неактивно'}
+        {f.disabled ? ' · отключено' : f.active === false ? ' · не действует' : ''}
+        {f.status === 'partial' && ' · частично'}
       </i>
+      {f.grantId && actionsOf(f.grantId).length > 0 && (
+        <span className="cw-ftile-acts" title="Действий у способности">
+          <Zap aria-hidden="true" />
+          {actionsOf(f.grantId).length}
+        </span>
+      )}
       <BookOpen className="cw-ftile-ico" aria-hidden="true" />
     </button>
   )
@@ -724,6 +902,47 @@ export default function CharacterSheet({
     </Card>
   )
 
+  /** Что выдают способности: приёмы, особые правила, величины (кость скрытой атаки…) */
+  const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && (
+    <Card title="Особые правила" icon={Sparkles} className="cw-sheet-card--rules">
+      <dl className="cw-profs">
+        {extras.vars.length > 0 && (
+          <div>
+            <dt>Величины</dt>
+            <dd>
+              <ul className="cw-rules-vars">
+                {extras.vars.map((v) => (
+                  <li key={v.key}>
+                    <span>{v.label}</span>
+                    <b>{formatDice(v.value) ?? v.value}</b>
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
+        {extras.maneuvers.length > 0 && (
+          <div>
+            <dt>Боевые приёмы</dt>
+            <dd>{extras.maneuvers.join(', ')}</dd>
+          </div>
+        )}
+        {extras.flags.length > 0 && (
+          <div>
+            <dt>Помнить за столом</dt>
+            <dd>
+              <ul className="cw-rules-flags">
+                {extras.flags.map((f) => (
+                  <li key={f.key}>{f.label}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </Card>
+  )
+
   /** Страница умений: группы по источнику, клик — попап с описанием */
   const featuresPage = (
     <div className="cw-fpage">
@@ -742,7 +961,10 @@ export default function CharacterSheet({
           )
         })}
       </div>
-      {profsCard}
+      <div className="cw-fpage-side">
+        {profsCard}
+        {rulesCard}
+      </div>
     </div>
   )
 
@@ -867,7 +1089,7 @@ export default function CharacterSheet({
           <button
             type="button"
             className="cw-stat cw-stat--roll"
-            onClick={() => void rollD20('Инициатива', combat.initiative)}
+            onClick={() => void rollD20('Инициатива', combat.initiative, undefined, { kind: 'init' })}
             disabled={dice.rolling}
             title="Бросить инициативу"
           >
@@ -897,15 +1119,17 @@ export default function CharacterSheet({
 
   /* ---------- раскладка ---------- */
 
-  const tabs: { id: SheetTab; label: string; icon: LucideIcon; badge?: number }[] = [
+  // alert — нерешённые выборы способностей: красная метка на вкладке
+  const tabs: { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }[] = [
     { id: 'main', label: 'Лист', icon: Swords },
     ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
-    { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length },
+    { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length, alert: engine?.sheet.pending_decisions.length },
     { id: 'story', label: 'Характер', icon: UserRound },
   ]
   const current = tabs.some((t) => t.id === tab) ? tab : 'main'
 
   return (
+    <WhyProvider breakdown={sheet.breakdown} names={sheet.sourceNames}>
     <div className={`cw-step cw-sheet${paged ? ' is-paged' : ''}`}>
       {heading}
 
@@ -920,8 +1144,15 @@ export default function CharacterSheet({
             roller={roller}
             stage={stage}
           />
+          {engine && (
+            <ResourceBand
+              resources={engine.sheet.resources}
+              activeKeys={activeKeys}
+              onOpen={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
+            />
+          )}
           <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
-            {tabs.map(({ id, label, icon: Icon, badge }) => (
+            {tabs.map(({ id, label, icon: Icon, badge, alert }) => (
               <button
                 key={id}
                 type="button"
@@ -932,6 +1163,11 @@ export default function CharacterSheet({
               >
                 <Icon aria-hidden="true" /> {label}
                 {badge ? <em>{badge}</em> : null}
+                {alert ? (
+                  <em className="is-alert" title="Нерешённые выборы">
+                    !{alert}
+                  </em>
+                ) : null}
               </button>
             ))}
           </nav>
@@ -969,6 +1205,7 @@ export default function CharacterSheet({
       )}
 
       <RollLog rolls={rolls} onClear={clearRolls} />
+      {theater[0] && <RollTheater key={theater[0].id} spec={theater[0]} onDone={() => setTheater((q) => q.slice(1))} />}
       {openFeature && (
         <SheetModal
           title={openFeature.title}
@@ -979,16 +1216,17 @@ export default function CharacterSheet({
           actions={
             <>
               {onToggleAbility && openFeature.grantId && (
-                <button
-                  type="button"
-                  className="cs-btn cs-btn--ghost"
-                  onClick={() => {
-                    onToggleAbility(openFeature.grantId!, openFeature.active === false)
-                    setOpenFeature(null)
-                  }}
-                >
-                  {openFeature.active === false ? 'Включить' : 'Отключить'}
-                </button>
+                <label className={`cw-ftoggle${openFeature.disabled ? '' : ' is-on'}`} title="Отключённое умение остаётся в списке, но его бонусы и действия не работают">
+                  <input
+                    type="checkbox"
+                    checked={!openFeature.disabled}
+                    onChange={(e) => onToggleAbility(openFeature.grantId!, e.target.checked)}
+                  />
+                  <span className="cw-ftoggle-track" aria-hidden="true">
+                    <span className="cw-ftoggle-knob">{openFeature.disabled ? <EyeOff /> : <Eye />}</span>
+                  </span>
+                  <span>{openFeature.disabled ? 'Умение отключено' : 'Умение действует'}</span>
+                </label>
               )}
               <button type="button" className="cs-btn cw-next" onClick={() => setOpenFeature(null)}>
                 Закрыть
@@ -996,12 +1234,38 @@ export default function CharacterSheet({
             </>
           }
         >
-          {openFeature.status && (
+          {openFeature.status && openFeature.status !== 'full' && !openFeature.disabled && (
             <p className={`cw-field-note cw-fstatus is-${openFeature.status}`}>{STATUS_LABEL[openFeature.status] ?? openFeature.status}</p>
           )}
-          {openFeature.text ? <RichText text={openFeature.text} /> : <p className="cw-field-note">Описания нет.</p>}
+          {openFeature.disabled ? (
+            <p className="cw-field-note cw-fstatus is-off">Отключено: бонусы и действия умения не работают, пока его не включить.</p>
+          ) : (
+            openFeature.active === false && (
+              <p className="cw-field-note cw-fstatus is-off">Сейчас не действует: условие умения не выполнено.</p>
+            )
+          )}
+          {engine && !openFeature.disabled && resourcesOf(openFeature.slug).length > 0 && (
+            <div className="cw-fcard-res">
+              <ResourceBand resources={resourcesOf(openFeature.slug)} activeKeys={activeKeys} />
+            </div>
+          )}
+          {engine && !openFeature.disabled && openFeature.grantId && actionsOf(openFeature.grantId).length > 0 && (
+            <div className="eng-actions cw-fcard-acts">
+              {actionsOf(openFeature.grantId).map((a) => (
+                <ActionButton
+                  key={a.key}
+                  a={a}
+                  // поп-ап действия откроется поверх — карточку закрываем
+                  engine={{ ...engine, onAction: (x) => (setOpenFeature(null), engine.onAction(x)) }}
+                  showAbility={false}
+                />
+              ))}
+            </div>
+          )}
+          <FeatureText row={openFeature} />
         </SheetModal>
       )}
     </div>
+    </WhyProvider>
   )
 }

@@ -1,34 +1,39 @@
 /**
  * Сохранённый персонаж — тот же лист, что на итоге конструктора, но живой и
- * собранный сервером: все числа приходят из `/sheet`, действия, отдых, ход и
- * уровень выполняет движок. Сам документ (инвентарь, кошелёк, записи,
+ * собранный сервером: все числа приходят из `/sheet`, действия, хиты, отдых и
+ * уровень выполняет движок. В шапке — журнал действий, отдых и новый уровень
+ * (он открывает тот же пошаговый мастер, что и создание героя). Сам документ (инвентарь, кошелёк, записи,
  * видимость) правится прямо в листе и сохраняется с небольшой задержкой;
  * остальное — в окне «Правка листа». Чужой публичный лист открывается для
  * просмотра: бросать кости можно, менять — нет.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Check,
   ChevronLeft,
   CloudOff,
+  Coffee,
   Eye,
   Globe,
   GraduationCap,
   Loader2,
   Lock,
+  Moon,
   PencilLine,
   RefreshCw,
+  ScrollText,
   TriangleAlert,
   Undo2,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { realImage } from '../api'
+import { getOne, realImage, type Creature } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
-import { JournalModal, LevelUpDialog, PendingBanner, ShortRestDialog } from '../characters/EngineDialogs'
+import { JournalDrawer, JournalModal, PendingBanner, ShortRestDialog } from '../characters/EngineDialogs'
+import { useAbilities } from '../abilities/abilityData'
 import type { EngineView } from '../characters/EnginePanel'
 import type { StageEngine } from '../characters/HeroStage'
 import { parsePortrait } from '../characters/portrait'
@@ -38,7 +43,7 @@ import { buildSheetView, valuesOf } from '../characters/sheetView'
 import { useCharacterEngine } from '../characters/useCharacterEngine'
 import { useNames } from '../characters/useNames'
 import { WorldBackdrop } from '../creatureSheet'
-import { getEngineDictionaries, type EngineDictionaries } from '../api'
+import { getEngineCatalog, getEngineDictionaries, type EngineDictionaries } from '../api'
 import type { InventoryItemInstance, SheetView } from '../types/character'
 import type { CharacterVisibility } from '../types/auth'
 
@@ -62,23 +67,71 @@ export default function CharacterEditorPage() {
   const { character, sheet } = eng
   const { names, races, classes } = useNames(character)
   const [dict, setDict] = useState<EngineDictionaries | null>(null)
+  // подписи var.*, state.*, char.flags.* — их объявляют способности этого героя
+  const [labels, setLabels] = useState<Record<string, string>>({})
   const [editOpen, setEditOpen] = useState(false)
+  // журнал действий — панель справа из шапки; журнал хитов — окно у шестигранника
   const [journalOpen, setJournalOpen] = useState(false)
+  const [hpJournalOpen, setHpJournalOpen] = useState(false)
   const [restOpen, setRestOpen] = useState(false)
-  const [levelOpen, setLevelOpen] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     void getEngineDictionaries().then(setDict)
   }, [])
 
+  // набор способностей поменялся (уровень, выбор, предмет) — подписи перечитываем
+  const abilityKey = sheet?.abilities.map((a) => a.slug).join(',') ?? ''
+  const characterId = character?.id
+  useEffect(() => {
+    if (!characterId || !abilityKey) return
+    let alive = true
+    getEngineCatalog(characterId)
+      .then((c) => {
+        if (!alive) return
+        setLabels(c.labels)
+        if (c.dictionaries) setDict(c.dictionaries)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [characterId, abilityKey])
+
   // свой лист — играть и сохранять; админ видит и меняет всё
   const admin = user?.role === 'admin'
   const owner = !!character && !!user && (admin || character.player_id === user.id)
 
-  const view = useMemo(
-    () => (character && sheet ? buildSheetView(character, sheet, names, dict) : null),
-    [character, sheet, names, dict],
+  // отключённые умения сервер в листе не отдаёт — их название и текст из каталога способностей
+  const disabledSlugs = (character?.abilities ?? []).filter((a) => !a.enabled).map((a) => a.slug)
+  const { items: disabledAbilities } = useAbilities(disabledSlugs)
+  const disabledDefs = useMemo(
+    () => Object.fromEntries(disabledAbilities.map((a) => [a.slug, { name: a.name, description: a.description }])),
+    [disabledAbilities],
   )
+
+  const view = useMemo(
+    () => (character && sheet ? buildSheetView(character, sheet, names, dict, labels, disabledDefs) : null),
+    [character, sheet, names, dict, labels, disabledDefs],
+  )
+
+  // дикий облик: зверь из листа — его картинка на аватаре, пока облик активен
+  const formActive = sheet?.values['form.wild_shape.active'] === true
+  const formCreatureId = formActive ? String(sheet?.values['form.wild_shape.creature_id'] ?? '') : ''
+  const [creature, setCreature] = useState<Creature | null>(null)
+  useEffect(() => {
+    if (!formCreatureId) {
+      setCreature(null)
+      return
+    }
+    let alive = true
+    getOne<Creature>('creatures', formCreatureId)
+      .then((c) => alive && setCreature(c))
+      .catch(() => alive && setCreature(null))
+    return () => {
+      alive = false
+    }
+  }, [formCreatureId])
 
   // тост с отменой гаснет сам
   const { outcome, clearOutcome } = eng
@@ -178,23 +231,34 @@ export default function CharacterEditorPage() {
 
   const engineView: EngineView = {
     sheet,
+    labels,
     busy: eng.busy,
     canPlay: owner,
     onAction: (a) => eng.action(a.grant_id, a.key, a.label),
-    onTurn: eng.turn,
-    onLongRest: longRest,
-    onShortRest: () => setRestOpen(true),
-    onJournal: () => setJournalOpen(true),
   }
 
+  const num = valuesOf(sheet).num
+  const revert = sheet.actions.find((a) => a.key === 'revert' && a.ability_slug.endsWith('wild_shape'))
   const stage: StageEngine = {
     busy: eng.busy,
-    inspiration: valuesOf(sheet).num('char.inspiration'),
-    onLongRest: owner ? longRest : undefined,
+    inspiration: num('char.inspiration'),
+    onVitals: owner ? eng.vitals : undefined,
+    damageTypes: dict?.damage_types,
     onShortRest: owner ? () => setRestOpen(true) : undefined,
-    onJournal: owner ? () => setJournalOpen(true) : undefined,
-    master,
+    onHpJournal: owner ? () => setHpJournalOpen(true) : undefined,
+    form: formActive
+      ? {
+          name: creature?.name ?? 'зверь',
+          hp: num('form.wild_shape.hp'),
+          max: num('form.wild_shape.max_hp'),
+          onRevert: owner && revert ? () => eng.action(revert.grant_id, revert.key, revert.label) : undefined,
+        }
+      : null,
   }
+  // в облике на печати — зверь целиком
+  const creatureArt = creature ? (realImage(creature.image_gallery) ?? realImage(creature.image_url)) : null
+  const portrait = formActive && creatureArt ? creatureArt : pic.src
+  const portraitFace = formActive && creatureArt ? { cx: 0.5, cy: 0.3, r: 0.5, shape: 'full' as const } : pic.face
 
   const save = eng.saveState
   const status = !owner
@@ -245,7 +309,23 @@ export default function CharacterEditorPage() {
                   ))}
                 </select>
               </label>
-              <button type="button" className="cs-btn" onClick={() => setLevelOpen(true)} disabled={eng.busy || view.basic_info.total_level >= 20}>
+              <span className="cw-live-group" role="group" aria-label="Отдых и журнал">
+                <button type="button" className="cw-mini-btn" onClick={() => setRestOpen(true)} disabled={eng.busy} title="Кости хитов, ресурсы короткого отдыха">
+                  <Coffee aria-hidden="true" /> короткий отдых
+                </button>
+                <button type="button" className="cw-mini-btn" onClick={longRest} disabled={eng.busy} title="Хиты, ячейки, ресурсы и половина костей хитов">
+                  <Moon aria-hidden="true" /> продолжительный отдых
+                </button>
+                <button type="button" className="cw-mini-btn" onClick={() => setJournalOpen(true)} title="Журнал действий: всё, что делал герой">
+                  <ScrollText aria-hidden="true" /> журнал
+                </button>
+              </span>
+              <button
+                type="button"
+                className="cs-btn"
+                onClick={() => navigate(`/characters/${character.id}/level-up`)}
+                disabled={eng.busy || view.basic_info.total_level >= 20}
+              >
                 <GraduationCap aria-hidden="true" /> Новый уровень
               </button>
               <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
@@ -287,8 +367,8 @@ export default function CharacterEditorPage() {
 
       <CharacterSheet
         sheet={view}
-        portrait={pic.src}
-        face={pic.face}
+        portrait={portrait}
+        face={portraitFace}
         paged
         tab={tab}
         onTab={setTab}
@@ -326,16 +406,22 @@ export default function CharacterEditorPage() {
       {restOpen && (
         <ShortRestDialog character={character} sheet={sheet} names={names} onRest={eng.shortRest} onClose={() => setRestOpen(false)} />
       )}
-      {levelOpen && (
-        <LevelUpDialog character={character} names={names} classes={classes} onLevelUp={eng.levelUp} onClose={() => setLevelOpen(false)} />
-      )}
       {journalOpen && (
-        <JournalModal
+        <JournalDrawer
           characterId={character.id}
           revision={sheet.revision}
           canUndo={owner}
           onUndo={(eventId) => void eng.undo(eventId)}
           onClose={() => setJournalOpen(false)}
+        />
+      )}
+      {hpJournalOpen && (
+        <JournalModal
+          characterId={character.id}
+          revision={sheet.revision}
+          canUndo={owner}
+          onUndo={(eventId) => void eng.undo(eventId)}
+          onClose={() => setHpJournalOpen(false)}
         />
       )}
       {editOpen && (
