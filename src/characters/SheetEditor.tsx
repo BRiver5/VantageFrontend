@@ -4,9 +4,10 @@
  * Слева — оглавление разделов (подсвечивается тот, что сейчас на экране),
  * справа — сами разделы: герой и портрет, происхождение и внешность, классы
  * с мультиклассом, базовые характеристики, атаки, заклинания, черты, кошелёк,
- * личность. Всё вычисляемое (КД, спасброски, навыки, хиты, ячейки, умения)
- * считает сервер — здесь только выбор игрока. Правки копятся в окне и уходят
- * одним PATCH с изменёнными полями; закрыть с несохранёнными — с подтверждением.
+ * личность. КД, максимум хитов и бонус мастерства сервер считает сам, но их
+ * можно зафиксировать вручную (оверрайд). Остальное вычисляемое — спасброски,
+ * навыки, ячейки — только с сервера. Правки копятся в окне; закрыть с
+ * несохранёнными — с подтверждением.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -34,10 +35,28 @@ import { imageFileToDataUrl } from '../create/flavor'
 import { useCatalogList, useSubraces } from '../create/useCatalog'
 import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT } from '../types/character'
 import type { AttackEntry, Character, CharacterInput, ClassLevel, SheetView, SpellKnown } from '../types/character'
-import { AreaField, CatalogSearch, EdField, EdSection, Stepper, TextField, Toggle } from './editorFields'
+import { AreaField, AutoNum, CatalogSearch, EdField, EdSection, Stepper, TextField, Toggle } from './editorFields'
 import { FaceAvatar, FaceCropper } from './FacePortrait'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
-import { abilityPath, whyText } from './sheetView'
+import { abilityPath, contributionsOf, whyText } from './sheetView'
+
+type CombatField = { auto: boolean; value: number; computed: number }
+
+/** КД / хиты / мастерство: авто — как на листе, вручную — оверрайд */
+function combatField(character: Character, view: SheetView, path: string, current: number): CombatField {
+  const ov = character.manual_overrides?.[path]
+  const rows = contributionsOf(view.breakdown, path)
+  const overridden = typeof ov === 'number' || rows.some((r) => r.kind === 'override')
+  const base = view.bases?.[path]?.value
+  const adds = rows.filter((r) => r.kind !== 'override' && r.op === 'add' && r.value != null)
+  const computed =
+    overridden && typeof base === 'number' ? base + adds.reduce((s, r) => s + (r.value ?? 0), 0) : current
+  if (typeof ov === 'number') return { auto: false, computed, value: ov }
+  if (overridden) return { auto: false, computed, value: current }
+  return { auto: true, computed: current, value: current }
+}
+
+const COMBAT_PATHS = { ac: 'char.ac', hp: 'char.hp.max', pb: 'char.pb' } as const
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
@@ -193,11 +212,20 @@ export function SheetEditor({
   character: Character
   /** текущий лист — показать итоговые значения рядом с базовыми */
   view: SheetView
-  /** только изменённые поля документа */
-  onSave: (patch: CharacterInput) => void
+  /** изменённые поля документа и оверрайды листа (null снимает) */
+  onSave: (patch: CharacterInput, overrides?: Record<string, unknown>) => void
   onClose: () => void
 }) {
   const [c, setC] = useState(character)
+  const combatInit = useMemo(
+    () => ({
+      ac: combatField(character, view, COMBAT_PATHS.ac, view.combat.armor_class),
+      hp: combatField(character, view, COMBAT_PATHS.hp, view.combat.hit_points.max),
+      pb: combatField(character, view, COMBAT_PATHS.pb, view.proficiency_bonus),
+    }),
+    [character, view],
+  )
+  const [combat, setCombat] = useState(combatInit)
   const initialPic = useMemo(() => parsePortrait(character.avatar_url), [character])
   const [pic, setPic] = useState(initialPic)
   const face = pic.face ?? DEFAULT_FACE
@@ -241,7 +269,18 @@ export function SheetEditor({
     }
     return out as CharacterInput
   }, [c, pic, face, character])
-  const dirty = Object.keys(patch).length > 0
+  const overrides = useMemo(() => {
+    const out: Record<string, unknown> = {}
+    const put = (path: string, field: CombatField, orig: CombatField) => {
+      if (field.auto === orig.auto && (field.auto || field.value === orig.value)) return
+      out[path] = field.auto ? null : field.value
+    }
+    put(COMBAT_PATHS.ac, combat.ac, combatInit.ac)
+    put(COMBAT_PATHS.hp, combat.hp, combatInit.hp)
+    put(COMBAT_PATHS.pb, combat.pb, combatInit.pb)
+    return out
+  }, [combat, combatInit])
+  const dirty = Object.keys(patch).length > 0 || Object.keys(overrides).length > 0
 
   const requestClose = useCallback(() => {
     if (!dirty || confirm('Закрыть без сохранения? Правки пропадут.')) onClose()
@@ -256,7 +295,7 @@ export function SheetEditor({
   }, [requestClose])
 
   const save = () => {
-    onSave(patch)
+    onSave(patch, Object.keys(overrides).length ? overrides : undefined)
     onClose()
   }
 
@@ -313,15 +352,15 @@ export function SheetEditor({
             </span>
             <span>
               <i>мастерство</i>
-              <b>{signed(view.proficiency_bonus)}</b>
+              <b>{signed(combat.pb.auto ? combat.pb.computed : combat.pb.value)}</b>
             </span>
             <span>
               <i>КД</i>
-              <b>{view.combat.armor_class}</b>
+              <b>{combat.ac.auto ? combat.ac.computed : combat.ac.value}</b>
             </span>
             <span>
               <i>хиты</i>
-              <b>{view.combat.hit_points.max}</b>
+              <b>{combat.hp.auto ? combat.hp.computed : combat.hp.value}</b>
             </span>
           </span>
           <button type="button" className="ed-close" onClick={requestClose} aria-label="Закрыть">
@@ -342,8 +381,8 @@ export function SheetEditor({
 
         <div className="ed-main" ref={mainRef} onScroll={onScroll}>
           <p className="ed-lead-note">
-            Здесь — только то, что выбирает и пишет игрок. Числа листа (КД, спасброски, навыки, хиты, ячейки) считает сервер
-            по расе, классам, чертам и надетым предметам.
+            КД, максимум хитов и бонус мастерства сервер считает по расе, классам и предметам — их можно оставить на
+            «авто» или вписать вручную. Спасброски, навыки и ячейки по-прежнему только с сервера.
           </p>
 
           {/* ---------- герой ---------- */}
@@ -553,7 +592,7 @@ export function SheetEditor({
             id="abilities"
             icon={Dumbbell}
             title="Характеристики"
-            lead="Базовые значения — бросок или покупка очков ДО расовых бонусов. Бонусы расы, черт и предметов сервер добавит сам; справа — итог на листе."
+            lead="Базовые значения — бросок или покупка очков ДО расовых бонусов. Бонусы расы, черт и предметов сервер добавит сам; справа — итог на листе. КД, хиты и мастерство ниже можно зафиксировать вручную."
           >
             <div className="ed-abils">
               {ABILITY_KEYS.map((k) => {
@@ -573,6 +612,45 @@ export function SheetEditor({
                   </div>
                 )
               })}
+            </div>
+            <div className="ed-sub">
+              <h5>КД, хиты, мастерство</h5>
+              <div className="ed-grid">
+                <AutoNum
+                  label="Класс доспеха"
+                  auto={combat.ac.auto}
+                  computed={combat.ac.computed}
+                  value={combat.ac.value}
+                  min={0}
+                  max={40}
+                  note={combat.ac.auto ? 'по доспеху и ловкости' : `авто было ${combat.ac.computed}`}
+                  onAuto={(auto) => setCombat((p) => ({ ...p, ac: { ...p.ac, auto, value: auto ? p.ac.value : p.ac.computed } }))}
+                  onChange={(v) => setCombat((p) => ({ ...p, ac: { ...p.ac, auto: false, value: v } }))}
+                />
+                <AutoNum
+                  label="Максимум хитов"
+                  auto={combat.hp.auto}
+                  computed={combat.hp.computed}
+                  value={combat.hp.value}
+                  min={1}
+                  max={999}
+                  note={combat.hp.auto ? 'по костям хитов' : `авто было ${combat.hp.computed}`}
+                  onAuto={(auto) => setCombat((p) => ({ ...p, hp: { ...p.hp, auto, value: auto ? p.hp.value : p.hp.computed } }))}
+                  onChange={(v) => setCombat((p) => ({ ...p, hp: { ...p.hp, auto: false, value: v } }))}
+                />
+                <AutoNum
+                  label="Бонус мастерства"
+                  auto={combat.pb.auto}
+                  computed={combat.pb.computed}
+                  value={combat.pb.value}
+                  min={1}
+                  max={12}
+                  sign
+                  note={combat.pb.auto ? 'по уровню героя' : `авто было ${signed(combat.pb.computed)}`}
+                  onAuto={(auto) => setCombat((p) => ({ ...p, pb: { ...p.pb, auto, value: auto ? p.pb.value : p.pb.computed } }))}
+                  onChange={(v) => setCombat((p) => ({ ...p, pb: { ...p.pb, auto: false, value: v } }))}
+                />
+              </div>
             </div>
           </EdSection>
 

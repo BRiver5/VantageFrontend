@@ -385,6 +385,27 @@ export function useCharacterEngine(id: string | undefined) {
     [cid, simple, applySheet],
   )
 
+  /** Оверрайд вычисляемых чисел (КД, мастерство, максимум хитов); null снимает */
+  const override = useCallback(
+    (overrides: Record<string, unknown>) =>
+      simple(
+        () => patchStore(cid, { overrides }),
+        (s) => {
+          applySheet(s)
+          setCharacter((c) => {
+            if (!c) return c
+            const next = { ...c.manual_overrides }
+            for (const [k, v] of Object.entries(overrides)) {
+              if (v == null) delete next[k]
+              else next[k] = v
+            }
+            return { ...c, revision: s.revision, manual_overrides: next }
+          })
+        },
+      ),
+    [cid, simple, applySheet],
+  )
+
   return {
     character,
     sheet,
@@ -415,6 +436,7 @@ export function useCharacterEngine(id: string | undefined) {
     toggle,
     undo,
     master,
+    override,
     vitals,
     spend,
   }

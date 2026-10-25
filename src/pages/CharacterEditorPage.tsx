@@ -422,7 +422,16 @@ export default function CharacterEditorPage() {
         <SheetEditor
           character={character}
           view={view}
-          onSave={(patch) => patchDoc(() => patch)}
+          onSave={(patch, overrides) => {
+            if (Object.keys(patch).length) patchDoc(() => patch)
+            if (overrides && Object.keys(overrides).length) {
+              const go = async () => {
+                if (Object.keys(patch).length) await eng.retrySave()
+                await eng.override(overrides)
+              }
+              void go()
+            }
+          }}
           onClose={() => setEditOpen(false)}
         />
       )}
