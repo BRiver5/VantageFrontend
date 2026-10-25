@@ -15,6 +15,7 @@ import type {
   RunInputs,
   RunResult,
   Sheet,
+  SpellKnown,
 } from './types/character'
 import { characterPayload } from './types/character'
 
@@ -261,9 +262,30 @@ export function sendEvent(id: string, name: TurnEvent, payload: Record<string, u
 /** Новый уровень в классе; новый class_id — мультикласс; без hp_roll — среднее */
 export function levelUp(
   id: string,
-  body: { class_id: string; subclass_id?: string | null; hp_roll?: number | null },
+  body: {
+    class_id: string
+    subclass_id?: string | null
+    hp_roll?: number | null
+    /** черта вместо увеличения характеристик */
+    feat_id?: string | null
+    /** новые заговоры и заклинания уровня — в той же ревизии */
+    spells?: SpellKnown[]
+  },
 ): Promise<LevelUpResult> {
   return request<LevelUpResult>(ch(id, '/level-up'), { method: 'POST', body, auth: true })
+}
+
+/**
+ * Потратить (amount > 0) или вернуть ресурс без программы способности —
+ * реакции после броска: кость превосходства, Везунчик, Удача темнейшего.
+ * Не хватает — status: rejected.
+ */
+export function spendResource(id: string, key: string, body: { amount?: number; reason?: string }): Promise<RunResult> {
+  return request<RunResult>(ch(id, `/resources/${encodeURIComponent(key)}/spend`), {
+    method: 'POST',
+    body: { amount: body.amount ?? 1, reason: body.reason },
+    auth: true,
+  })
 }
 
 export function resolvePending(id: string, decisionId: string, inputs: RunInputs = {}): Promise<RunResult> {

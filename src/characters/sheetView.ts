@@ -106,8 +106,6 @@ export function buildSheetView(
   dict: EngineDictionaries | null,
   /** подписи переменных персонажа из каталога движка */
   labels: Record<string, string> = {},
-  /** название и текст отключённых умений: сервер их в листе не отдаёт */
-  disabledDefs: Record<string, { name: string; description: string }> = {},
 ): SheetView {
   const { num, list, str, has } = valuesOf(sheet)
   const slugs = classSlugs(character, sheet, names)
@@ -189,24 +187,9 @@ export function buildSheetView(
     slug: a.slug,
     implementation_status: a.implementation_status,
     active: a.active,
+    // отключённые игроком сервер отдаёт с enabled: false — в списке они приглушены
+    disabled: a.enabled === false,
   }))
-  // отключённые игроком — в документе с enabled: false; в списке остаются приглушёнными
-  const listed = new Set(sheet.abilities.map((a) => a.grant_id))
-  for (const ga of character.abilities ?? []) {
-    if (ga.enabled || listed.has(ga.grant_id)) continue
-    const def = disabledDefs[ga.slug]
-    features.push({
-      name: def?.name ?? humanize(ga.slug.split('.').pop() ?? ga.slug),
-      source: featureSource(ga.source_kind),
-      level: null,
-      description: def?.description ?? '',
-      feature_source: ga.source_id,
-      grant_id: ga.grant_id,
-      slug: ga.slug,
-      active: false,
-      disabled: true,
-    })
-  }
   // черта, за которой у движка нет умения, остаётся строкой из каталога
   const featSources = new Set(sheet.abilities.filter((a) => a.source_kind === 'feat').map((a) => a.source_id))
   const feats = character.feat_ids.filter((id) => !featSources.has(id))
@@ -338,6 +321,7 @@ export function buildSheetView(
     backstory: character.backstory,
     notes: character.notes,
     breakdown: sheet.breakdown,
+    bases: sheet.bases,
     sourceNames,
     extras,
   }

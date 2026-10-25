@@ -2,16 +2,19 @@
  * Выбор существа (дикий облик) — карусель на подиуме: в центре крупно
  * выбранный зверь на печати, по сторонам — соседние поменьше и в тени.
  * Листается стрелками, свайпом, колесом и клавишами; под зверем — ПО, хиты,
- * КД и скорости. Картинки и числа берутся из бестиария лениво — только для
- * видимых карточек.
+ * КД и скорости. Картинку и статы сервер присылает в самих вариантах; у
+ * старого сервера они берутся из бестиария лениво — только для видимых карточек.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { ChevronLeft, ChevronRight, Footprints, Heart, PawPrint, Search, Shield } from 'lucide-react'
 import { getCachedEntity, getOne, realImage, type Creature } from '../api'
-import type { PromptInput } from '../types/character'
+import type { PromptInput, PromptOption } from '../types/character'
 
 /** Видно по столько карточек с каждой стороны от центральной */
 const SIDE = 2
+
+/** Есть ли в варианте картинка и статы с сервера — тогда в бестиарий не ходим */
+const hasStats = (o: PromptOption) => o.image !== undefined || o.hp !== undefined
 
 function useCreature(id: string | null): Creature | null {
   const [c, setC] = useState<Creature | null>(() => getCachedEntity<Creature>('creatures', id ?? undefined))
@@ -33,9 +36,35 @@ function useCreature(id: string | null): Creature | null {
   return c
 }
 
-function Slot({ id, label, offset, onPick }: { id: string; label: string; offset: number; onPick: () => void }) {
-  const c = useCreature(id)
-  const img = c ? (realImage(c.image_gallery) ?? realImage(c.image_url)) : null
+/** Картинка и статы зверя: из варианта сервера, а у старого сервера — из бестиария */
+function useBeast(opt: PromptOption) {
+  const c = useCreature(hasStats(opt) ? null : String(opt.value))
+  if (hasStats(opt)) {
+    return {
+      name: opt.label.replace(/\s*\(ПО.*\)$/, ''),
+      image: opt.image ?? null,
+      hp: opt.hp ?? null,
+      ac: opt.ac ?? null,
+      speed: opt.speed ?? 0,
+      fly: opt.fly_speed ?? 0,
+      swim: opt.swim_speed ?? 0,
+      climb: 0,
+    }
+  }
+  return {
+    name: c?.name ?? opt.label.replace(/\s*\(ПО.*\)$/, ''),
+    image: c ? (realImage(c.image_gallery) ?? realImage(c.image_url)) : null,
+    hp: c?.hp ?? null,
+    ac: c?.ac ?? null,
+    speed: c?.speed ?? 0,
+    fly: c?.flight_speed ?? 0,
+    swim: c?.swim_speed ?? 0,
+    climb: c?.climb_speed ?? 0,
+  }
+}
+
+function Slot({ opt, offset, onPick }: { opt: PromptOption; offset: number; onPick: () => void }) {
+  const beast = useBeast(opt)
   const [broken, setBroken] = useState(false)
   return (
     <button
@@ -44,37 +73,41 @@ function Slot({ id, label, offset, onPick }: { id: string; label: string; offset
       style={{ '--off': offset, '--abs': Math.abs(offset) } as CSSProperties}
       onClick={onPick}
       tabIndex={offset === 0 ? 0 : -1}
-      aria-label={label}
+      aria-label={opt.label}
     >
       <span className="cpod-art">
-        {img && !broken ? <img src={img} alt="" draggable={false} onError={() => setBroken(true)} /> : <PawPrint aria-hidden="true" />}
+        {beast.image && !broken ? (
+          <img src={beast.image} alt="" draggable={false} onError={() => setBroken(true)} />
+        ) : (
+          <PawPrint aria-hidden="true" />
+        )}
       </span>
     </button>
   )
 }
 
-function Facts({ id, label }: { id: string; label: string }) {
-  const c = useCreature(id)
-  const speeds = c
-    ? [
-        c.speed ? `${c.speed} фт.` : null,
-        c.flight_speed ? `полёт ${c.flight_speed}` : null,
-        c.swim_speed ? `плавание ${c.swim_speed}` : null,
-        c.climb_speed ? `лазание ${c.climb_speed}` : null,
-      ].filter(Boolean)
-    : []
+function Facts({ opt }: { opt: PromptOption }) {
+  const b = useBeast(opt)
+  const speeds = [
+    b.speed ? `${b.speed} фт.` : null,
+    b.fly ? `полёт ${b.fly}` : null,
+    b.swim ? `плавание ${b.swim}` : null,
+    b.climb ? `лазание ${b.climb}` : null,
+  ].filter(Boolean)
   return (
     <div className="cpod-facts">
-      <b className="gold-text">{c?.name ?? label.replace(/\s*\(ПО.*\)$/, '')}</b>
-      <span className="cpod-cr">{/\(ПО [^)]+\)/.exec(label)?.[0]?.slice(1, -1) ?? ''}</span>
-      {c && (
+      <b className="gold-text">{b.name}</b>
+      <span className="cpod-cr">{/\(ПО [^)]+\)/.exec(opt.label)?.[0]?.slice(1, -1) ?? ''}</span>
+      {b.hp != null && (
         <span className="cpod-stats">
           <span title="Хиты">
-            <Heart aria-hidden="true" /> {c.hp}
+            <Heart aria-hidden="true" /> {b.hp}
           </span>
-          <span title="Класс доспеха">
-            <Shield aria-hidden="true" /> {c.ac}
-          </span>
+          {b.ac != null && (
+            <span title="Класс доспеха">
+              <Shield aria-hidden="true" /> {b.ac}
+            </span>
+          )}
           {speeds.length > 0 && (
             <span title="Скорость">
               <Footprints aria-hidden="true" /> {speeds.join(' · ')}
@@ -162,7 +195,7 @@ export function CreaturePodium({
               <polygon points="100,22 167,61 167,139 100,178 33,139 33,61" />
             </svg>
             {visible.map(({ off, opt }) => (
-              <Slot key={`${String(opt.value)}-${off}`} id={String(opt.value)} label={opt.label} offset={off} onPick={() => go(off)} />
+              <Slot key={`${String(opt.value)}-${off}`} opt={opt} offset={off} onPick={() => go(off)} />
             ))}
             <button type="button" className="cpod-nav is-prev" onClick={() => go(-1)} aria-label="Предыдущий">
               <ChevronLeft aria-hidden="true" />
@@ -171,7 +204,7 @@ export function CreaturePodium({
               <ChevronRight aria-hidden="true" />
             </button>
           </div>
-          <Facts id={String(options[index].value)} label={options[index].label} />
+          <Facts opt={options[index]} />
           <span className="cpod-count">
             {index + 1} / {options.length}
           </span>

@@ -22,8 +22,10 @@ import {
   Camera,
   ChevronDown,
   Crosshair,
+  Clover,
   Dices,
   Eye,
+  Flame,
   EyeOff,
   Footprints,
   Hand,
@@ -395,23 +397,95 @@ export default function CharacterSheet({
     [],
   )
 
-  /** Реакции после к20: вдохновение — перебросить и взять лучшее */
-  const d20Reactions = (): RollReaction[] => {
-    const spend = stage?.onVitals
-    if (!spend || (stage?.inspiration ?? 0) <= 0) return []
-    return [
-      {
+  /**
+   * Реакции после к20 — что герой может добавить к уже выпавшему:
+   * вдохновение и Везунчик — ещё к20 и взять лучшую, кость превосходства — к
+   * атаке, Удача темнейшего — к10 к проверке или спасброску, Удача плута —
+   * превратить бросок в 20. Ресурс списывает сервер, кость бросает театр.
+   */
+  const d20Reactions = (kind: RollContext['kind'] | undefined): RollReaction[] => {
+    const out: RollReaction[] = []
+    const vitals = stage?.onVitals
+    const spendRes = stage?.onSpendResource
+    const res = (key: string) => engine?.sheet.resources.find((r) => r.key === key && r.current > 0)
+    const isAttack = kind === 'attack' || kind === 'spell'
+    const isCheck = kind === 'check' || kind === 'skill' || kind === 'init'
+    const isSave = kind === 'save'
+
+    if (vitals && (stage?.inspiration ?? 0) > 0) {
+      out.push({
         key: 'inspiration',
         label: 'Вдохновение',
         hint: 'перебросить к20 и взять лучшее',
         icon: Star,
         run: async () => {
-          spend('inspiration', -1)
+          vitals('inspiration', -1)
           const v = await dice.roll(1, 20)
           return v ? { newD20: v[0] } : null
         },
-      },
-    ]
+      })
+    }
+    if (!spendRes) return out
+
+    const luck = res('luck')
+    if (luck && (isAttack || isCheck || isSave)) {
+      out.push({
+        key: 'luck',
+        label: 'Везунчик',
+        hint: `ещё к20 — единиц удачи: ${luck.current}`,
+        icon: Clover,
+        run: async () => {
+          if (!(await spendRes('luck', 1, 'Везунчик: дополнительная к20'))) return null
+          const v = await dice.roll(1, 20)
+          return v ? { newD20: v[0] } : null
+        },
+      })
+    }
+
+    // кость превосходства мастера боевых искусств — по классу, у черты и стиля — к6
+    const sup = ['superiority', 'superiority_feat', 'superiority_style'].map(res).find(Boolean)
+    if (sup && isAttack) {
+      const dieVar = engine?.sheet.values['var.superiority_die']
+      const sides = sup.key === 'superiority' && typeof dieVar === 'number' ? dieVar : 6
+      out.push({
+        key: 'superiority',
+        label: 'Кость превосходства',
+        hint: `+к${sides} к атаке — осталось ${sup.current}`,
+        icon: Swords,
+        run: async () => {
+          if (!(await spendRes(sup.key, 1, 'Приём точности: кость к атаке'))) return null
+          const v = await dice.roll(1, sides)
+          return v ? { addDie: { sides, value: v[0] }, label: 'Кость превосходства' } : null
+        },
+      })
+    }
+
+    const dark = res('dark_ones_luck')
+    if (dark && (isCheck || isSave)) {
+      out.push({
+        key: 'dark_ones_luck',
+        label: 'Удача темнейшего',
+        hint: '+к10 к проверке или спасброску',
+        icon: Flame,
+        run: async () => {
+          if (!(await spendRes('dark_ones_luck', 1, 'Удача темнейшего: +к10'))) return null
+          const v = await dice.roll(1, 10)
+          return v ? { addDie: { sides: 10, value: v[0] }, label: 'Удача темнейшего' } : null
+        },
+      })
+    }
+
+    const stroke = res('stroke_of_luck')
+    if (stroke && (isAttack || isCheck)) {
+      out.push({
+        key: 'stroke_of_luck',
+        label: 'Удача',
+        hint: 'считать бросок к20 равным 20',
+        icon: Sparkles,
+        run: async () => ((await spendRes('stroke_of_luck', 1, 'Удача: к20 становится 20')) ? { newD20: 20 } : null),
+      })
+    }
+    return out
   }
 
   const rollD20 = async (label: string, bonus: number, attackKey?: string, ctx?: RollContext) => {
@@ -433,7 +507,7 @@ export default function CharacterSheet({
       modeLabel,
       bonuses: d20Cards(sheet, ctx, bonus),
       critMin: attackKey ? critMin : 20,
-      reactions: ctx?.kind === 'death' ? [] : d20Reactions(),
+      reactions: ctx?.kind === 'death' ? [] : d20Reactions(ctx?.kind),
     })
     return kept
   }
@@ -506,17 +580,25 @@ export default function CharacterSheet({
         const rolled = l.data!.rolls!
         const sides = sidesOf(l.data?.dice) || 6
         const notation = String(l.data?.dice ?? '')
-        let mode: RollMode = /kh|adv/i.test(notation) ? 'adv' : /kl|dis/i.test(notation) ? 'dis' : 'normal'
+        // сервер сам присылает режим и обе кости; у старого — догадка по нотации
+        const sent = l.data?.mode
+        let mode: RollMode =
+          sent === 'adv' || sent === 'dis' ? sent : /kh|adv/i.test(notation) ? 'adv' : /kl|dis/i.test(notation) ? 'dis' : 'normal'
         let values = [...rolled]
         if (sides === 20 && mode !== 'normal' && values.length === 1) {
           const v = values[0]
           const other = mode === 'adv' ? 1 + Math.floor(Math.random() * v) : v + Math.floor(Math.random() * (21 - v))
           values = [v, other]
         }
+        // две кости не к20 с преимуществом — показываем только оставленную
+        if (mode !== 'normal' && sides !== 20 && values.length === 2) {
+          values = [mode === 'adv' ? Math.max(...values) : Math.min(...values)]
+        }
         if (sides !== 20 || values.length !== 2) mode = 'normal'
         // визуальный бросок: число костей и граней как у сервера
         await rollDice3d(values.length, sides).catch(() => null)
-        const sum = (mode === 'normal' ? values : [values[0]]).reduce((a, b) => a + b, 0)
+        const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : null
+        const sum = kept ?? values.reduce((a, b) => a + b, 0)
         const total = typeof l.data?.total === 'number' ? l.data.total : sum
         enqueue({
           title: `${serverLog.title}: ${l.message.split(':')[0]}`,
@@ -1129,7 +1211,7 @@ export default function CharacterSheet({
   const current = tabs.some((t) => t.id === tab) ? tab : 'main'
 
   return (
-    <WhyProvider breakdown={sheet.breakdown} names={sheet.sourceNames}>
+    <WhyProvider breakdown={sheet.breakdown} bases={sheet.bases} names={sheet.sourceNames}>
     <div className={`cw-step cw-sheet${paged ? ' is-paged' : ''}`}>
       {heading}
 

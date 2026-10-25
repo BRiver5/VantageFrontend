@@ -122,6 +122,8 @@ export interface StageEngine {
   inspiration: number
   /** урон, лечение, временные хиты, вдохновение, спасброски — только у своего героя */
   onVitals?: (op: VitalsOp, amount: number, opts?: { damageType?: string | null; success?: boolean }) => void
+  /** реакции после броска: потратить ресурс (кость превосходства, Везунчик) */
+  onSpendResource?: (key: string, amount?: number, reason?: string) => Promise<boolean>
   /** типы урона для меню (английский ключ → подпись) */
   damageTypes?: { value: string; label: string }[]
   /** короткий отдых: окно выбора костей хитов */

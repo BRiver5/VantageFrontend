@@ -55,7 +55,8 @@ export function ResourceBand({
         const unlimited = r.max >= 99
         const ratio = unlimited ? 1 : r.max > 0 ? Math.max(0, Math.min(1, r.current / r.max)) : 0
         const rech = r.recharge.map((x) => RECHARGE[x]).filter(Boolean)
-        const on = activeKeys.has(r.key)
+        // сервер сам связывает ресурс с состоянием своей способности; старый лист — по совпадению ключей
+        const on = r.active ?? activeKeys.has(r.key)
         return (
           <button
             key={r.key}

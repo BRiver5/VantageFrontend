@@ -33,7 +33,6 @@ import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
 import { JournalDrawer, JournalModal, PendingBanner, ShortRestDialog } from '../characters/EngineDialogs'
-import { useAbilities } from '../abilities/abilityData'
 import type { EngineView } from '../characters/EnginePanel'
 import type { StageEngine } from '../characters/HeroStage'
 import { parsePortrait } from '../characters/portrait'
@@ -102,17 +101,9 @@ export default function CharacterEditorPage() {
   const admin = user?.role === 'admin'
   const owner = !!character && !!user && (admin || character.player_id === user.id)
 
-  // отключённые умения сервер в листе не отдаёт — их название и текст из каталога способностей
-  const disabledSlugs = (character?.abilities ?? []).filter((a) => !a.enabled).map((a) => a.slug)
-  const { items: disabledAbilities } = useAbilities(disabledSlugs)
-  const disabledDefs = useMemo(
-    () => Object.fromEntries(disabledAbilities.map((a) => [a.slug, { name: a.name, description: a.description }])),
-    [disabledAbilities],
-  )
-
   const view = useMemo(
-    () => (character && sheet ? buildSheetView(character, sheet, names, dict, labels, disabledDefs) : null),
-    [character, sheet, names, dict, labels, disabledDefs],
+    () => (character && sheet ? buildSheetView(character, sheet, names, dict, labels) : null),
+    [character, sheet, names, dict, labels],
   )
 
   // дикий облик: зверь из листа — его картинка на аватаре, пока облик активен
@@ -243,6 +234,7 @@ export default function CharacterEditorPage() {
     busy: eng.busy,
     inspiration: num('char.inspiration'),
     onVitals: owner ? eng.vitals : undefined,
+    onSpendResource: owner ? eng.spend : undefined,
     damageTypes: dict?.damage_types,
     onShortRest: owner ? () => setRestOpen(true) : undefined,
     onHpJournal: owner ? () => setHpJournalOpen(true) : undefined,
@@ -255,8 +247,10 @@ export default function CharacterEditorPage() {
         }
       : null,
   }
-  // в облике на печати — зверь целиком
-  const creatureArt = creature ? (realImage(creature.image_gallery) ?? realImage(creature.image_url)) : null
+  // в облике на печати — зверь целиком; картинку отдаёт сам лист
+  const formImage = sheet.values['form.wild_shape.image']
+  const creatureArt =
+    (typeof formImage === 'string' && formImage) || (creature ? (realImage(creature.image_gallery) ?? realImage(creature.image_url)) : null)
   const portrait = formActive && creatureArt ? creatureArt : pic.src
   const portraitFace = formActive && creatureArt ? { cx: 0.5, cy: 0.3, r: 0.5, shape: 'full' as const } : pic.face
 

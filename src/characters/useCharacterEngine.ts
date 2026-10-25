@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ApiError,
   applyVitals,
+  spendResource,
   dismissPending,
   getCharacter,
   getSheet,
@@ -333,6 +334,29 @@ export function useCharacterEngine(id: string | undefined) {
     [cid, startFlow],
   )
 
+  /**
+   * Реакция после броска тратит ресурс (кость превосходства, Везунчик): тихо,
+   * без тоста и поп-апа — кость бросает театр броска. false — не хватило.
+   */
+  const spend = useCallback(
+    async (key: string, amount = 1, reason?: string): Promise<boolean> => {
+      try {
+        const res = await spendResource(cid, key, { amount, reason })
+        if (res.status === 'completed') {
+          if (res.sheet) applySheet(res.sheet)
+          return true
+        }
+        setNotice(res.message ?? 'Ресурс не списан')
+        return false
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) void onConflict()
+        else setNotice(errorText(e))
+        return false
+      }
+    },
+    [cid, applySheet, onConflict],
+  )
+
   const dismiss = useCallback(
     (decisionId: string) => simple(() => dismissPending(cid, decisionId), applySheet),
     [cid, simple, applySheet],
@@ -392,6 +416,7 @@ export function useCharacterEngine(id: string | undefined) {
     undo,
     master,
     vitals,
+    spend,
   }
 }
 

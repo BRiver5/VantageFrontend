@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { Contribution } from '../types/character'
+import type { Contribution, SheetBase } from '../types/character'
 import { contributionsOf, type WhyRow } from './sheetView'
 
 const KIND: Record<string, { icon: LucideIcon; label: string }> = {
@@ -82,11 +82,14 @@ function Popover({
   anchor,
   req,
   rows,
+  serverBase,
   onClose,
 }: {
   anchor: HTMLElement
   req: WhyRequest
   rows: WhyRow[]
+  /** основа с сервера: «10 + Ловкость», «Кольчуга» */
+  serverBase?: SheetBase
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -126,11 +129,19 @@ function Popover({
     }
   }, [anchor, onClose])
 
-  // основа = итог − сумма прибавок, если итог числовой и все вклады — прибавки
+  // основа — с сервера; у старого сервера — итог минус прибавки, если все вклады прибавки
   const total = typeof req.total === 'number' ? req.total : null
   const adds = rows.filter((r) => r.op === 'add' && r.value != null)
   const onlyAdds = rows.length > 0 && adds.length === rows.length
-  const base = total != null && onlyAdds ? total - adds.reduce((s, r) => s + (r.value ?? 0), 0) : null
+  const base =
+    serverBase && typeof serverBase.value === 'number'
+      ? serverBase.value
+      : total != null && onlyAdds
+        ? total - adds.reduce((s, r) => s + (r.value ?? 0), 0)
+        : null
+  const baseLabel = serverBase?.label && serverBase.label !== 'базовое значение' ? serverBase.label : (req.baseLabel ?? 'Основа')
+  // вклады-«кандидаты» (Защита без доспехов) уже стали основой — не дублируем
+  const shownRows = serverBase?.source ? rows.filter((r) => !(r.op === 'candidate' || r.op === 'base')) : rows
 
   return createPortal(
     <div
@@ -154,12 +165,12 @@ function Popover({
               <BookOpen aria-hidden="true" />
             </span>
             <span className="why-row-text">
-              <b>{req.baseLabel ?? 'Основа'}</b>
+              <b>{baseLabel}</b>
             </span>
             <span className="why-row-val">{base}</span>
           </li>
         )}
-        {rows.map((r, i) => {
+        {shownRows.map((r, i) => {
           const k = KIND[r.kind] ?? KIND.ability
           return (
             <li key={i} className={`why-row is-${r.kind}${r.value != null && r.value < 0 ? ' is-neg' : ''}`}>
@@ -183,10 +194,12 @@ function Popover({
 /** Поставщик поп-апа для листа: знает вклады и названия способностей */
 export function WhyProvider({
   breakdown,
+  bases,
   names,
   children,
 }: {
   breakdown: Record<string, Contribution[]> | undefined
+  bases?: Record<string, SheetBase>
   names?: Record<string, string>
   children: ReactNode
 }) {
@@ -203,7 +216,13 @@ export function WhyProvider({
     <WhyContext.Provider value={api}>
       {children}
       {state && (
-        <Popover anchor={state.anchor} req={state.req} rows={contributionsOf(breakdown, state.req.path, names)} onClose={close} />
+        <Popover
+          anchor={state.anchor}
+          req={state.req}
+          rows={contributionsOf(breakdown, state.req.path, names)}
+          serverBase={bases?.[state.req.path]}
+          onClose={close}
+        />
       )}
     </WhyContext.Provider>
   )

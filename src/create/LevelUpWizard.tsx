@@ -4,15 +4,16 @@
  * одного уровня (хиты, навыки, подкласс, усиление или черта, заговоры и
  * заклинания), для готовящих заклинателей — их набор, и итог.
  *
- * Отправка: `POST /level-up` (класс, подкласс, бросок хитов), затем в документ
- * — новые заклинания и черта, затем ответы на выборы способностей (ASI,
- * навыки) теми же решениями, что игрок принял на шагах.
+ * Отправка: один `POST /level-up` — класс, подкласс, бросок хитов, черта и
+ * новые заклинания в одной ревизии; затем ответы на выборы способностей (ASI,
+ * навык мультикласса) теми же решениями, что игрок принял на шагах. Требования
+ * мультикласса (Сила 13…) проверяет сервер — его текст показывается как ошибка.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, GraduationCap, Loader2 } from 'lucide-react'
-import { ApiError, levelUp, updateCharacter, type Background, type GameClass } from '../api'
+import { ApiError, levelUp, type Background, type GameClass } from '../api'
 import { AbilityList } from '../abilities/AbilityList'
 import { useCharacterEngine } from '../characters/useCharacterEngine'
 import { useNames } from '../characters/useNames'
@@ -123,27 +124,23 @@ export default function LevelUpWizard() {
     setError(null)
     try {
       const subNow = draft.subclass && !own?.subclass_id ? draft.subclass.id : null
-      const res = await levelUp(character.id, {
+      // новые заговоры и заклинания и черта вместо усиления — тем же запросом, в одной ревизии
+      const have = new Set(character.spells.map((sp) => normSpellName(sp.name)))
+      const spells: SpellKnown[] = [...newLevel.cantrips, ...newLevel.spells, ...draft.preparedSpells]
+        .filter((sp) => !have.has(normSpellName(sp.spell_name)) && (have.add(normSpellName(sp.spell_name)), true))
+        .map((sp) => ({ name: sp.spell_name, level: sp.spell_level, prepared: true, spell_source: sp.spell_source ?? null, snapshot: { spell_id: sp.id } }))
+      const body = {
         class_id: draft.cls.id,
         subclass_id: subNow,
         hp_roll: newLevel.hpMode === 'average' || newLevel.hpRoll == null ? null : newLevel.hpRoll,
-      }).catch((e: unknown) => {
+        feat_id: newLevel.featId && !character.feat_ids.includes(newLevel.featId) ? newLevel.featId : null,
+        spells,
+      }
+      const res = await levelUp(character.id, body).catch((e: unknown) => {
         // 409 — лист обновили в другом месте: один повтор на свежей ревизии
-        if (e instanceof ApiError && e.status === 409) return levelUp(character.id, { class_id: draft.cls!.id, subclass_id: subNow })
+        if (e instanceof ApiError && e.status === 409) return levelUp(character.id, body)
         throw e
       })
-      // новые заговоры и заклинания — в книгу; черта вместо усиления — в черты
-      const have = new Set(character.spells.map((s) => normSpellName(s.name)))
-      const added: SpellKnown[] = [...newLevel.cantrips, ...newLevel.spells, ...draft.preparedSpells]
-        .filter((s) => !have.has(normSpellName(s.spell_name)) && (have.add(normSpellName(s.spell_name)), true))
-        .map((s) => ({ name: s.spell_name, level: s.spell_level, prepared: true, spell_source: s.spell_source ?? null, snapshot: { spell_id: s.id } }))
-      const feat = newLevel.featId && !character.feat_ids.includes(newLevel.featId) ? newLevel.featId : null
-      if (added.length || feat) {
-        await updateCharacter(character.id, {
-          ...(added.length ? { spells: [...character.spells, ...added] } : {}),
-          ...(feat ? { feat_ids: [...character.feat_ids, feat] } : {}),
-        })
-      }
       // ASI и навыки нового уровня — ответами на выборы способностей
       await autoResolveDecisions(character.id, { ...draft, levels: [newLevel] }).catch(() => {})
       setChanges(res.changes)

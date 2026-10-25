@@ -183,6 +183,8 @@ export type SheetView = {
   notes: string
   /** «откуда число»: вклады по пути значения (только у листа с сервера) */
   breakdown?: Record<string, Contribution[]>
+  /** основа значения до вкладов */
+  bases?: Record<string, SheetBase>
   /** slug способности → её название: подписи вкладов в расшифровке */
   sourceNames?: Record<string, string>
   /** значения, которые выдают способности движка (у предпросмотра визарда нет) */
@@ -359,6 +361,9 @@ export type SheetResource = {
   max: number
   declared_by: string
   recharge: string[]
+  /** состояние той же способности (ярость: res.rage ↔ state.rage) и включено ли оно */
+  state_key?: string | null
+  active?: boolean
 }
 
 export type SheetSlot = { pool: 'spell' | 'pact'; level: number; current: number; max: number }
@@ -371,6 +376,8 @@ export type SheetAbility = {
   source_kind: string
   source_id: string | null
   active: boolean
+  /** false — отключена игроком: механика не действует, но в листе остаётся */
+  enabled?: boolean
   description: string
   choices: Record<string, unknown>
 }
@@ -385,6 +392,8 @@ export type Sheet = {
   /** все значения по пути: char.ac, char.abilities.str.score… */
   values: Record<string, unknown>
   breakdown: Record<string, Contribution[]>
+  /** основа значения до вкладов: «10 + Ловкость», «Кольчуга» */
+  bases?: Record<string, SheetBase>
   resources: SheetResource[]
   slots: SheetSlot[]
   actions: SheetAction[]
@@ -396,7 +405,21 @@ export type Sheet = {
 
 /* ---------- действия и поп-апы ---------- */
 
-export type PromptOption = { value: unknown; label: string; description?: string }
+export type SheetBase = { value: unknown; label: string; source?: string | null }
+
+/** Вариант поп-апа; у существ — ещё картинка и статы (карусель дикого облика) */
+export type PromptOption = {
+  value: unknown
+  label: string
+  description?: string
+  image?: string | null
+  hp?: number
+  ac?: number
+  speed?: number
+  fly_speed?: number
+  swim_speed?: number
+  cr?: number
+}
 
 export type PromptInput = {
   key: string
