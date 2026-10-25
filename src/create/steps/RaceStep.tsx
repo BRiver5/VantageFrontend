@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react'
 import { ABILITY_RU, isFramedArt, realImage, sizeRu } from '../../api'
 import type { Race } from '../../api'
 import { RaceDetailBody } from '../../pages/DetailPages'
+import { RaceBoosts, boostInfo, boostsAbility } from '../../raceBoosts'
 import { useBookWorld } from '../../worldArt'
 import type { StepProps } from '../draft'
 import {
@@ -71,7 +72,6 @@ export function RaceCard({
   onDetails: () => void
   slotRef?: (el: HTMLDivElement | null) => void
 }) {
-  const boosts = Object.entries(race.increase_ability_scores ?? {})
   return (
     <div className="cw-pick-slot cw-pick-slot--catalog" ref={slotRef}>
       <button
@@ -98,16 +98,7 @@ export function RaceCard({
         <span className="class-card-lower">
           <span className="class-card-glow" aria-hidden="true" />
           <span className="class-card-panel race-card-panel">
-            {boosts.length > 0 && (
-              <span className="race-boosts">
-                {boosts.map(([k, v]) => (
-                  <span className="race-boost" key={k}>
-                    {ABILITY_RU[k] ?? k}
-                    <i>+{v}</i>
-                  </span>
-                ))}
-              </span>
-            )}
+            <RaceBoosts info={boostInfo(race, hasSubraces)} />
             <span className="race-rail">
               <RailCell icon={Ruler} value={sizeRu(race.size)} label="размер" />
               <RailCell icon={Footprints} value={`${race.speed} фт.`} label="скорость" />
@@ -178,7 +169,8 @@ export default function RaceStep({ draft, update }: StepProps) {
           key: a,
           label: ABILITY_RU[a] ?? a,
         })),
-        match: (r, sel) => sel.some((a) => (r.increase_ability_scores?.[a] ?? 0) > 0),
+        // раса с бонусами на выбор подходит к любой характеристике
+        match: (r, sel) => sel.some((a) => boostsAbility(boostInfo(r), a)),
       },
       {
         key: 'subraces',

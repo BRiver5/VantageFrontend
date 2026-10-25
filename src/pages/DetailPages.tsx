@@ -79,6 +79,7 @@ import { EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
 import { AbilityList } from '../abilities/AbilityList'
+import { RaceBoosts, boostInfo } from '../raceBoosts'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
 import { ClassArticle, OpenLinksInNewTab, isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } from '../classArticle'
@@ -1176,21 +1177,6 @@ function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
 }
 
 /** Прибавки характеристик расы — золотые жетоны «ЛОВ +2» */
-function AbilityBoosts({ scores, className }: { scores: Record<string, number> | null; className?: string }) {
-  const boosts = Object.entries(scores ?? {})
-  if (boosts.length === 0) return null
-  return (
-    <div className={`race-boosts${className ? ` ${className}` : ''}`}>
-      {boosts.map(([k, v]) => (
-        <span className="race-boost" key={k}>
-          {ABILITY_RU[k] ?? k}
-          <i>+{v}</i>
-        </span>
-      ))}
-    </div>
-  )
-}
-
 /** Плитка факта о расе: гекс с иконкой, подпись и значение */
 function RaceFact({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | null }) {
   if (!value) return null
@@ -1263,7 +1249,7 @@ export function RaceDetailBody({
                   </Link>
                 ))}
             </div>
-            <AbilityBoosts scores={r.increase_ability_scores} className="race-detail-boosts" />
+            <RaceBoosts info={boostInfo(r, subraces.length > 0)} className="race-detail-boosts" />
           </div>
         </div>
       </header>
@@ -1316,7 +1302,7 @@ export function RaceDetailBody({
               const body = (
                 <>
                   <span className="subrace-card-name">{sr.subrace_name}</span>
-                  <AbilityBoosts scores={sr.increase_ability_scores} />
+                  <RaceBoosts info={boostInfo(sr)} />
                   {(sr.darkvision_override != null || sr.speed_bonus > 0) && (
                     <div className="card-chips">
                       {sr.speed_bonus > 0 && <Chip icon={Footprints}>скорость +{sr.speed_bonus} фт.</Chip>}
