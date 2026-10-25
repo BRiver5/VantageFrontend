@@ -193,11 +193,6 @@ export function createCharacter(body: CharacterInput): Promise<Character> {
   })
 }
 
-/** Полная копия чужого листа: новый персонаж текущего пользователя, включая состояние движка */
-export function copyCharacter(id: string): Promise<Character> {
-  return request<Character>(`/characters/${id}/copy`, { method: 'POST', auth: true })
-}
-
 /** PATCH — только изменённые поля; поля движка сервер не принимает */
 export function updateCharacter(id: string, body: CharacterInput): Promise<Character> {
   return request<Character>(`/characters/${id}`, {

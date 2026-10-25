@@ -6,7 +6,7 @@
  * видимость) правится прямо в листе и сохраняется с небольшой задержкой;
  * остальное — в окне «Правка листа». Чужой публичный лист открывается для
  * просмотра: бросать кости можно, менять — нет. В шапке такого листа —
- * «Скопировать персонажа себе»: сервер создаёт полную копию на текущего игрока.
+ * «Скопировать персонажа себе»: тот же POST /characters, что и при создании.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -30,7 +30,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { copyCharacter, getOne, realImage, type Creature } from '../api'
+import { createCharacter, getOne, realImage, type Creature } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
@@ -282,7 +282,12 @@ export default function CharacterEditorPage() {
     setCopying(true)
     setCopyError(null)
     try {
-      const created = await copyCharacter(character.id)
+      const created = await createCharacter({
+        ...character,
+        visibility: 'private',
+        campaign_id: null,
+        player_display_name: user.display_name,
+      })
       if (!created.id) throw new Error('Сервер не вернул копию')
       navigate(`/characters/${created.id}`)
     } catch (err) {
