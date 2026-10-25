@@ -5,7 +5,8 @@
  * (он открывает тот же пошаговый мастер, что и создание героя). Сам документ (инвентарь, кошелёк, записи,
  * видимость) правится прямо в листе и сохраняется с небольшой задержкой;
  * остальное — в окне «Правка листа». Чужой публичный лист открывается для
- * просмотра: бросать кости можно, менять — нет.
+ * просмотра: бросать кости можно, менять — нет. В шапке такого листа —
+ * «Скопировать персонажа себе»: сервер создаёт полную копию на текущего игрока.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -14,6 +15,7 @@ import {
   ChevronLeft,
   CloudOff,
   Coffee,
+  Copy,
   Eye,
   Globe,
   GraduationCap,
@@ -28,7 +30,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { getOne, realImage, type Creature } from '../api'
+import { copyCharacter, getOne, realImage, type Creature } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
@@ -61,7 +63,7 @@ export default function CharacterEditorPage() {
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as SheetTab | null) ?? 'main'
   const setTab = (t: SheetTab) => setParams(t === 'main' ? {} : { tab: t }, { replace: true })
-  const { user } = useAuth()
+  const { user, ready } = useAuth()
   const eng = useCharacterEngine(id)
   const { character, sheet } = eng
   const { names, races, classes } = useNames(character)
@@ -73,6 +75,8 @@ export default function CharacterEditorPage() {
   const [journalOpen, setJournalOpen] = useState(false)
   const [hpJournalOpen, setHpJournalOpen] = useState(false)
   const [restOpen, setRestOpen] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const [copyError, setCopyError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -267,6 +271,26 @@ export default function CharacterEditorPage() {
   const StatusIcon = status?.icon
   const flow = eng.flow
   const banner = eng.conflict ?? eng.notice
+  const canCopy = ready && !owner
+
+  /** Чужой лист целиком — новый персонаж текущего игрока */
+  const copyToMe = async () => {
+    if (!user) {
+      navigate(`/login?next=${encodeURIComponent(`/characters/${character.id}`)}`)
+      return
+    }
+    setCopying(true)
+    setCopyError(null)
+    try {
+      const created = await copyCharacter(character.id)
+      if (!created.id) throw new Error('Сервер не вернул копию')
+      navigate(`/characters/${created.id}`)
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : 'Не удалось скопировать персонажа')
+    } finally {
+      setCopying(false)
+    }
+  }
 
   return (
     <section className={`cw cw-live${pic.background ? ' has-world' : ''}`}>
@@ -286,6 +310,15 @@ export default function CharacterEditorPage() {
                 </button>
               )}
             </span>
+          )}
+          {canCopy && (
+            <>
+              <button type="button" className="cs-btn" onClick={() => void copyToMe()} disabled={copying}>
+                {copying ? <Loader2 className="cw-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                Скопировать персонажа себе
+              </button>
+              {copyError && <span className="cw-save cw-save--error">{copyError}</span>}
+            </>
           )}
           {owner && (
             <>

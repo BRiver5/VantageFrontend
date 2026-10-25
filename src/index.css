@@ -15950,11 +15950,8 @@ button.cw-orb:disabled { cursor: default; }
 
 /* ---------- «откуда число»: кликабельные числа и поп-ап ---------- */
 
-button.is-why { font: inherit; color: inherit; background: none; border: none; padding: 0; text-align: inherit; cursor: pointer; }
-.cw-orb.is-why { border-radius: 14px; transition: background 0.15s ease, translate 0.25s ease; }
-.cw-orb.is-why:hover { background: rgba(196, 154, 60, 0.08); }
-.cw-orb.is-why:focus-visible,
-.cw-hphex-max:focus-visible { outline: 1px solid var(--gold-2); outline-offset: 3px; }
+button.is-why { font: inherit; color: inherit; background: none; border: none; padding: 0; text-align: inherit; cursor: pointer; outline: none; }
+.cw-hphex-max:focus-visible { outline: none; }
 .cw-hphex-max { font-style: italic; font-size: inherit; color: var(--text-dim); }
 .cw-hphex-max:hover { color: var(--gold-4); }
 
