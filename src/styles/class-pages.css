@@ -1,0 +1,1826 @@
+/* ============================================================
+   Лист персонажа (тестовый, /character)
+   ============================================================ */
+.cs { padding-top: clamp(24px, 4vw, 44px); }
+
+.cs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.cs-toolbar .section-title { margin: 0; }
+.cs-toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  clip-path: var(--hex-chip);
+  border: none;
+  cursor: pointer;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+.cs-btn svg { width: 16px; height: 16px; }
+.cs-btn--lg {
+  padding: 14px 34px;
+  clip-path: var(--hex-wide-blunt);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+.cs-btn--lg svg { width: 18px; height: 18px; }
+.cs-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+/* недоступная кнопка — затемнена и не реагирует (напр. «Все шесть брошены») */
+.cs-btn:disabled {
+  cursor: default;
+  filter: grayscale(0.7) brightness(0.55);
+  opacity: 0.75;
+}
+.cs-btn--ghost {
+  color: var(--silver-2);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgba(168, 175, 186, 0.3);
+  background: var(--hex-edge);
+}
+
+/* панель-пергамент с окладом */
+.cs-panel {
+  position: relative;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 40%, rgba(124, 130, 139, 0.8)) border-box;
+}
+
+/* общие поля ввода */
+.cs-input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 4px;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.32);
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  text-align: center;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.cs-input:focus {
+  outline: none;
+  border-bottom-color: var(--gold-2);
+  box-shadow: 0 1px 0 var(--gold-2);
+}
+.cs-input::placeholder { color: var(--text-dim); font-style: italic; }
+.cs-num { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--parchment); }
+.cs-num-sm { font-family: var(--font-display); font-weight: 700; }
+
+.cs-area {
+  width: 100%;
+  min-height: 100px;
+  flex: 1 1 auto;
+  resize: vertical;
+  padding: 8px 10px;
+  color: var(--text);
+  background: rgba(13, 14, 17, 0.35);
+  border: 1px solid rgba(168, 175, 186, 0.18);
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.cs-area:focus { outline: none; border-color: var(--gold-2); }
+.cs-area::placeholder { color: var(--text-dim); font-style: italic; }
+
+/* золотая подпись поля */
+.cs-labeled-cap {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--gold-2);
+}
+.cs-labeled { display: block; }
+
+/* заголовок панели-списка */
+.cs-list-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.cs-list-title svg { width: 15px; height: 15px; }
+
+/* флажок-ромб */
+.cs-check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--silver-2);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.cs-check.is-on {
+  background: linear-gradient(135deg, var(--gold-3), var(--gold-2));
+  border-color: var(--gold-3);
+  box-shadow: 0 0 8px rgba(196, 154, 60, 0.55);
+}
+
+/* шапка */
+.cs-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.cs-name { flex: 1 1 240px; }
+.cs-name .cs-input { text-align: left; font-family: var(--font-display); font-size: 1.5rem; color: var(--parchment); }
+.cs-head-grid {
+  flex: 2 1 420px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 18px;
+}
+
+/* три колонки */
+.cs-cols {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.cs-col { display: flex; flex-direction: column; gap: 14px; }
+
+.cs-col:first-child { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.cs-abilities { display: flex; flex-direction: column; gap: 12px; }
+.cs-col-right { display: flex; flex-direction: column; gap: 12px; }
+
+.cs-ability {
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 12px;
+  text-align: center;
+}
+.cs-ability-name {
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold-2);
+}
+.cs-ability-mod {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--parchment);
+  line-height: 1;
+}
+.cs-ability-score {
+  width: 52px;
+  padding: 3px;
+  text-align: center;
+  color: var(--text);
+  background: rgba(13, 14, 17, 0.4);
+  border: 1px solid rgba(168, 175, 186, 0.3);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.cs-ability-score:focus { outline: none; border-color: var(--gold-2); }
+
+.cs-inspiration { display: flex; align-items: center; gap: 12px; }
+.cs-inspiration span { font-family: var(--font-display); letter-spacing: 0.04em; color: var(--parchment); }
+.cs-profbonus, .cs-passive { text-align: center; }
+.cs-mini { display: block; }
+
+.cs-list-rows { display: flex; flex-direction: column; gap: 3px; }
+.cs-list-row { display: flex; align-items: center; gap: 9px; }
+.cs-list-row .cs-num-sm {
+  width: 34px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: none;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.3);
+}
+.cs-list-name { font-size: 0.9rem; color: var(--text); }
+.cs-abbr { color: var(--text-dim); font-style: normal; font-size: 0.8rem; }
+
+.cs-passive { display: flex; flex-direction: column; align-items: center; }
+.cs-passive .cs-num { width: 60px; }
+
+.cs-block { display: flex; flex-direction: column; }
+
+.cs-combat-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cs-stat { text-align: center; }
+.cs-stat .cs-num { width: 100%; }
+
+.cs-hp { display: flex; flex-direction: column; gap: 10px; }
+.cs-hp-row { display: flex; gap: 10px; }
+.cs-grow { flex: 1 1 auto; }
+.cs-hp-current .cs-input { font-family: var(--font-display); font-size: 1.3rem; color: var(--parchment); }
+
+.cs-hp-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cs-hd { display: flex; gap: 10px; align-items: flex-end; }
+.cs-hd .cs-mini { width: 52px; flex: 0 0 auto; }
+
+.cs-death-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cs-death-label { flex: 1 1 auto; font-size: 0.82rem; color: var(--text-dim); }
+
+.cs-attacks-head, .cs-attacks-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 1.2fr;
+  gap: 8px;
+  align-items: center;
+}
+.cs-attacks-head {
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  text-align: center;
+}
+.cs-attacks-row { margin-bottom: 3px; }
+.cs-attacks .cs-area { margin-top: 8px; min-height: 60px; }
+
+.cs-money { display: flex; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
+.cs-coin { flex: 1 1 0; text-align: center; }
+.cs-coin .cs-num-sm { width: 100%; }
+
+.cs-features .cs-area { min-height: 220px; }
+
+@media (max-width: 1080px) {
+  .cs-cols { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .cs-cols { grid-template-columns: 1fr; }
+  .cs-col:first-child { grid-template-columns: 1fr; }
+  .cs-abilities { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .cs-head-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   Таблица развития класса
+   ============================================================ */
+.ctable-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.5), rgba(124, 130, 139, 0.28) 55%, rgba(196, 154, 60, 0.5)) border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+}
+.ctable-wrap::-webkit-scrollbar { height: 7px; }
+.ctable-wrap::-webkit-scrollbar-thumb { background: rgba(168, 175, 186, 0.3); border-radius: 4px; }
+
+.ctable {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+}
+
+.ctable thead th {
+  padding: 8px 10px;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  vertical-align: bottom;
+  border-bottom: 1.5px solid rgba(196, 154, 60, 0.45);
+  white-space: nowrap;
+}
+.ctable-feat-h { text-align: left; }
+.ctable-group-h { border-bottom-color: rgba(196, 154, 60, 0.3); }
+.ctable thead tr:last-child .ctable-num-h { font-size: 0.78rem; padding-top: 3px; padding-bottom: 5px; }
+
+.ctable tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.12);
+  vertical-align: top;
+}
+.ctable tbody tr:nth-child(even) { background: rgba(168, 175, 186, 0.035); }
+.ctable tbody tr:hover { background: rgba(196, 154, 60, 0.08); }
+.ctable tbody tr:last-child td { border-bottom: none; }
+
+.ctable-lvl {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--parchment);
+}
+.ctable-prof {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-3);
+}
+.ctable-num {
+  text-align: center;
+  font-family: var(--font-display);
+  color: var(--text);
+  white-space: nowrap;
+}
+.ctable-dash { color: var(--text-dim); }
+
+.ctable-feat { min-width: 220px; }
+.ctable-feat-item {
+  display: inline-block;
+  margin: 2px 5px 2px 0;
+  padding: 2px 9px;
+  border-radius: 3px;
+  color: var(--text);
+  background: rgba(168, 175, 186, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.18);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+/* умение-селектор подкласса в таблице — кликом уводит к сотам подклассов */
+.ctable-feat-link {
+  cursor: pointer;
+  color: var(--gold-3);
+  background: rgba(196, 154, 60, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  font-family: inherit;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+.ctable-feat-link:hover {
+  color: var(--gold-4);
+  background: rgba(196, 154, 60, 0.22);
+  box-shadow: inset 0 0 0 1px var(--gold-2);
+}
+
+/* ============================================================
+   HTML-описание класса (сырая разметка dnd.su → наши стили)
+   ============================================================ */
+.class-article {
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.62;
+}
+.class-article p { margin: 0 0 0.85em; }
+.class-article strong, .class-article b { color: var(--parchment); font-weight: 700; }
+.class-article em, .class-article i { font-style: italic; }
+.class-article img { max-width: 100%; height: auto; border-radius: 6px; }
+.class-article > .desc.card__article-body { display: block; }
+
+/* Заголовки dnd.su */
+.class-article .bigSectionTitle {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  margin: 1.5em 0 0.55em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid rgba(196, 154, 60, 0.28);
+}
+.class-article .smallSectionTitle {
+  font-family: var(--font-display);
+  color: var(--gold-4);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  margin: 1.2em 0 0.4em;
+}
+.class-article .tableTitle {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 1.1em 0 0.35em;
+}
+/* заголовки без «фирменных» классов dnd.su — минимальный запас */
+.class-article h1, .class-article h2, .class-article h3, .class-article h4 {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  line-height: 1.25;
+}
+.class-article .underlined { text-decoration: none; }
+
+/* Цитаты */
+.class-article blockquote {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  font-style: italic;
+  color: var(--text);
+  border-left: 3px solid var(--gold-2);
+  background: rgba(196, 154, 60, 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Списки */
+.class-article ul, .class-article ol { margin: 0.55em 0 1em; padding-left: 1.4em; }
+.class-article li { margin: 0.3em 0; }
+
+/* Таблицы — в стиле «Таблицы развития класса» (.ctable) */
+.class-article .table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.5), rgba(124, 130, 139, 0.28) 55%, rgba(196, 154, 60, 0.5)) border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+}
+.class-article .table-wrapper::-webkit-scrollbar { height: 7px; }
+.class-article .table-wrapper::-webkit-scrollbar-thumb { background: rgba(168, 175, 186, 0.3); border-radius: 4px; }
+.class-article table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+.class-article table.class_table { min-width: 560px; }
+.class-article th, .class-article td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.12);
+  vertical-align: top;
+  text-align: left;
+}
+.class-article tbody tr:nth-child(even) { background: rgba(168, 175, 186, 0.035); }
+.class-article tbody tr:hover { background: rgba(196, 154, 60, 0.08); }
+.class-article tr.table_header td, .class-article tr.table_header th {
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  /* по умолчанию заголовок выровнен так же, как ячейки (влево) — чтобы значения
+     всегда стояли ровно под своим заголовком в любых таблицах */
+  text-align: left;
+  vertical-align: bottom;
+  border-bottom: 1.5px solid rgba(196, 154, 60, 0.45);
+  white-space: nowrap;
+}
+.class-article tr.table_header:hover, .class-article tr.spell-slots-row { background: none; }
+/* В таблице развития класса числовые столбцы по центру — центрируем и заголовки */
+.class-article table.class_table tr.table_header td,
+.class-article table.class_table tr.table_header th { text-align: center; }
+/* В обычных таблицах короткие/числовые столбцы (уровень, к6, счётчики) — по центру
+   (и заголовок, и цифры под ним); помечены в трансформе как ca-col-center.
+   Второе правило перебивает `tr.table_header td` (та же специфика 0,2,2) для
+   ячеек-заголовков — иначе заголовок оставался бы слева, а цифры уезжали в центр. */
+.class-article td.ca-col-center, .class-article th.ca-col-center { text-align: center; }
+.class-article tr.table_header td.ca-col-center,
+.class-article tr.table_header th.ca-col-center { text-align: center; }
+/* В таблице развития все столбцы числовые/короткие — центрируем их под
+   заголовками; текстовый столбец «Умения» (ячейки со ссылками-умениями)
+   оставляем по левому краю. */
+.class-article table.class_table td { text-align: center; }
+.class-article table.class_table td:has(.ca-ref) { text-align: left; }
+/* заголовок «Умения» — влево, как и его ячейки (иначе он висит по центру
+   широкого столбца, не над своим содержимым) */
+.class-article table.class_table tr.table_header td.ca-feat-h { text-align: left; }
+.class-article table.class_table td:first-child {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--parchment);
+}
+.class-article tr.spell-slots-row td, .class-article td.roller { text-align: center; }
+
+/* Парные подписи dnd.su .long/.short (полная/краткая) — оставляем полную */
+.class-article .short { display: none; }
+.class-article .long { display: inline; }
+
+/* Умения подкласса в таблице развития — без ✦, цвет по типу класса */
+.class-article .ca-subfeat { font-style: normal; }
+.class-article--caster .ca-ref.ca-subfeat { color: var(--feat-caster); }
+.class-article--martial .ca-ref.ca-subfeat { color: var(--feat-martial); }
+.class-article--caster .ca-subfeat.ca-link:hover {
+  color: #ddb0ec;
+  background: rgba(200, 120, 220, 0.1);
+  box-shadow: 0 0 7px 0 rgba(200, 120, 220, 0.2);
+  text-shadow: 0 0 8px rgba(220, 176, 236, 0.35);
+}
+.class-article--martial .ca-subfeat.ca-link:hover {
+  color: #e88880;
+  background: rgba(212, 100, 88, 0.1);
+  box-shadow: 0 0 7px 0 rgba(212, 100, 88, 0.2);
+  text-shadow: 0 0 8px rgba(232, 136, 128, 0.35);
+}
+
+/* Блок умения подкласса в общем списке способностей */
+.class-article .ca-subfeat-block {
+  margin: 0.85em 0 1.1em;
+  padding: 0.65em 0.85em 0.75em 1em;
+  border-radius: 0 8px 8px 0;
+  background: rgba(196, 154, 60, 0.07);
+  box-shadow: inset 3px 0 0 rgba(196, 154, 60, 0.42);
+}
+.class-article .ca-subfeat-block > :first-child { margin-top: 0; }
+.class-article .ca-subfeat-block > :last-child { margin-bottom: 0; }
+.class-article--caster .ca-subfeat-block .ca-subfeat-title,
+.class-article--caster .ca-subfeat-block > h3:first-child,
+.class-article--caster .ca-subfeat-block > h4:first-child {
+  color: var(--feat-caster) !important;
+}
+.class-article--martial .ca-subfeat-block .ca-subfeat-title,
+.class-article--martial .ca-subfeat-block > h3:first-child,
+.class-article--martial .ca-subfeat-block > h4:first-child {
+  color: var(--feat-martial) !important;
+}
+.class-article .ca-subfeat-block .ca-flash { animation: ca-subfeat-flash 1.4s ease; }
+@keyframes ca-subfeat-flash {
+  0%, 100% { background: transparent; }
+  12% { background: rgba(196, 154, 60, 0.22); }
+}
+
+/* Ссылки dnd.su (обезврежены) и всплывающие термины */
+.class-article .ca-ref { color: var(--gold-3); }
+/* Ссылка на конкретное заклинание — ведёт на страницу заклинания */
+.class-article .ca-spell {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(196, 154, 60, 0.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.class-article .ca-spell:hover {
+  color: var(--gold-4);
+  text-decoration-color: var(--gold-3);
+}
+/* Кликабельная кнопка-умение: ведёт к способности в статье, подсветка по наведению */
+.class-article .ca-link {
+  cursor: pointer;
+  border-radius: 4px;
+  /* padding даёт «воздух» подсветке, отрицательный margin возвращает раскладку
+     (иначе появляются щели перед запятыми между умениями) */
+  padding: 0 2px;
+  margin: 0 -2px;
+  /* чтобы подсветка корректно ложилась на каждую строку при переносе слов */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
+}
+.class-article .ca-link:hover {
+  color: var(--gold-4);
+  background: rgba(196, 154, 60, 0.05);
+  box-shadow: 0 0 7px 0 rgba(196, 154, 60, 0.16);
+  text-shadow: 0 0 8px rgba(246, 231, 182, 0.38);
+}
+/* Отступ под липкую шапку при прокрутке к способности + вспышка на цели */
+.class-article h1, .class-article h2, .class-article h3, .class-article h4,
+.class-article [id] { scroll-margin-top: 90px; }
+.class-article .ca-flash { animation: ca-flash 1.4s ease; border-radius: 4px; }
+@keyframes ca-flash {
+  0%, 100% { background: transparent; }
+  12% { background: rgba(196, 154, 60, 0.32); }
+}
+.class-article .ca-term { border-bottom: 1px dotted rgba(196, 154, 60, 0.5); cursor: help; }
+.class-article .ca-dice {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-4);
+  background: rgba(196, 154, 60, 0.12);
+  padding: 0 0.35em;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Выноски и авторские примечания */
+.class-article .additionalInfo {
+  margin: 1em 0;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  border: 1px solid rgba(196, 154, 60, 0.25);
+  background: rgba(196, 154, 60, 0.05);
+}
+.class-article .additionalInfo > :first-child { margin-top: 0; }
+.class-article .article-body__finik {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 1em 0;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  border: 1px dashed rgba(196, 154, 60, 0.35);
+  background: rgba(168, 175, 186, 0.05);
+  font-size: 0.95rem;
+}
+.class-article .finik__icon { display: none; }
+.class-article .finik__sign { color: var(--gold-3); font-style: italic; text-align: right; }
+
+/* Спойлеры и свёрнутые подклассы → нативные <details> */
+.class-article details.ca-collapse { margin: 0.85em 0; }
+.class-article summary.ca-summary { cursor: pointer; list-style: none; }
+.class-article summary.ca-summary::-webkit-details-marker { display: none; }
+.class-article summary.ca-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.45em;
+  color: var(--gold-2);
+  transition: transform 0.15s ease;
+}
+.class-article details[open] > summary.ca-summary::before { transform: rotate(90deg); }
+.class-article summary.ca-summary:hover { color: var(--gold-4); }
+/* тело спойлера dnd.su — <span>, оборачивающий блоки; принудительно блок */
+.class-article details.ca-collapse > span,
+.class-article details.ca-collapse > .ca-collapse-body {
+  display: block;
+}
+
+/* меню соты подкласса: описание вместо кнопок */
+.hex-expand--sub { text-decoration: none; }
+.hex-expand-desc {
+  margin: 4px 2px 0;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.hex-expand--sub:hover .hex-expand-title-text { color: var(--gold-4); }
+
+/* кнопка перехода к заклинаниям класса/подкласса */
+.spell-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 4px 0 8px;
+  padding: 10px 22px;
+  clip-path: var(--hex-chip);
+  color: var(--bg-0);
+  --hex-in: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  --hex-edge: var(--gold-1);
+  background: var(--hex-edge);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+.spell-cta svg { width: 18px; height: 18px; }
+.spell-cta:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* кость хитов — между жёлтым фоном обложки и персонажем (картинка прозрачная) */
+.book-cover.detail-plate { position: relative; }
+.book-cover.detail-plate > img { position: relative; z-index: 1; }
+.detail-die-bg {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 86%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+  pointer-events: none;
+  filter: brightness(0.92) drop-shadow(0 3px 10px rgba(92, 69, 28, 0.4));
+}
+
+/* ---------- Шапка детальной страницы класса ---------- */
+/* слои: кость → портрет → свечение → чипы → имя */
+.class-detail-hero {
+  position: relative;
+  margin: 0 calc(-1 * clamp(12px, 3vw, 28px));
+  padding: 0;
+  background: none;
+  border: none;
+  overflow: visible;
+}
+
+.class-detail-stage {
+  position: relative;
+  width: 100%;
+  min-height: clamp(480px, 68vh, 720px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  overflow: visible;
+}
+
+/* Шестиугольная обложка (как сота): на странице подкласса и бейджем на классе */
+.detail-hex {
+  position: relative;
+  width: clamp(140px, 24vw, 196px);
+  aspect-ratio: 0.87;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 3px;
+  display: block;
+  text-decoration: none;
+}
+.detail-hex-cover,
+.detail-hex-fallback {
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  object-fit: cover;
+  object-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.detail-hex-fallback svg { width: 34%; height: 34%; color: rgba(228, 196, 110, 0.35); stroke-width: 1; }
+.detail-hex--sm { width: clamp(116px, 17vw, 156px); }
+a.detail-hex { transition: filter 0.16s ease; }
+a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211, 219, 0.4)); }
+
+/* Бейдж выбранного подкласса — справа сверху сцены класса */
+.class-detail-subhex {
+  position: absolute;
+  z-index: 5;
+  top: 6px;
+  right: clamp(6px, 4vw, 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  max-width: clamp(116px, 17vw, 156px);
+}
+.class-detail-subhex-art { position: relative; display: flex; }
+.class-detail-subhex-name {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+/* Золотой гексагон-действие, вписанный в гекс обложки подкласса:
+   на бейдже класса — снять подкласс, в сотах — выбрать/снять. */
+.hex-pick {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  right: 8%;
+  transform: translateY(-50%);
+  width: 30%;
+  aspect-ratio: 0.87;
+  padding: 0;
+  border: none;
+  background: var(--gold-grad);
+  clip-path: var(--hex-point);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.6));
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.hex-pick::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgba(28, 24, 15, 0.97), rgba(11, 10, 8, 0.98));
+  transition: background 0.18s ease;
+}
+.hex-pick svg {
+  position: relative;
+  width: 46%;
+  height: 46%;
+  color: var(--gold-3);
+  stroke-width: 2.4;
+  transition: color 0.18s ease;
+}
+.hex-pick:hover {
+  transform: translateY(-50%) scale(1.09);
+  filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.55));
+}
+.hex-pick:hover svg { color: var(--gold-4); }
+.hex-pick.is-on::before { background: linear-gradient(180deg, var(--gold-3), var(--gold-1)); }
+.hex-pick.is-on svg { color: var(--bg-0); }
+
+/* вариант у нижнего острия гекса (бейдж подкласса в шапке класса) */
+.hex-pick--bottom {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+}
+.hex-pick--bottom:hover { transform: translateX(-50%) scale(1.09); }
+
+/* в сотах гекс — только верхняя часть ячейки, поэтому центрируем по его высоте */
+.hex-pick--hive {
+  top: calc(var(--hex-h) * 0.5);
+  width: 28%;
+  opacity: 0;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+.hex-cell-wrap:hover .hex-pick--hive,
+.hex-cell-wrap:focus-within .hex-pick--hive,
+.hex-pick--hive.is-on,
+.hex-pick--hive:focus-visible { opacity: 1; }
+
+/* выбранная сота — золотой оклад вместо серебряного */
+.hex-cell-wrap.is-picked:not(.is-expanded) .hex-cell {
+  background: var(--gold-grad);
+  padding: 3px;
+  filter: drop-shadow(0 0 12px rgba(196, 154, 60, 0.4));
+}
+.hex-cell-wrap.is-picked .hex-title { color: var(--gold-4); }
+
+/* Панель действий класса — сразу под шапкой: «Заклинания класса» + «к архетипам» */
+.class-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+.class-cta-row .spell-cta { margin: 0; }
+
+/* Кнопка «к архетипам» — ведёт к сотам подклассов; стрелка чуть «дышит» на hover */
+.subclass-jump { gap: 8px; }
+.subclass-jump svg:last-child {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  transition: transform 0.18s ease;
+}
+.subclass-jump:hover svg:last-child { transform: translateY(2px); }
+
+/* Кнопки на странице подкласса */
+.subclass-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+.spell-cta--ghost {
+  background: transparent;
+  color: var(--gold-3);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5);
+}
+.spell-cta--ghost:hover { background: rgba(196, 154, 60, 0.12); filter: none; }
+
+/* ---------- Конструктор «Мультикласс» ---------- */
+/* пока окно мультикласса открыто, шапка сайта (и её выпадающий свиток «Классы»)
+   должна быть НАД оверлеем (z-index 200), иначе свиток раскрывается под окном */
+:root[data-mc-open] .sidebar-wrap { z-index: 210; }
+
+.mc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  background: rgba(6, 7, 9, 0.72);
+  backdrop-filter: blur(6px);
+  animation: mc-fade 0.18s ease;
+}
+@keyframes mc-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* окно на всё пространство: шапка и селекты закреплены, способности скроллятся */
+.mc-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-1);
+  border-top: 1px solid transparent;
+  border-image: var(--gold-grad-h) 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  animation: mc-rise 0.2s ease;
+}
+@keyframes mc-rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.mc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 14px clamp(16px, 4vw, 24px);
+  border-bottom: 1px solid rgba(196, 154, 60, 0.28);
+}
+/* кнопка «назад» в шапке окна — точь-в-точь общесайтовый .back-link, без нижнего отступа */
+.mc-back { margin: 0; }
+
+.mc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+.mc-title svg { width: 20px; height: 20px; }
+.mc-total {
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+}
+.mc-close {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 6px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.mc-close:hover { color: var(--gold-3); }
+.mc-close svg { width: 20px; height: 20px; }
+
+.mc-slots {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 12px clamp(16px, 4vw, 24px) 14px;
+  border-bottom: 1px solid rgba(196, 154, 60, 0.2);
+}
+.mc-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.mc-field--lvl { flex: 0 0 74px; min-width: 74px; }
+.mc-field > span {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.mc-field select {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.mc-field select:hover:not(:disabled) { border-color: var(--gold-1); }
+.mc-field select:focus { outline: none; border-color: var(--gold-2); }
+.mc-field select:disabled { opacity: 0.5; cursor: default; }
+.mc-remove {
+  display: inline-flex;
+  padding: 7px;
+  color: var(--text-dim);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mc-remove:hover { color: #d98a7a; border-color: #7a3b32; }
+.mc-remove svg { width: 16px; height: 16px; }
+.mc-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px 14px;
+  color: var(--gold-3);
+  background: transparent;
+  border: 1px dashed rgba(196, 154, 60, 0.5);
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mc-add:hover { background: rgba(196, 154, 60, 0.12); }
+.mc-add svg { width: 16px; height: 16px; }
+
+.mc-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px clamp(16px, 4vw, 40px) 32px;
+}
+/* контент способностей ограничиваем по ширине для читаемости на широком экране */
+.mc-body > .class-article,
+.mc-body > .mc-hint { max-width: 900px; margin-inline: auto; }
+.mc-hint,
+.mc-empty {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  padding: 14px 0;
+}
+.mc-empty { padding: 4px 0 10px; font-style: italic; }
+
+/* Заголовок вставленной секции умений подкласса + кнопка «убрать» */
+.subclass-inject-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.class-detail-die {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 44%;
+  width: min(400px, 44vw);
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.5));
+}
+
+.class-detail-portrait {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 12%;
+  width: min(640px, 86vw);
+  height: 92%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.class-detail-portrait > img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55));
+}
+
+.class-detail-fallback {
+  width: 36%;
+  height: 36%;
+  color: rgba(196, 154, 60, 0.45);
+  stroke-width: 0.85;
+  align-self: center;
+  margin: auto;
+}
+
+/* мягкий радиант за персонажем: заклинатель — розово-фиолетовый, воин — тёплый красный */
+.class-detail-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 46%;
+  width: min(720px, 92vw);
+  height: min(720px, 92vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(8px);
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(196, 70, 58, 0.38) 0%,
+    rgba(150, 48, 42, 0.2) 34%,
+    rgba(90, 28, 36, 0.08) 58%,
+    transparent 72%
+  );
+}
+.class-detail-hero.is-caster .class-detail-aura {
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(210, 120, 220, 0.4) 0%,
+    rgba(150, 80, 210, 0.22) 36%,
+    rgba(90, 50, 160, 0.1) 58%,
+    transparent 72%
+  );
+}
+
+.class-detail-meta {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(480px, calc(100% - 24px));
+  margin: 0 auto;
+  text-align: center;
+}
+
+.class-detail-name-plate {
+  position: relative;
+  z-index: 6;
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  margin: 0;
+  padding: 15px 44px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.2vw, 2.05rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  line-height: 1.12;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 28px rgba(196, 154, 60, 0.12);
+}
+.class-detail-name-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(168deg, rgba(40, 44, 56, 0.98), rgba(14, 16, 22, 0.99));
+  z-index: -1;
+}
+
+.class-detail-chips {
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .class-detail-stage {
+    min-height: clamp(420px, 72vh, 580px);
+  }
+  .class-detail-die {
+    width: min(320px, 62vw);
+  }
+  .class-detail-portrait {
+    width: min(100%, 94vw);
+    height: 88%;
+  }
+  .class-detail-name-plate {
+    padding: 13px 30px;
+    font-size: 1.35rem;
+  }
+}
+
+/* ============================================================
+   ДЕТАЛЬНАЯ СТРАНИЦА РАСЫ — та же сцена с портретом, что у класса,
+   но вместо кости хитов: руническое кольцо, жетоны прибавок и плитки фактов
+   ============================================================ */
+.race-detail-hero {
+  position: relative;
+  margin: 0 calc(-1 * clamp(12px, 3vw, 28px));
+  overflow: visible;
+}
+
+.race-detail-stage {
+  position: relative;
+  width: 100%;
+  min-height: clamp(430px, 60vh, 640px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 26px;
+  overflow: visible;
+}
+
+.race-detail-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 46%;
+  width: min(680px, 92vw);
+  height: min(680px, 92vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(8px);
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(196, 154, 60, 0.32) 0%,
+    rgba(150, 116, 44, 0.17) 34%,
+    rgba(80, 66, 34, 0.07) 58%,
+    transparent 72%
+  );
+}
+
+/* два тонких кольца за фигурой — «круг родословной» вместо кости класса */
+.race-detail-ring {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 43%;
+  width: min(440px, 64vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(196, 154, 60, 0.26);
+  border-radius: 50%;
+  box-shadow: inset 0 0 70px rgba(196, 154, 60, 0.08);
+  pointer-events: none;
+}
+.race-detail-ring::before {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border: 1px solid rgba(168, 175, 186, 0.16);
+  border-radius: 50%;
+}
+
+.race-detail-portrait {
+  bottom: 13%;
+  height: 90%;
+  width: min(560px, 86vw);
+}
+
+/* Раса — фигура в полный рост: ноги/полы одежды/оружие лезут под плашку имени и
+   мешают читать название. Обрезаем низ картинки чуть выше имени мягким срезом. */
+.race-detail-portrait.is-framed {
+  width: min(340px, 52vw);
+  height: 64%;
+  bottom: 22%;
+  align-items: stretch;
+}
+.race-detail-portrait.is-framed > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  border-radius: 999px 999px 8px 8px;
+  -webkit-mask-image: none;
+  mask-image: none;
+  filter: saturate(0.95) brightness(0.96);
+  box-shadow:
+    0 0 0 1px rgba(168, 175, 186, 0.45),
+    0 0 0 7px rgba(14, 16, 22, 0.92),
+    0 0 0 8px rgba(196, 154, 60, 0.5),
+    0 22px 48px rgba(0, 0, 0, 0.55);
+}
+
+.race-detail-portrait > img {
+  /* короче зона скрытия (раньше начиналась с ~62%), мягче feather/spread */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
+}
+
+.race-detail-meta {
+  gap: 14px;
+  width: min(560px, calc(100% - 24px));
+}
+
+.race-detail-name-plate {
+  font-size: clamp(1.35rem, 2.9vw, 1.9rem);
+  text-wrap: balance;
+}
+
+.race-detail-tags {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.race-detail-kind {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+.race-detail-boosts {
+  justify-content: center;
+}
+.race-detail-boosts .race-boost {
+  padding: 7px 20px;
+  font-size: 0.84rem;
+}
+.race-detail-boosts .race-boost i { font-size: 1.04rem; }
+
+/* плитки фактов: размер, скорости, тёмное зрение, возраст */
+.race-facts {
+  max-width: 1040px;
+  margin: 0 auto 26px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 12px;
+}
+
+.race-fact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.4), rgba(124, 130, 139, 0.18) 55%, rgba(196, 154, 60, 0.4)) border-box;
+}
+
+.race-fact-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.3), rgba(196, 154, 60, 0.08));
+}
+.race-fact-icon svg { width: 17px; height: 17px; stroke-width: 1.6; color: var(--gold-4); }
+
+.race-fact-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.race-fact-body i {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.race-fact-body b {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+.race-langs {
+  max-width: 1040px;
+  margin: 0 auto 30px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.race-langs-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.race-langs-label svg { width: 16px; height: 16px; }
+
+/* ============================================================
+   ПРЕДЫСТОРИЯ — детальная страница
+   ============================================================ */
+
+.bg-detail-page {
+  /* ширина гекса шапки; высота считается из правильных пропорций */
+  --bg-hero-hex: clamp(196px, 22vw, 286px);
+}
+
+.bg-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3.6vw, 44px);
+  padding: clamp(24px, 3vw, 38px) clamp(22px, 3.2vw, 44px);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(150deg, rgba(30, 33, 41, 0.96), rgba(14, 16, 20, 0.98)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.5), rgba(124, 130, 139, 0.2) 45%, rgba(168, 175, 186, 0.6)) border-box;
+}
+
+/* размытый арт предыстории фоном шапки + затемняющая вуаль слева-направо,
+   чтобы текст лежал на спокойном фоне */
+.bg-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center 32%;
+  background-size: cover;
+  filter: blur(34px) saturate(0.8) brightness(0.5);
+  transform: scale(1.18);
+  pointer-events: none;
+}
+.bg-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(10, 11, 14, 0.86) 0%, rgba(10, 11, 14, 0.6) 45%, rgba(10, 11, 14, 0.82) 100%);
+}
+
+/* тёплое свечение из-под арта — «свет прожитой жизни» */
+.bg-hero-aura {
+  position: absolute;
+  z-index: 0;
+  left: clamp(-40px, -2vw, 0px);
+  top: 50%;
+  width: min(620px, 70%);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(196, 154, 60, 0.22) 0%,
+    rgba(150, 116, 44, 0.11) 38%,
+    transparent 68%
+  );
+}
+
+.bg-hero-art {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: var(--bg-hero-hex);
+}
+
+.bg-hero-hex {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.1547;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2.6px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+}
+.bg-hero-hex-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.bg-hero-hex-inner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.bg-hero-hex-fallback {
+  position: absolute;
+  inset: 30%;
+  width: 40%;
+  height: 40%;
+  color: rgba(228, 196, 110, 0.3);
+  stroke-width: 1.2;
+}
+
+.bg-hero-meta {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bg-hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bg-hero-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  text-wrap: balance;
+}
+
+.bg-hero-abilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+/* жетон характеристики: аббревиатура + расшифровка мелким */
+.bg-ability {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 17px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, rgba(196, 154, 60, 0.24), rgba(196, 154, 60, 0.07));
+  --hex-edge: rgba(228, 196, 120, 0.36);
+  background: var(--hex-edge);
+}
+.bg-ability b {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold-4);
+}
+.bg-ability i {
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* у черты во второй ячейке — бонус (+1), а не расшифровка характеристики */
+.bg-ability .feat-boost {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--parchment);
+}
+
+/* плашка черты предыстории — главный «крючок» страницы */
+.bg-hero-feature {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 11px 18px;
+  border-left: 2px solid rgba(196, 154, 60, 0.55);
+  background: linear-gradient(90deg, rgba(196, 154, 60, 0.1), transparent 78%);
+}
+.bg-hero-feature svg {
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  color: var(--gold-3);
+  stroke-width: 1.6;
+}
+.bg-hero-feature span {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bg-hero-feature b {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+/* плитки владений: навыки, инструменты, языки */
+.bg-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bg-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.4), rgba(124, 130, 139, 0.18) 55%, rgba(196, 154, 60, 0.4)) border-box;
+}
+.bg-fact-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.bg-fact-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgba(196, 154, 60, 0.3), rgba(196, 154, 60, 0.08));
+}
+.bg-fact-icon svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-4); }
+.bg-fact-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.bg-fact-value {
+  padding: 4px 11px;
+  font-size: 0.84rem;
+  color: var(--parchment);
+  background: linear-gradient(180deg, rgba(168, 175, 186, 0.12), rgba(168, 175, 186, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.22);
+}
+
+@media (max-width: 860px) {
+  .bg-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .bg-hero-art { width: min(var(--bg-hero-hex), 62vw); }
+  .bg-hero-meta { align-items: center; }
+  .bg-hero-kicker,
+  .bg-hero-abilities { justify-content: center; }
+  .bg-hero-feature {
+    text-align: left;
+    border-left: none;
+    border-top: 2px solid rgba(196, 154, 60, 0.55);
+    background: linear-gradient(180deg, rgba(196, 154, 60, 0.1), transparent 82%);
+  }
+}
+
+/* подрасы — карточки-ссылки без арта (картинок у подрас нет) */
+.subrace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
+  gap: 16px;
+}
+
+.subrace-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 17px 20px 15px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(196, 154, 60, 0.45), rgba(124, 130, 139, 0.2) 45%, rgba(124, 130, 139, 0.55)) border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.subrace-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 18px rgba(196, 154, 60, 0.14);
+}
+
+.subrace-card-name {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  line-height: 1.2;
+}
+
+.subrace-card-desc { -webkit-line-clamp: 3; font-size: 0.95rem; }
+
+.subrace-card-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.subrace-card-go svg { width: 14px; height: 14px; transition: transform 0.2s ease; }
+.subrace-card:hover .subrace-card-go svg { transform: translateX(4px); }
+
+@media (max-width: 700px) {
+  .race-detail-stage { min-height: clamp(380px, 64vh, 520px); }
+  .race-detail-portrait { width: min(100%, 94vw); height: 86%; }
+  .race-detail-name-plate { padding: 13px 30px; font-size: 1.3rem; }
+}
+
+/* ============================================================
+   Оболочка каталог ⇄ деталь (классы): короткий fade + лёгкий подъём.
+   Без shared-element морфа и разлёта карточек.
+   ============================================================ */
+@keyframes shell-out {
+  to { opacity: 0; filter: blur(3px); }
+}
+@keyframes shell-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+html[data-nav='1']::view-transition-old(root) {
+  animation: shell-out 0.28s ease both;
+}
+html[data-nav='1']::view-transition-new(root) {
+  animation: shell-in 0.4s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+/* подкласс: обложка соты ⇄ деталь (отдельный морф, не оболочка классов) */
+::view-transition-group(subclass-hero-img) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+::view-transition-old(subclass-hero-img) {
+  animation: none;
+  opacity: 0;
+  mix-blend-mode: normal;
+}
+::view-transition-new(subclass-hero-img) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+/* расы (heroNav): разлёт соседних карточек */
+@keyframes cardfly-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-115vw); }
+}
+@keyframes cardfly-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(115vw); }
+}
+::view-transition-group(class-hero-img),
+::view-transition-group(class-hero-title),
+::view-transition-group(class-hero-die) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+::view-transition-old(class-hero-img),
+::view-transition-old(class-hero-title),
+::view-transition-old(class-hero-die) {
+  animation: none;
+  opacity: 0;
+  mix-blend-mode: normal;
+}
+::view-transition-new(class-hero-img),
+::view-transition-new(class-hero-title),
+::view-transition-new(class-hero-die) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+::view-transition-old(fly-l-0), ::view-transition-old(fly-l-1), ::view-transition-old(fly-l-2),
+::view-transition-old(fly-l-3), ::view-transition-old(fly-l-4), ::view-transition-old(fly-l-5),
+::view-transition-old(fly-l-6), ::view-transition-old(fly-l-7), ::view-transition-old(fly-l-8),
+::view-transition-old(fly-l-9), ::view-transition-old(fly-l-10), ::view-transition-old(fly-l-11),
+::view-transition-old(fly-l-12), ::view-transition-old(fly-l-13), ::view-transition-old(fly-l-14),
+::view-transition-old(fly-l-15) {
+  animation: cardfly-left 0.9s cubic-bezier(0.33, 0.05, 0.35, 1) both;
+}
+::view-transition-old(fly-r-0), ::view-transition-old(fly-r-1), ::view-transition-old(fly-r-2),
+::view-transition-old(fly-r-3), ::view-transition-old(fly-r-4), ::view-transition-old(fly-r-5),
+::view-transition-old(fly-r-6), ::view-transition-old(fly-r-7), ::view-transition-old(fly-r-8),
+::view-transition-old(fly-r-9), ::view-transition-old(fly-r-10), ::view-transition-old(fly-r-11),
+::view-transition-old(fly-r-12), ::view-transition-old(fly-r-13), ::view-transition-old(fly-r-14),
+::view-transition-old(fly-r-15) {
+  animation: cardfly-right 0.9s cubic-bezier(0.33, 0.05, 0.35, 1) both;
+}
+

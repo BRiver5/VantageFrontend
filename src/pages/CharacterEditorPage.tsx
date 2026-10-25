@@ -273,6 +273,69 @@ export default function CharacterEditorPage() {
   const banner = eng.conflict ?? eng.notice
   const canCopy = ready && !owner
 
+  const liveExtras = (
+    <div className="cw-hud-actions">
+      {status && StatusIcon && (
+        <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">
+          <StatusIcon aria-hidden="true" />
+          {status.text}
+          {save === 'error' && owner && (
+            <button type="button" className="cw-mini-btn" onClick={() => void eng.retrySave()}>
+              повторить
+            </button>
+          )}
+        </span>
+      )}
+      {canCopy && (
+        <>
+          <button type="button" className="cs-btn" onClick={() => void copyToMe()} disabled={copying}>
+            {copying ? <Loader2 className="cw-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+            Скопировать себе
+          </button>
+          {copyError && <span className="cw-save cw-save--error">{copyError}</span>}
+        </>
+      )}
+      {owner && (
+        <>
+          <label className="cw-vis" title={vis.label}>
+            <VisIcon aria-hidden="true" />
+            <select
+              value={character.visibility}
+              aria-label="Кто видит лист"
+              onChange={(e) => patchDoc(() => ({ visibility: e.target.value as CharacterVisibility }))}
+            >
+              {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => (
+                <option key={v} value={v}>
+                  {VISIBILITY[v].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="cw-mini-btn" onClick={() => setRestOpen(true)} disabled={eng.busy} title="Кости хитов, ресурсы короткого отдыха">
+            <Coffee aria-hidden="true" /> короткий отдых
+          </button>
+          <button type="button" className="cw-mini-btn" onClick={longRest} disabled={eng.busy} title="Хиты, ячейки, ресурсы и половина костей хитов">
+            <Moon aria-hidden="true" /> продолжительный отдых
+          </button>
+          <button type="button" className="cw-mini-btn" onClick={() => setJournalOpen(true)} title="Журнал действий: всё, что делал герой">
+            <ScrollText aria-hidden="true" /> журнал
+          </button>
+          <button
+            type="button"
+            className="cs-btn"
+            onClick={() => navigate(`/characters/${character.id}/level-up`)}
+            disabled={eng.busy || view.basic_info.total_level >= 20}
+          >
+            <GraduationCap aria-hidden="true" /> Новый уровень
+          </button>
+          <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
+            <PencilLine aria-hidden="true" /> Правка листа
+          </button>
+        </>
+      )}
+    </div>
+  )
+
   /** Чужой лист целиком — новый персонаж текущего игрока */
   const copyToMe = async () => {
     if (!user) {
@@ -413,6 +476,7 @@ export default function CharacterEditorPage() {
         stage={stage}
         serverLog={eng.outcome}
         onToggleAbility={owner ? (g, on) => void eng.toggle(g, on) : undefined}
+        hudMore={liveExtras}
       />
 
       {flow && (flow.prompt || flow.message) && <ActionDialog flow={flow} onAnswer={eng.answer} onClose={eng.closeFlow} />}

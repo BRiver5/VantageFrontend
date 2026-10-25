@@ -7,7 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Gem,
+  Home,
   Landmark,
+  Library,
   LogIn,
   ScrollText,
   Search,
@@ -57,6 +59,7 @@ import {
 import DiceRoller from './dice/DiceRoller'
 import RouteReadyGate from './RouteReadyGate'
 import { bookSectionEntries, contentEntryLink, HEX_EXPAND_ROWS, LOOT_CHIP_ROWS } from './contentSections'
+import { useAppShell } from './shell'
 
 /* ---------- Разделы каталога ---------- */
 
@@ -71,6 +74,8 @@ const CATEGORIES = [
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
   { path: '/characters', label: 'Персонажи', icon: ScrollText },
 ] as const
+
+const CODEX = CATEGORIES.filter((c) => c.path !== '/characters')
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -684,6 +689,90 @@ function HomePage() {
   )
 }
 
+/* ---------- Нижняя панель телефона ---------- */
+
+function AppTabBar() {
+  const { user, ready } = useAuth()
+  const { pathname } = useLocation()
+  const [codexOpen, setCodexOpen] = useState(false)
+  const inCodex = CODEX.some((c) => pathname === c.path || pathname.startsWith(`${c.path}/`))
+
+  useEffect(() => {
+    setCodexOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!codexOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCodexOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [codexOpen])
+
+  return (
+    <>
+      <nav className="app-tabbar" aria-label="Навигация приложения">
+        <NavLink to="/" end className={({ isActive }) => `app-tab${isActive ? ' is-on' : ''}`}>
+          <Home aria-hidden="true" />
+          <span>Главная</span>
+        </NavLink>
+        <button
+          type="button"
+          className={`app-tab${inCodex || codexOpen ? ' is-on' : ''}`}
+          aria-expanded={codexOpen}
+          aria-controls="app-codex"
+          onClick={() => setCodexOpen((v) => !v)}
+        >
+          <Library aria-hidden="true" />
+          <span>Кодекс</span>
+        </button>
+        <NavLink to="/characters" className={({ isActive }) => `app-tab${isActive ? ' is-on' : ''}`}>
+          <ScrollText aria-hidden="true" />
+          <span>Герои</span>
+        </NavLink>
+        {!ready ? (
+          <span className="app-tab is-wait" aria-hidden="true">
+            <UserRound />
+            <span>Профиль</span>
+          </span>
+        ) : user ? (
+          <NavLink to="/me" className={({ isActive }) => `app-tab${isActive ? ' is-on' : ''}`}>
+            <UserRound aria-hidden="true" />
+            <span>Профиль</span>
+          </NavLink>
+        ) : (
+          <Link to="/login" className="app-tab">
+            <LogIn aria-hidden="true" />
+            <span>Войти</span>
+          </Link>
+        )}
+      </nav>
+      {codexOpen && (
+        <div className="app-codex-layer">
+          <button type="button" className="app-codex-scrim" aria-label="Закрыть кодекс" onClick={() => setCodexOpen(false)} />
+          <div id="app-codex" className="app-codex" role="dialog" aria-label="Разделы кодекса">
+            <p className="app-codex-title gold-text">Кодекс</p>
+            <nav className="app-codex-grid" aria-label="Разделы каталога">
+              {CODEX.map(({ path, label, icon: Icon }) => (
+                <NavLink
+                  key={path}
+                  to={path}
+                  className={({ isActive }) => `app-codex-link${isActive ? ' is-on' : ''}`}
+                  onClick={() => setCodexOpen(false)}
+                >
+                  <Icon aria-hidden="true" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 /* ---------- Приложение ---------- */
 
 function ScrollToTop() {
@@ -708,6 +797,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  const { app } = useAppShell()
   return (
     <div className="app-shell">
       <ScrollToTop />
@@ -789,6 +879,7 @@ export default function App() {
         <footer className="footer">Vantage · Codex Adventurae · MMXXVI</footer>
       </main>
       <DiceRoller />
+      {app && <AppTabBar />}
     </div>
   )
 }

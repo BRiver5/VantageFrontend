@@ -1,0 +1,1441 @@
+/* ============================================================
+   БРОСОК КУБИКА — рендерится прямо на странице (dice-box), без модалки
+   ============================================================ */
+
+/* 3D-сцена на весь экран — в простое opacity:0, иначе чёрный canvas перекрывает страницу */
+.dice-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.dice-stage.is-active {
+  opacity: 1;
+}
+
+.dice-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---------- Док: FAB / лоток / action bar ---------- */
+
+.dice-dock {
+  position: fixed;
+  left: calc(var(--sidebar-w) + 22px);
+  bottom: 22px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  transition: left 0.28s ease;
+}
+
+.dice-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* плавающая кнопка — гекс в закрытом состоянии */
+.dice-fab {
+  position: relative;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 58px;
+  height: calc(58px * var(--hex-aspect));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.2s ease;
+}
+.dice-fab:not(.is-visible) {
+  opacity: 0;
+  transform: scale(0.94);
+}
+.dice-fab::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.dice-fab-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.die-asset-img {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+.die-fab-icon {
+  position: relative;
+  z-index: 1;
+}
+.die-logo-img {
+  display: block;
+}
+.die-chip-icon {
+  flex-shrink: 0;
+}
+.die-play-icon {
+  flex-shrink: 0;
+}
+.die-play-icon--flip {
+  transform: scaleX(-1);
+}
+.dice-fab:hover {
+  transform: translateY(-2px) scale(1.05);
+  filter: drop-shadow(0 0 14px rgba(205, 211, 219, 0.5));
+}
+.dice-fab:active { transform: translateY(0) scale(0.98); }
+
+/* морфинг FAB → вытянутая кнопка «Бросить» */
+.dice-roll-morph {
+  box-sizing: border-box;
+  min-width: 200px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 28px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bg-0);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition:
+    filter 0.2s ease,
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.35s ease;
+  animation: dice-roll-morph-in 0.35s ease;
+}
+.dice-roll-morph:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.dice-roll-morph:disabled { opacity: 0.6; cursor: default; }
+
+@keyframes dice-roll-morph-in {
+  from { min-width: 58px; opacity: 0.7; }
+  to { min-width: 200px; opacity: 1; }
+}
+
+/* гекс-кнопка закрытия — box-sizing: border-box чтобы форма не смещалась */
+.dice-close-btn {
+  box-sizing: border-box;
+  position: relative;
+  flex-shrink: 0;
+  width: 58px;
+  height: calc(58px * var(--hex-aspect));
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  border: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+  animation: dice-close-in 0.3s ease 0.1s backwards;
+}
+.dice-close-btn::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.dice-close-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.dice-close-btn:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 12px rgba(205, 211, 219, 0.45));
+}
+
+@keyframes dice-close-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Лоток кубиков — вертикальный список ---------- */
+
+.dice-tray-cluster {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dice-d20-mod-outer {
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    padding-top 0.2s ease;
+  pointer-events: none;
+}
+
+.dice-d20-mod-outer.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.dice-d20-mod-outer.is-hiding {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+}
+
+/* обёртка лотка: рамка + шапка с карандашом + редактор палитры + список */
+.dice-tray-wrap {
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 44px));
+  padding: 14px 16px;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    var(--silver-grad) border-box;
+  border: 1.4px solid transparent;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.dice-tray-wrap.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.dice-tray-wrap.is-hiding {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.dice-dock.is-hiding .dice-roll-morph,
+.dice-dock.is-hiding .dice-close-btn {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-dock.is-hiding .dice-roll-morph {
+  animation: none;
+}
+
+.dice-tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+.dice-tray-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.dice-tray-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+
+/* равносторонний гекс-кнопка с обводкой со всех сторон */
+.dice-hex-btn {
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  border: none;
+  flex-shrink: 0;
+  color: var(--text);
+  transition: filter 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.dice-hex-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  z-index: -1;
+}
+.dice-hex-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.dice-hex-btn:active:not(:disabled) { transform: scale(0.96); }
+.dice-hex-btn:disabled { opacity: 0.35; cursor: default; }
+
+.dice-hex-btn--xs {
+  width: 28px;
+  height: calc(28px * var(--hex-aspect));
+}
+.dice-hex-btn--sm {
+  width: 32px;
+  height: calc(32px * var(--hex-aspect));
+}
+.dice-hex-btn--md {
+  width: 38px;
+  height: calc(38px * var(--hex-aspect));
+}
+.dice-hex-btn--lg {
+  width: 44px;
+  height: calc(44px * var(--hex-aspect));
+}
+
+/* компактные иконки в шапке */
+.dice-icon-btn {
+  color: var(--silver-3);
+}
+.dice-icon-btn:hover:not(:disabled),
+.dice-icon-btn.is-active {
+  color: var(--gold-3);
+}
+
+/* панель настроек — громкость + цвета */
+.dice-tray-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(168, 175, 186, 0.18);
+  animation: dice-cloud-in 0.22s ease;
+}
+
+.dice-settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+
+.dice-volume-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* слайдер громкости — ромб на ползунке */
+.dice-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--gold-3) 0%,
+    var(--gold-3) var(--vol-pct, 50%),
+    rgba(168, 175, 186, 0.25) var(--vol-pct, 50%),
+    rgba(168, 175, 186, 0.25) 100%
+  );
+  cursor: pointer;
+  outline: none;
+}
+
+.dice-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.dice-volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45);
+  transition: transform 0.12s ease;
+}
+
+.dice-volume-slider:hover::-webkit-slider-thumb,
+.dice-volume-slider:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  filter: brightness(1.1);
+}
+
+.dice-volume-slider:hover::-moz-range-thumb,
+.dice-volume-slider:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.dice-volume-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(168, 175, 186, 0.25);
+}
+
+.dice-settings-divider {
+  height: 1px;
+  background: rgba(168, 175, 186, 0.12);
+}
+
+.dice-colors-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dice-colors-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dice-colors-count {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.dice-palette-favs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dice-fav-slot {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.3);
+}
+
+.dice-fav-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--silver-3);
+  font-size: 0.65rem;
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
+}
+.dice-fav-remove:hover { background: #792c22; color: #fff; }
+
+.dice-color-input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
+}
+
+.dice-fav-add {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.dice-fav-add:hover { color: var(--gold-3); }
+
+.dice-palette-presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dice-preset {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.2);
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.dice-preset:hover:not(:disabled) {
+  transform: scale(1.15);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
+}
+.dice-preset:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@keyframes dice-cloud-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@keyframes dice-tray-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-tray-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 3px 0;
+}
+
+.dice-tray-row--d20 {
+  gap: 8px;
+}
+
+/* выдвижной блок преимущество / помеха — снаружи лотка, на уровне к20 */
+.dice-d20-mod {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dice-d20-mod-toggle {
+  color: var(--silver-3);
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-toggle {
+  color: var(--gold-3);
+}
+
+.dice-d20-mod-chevron {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-chevron {
+  transform: rotate(180deg);
+}
+
+.dice-d20-mod-drawer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    margin 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  margin-left: 0;
+}
+
+.dice-d20-mod.is-open .dice-d20-mod-drawer {
+  max-width: 100px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-right: 6px;
+}
+
+.dice-d20-mod-btn {
+  flex-shrink: 0;
+}
+
+.dice-d20-mod-btn--adv {
+  color: #4ecf7a;
+}
+
+.dice-d20-mod-btn--dis {
+  color: #e05a4a;
+}
+
+.dice-d20-mod-btn--adv:hover:not(:disabled) {
+  color: #7dffa8;
+  filter: drop-shadow(0 0 8px rgba(78, 207, 122, 0.45)) brightness(1.12);
+}
+
+.dice-d20-mod-btn--dis:hover:not(:disabled) {
+  color: #ff7a6a;
+  filter: drop-shadow(0 0 8px rgba(224, 90, 74, 0.45)) brightness(1.12);
+}
+
+.dice-d20-mod-btn:disabled {
+  pointer-events: none;
+  transform: none;
+}
+
+/* цветной чип расцветки кости — клик циклит по избранным */
+.dice-row-color {
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+.dice-row-color:hover {
+  transform: scale(1.15);
+  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--silver-3);
+}
+
+.dice-shape-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* счётчик справа от каждого кубика */
+.dice-pool-counter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.dice-qty-btn {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.dice-qty-value {
+  min-width: 26px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--gold-3);
+}
+
+/* ---------- История бросков — правый нижний угол ---------- */
+
+.dice-history-panel {
+  --dice-hist-card-h: 60px;
+  --dice-hist-gap: 8px;
+  --dice-hist-pad: 8px;
+  --dice-hist-dur: 1.2s;
+  position: relative;
+  width: min(272px, calc(100vw - 44px));
+  height: calc(3 * var(--dice-hist-card-h) + 2 * var(--dice-hist-gap) + 2 * var(--dice-hist-pad));
+  order: -1;
+  opacity: 0;
+  transform: translateX(-40px);
+  transition:
+    opacity var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.dice-history-panel.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.dice-history-panel.is-hiding {
+  opacity: 0;
+  transform: translateX(-56px);
+  pointer-events: none;
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    order: unset;
+    transform: translateX(40px);
+  }
+
+  .dice-history-panel.is-visible {
+    transform: translateX(0);
+  }
+
+  .dice-history-panel.is-hiding {
+    transform: translateX(56px);
+  }
+}
+
+.dice-history-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dice-hist-gap);
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--dice-hist-pad) 2px var(--dice-hist-pad);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dice-history-spacer {
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.dice-history-panel:hover .dice-history-scroll,
+.dice-history-panel:focus-within .dice-history-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 175, 186, 0.45) transparent;
+}
+
+.dice-history-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.dice-history-panel:hover .dice-history-scroll::-webkit-scrollbar,
+.dice-history-panel:focus-within .dice-history-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.dice-history-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 175, 186, 0.45);
+  border-radius: 2px;
+}
+
+/* вытянутый гекс — как кнопка «Играть» */
+.dice-history-card {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-height: var(--dice-hist-card-h);
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  padding: 2px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+  will-change: transform;
+}
+
+.dice-history-card-inner {
+  box-sizing: border-box;
+  min-height: calc(var(--dice-hist-card-h) - 4px);
+  padding: 7px 22px 8px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dice-history-card.is-shifting {
+  transition: transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-history-card.is-entering {
+  animation: dice-history-enter var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dice-history-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dice-hist-card-h) + var(--dice-hist-gap)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dice-history-formula {
+  margin: 0 0 3px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-history-result {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-history-result .dice-crit-fail { color: #c07f3c; }
+.dice-history-result .dice-crit-normal { color: #cdd3db; }
+.dice-history-result .dice-crit-success { color: var(--gold-4); }
+
+.dice-hist-op {
+  color: rgba(205, 211, 219, 0.7);
+  font-weight: 500;
+}
+.dice-hist-total {
+  color: var(--gold-4);
+  font-weight: 700;
+}
+
+/* ---------- Цвет цифры по результату (крит-провал/успех) ---------- */
+/* минимум (1) — бронза, максимум грани — золото, всё между — серебро */
+.dice-crit-fail { color: #c07f3c; }
+.dice-crit-normal { color: #cdd3db; }
+.dice-crit-success { color: var(--gold-3); }
+
+.dice-formula-error {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #c96e5a;
+  text-align: left;
+  max-width: min(520px, calc(100vw - 44px));
+}
+
+/* ---------- Оверлей результатов ---------- */
+
+.dice-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  animation: dice-reveal-backdrop 0.4s ease forwards;
+}
+
+.dice-reveal-overlay.is-done {
+  cursor: pointer;
+}
+
+@keyframes dice-reveal-backdrop {
+  to { background: rgba(0, 0, 0, 0.78); }
+}
+
+/* золотая фирменная окантовка */
+.dice-reveal-frame {
+  position: absolute;
+  inset: clamp(14px, 3.5vw, 42px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dice-reveal-frame .corner { opacity: 0.92; }
+.dice-reveal-frame .corner--tl { top: 0; left: 0; }
+.dice-reveal-frame .corner--tr { top: 0; right: 0; }
+.dice-reveal-frame .corner--bl { bottom: 0; left: 0; }
+.dice-reveal-frame .corner--br { bottom: 0; right: 0; }
+
+.dice-reveal-edge {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.55;
+  background: var(--gold-grad-h);
+}
+
+.dice-reveal-edge--top,
+.dice-reveal-edge--bottom {
+  left: 56px;
+  right: 56px;
+  height: 1px;
+}
+
+.dice-reveal-edge--top { top: 10px; }
+.dice-reveal-edge--bottom { bottom: 10px; }
+
+.dice-reveal-edge--left,
+.dice-reveal-edge--right {
+  top: 56px;
+  bottom: 56px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold-3) 18%, var(--gold-4) 50%, var(--gold-3) 82%, transparent);
+}
+
+.dice-reveal-edge--left { left: 10px; }
+.dice-reveal-edge--right { right: 10px; }
+
+.dice-reveal-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vh, 36px);
+  max-width: min(92vw, 720px);
+  padding: 0 24px;
+}
+
+/* золотая надпись над результатом — без контейнера */
+.dice-reveal-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.4vw, 1.55rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  animation: dice-reveal-title-in 0.85s cubic-bezier(0.6, 0, 0.4, 1) backwards;
+}
+
+.dice-reveal-title--crit {
+  letter-spacing: 0.12em;
+}
+
+.dice-reveal-title--success {
+  filter: drop-shadow(0 0 18px rgba(228, 196, 110, 0.45));
+}
+
+.dice-reveal-title--fail {
+  background: linear-gradient(180deg, #f6e7b6 8%, #e3c46e 40%, #c07f3c 72%, #8a3a22 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(192, 127, 60, 0.4));
+}
+
+@keyframes dice-reveal-title-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-reveal-formula {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35em 0.5em;
+  padding: 0 8px;
+  font-family: var(--font-display);
+  cursor: default;
+}
+
+/* кнопка пропуска анимации */
+.dice-reveal-skip {
+  position: fixed;
+  bottom: clamp(28px, 6vh, 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 10px 28px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(var(--bg-2), var(--bg-2)) padding-box, var(--gold-grad) border-box;
+  border: 1.4px solid transparent;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  transition: color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
+  animation: dice-reveal-skip-in 0.35s ease 0.25s backwards;
+}
+
+.dice-reveal-skip:hover {
+  color: var(--gold-4);
+  filter: brightness(1.1);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+@keyframes dice-reveal-skip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.dice-reveal-value-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dice-reveal-burst {
+  position: absolute;
+  inset: -28px;
+  pointer-events: none;
+}
+
+.dice-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 14px;
+  margin: -7px -2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff8c8, #ff8c20);
+  transform: rotate(var(--spark-angle)) translateY(-18px);
+  opacity: 0;
+  animation: dice-spark-burst 0.55s ease-out forwards;
+}
+
+@keyframes dice-spark-burst {
+  0% { opacity: 1; transform: rotate(var(--spark-angle)) translateY(0) scaleY(0.3); }
+  60% { opacity: 0.9; transform: rotate(var(--spark-angle)) translateY(-22px) scaleY(1); }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateY(-36px) scaleY(0.2); }
+}
+
+.dice-reveal-flash {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 200, 80, 0.4) 40%, transparent 70%);
+  opacity: 0;
+  animation: dice-reveal-flash 0.35s ease-out forwards;
+}
+
+@keyframes dice-reveal-flash {
+  0% { opacity: 0; transform: scale(0.4); }
+  30% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+.dice-reveal-value {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 180, 60, 0.7), 0 0 48px rgba(255, 100, 20, 0.35);
+  animation: dice-reveal-value-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dice-reveal-value-in {
+  from { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* цвет крупной цифры в оверлее по результату (перебивает базовый золотой) */
+.dice-reveal-value.dice-crit-fail {
+  color: #cc8845;
+  text-shadow: 0 0 22px rgba(204, 136, 69, 0.65), 0 0 44px rgba(150, 80, 30, 0.3);
+}
+.dice-reveal-value.dice-crit-normal {
+  color: #dfe4ec;
+  text-shadow: 0 0 22px rgba(205, 211, 219, 0.6), 0 0 44px rgba(140, 150, 165, 0.3);
+}
+.dice-reveal-value.dice-crit-success {
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 200, 80, 0.7), 0 0 48px rgba(255, 140, 30, 0.35);
+}
+
+.dice-reveal-plus,
+.dice-reveal-equals {
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  animation: dice-reveal-plus-in 0.22s ease;
+}
+
+@keyframes dice-reveal-plus-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-reveal-equals-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  animation: dice-reveal-plus-in 0.3s ease;
+}
+
+.dice-reveal-total {
+  font-size: clamp(2.8rem, 10vw, 4rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 32px rgba(255, 200, 80, 0.8);
+}
+
+/* столкновение двух к20 — преимущество / помеха */
+.dice-clash-arena {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(92vw, 440px);
+  height: clamp(110px, 24vh, 160px);
+  padding: 24px;
+  font-family: var(--font-display);
+  cursor: default;
+  overflow: visible;
+}
+
+.dice-clash-value-wrap {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  will-change: transform, opacity, left, right;
+}
+
+.dice-clash-reveal-value,
+.dice-clash-arena .dice-reveal-value {
+  animation: none;
+}
+
+.dice-clash-value-wrap--left {
+  left: 8%;
+}
+
+.dice-clash-value-wrap--right {
+  right: 8%;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--left {
+  animation: dice-clash-enter-left 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--right {
+  animation: dice-clash-enter-right 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+
+@keyframes dice-clash-enter-left {
+  from { left: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { left: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+@keyframes dice-clash-enter-right {
+  from { right: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { right: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--left {
+  animation: dice-clash-rush-left 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--right {
+  animation: dice-clash-rush-right 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+@keyframes dice-clash-rush-left {
+  from { left: 26%; transform: translateY(-50%) scale(1); }
+  to { left: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+@keyframes dice-clash-rush-right {
+  from { right: 26%; transform: translateY(-50%) scale(1); }
+  to { right: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+.dice-clash-impact {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dice-clash-arena--clash .dice-clash-impact {
+  animation: dice-clash-impact-flash 0.44s ease forwards;
+}
+
+@keyframes dice-clash-impact-flash {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  45% {
+    opacity: 1;
+    transform: scale(1.8);
+    background: radial-gradient(circle, rgba(255, 248, 200, 0.95) 0%, rgba(255, 160, 60, 0.35) 45%, transparent 72%);
+  }
+}
+
+/* проигравшее число: трещина и падение двух половинок */
+.dice-clash-half {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-half--left {
+  clip-path: inset(0 50% 0 0);
+}
+
+.dice-clash-half--right {
+  clip-path: inset(0 0 0 50%);
+}
+
+.dice-clash-value-wrap.is-loser:not(.is-cracking) .dice-clash-half--right {
+  margin-left: 0;
+}
+
+.dice-clash-crack {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 115%;
+  margin: -57.5% 0 0 -1.5px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 240, 200, 0.95) 18%,
+    #fff 50%,
+    rgba(255, 200, 120, 0.9) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(255, 220, 140, 0.9), 0 0 24px rgba(255, 160, 60, 0.6);
+  transform: rotate(-8deg) scaleY(0);
+  animation: dice-clash-crack-in 0.22s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dice-clash-crack-in {
+  0% { transform: rotate(-8deg) scaleY(0); opacity: 0; }
+  60% { transform: rotate(-8deg) scaleY(1.15); opacity: 1; }
+  100% { transform: rotate(-8deg) scaleY(1); opacity: 0.85; }
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking {
+  left: 50% !important;
+  right: auto !important;
+  transform: translate(-50%, -50%);
+  animation: none;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--left {
+  animation: dice-clash-split-left 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--right {
+  animation: dice-clash-split-right 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+@keyframes dice-clash-split-left {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% - 3px), -50%) rotate(-3deg); }
+  100% {
+    transform: translate(calc(-50% - 5px), calc(-50% + 155px)) rotate(-5deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dice-clash-split-right {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% + 3px), -50%) rotate(3deg); }
+  100% {
+    transform: translate(calc(-50% + 5px), calc(-50% + 155px)) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  animation: dice-clash-winner-pop 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dice-clash-winner-pop {
+  0% { opacity: 1; transform: translateY(-50%); }
+  45% { transform: translate(-50%, -50%) scale(1.26); }
+  100% {
+    left: 50%;
+    right: auto;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  left: 50%;
+  right: auto;
+}
+
+.dice-clash-arena--adv .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(78, 207, 122, 0.55));
+}
+
+.dice-clash-arena--dis .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(224, 90, 74, 0.55));
+}
+
+.dice-clash-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130px;
+  height: 130px;
+  margin: -65px 0 0 -65px;
+  pointer-events: none;
+}
+
+.dice-clash-arena--static .dice-clash-value-wrap {
+  animation: none;
+}
+
+.dice-clash-arena--static .is-winner {
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-arena--static .is-loser {
+  display: none;
+}
+
+.dice-hist-clash-drop {
+  margin-left: 0.5em;
+  font-size: 0.84em;
+  color: var(--silver-4);
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+@media (max-width: 560px) {
+  .dice-dock { left: calc(var(--sidebar-w) + 10px); bottom: 14px; }
+  .dice-history-panel { width: min(196px, calc(100vw - 28px)); }
+  .dice-fab {
+    width: 72px;
+    height: calc(72px * var(--hex-aspect));
+  }
+  .dice-fab .die-fab-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .dice-close-btn {
+    width: 50px;
+    height: calc(50px * var(--hex-aspect));
+  }
+  .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
+  .dice-tray-wrap {
+    width: min(280px, calc(100vw - 28px));
+    max-height: 520px;
+    overflow: hidden;
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s ease,
+      visibility 0.45s ease,
+      max-height 0.45s ease,
+      margin 0.45s ease,
+      padding 0.45s ease,
+      border-width 0.45s ease;
+  }
+  .dice-tray-wrap--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    transform: translateY(10px);
+  }
+  .dice-d20-mod-outer--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-width: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  .dice-shape-icon-wrap { width: 40px; height: 40px; }
+  .dice-qty-btn { font-size: 1.25rem; }
+  .dice-qty-value { font-size: 1.15rem; min-width: 24px; }
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    z-index: 150;
+  }
+}
+
+/* ============================================================
+   АДАПТИВ
+   ============================================================ */
+
+@media (max-width: 900px) {
+  /* на узких экранах сайдбар фиксирован слева */
+  .sidebar-wrap {
+    position: fixed;
+    left: 0;
+    top: 0;
+  }
+  .page {
+    margin-left: var(--sidebar-w);
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .hex-title { font-size: 0.8rem; }
+  .car-arrow { display: none; }
+  .cat-btn-inner { padding: 8px 16px; font-size: 0.76rem; }
+  .sidebar-link { min-height: 48px; font-size: 1.05rem; }
+  .sidebar-link-icon { width: 20px; height: 20px; }
+  .sidebar-toggle {
+    width: 36px;
+    height: calc(36px * var(--hex-aspect));
+    left: calc(100% - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+

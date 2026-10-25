@@ -7,7 +7,7 @@
  * additionalInfo, спойлеры и т.п.). Мы НЕ перевёрстываем её в React-дерево, а
  * приводим в порядок в один проход по DOM (убираем скрипты, обработчики,
  * навигационные меню, интерактив), а стили этих классов переопределяем в CSS
- * (`.class-article …` в index.css). Спойлеры и свёрнутые блоки подклассов
+ * (`.class-article …` в styles/class-pages.css). Спойлеры и свёрнутые блоки подклассов
  * превращаем в нативные <details>.
  */
 import { createContext, useContext, useMemo, type MouseEvent } from 'react'

@@ -1,0 +1,987 @@
+/* ============================================================
+   ГЕРОЙ + КНОПКА «ИГРАТЬ» (вытянутый гексагон)
+   ============================================================ */
+
+.hero {
+  text-align: center;
+  padding: clamp(40px, 7vw, 84px) 0 0;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.1rem, 5.4vw, 3.8rem);
+  letter-spacing: 0.16em;
+  line-height: 1.12;
+  text-transform: uppercase;
+}
+
+.hero-sub {
+  margin: 14px auto 0;
+  max-width: 620px;
+  color: var(--text-dim);
+  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.play-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(30px, 4.5vw, 48px);
+}
+
+.play-btn {
+  position: relative;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  padding: 2px;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgba(205, 211, 219, 0.28));
+  transition: filter 0.3s ease, transform 0.2s ease;
+}
+
+.play-btn-inner {
+  position: relative;
+  clip-path: var(--hex-wide);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: clamp(280px, 40vw, 420px);
+  padding: 20px 72px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 160% at 50% -30%, rgba(154, 110, 34, 0.5), transparent 55%),
+    linear-gradient(180deg, #2e333d 0%, #1b1e24 55%, #121419 100%);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 2.4vw, 1.72rem);
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-transform: uppercase;
+}
+
+.play-btn-inner svg { width: 26px; height: 26px; stroke-width: 1.6; color: var(--gold-3); }
+.play-btn-inner .die-play-icon { width: 26px; height: 26px; }
+
+/* блуждающий блик по кнопке */
+.play-btn-inner::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  width: 46px;
+  left: -80px;
+  background: linear-gradient(100deg, transparent, rgba(241, 244, 248, 0.28), transparent);
+  transform: skewX(-22deg);
+  animation: sheen 4.2s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  0%, 55% { left: -90px; }
+  85%, 100% { left: calc(100% + 40px); }
+}
+
+.play-btn:hover { filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 34px rgba(205, 211, 219, 0.5)) brightness(1.12); transform: translateY(-2px) scale(1.012); }
+.play-btn:active { transform: translateY(0) scale(0.995); }
+
+.play-hint {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+/* ============================================================
+   КАРУСЕЛЬ СЕТТИНГОВ
+   ============================================================ */
+
+.carousel-shell { position: relative; }
+
+.carousel {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 26px 6px 30px;
+  scrollbar-width: none;
+}
+.carousel::-webkit-scrollbar { display: none; }
+
+.setting-card {
+  position: relative;
+  scroll-snap-align: center;
+  /* вертикальный баннер 1:2 */
+  flex: 0 0 clamp(230px, 25vw, 290px);
+  aspect-ratio: 1 / 2;
+  padding: 1.4px;
+  background: linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.25) 40%, rgba(124, 130, 139, 0.7));
+  clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
+  transition: transform 0.28s ease, filter 0.28s ease;
+  text-align: left;
+}
+
+.setting-card-inner {
+  position: relative;
+  height: 100%;
+  clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
+  padding: 24px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  background:
+    radial-gradient(140% 60% at 50% -12%, var(--accent, rgba(110, 70, 180, 0.4)), transparent 60%),
+    radial-gradient(140% 50% at 50% 112%, rgba(0, 0, 0, 0.55), transparent 60%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  overflow: hidden;
+}
+
+/* арт мира за содержимым баннера */
+.setting-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 18%;
+  /* лёгкий multiply глушит белые поля миниатюр, но не затемняет арт в ноль */
+  background-color: #a6aab2;
+  background-blend-mode: multiply;
+  filter: saturate(0.92) contrast(1.03);
+}
+.setting-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(13, 14, 17, 0.5) 0%,
+    rgba(13, 14, 17, 0.68) 34%,
+    rgba(13, 14, 17, 0.93) 58%,
+    rgba(13, 14, 17, 0.98) 100%
+  );
+}
+/* содержимое баннера — поверх арта */
+.setting-card-inner > :not(.setting-art) { position: relative; z-index: 1; }
+
+/* ссылка на детальную страницу мира */
+.setting-open {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 20px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgba(168, 175, 186, 0.5);
+  background: var(--hex-edge);
+  color: var(--gold-3);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.2s ease, filter 0.2s ease;
+}
+.setting-open:hover { color: var(--gold-4); filter: brightness(1.3) drop-shadow(0 0 8px rgba(205, 211, 219, 0.45)); }
+
+/* гексагональная печать с инициалом мира */
+.setting-seal {
+  display: block;
+  width: 84px;
+  height: 96px;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.6px;
+  margin: 12px auto 4px;
+  flex-shrink: 0;
+}
+
+.setting-seal-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background:
+    radial-gradient(90% 90% at 50% 0%, rgba(241, 244, 248, 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.4rem;
+  background-clip: padding-box;
+  color: var(--gold-3);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+/* гексагональная «печать» на фоне баннера */
+.setting-card-inner::before {
+  content: '';
+  position: absolute;
+  right: -44px;
+  bottom: -58px;
+  width: 170px;
+  height: 190px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(160deg, rgba(205, 211, 219, 0.16), rgba(205, 211, 219, 0.02));
+  pointer-events: none;
+}
+
+.setting-card:hover { transform: translateY(-4px); filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.5)) brightness(1.08); }
+
+.setting-card.is-active {
+  background: var(--silver-grad);
+  filter: drop-shadow(0 0 20px rgba(205, 211, 219, 0.45)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
+  transform: translateY(-4px);
+}
+
+.setting-kicker {
+  align-self: stretch;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-kicker::before,
+.setting-kicker::after { content: ''; height: 1px; flex: 1; }
+.setting-kicker::after { background: linear-gradient(90deg, var(--silver-1), transparent); }
+.setting-kicker::before { background: linear-gradient(270deg, var(--silver-1), transparent); }
+
+.setting-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.42rem;
+  letter-spacing: 0.05em;
+  line-height: 1.14;
+  color: var(--parchment);
+}
+
+.setting-name-en {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.94rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+}
+
+.setting-desc {
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.setting-meta {
+  margin-top: auto;
+  padding-top: 10px;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.setting-meta svg { width: 15px; height: 15px; stroke-width: 1.6; }
+
+/* стрелки карусели — гексагоны */
+.car-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 46px;
+  height: 52px;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.4px;
+  transition: filter 0.2s ease, opacity 0.28s ease;
+}
+/* докрутили до края — стрелка гаснет и не кликается */
+.car-arrow.is-disabled {
+  opacity: 0.18;
+  pointer-events: none;
+}
+.car-arrow span {
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  color: var(--gold-3);
+}
+.car-arrow svg { width: 20px; height: 20px; }
+.car-arrow:hover { filter: brightness(1.3) drop-shadow(0 0 12px rgba(205, 211, 219, 0.45)); }
+.car-arrow--left { left: -12px; }
+.car-arrow--right { right: -12px; }
+
+/* заглушка поиска миров (реализуем позже) */
+.setting-search-bar { display: flex; justify-content: center; margin: 2px 0 22px; }
+.setting-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  width: clamp(240px, 44vw, 440px);
+  cursor: default;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgba(168, 175, 186, 0.55), rgba(168, 175, 186, 0.2) 40%, rgba(168, 175, 186, 0.55)) border-box;
+}
+.setting-search svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
+.setting-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  letter-spacing: 0.03em;
+  cursor: default;
+}
+.setting-search input::placeholder { color: var(--text-dim); font-style: italic; }
+.soon-badge {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+  padding: 3px 9px;
+  clip-path: var(--hex-chip);
+  --hex-in: rgba(196, 154, 60, 0.14);
+  --hex-edge: rgba(196, 154, 60, 0.4);
+  background: var(--hex-edge);
+}
+
+/* ============================================================
+   СВОДКА НОВОВВЕДЕНИЙ СЕТТИНГА
+   ============================================================ */
+
+.loot-bar {
+  position: relative;
+  margin: 6px auto 34px;
+  max-width: 1040px;
+  padding: 22px 30px 20px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgba(124, 130, 139, 0.85), rgba(124, 130, 139, 0.2) 35%, rgba(124, 130, 139, 0.2) 65%, rgba(124, 130, 139, 0.85)) border-box;
+}
+
+.loot-title {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  margin-bottom: 16px;
+}
+
+.loot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
+}
+
+.loot-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  clip-path: var(--hex-chip);
+  padding: 8px 24px;
+  --hex-in:
+    linear-gradient(180deg, rgba(241, 244, 248, 0.06), transparent 50%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgba(168, 175, 186, 0.3);
+  background: var(--hex-edge);
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.loot-chip svg { width: 16px; height: 16px; stroke-width: 1.5; color: var(--gold-2); }
+
+.loot-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.06rem;
+  color: var(--gold-3);
+}
+
+.loot-chip.is-zero { opacity: 0.38; }
+
+button.loot-chip {
+  font: inherit;
+  border: none;
+  cursor: default;
+}
+
+.loot-chip--clickable {
+  cursor: pointer;
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.loot-chip--clickable:hover {
+  color: var(--gold-4);
+  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.55);
+  transform: translateY(-1px);
+}
+
+.loot-chip--clickable:active {
+  transform: translateY(0);
+}
+
+/* ============================================================
+   СОТЫ КНИГ (адаптивный honeycomb)
+   ============================================================ */
+
+/* Улей: ряды сот с шахматным смещением. Ряды режет JS (BookHive),
+   чётный ряд на одну соту короче — смещение получается само за счёт центрирования */
+.hive {
+  --s: 196px;                              /* ширина соты (задаёт JS по ширине экрана) */
+  --m: 7px;                                /* зазор между сотами */
+  --hex-h: calc(var(--s) * 1.1547);        /* высота гекса */
+  --hex-gap: calc(var(--m) * 2);           /* зазор между кромками сот (как по горизонтали) */
+  --hex-tip: calc(var(--hex-h) * 0.25);    /* высота нижнего/верхнего остря гекса */
+  /* «голова» соты в раскрытом виде: остриё сверху (как у соты), но НИЗ ПЛОСКИЙ —
+     обложка ровно стыкуется со списком, без острого выступа-«верхушки».
+     6 точек (как у --hex-point) — форма плавно морфится из гекса при раскрытии. */
+  --hex-clip-head: polygon(50% 0, 100% 25%, 100% 100%, 50% 100%, 0 100%, 0 25%);
+  --hex-clip-elongated: polygon(
+    50% 0,
+    100% calc(var(--hex-h) * 0.25),
+    100% calc(100% - var(--hex-tip)),
+    50% 100%,
+    0 calc(100% - var(--hex-tip)),
+    0 calc(var(--hex-h) * 0.25)
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 56px;
+}
+
+.hive-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: relative;
+  margin-top: calc(var(--m) * 2);
+}
+.hive-row:first-child { margin-top: 0; }
+/* внахлёст рядов: 25% высоты гекса + такой же зазор, как по горизонтали (2×m) */
+.hive-row--nest { margin-top: calc(var(--hex-h) * -0.25 + var(--m) * 2); }
+.hive-row:hover { z-index: 5; }
+
+/* невидимая ячейка-распорка и заглушка — тот же каркас, что у книги */
+.hex-cell-wrap--spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.hex-cell-wrap--static,
+.hex-cell-wrap--spacer {
+  min-height: var(--hex-h);
+}
+
+.hex-cell.is-ghost {
+  width: 100%;
+  height: var(--hex-h);
+}
+
+.hex-cell-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  vertical-align: top;
+  width: var(--s);
+  min-height: var(--hex-h);
+  margin: 0 var(--m);
+  animation: rise 0.5s ease backwards;
+}
+
+.hex-cell-wrap.is-expanded,
+.hex-cell-wrap:focus-within {
+  z-index: 12;
+  overflow: visible;
+}
+
+.hex-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  /* высота ВСЕГДА по содержимому (не фиксируем hex-h) — тогда рост/схлопывание
+     списка (grid-rows) плавно тянет высоту соты и на раскрытии, И на закрытии.
+     Раньше свёрнутая высота была фиксированной → при уводе курсора она мгновенно
+     защёлкивалась, и закрытие выглядело резким. */
+  height: auto;
+  min-height: var(--hex-h);
+  overflow: hidden;
+  background: transparent;
+  padding: 0;
+  /* та же форма и в свёрнутом виде (при высоте гекса ≈ обычная сота) — тогда
+     при росте высоты она ПЛАВНО удлиняется, а не прыгает с none на polygon */
+  clip-path: var(--hex-clip-elongated);
+  /* единая длительность/кривая для всех свойств — раскрытие идёт синхронно,
+     без «раскрылось наполовину и ждём» */
+  transition:
+    background 0.85s cubic-bezier(0.6, 0, 0.4, 1),
+    padding 0.85s cubic-bezier(0.6, 0, 0.4, 1),
+    filter 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-unit,
+.hex-cell-wrap:focus-within .hex-unit {
+  position: relative;
+  height: auto;
+  background: var(--silver-grad);
+  padding: 2px;
+  clip-path: var(--hex-clip-elongated);
+  overflow: visible;
+  filter:
+    drop-shadow(0 0 22px rgba(205, 211, 219, 0.7))
+    drop-shadow(0 0 6px rgba(241, 244, 248, 0.55))
+    drop-shadow(0 12px 30px rgba(0, 0, 0, 0.5));
+}
+
+.hex-unit-fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: transparent;
+  /* та же форма всегда — серебряная обводка появляется плавно (через padding
+     оклада), без резкого щелчка clip-path при раскрытии */
+  clip-path: var(--hex-clip-elongated);
+}
+
+.hex-cell-wrap.is-expanded .hex-unit-fill,
+.hex-cell-wrap:focus-within .hex-unit-fill {
+  background: linear-gradient(180deg, var(--bg-3) 0%, var(--bg-1) 42%, var(--bg-0) 100%);
+  /* та же вытянутая форма, что у оклада — тогда серебряная обводка ровная
+     по всему периметру, включая верхний и нижний острые концы (а не только бока) */
+  clip-path: var(--hex-clip-elongated);
+}
+
+.hex-cell {
+  position: relative;
+  width: 100%;
+  height: var(--hex-h);
+  flex-shrink: 0;
+  display: block;
+  font-size: 1rem;
+  text-align: center;
+  color: inherit;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2px;
+  cursor: pointer;
+  transition: filter 0.85s cubic-bezier(0.6, 0, 0.4, 1), clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1), background 0.85s cubic-bezier(0.6, 0, 0.4, 1), padding 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-cell,
+.hex-cell-wrap:focus-within .hex-cell {
+  filter: drop-shadow(0 0 16px rgba(205, 211, 219, 0.55)) brightness(1.1);
+  /* плоский низ — обложка стыкуется со списком без острого выступа */
+  clip-path: var(--hex-clip-head);
+  background: transparent;
+  padding: 0;
+}
+
+.hex-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  text-align: center;
+  transition: clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-inner,
+.hex-cell-wrap:focus-within .hex-inner {
+  clip-path: var(--hex-clip-head);
+}
+
+.hex-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* cover — обложка заполняет гекс без зазоров и всегда отцентрована */
+  object-fit: cover;
+  object-position: center;
+  /* обложка обрезана по гексу на самой картинке */
+  clip-path: var(--hex-point);
+  /* Зум — рост width/height с отрицательным margin (растёт симметрично из
+     центра). Это LAYOUT, а НЕ transform/filter: последние выносят <img> на
+     GPU-слой, где акселерированный композитинг СРЫВАЕТ clip-path (мелькал
+     квадрат; translateZ ломал обрезку даже в покое). Прибавки по вертикали и
+     горизонтали пропорциональны сторонам гекса — пропорции сохраняются, без
+     «сдвига». */
+  transition: width 0.4s ease, height 0.4s ease, margin 0.4s ease,
+    clip-path 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+.hex-cell-wrap.is-expanded .hex-cover,
+.hex-cell-wrap:focus-within .hex-cover {
+  clip-path: var(--hex-clip-head);
+}
+
+/* фолбэк, если у книги нет обложки или ссылка на неё битая */
+.hex-cover--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  mix-blend-mode: normal;
+  filter: none;
+}
+.hex-cover--empty svg { width: 34%; height: 34%; color: rgba(228, 196, 110, 0.3); stroke-width: 1; }
+
+/* вторая, тонкая внутренняя грань оклада */
+/* внутренняя грань — только в свёрнутой соте */
+.hex-inner::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  clip-path: var(--hex-point);
+  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.35);
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.28s ease;
+}
+
+/* внутренняя грань-рамка — только у свёрнутой соты; в раскрытой прячем,
+   иначе её гексагональный контур с острым низом торчит поверх плоской обложки */
+.hex-cell-wrap.is-expanded .hex-inner::after,
+.hex-cell-wrap:focus-within .hex-inner::after {
+  opacity: 0;
+}
+
+.hex-cell-wrap:not(:hover):not(:focus-within) .hex-inner::after {
+  opacity: 1;
+}
+
+/* обложка приближается СРАЗУ при наведении — мгновенный отклик,
+   раскрытие самой соты по-прежнему ждёт задержки курсора (1.5 с) */
+/* зум — только при наведении ВНУТРЬ шестиугольника: триггерим по .hex-cell,
+   у которого есть clip-path (он же обрезает и хит-тест — углы вне гекса не в счёт) */
+.hex-cell:hover .hex-cover {
+  width: calc(100% + 12px);
+  height: calc(100% + 14px);
+  margin: -7px -6px;
+}
+
+/* градиент затемнения под текст */
+.hex-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(12, 13, 16, 0.55) 0%, transparent 26%),
+    linear-gradient(0deg, rgba(10, 11, 14, 0.94) 0%, rgba(10, 11, 14, 0.72) 24%, transparent 52%);
+}
+
+.hex-code {
+  position: absolute;
+  top: 9%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  padding: 3px 14px;
+  clip-path: var(--hex-chip);
+  color: var(--gold-4);
+  --hex-in: rgba(13, 14, 18, 0.82);
+  --hex-edge: rgba(168, 175, 186, 0.55);
+  background: var(--hex-edge);
+}
+
+.hex-body {
+  position: relative;
+  z-index: 2;
+  padding: 0 16% 16%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.hex-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: var(--parchment);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hex-loot {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--gold-3);
+  letter-spacing: 0.02em;
+}
+.hex-loot span,
+.hex-loot-link { display: inline-flex; align-items: center; gap: 3px; }
+.hex-loot svg { width: 12px; height: 12px; stroke-width: 1.7; }
+
+.hex-loot-link {
+  position: relative;
+  z-index: 4;
+  text-decoration: none;
+  color: var(--gold-3);
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.hex-loot-link:hover {
+  color: var(--gold-4);
+  background: rgba(228, 196, 110, 0.14);
+}
+
+/* список нововведений — внутри той же соты, без отдельной рамки */
+.hex-expand {
+  display: grid;
+  /* minmax(0, …) — иначе 0fr упирается в min-content и не схлопывается в ноль,
+     из-за чего у свёрнутой соты снизу торчал бы кусок списка «НОВОВВЕДЕНИЯ …» */
+  grid-template-rows: minmax(0, 0fr);
+  flex-shrink: 0;
+  width: 100%;
+  overflow: hidden;
+  transition: grid-template-rows 0.85s cubic-bezier(0.6, 0, 0.4, 1);
+}
+
+.hex-cell-wrap.is-expanded .hex-expand,
+.hex-cell-wrap:focus-within .hex-expand {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.hex-expand-inner {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding:
+    var(--hex-gap)
+    10px
+    calc(var(--hex-gap) + var(--hex-tip));
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(196, 154, 60, 0.08), transparent 62%),
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 55%, var(--bg-0) 100%);
+}
+
+.hex-expand-inner::after {
+  display: none;
+}
+
+.hex-expand-inner .corner {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.hex-cell-wrap.is-expanded .hex-expand-inner .corner,
+.hex-cell-wrap:focus-within .hex-expand-inner .corner {
+  opacity: 1;
+}
+
+.hex-expand-inner .corner--tl,
+.hex-expand-inner .corner--tr { display: none; }
+.hex-expand-inner .corner--bl,
+.hex-expand-inner .corner--br { bottom: calc(var(--hex-tip) - 2px); }
+.hex-expand-inner .corner--bl { left: 0; }
+.hex-expand-inner .corner--br { right: 0; }
+
+.hex-expand-title {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+}
+
+.hex-expand-title::after {
+  content: '';
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 175, 186, 0.45) 20%, rgba(241, 244, 248, 0.65) 50%, rgba(168, 175, 186, 0.45) 80%, transparent);
+}
+
+.hex-expand-title-text {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+.hex-expand-total {
+  clip-path: var(--hex-chip);
+  padding: 1px 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  color: var(--gold-3);
+  --hex-in: rgba(13, 14, 18, 0.82);
+  --hex-edge: rgba(168, 175, 186, 0.5);
+  background: var(--hex-edge);
+}
+
+.hex-expand-list {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hex-expand-row.is-zero { opacity: 0.36; }
+
+.hex-expand-link {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px 5px 8px;
+  clip-path: var(--hex-chip);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  --hex-in:
+    linear-gradient(180deg, rgba(241, 244, 248, 0.05), transparent 48%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgba(168, 175, 186, 0.26);
+  background: var(--hex-edge);
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.hex-expand-link svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+  color: var(--gold-2);
+}
+
+.hex-expand-label { text-align: left; }
+
+.hex-expand-count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--gold-3);
+  min-width: 1.3em;
+  text-align: right;
+}
+
+a.hex-expand-link:hover {
+  color: var(--gold-4);
+  --hex-edge: rgba(205, 211, 219, 0.5);
+  transform: translateY(-1px);
+}
+
+a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
+
+.hex-expand-link.is-static { cursor: default; }
+
+/* пустая сота-заглушка при загрузке — серебряный оклад как у книг */
+.hex-cell.is-ghost .hex-inner {
+  background: linear-gradient(110deg, var(--bg-2) 30%, var(--bg-3) 50%, var(--bg-2) 70%);
+  background-size: 220% 100%;
+  animation: ghost 1.6s linear infinite;
+}
+@keyframes ghost { to { background-position: -220% 0; } }
+
+.hive-empty {
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+  letter-spacing: 0.08em;
+  padding: 40px 0 60px;
+}
+
+/* появление сот */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Статус загрузки / ошибки ---------- */
+
+.status-line {
+  text-align: center;
+  padding: 34px 0;
+  color: var(--text-dim);
+  font-style: italic;
+  letter-spacing: 0.1em;
+}
+.status-line.is-error { color: #c96e5a; }
+
+/* ---------- Подвал ---------- */
+
+.footer {
+  text-align: center;
+  padding: 26px 0 8px;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+

@@ -13,7 +13,7 @@
  * кошелёк и записи. Всё, что бросается, бросается кликом — общими 3D-костями,
  * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Award,
@@ -40,6 +40,7 @@ import {
   Trash2,
   UserRound,
   Zap,
+  MoreHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cleanDescription, realImage } from '../api'
@@ -58,11 +59,14 @@ import type { AbilityName, AttackEntry, InventoryItemInstance, LogEntry, SheetVi
 import { abilityMod } from '../create/dnd5e'
 import { ChoicePortrait } from '../create/steps/ui'
 import { alignmentAbbr } from '../create/steps/AlignmentChart'
+import { FaceAvatar } from './FacePortrait'
+import { HudBar } from './HudBar'
 import { HeroStage } from './HeroStage'
 import { InventoryBoard } from './InventoryBoard'
+import { useAppShell } from '../shell'
 import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
-import type { FaceCrop } from './portrait'
+import { DEFAULT_FACE, FALLBACK_FACE, type FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay, SheetRoller } from './sheetPlay'
 import { attackTags, d20Cards, rollMode, tagBonus, tagCards, type RollContext, type RollMode } from './rollBonuses'
 import { RollTheater, type RollReaction, type RollSpec } from '../dice/theater/RollTheater'
@@ -304,8 +308,8 @@ interface FeatureRow {
   active?: boolean
 }
 
-/** Страницы листа: самое нужное за столом — на первой */
-export type SheetTab = 'main' | 'magic' | 'features' | 'story'
+/** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
+export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'more'
 
 export interface CharacterSheetProps {
   sheet: SheetView
@@ -335,6 +339,8 @@ export interface CharacterSheetProps {
   serverLog?: Outcome | null
   /** включить или отключить умение (только своё) */
   onToggleAbility?: (grantId: string, enabled: boolean) => void
+  /** отдых, журнал, правка — в «Ещё» и в меню полосы на телефоне */
+  hudMore?: ReactNode
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -363,11 +369,23 @@ export default function CharacterSheet({
   stage,
   serverLog = null,
   onToggleAbility,
+  hudMore,
 }: CharacterSheetProps) {
   const [ownTab, setOwnTab] = useState<SheetTab>('main')
   const tab = tabProp ?? ownTab
   const setTab = (t: SheetTab) => (onTab ? onTab(t) : setOwnTab(t))
+  const shell = useAppShell()
+  const hudMode = paged && shell.app
+  const hudLandscape = hudMode && shell.landscape
   const live = !!onPatch
+
+  useLayoutEffect(() => {
+    if (!hudMode) return
+    document.documentElement.dataset.hud = 'sheet'
+    return () => {
+      delete document.documentElement.dataset.hud
+    }
+  }, [hudMode])
   const dice = useCreatureDice()
   // история бросков: свежий — первым, держим последние 30
   const [rolls, setRolls] = useState<RollShown[]>([])
@@ -1201,21 +1219,145 @@ export default function CharacterSheet({
 
   /* ---------- раскладка ---------- */
 
-  // alert — нерешённые выборы способностей: красная метка на вкладке
-  const tabs: { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }[] = [
+  type TabRow = { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }
+  const deskTabs: TabRow[] = [
     { id: 'main', label: 'Лист', icon: Swords },
     ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
     { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length, alert: engine?.sheet.pending_decisions.length },
     { id: 'story', label: 'Характер', icon: UserRound },
   ]
-  const current = tabs.some((t) => t.id === tab) ? tab : 'main'
+  const hudTabs: TabRow[] = [
+    ...(!hudLandscape ? [{ id: 'hero' as const, label: 'Герой', icon: UserRound }] : []),
+    { id: 'main', label: 'Бой', icon: Swords },
+    { id: 'bag', label: 'Сумка', icon: Backpack, badge: items.length || undefined },
+    ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
+    { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length, alert: engine?.sheet.pending_decisions.length },
+    { id: 'more', label: 'Ещё', icon: MoreHorizontal },
+  ]
+  const tabs = hudMode ? hudTabs : deskTabs
+  const rawTab = tab === 'story' && hudMode ? 'more' : tab === 'more' && !hudMode ? 'story' : tab === 'bag' || tab === 'hero' ? (hudMode ? tab : 'main') : tab
+  const current = tabs.some((t) => t.id === rawTab) ? rawTab : 'main'
+
+  const hudCrop = portrait ? (face ?? DEFAULT_FACE) : FALLBACK_FACE
+  const hudRail = (
+    <aside className="cw-hud-rail">
+      <button
+        type="button"
+        className="cw-hud-face"
+        onClick={onPortraitClick}
+        disabled={!onPortraitClick}
+        title={onPortraitClick ? 'Сменить портрет' : info.name}
+      >
+        <FaceAvatar src={portrait ?? fallbackPortrait} crop={hudCrop} />
+      </button>
+      <div className="cw-hud-stats">
+        {ABILITY_KEYS.map((k) => {
+          const label = ABILITY_LABELS[k]
+          return (
+            <button
+              key={k}
+              type="button"
+              className="cw-hud-abil"
+              onClick={() => void rollD20(`${label.label}, проверка`, mod(k), undefined, { kind: 'check', ability: k })}
+              disabled={dice.rolling}
+              title={`Проверка: к20 ${signed(mod(k))}`}
+            >
+              <i>{label.abbr}</i>
+              <b>{signed(mod(k))}</b>
+              <em>{score(k)}</em>
+            </button>
+          )
+        })}
+      </div>
+      <p className="cw-hud-passive">
+        <Eye aria-hidden="true" /> {combat.passive_perception}
+      </p>
+    </aside>
+  )
+
+  const resources = engine && (
+    <ResourceBand
+      resources={engine.sheet.resources}
+      activeKeys={activeKeys}
+      onOpen={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
+    />
+  )
+
+  const tabButtons = (rows: TabRow[], compact?: boolean) => (
+    <nav className={compact ? 'cw-hud-tabs' : 'cw-tabs'} role="tablist" aria-label="Страницы листа">
+      {rows.map(({ id, label, icon: Icon, badge, alert }) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={current === id}
+          className={`${compact ? 'cw-hud-tab' : 'cw-tab'}${current === id ? ' is-on' : ''}`}
+          onClick={() => setTab(id)}
+        >
+          <Icon aria-hidden="true" /> {label}
+          {badge ? <em>{badge}</em> : null}
+          {alert ? (
+            <em className="is-alert" title="Нерешённые выборы">
+              !{alert}
+            </em>
+          ) : null}
+        </button>
+      ))}
+    </nav>
+  )
+
+  const hudPane =
+    current === 'hero' ? (
+      <div className="cw-hud-hero">
+        <button
+          type="button"
+          className="cw-hud-hero-art"
+          onClick={onPortraitClick}
+          disabled={!onPortraitClick}
+          title={onPortraitClick ? 'Сменить портрет' : info.name}
+        >
+          <FaceAvatar src={portrait ?? fallbackPortrait} crop={hudCrop} />
+        </button>
+        {abilitiesCard}
+      </div>
+    ) : current === 'main' ? (
+      <>
+        {engine && <EnginePanel engine={engine} />}
+        {combatCard}
+      </>
+    ) : current === 'bag' ? (
+      invCard
+    ) : current === 'magic' ? (
+      spellBook
+    ) : current === 'features' ? (
+      featuresPage
+    ) : (
+      <>
+        {hudMore && <div className="cw-hud-extras">{hudMore}</div>}
+        {storyPage}
+      </>
+    )
 
   return (
     <WhyProvider breakdown={sheet.breakdown} bases={sheet.bases} names={sheet.sourceNames}>
-    <div className={`cw-step cw-sheet${paged ? ' is-paged' : ''}`}>
+    <div className={`cw-step cw-sheet${paged ? ' is-paged' : ''}${hudMode ? ' is-hud' : ''}`}>
       {heading}
 
-      {paged ? (
+      {hudMode ? (
+        <div className={`cw-hud${hudLandscape ? ' is-land' : ' is-port'}`}>
+          <HudBar sheet={sheet} roller={roller} stage={stage} extras={hudMore} />
+          <div className="cw-hud-body">
+            {hudLandscape && hudRail}
+            <div className="cw-hud-main">
+              {resources}
+              <div key={current} className="cw-hud-pane" role="tabpanel">
+                {hudPane}
+              </div>
+            </div>
+          </div>
+          {tabButtons(hudTabs, true)}
+        </div>
+      ) : paged ? (
         <>
           <HeroStage
             sheet={sheet}
@@ -1226,33 +1368,8 @@ export default function CharacterSheet({
             roller={roller}
             stage={stage}
           />
-          {engine && (
-            <ResourceBand
-              resources={engine.sheet.resources}
-              activeKeys={activeKeys}
-              onOpen={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
-            />
-          )}
-          <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
-            {tabs.map(({ id, label, icon: Icon, badge, alert }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={current === id}
-                className={`cw-tab${current === id ? ' is-on' : ''}`}
-                onClick={() => setTab(id)}
-              >
-                <Icon aria-hidden="true" /> {label}
-                {badge ? <em>{badge}</em> : null}
-                {alert ? (
-                  <em className="is-alert" title="Нерешённые выборы">
-                    !{alert}
-                  </em>
-                ) : null}
-              </button>
-            ))}
-          </nav>
+          {resources}
+          {tabButtons(deskTabs)}
           <div key={current} className={`cw-page cw-page--${current}`} role="tabpanel">
             {current === 'main' && (
               <>
