@@ -50,18 +50,21 @@ function EmptySlot({ main = false }: { main?: boolean }) {
 function HeroBanner({
   c,
   classById,
-  raceName,
+  race,
   onDelete,
 }: {
   c: Character
   classById: Map<string, GameClass>
-  raceName: string | null
+  race: Race | null
   onDelete: () => void
 }) {
   const [broken, setBroken] = useState(false)
-  // в документе v2 только ссылки — названия и арт класса берём из каталога
+  const raceName = race?.race_name ?? null
+  // в документе v2 только ссылки — названия и арт берём из каталога;
+  // без своего портрета — арт расы, класс лишь запасной вариант
   const first = classById.get(c.classes?.[0]?.class_id ?? '')
-  const art = parsePortrait(c.avatar_url).src || realImage(first?.image_gallery)
+  const art =
+    parsePortrait(c.avatar_url).src || realImage(race?.image_gallery) || realImage(first?.image_gallery)
   const classes = (c.classes ?? [])
     .map((cl) => `${classById.get(cl.class_id)?.class_name ?? 'Класс'} ${cl.level}`)
     .join(' / ')
@@ -119,7 +122,7 @@ export default function CharactersPage() {
 
   // арт класса — портрет знамени, если у героя нет своего аватара
   const classById = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes])
-  const raceById = useMemo(() => new Map(races.map((r) => [r.id, r.race_name])), [races])
+  const raceById = useMemo(() => new Map(races.map((r) => [r.id, r])), [races])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -232,7 +235,7 @@ export default function CharactersPage() {
                   key={c.id}
                   c={c}
                   classById={classById}
-                  raceName={c.race_id ? (raceById.get(c.race_id) ?? null) : null}
+                  race={c.race_id ? (raceById.get(c.race_id) ?? null) : null}
                   onDelete={() => void onDelete(c)}
                 />
               ))

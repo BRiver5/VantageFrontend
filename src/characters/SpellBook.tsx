@@ -84,30 +84,34 @@ function skyPoints(circle: number, n: number): [number, number][] {
 }
 
 /** Созвездие круга: горящие звёзды — свободные ячейки; клик тратит или возвращает */
-function Constellation({
+export function Constellation({
   circle,
   max,
   used,
+  fresh = 0,
   locked = false,
   onToggle,
 }: {
   circle: number
   max: number
   used: number
+  /** последние звёзды — ячейки, добавленные новым уровнем; горят зелёным */
+  fresh?: number
   /** ячейки меняет сервер — звёзды только показывают */
   locked?: boolean
-  onToggle: (spent: boolean) => void
+  onToggle?: (spent: boolean) => void
 }) {
   const pts = skyPoints(circle, max)
   // used < 0 — ячейки сверх максимума (очки чародейства): все звёзды горят
   const lit = (i: number) => i < max - used
+  const isNew = (i: number) => i >= max - fresh
   const edges = pts.slice(1).map((_, i) => [i, i + 1] as const)
   if (CLOSED.has(circle) && pts.length >= 4) edges.push([pts.length - 1, 0] as const)
   const left = max - used
   const key = (spent: boolean) => (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
-      onToggle(spent)
+      onToggle?.(spent)
     }
   }
 
@@ -122,7 +126,7 @@ function Constellation({
         {edges.map(([a, b]) => (
           <line
             key={`${a}-${b}`}
-            className={`cw-sky-edge${lit(a) && lit(b) ? '' : ' is-off'}`}
+            className={`cw-sky-edge${lit(a) && lit(b) ? '' : ' is-off'}${isNew(b) ? ' is-new' : ''}`}
             x1={pts[a][0]}
             y1={pts[a][1]}
             x2={pts[b][0]}
@@ -134,16 +138,26 @@ function Constellation({
           return (
             <g
               key={i}
-              className={`cw-star${spent ? ' is-spent' : ''}`}
+              className={`cw-star${spent ? ' is-spent' : ''}${isNew(i) ? ' is-new' : ''}`}
               transform={`translate(${x} ${y})`}
               role={locked ? undefined : 'button'}
               tabIndex={locked ? undefined : 0}
               aria-label={locked ? undefined : `${circle} круг: ${spent ? 'вернуть' : 'потратить'} ячейку`}
-              onClick={locked ? undefined : () => onToggle(spent)}
+              onClick={locked ? undefined : () => onToggle?.(spent)}
               onKeyDown={locked ? undefined : key(spent)}
               style={{ '--twinkle': `${(i * 0.73 + circle * 0.41) % 3}s` } as CSSProperties}
             >
-              <title>{locked ? (spent ? 'Потрачена' : 'Свободна') : spent ? 'Вернуть ячейку' : 'Потратить ячейку'}</title>
+              <title>
+                {isNew(i)
+                  ? 'Новая ячейка'
+                  : locked
+                    ? spent
+                      ? 'Потрачена'
+                      : 'Свободна'
+                    : spent
+                      ? 'Вернуть ячейку'
+                      : 'Потратить ячейку'}
+              </title>
               <circle className="cw-star-hit" r="9" />
               <circle className="cw-star-ring" r="3.2" />
               <path className="cw-star-flare" d={STAR} />
@@ -154,9 +168,16 @@ function Constellation({
       </svg>
       <span className="cw-sky-cap">
         <b>{ROMAN[circle] ?? circle}</b>
-        <i>
-          {left}/{max}
-        </i>
+        {fresh > 0 ? (
+          <>
+            <i>{max}</i>
+            <i className="cw-sky-fresh">+{fresh}</i>
+          </>
+        ) : (
+          <i>
+            {left}/{max}
+          </i>
+        )}
       </span>
     </div>
   )

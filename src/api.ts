@@ -1129,6 +1129,14 @@ export function realImage(urls: string[] | null | undefined): string | null {
   return u ?? null
 }
 
+/**
+ * Наши вырезанные фигуры лежат в `/media/`. Всё остальное (галерея dnd.su) —
+ * картинка с фоном: её нельзя ставить «в полный рост», только в рамку.
+ */
+export function isFramedArt(src: string | null | undefined): boolean {
+  return !!src && !src.includes('/media/')
+}
+
 /** Показатель опасности: 0.125 → «1/8» */
 export function formatCR(cr: number | null): string {
   if (cr == null) return '—'

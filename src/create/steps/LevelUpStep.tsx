@@ -50,6 +50,7 @@ import { useDice } from '../../dice/diceControl'
 import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay'
 import { useCatalogList } from '../useCatalog'
 import { RichText } from '../../terms/terms'
+import { Constellation } from '../../characters/SpellBook'
 import { FeatPicker } from './FeatPicker'
 import { featureText } from '../featureText'
 import type { GrantedSpell } from '../grantedSpells'
@@ -70,6 +71,8 @@ interface LevelRequirements {
   spellsNeeded: number
   maxCircle: number
   newSlots: { circle: number; count: number }[]
+  /** все ячейки на этом уровне и сколько их было до него */
+  slots: { circle: number; count: number; before: number }[]
   classFeatures: FeatureEntry[]
   subFeatures: FeatureEntry[]
 }
@@ -193,14 +196,14 @@ export default function LevelUpStep({
     const classSkills = classSkillChoice(className)
     const slotsNow = spellSlotsAt(kind, level)
     const slotsBefore = spellSlotsAt(kind, level - 1)
-    const newSlots = Object.entries(slotsNow)
+    const slots = Object.entries(slotsNow)
       .map(([circle, count]) => ({
         circle: Number(circle),
         count,
         before: slotsBefore[circle] ?? 0,
       }))
-      .filter((s) => s.count > s.before)
-      .map(({ circle, count }) => ({ circle, count }))
+      .sort((a, b) => a.circle - b.circle)
+    const newSlots = slots.filter((s) => s.count > s.before).map(({ circle, count }) => ({ circle, count }))
 
     const circles = Object.keys(slotsNow).map(Number)
     return {
@@ -212,6 +215,7 @@ export default function LevelUpStep({
       spellsNeeded: prepared ? 0 : spellsKnownAt(className, level) - spellsKnownAt(className, level - 1),
       maxCircle: circles.length > 0 ? Math.max(...circles) : 0,
       newSlots,
+      slots,
       classFeatures: (bundle?.features ?? []).filter((f) => f.level === level),
       subFeatures: subclassFeatures.filter((f) => f.level === level),
     }
@@ -658,11 +662,16 @@ export default function LevelUpStep({
             </h4>
 
             {req.newSlots.length > 0 && (
-              <div className="cw-card-chips">
-                {req.newSlots.map((s) => (
-                  <FactChip key={s.circle} icon={Sparkles}>
-                    {s.circle} круг — {s.count} {s.count === 1 ? 'ячейка' : 'ячеек'}
-                  </FactChip>
+              <div className="cw-slot-rail cw-slot-rail--levelup">
+                {req.slots.map((s) => (
+                  <Constellation
+                    key={s.circle}
+                    circle={s.circle}
+                    max={s.count}
+                    used={0}
+                    fresh={Math.max(0, s.count - s.before)}
+                    locked
+                  />
                 ))}
               </div>
             )}

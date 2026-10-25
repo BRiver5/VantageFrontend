@@ -1,14 +1,13 @@
 /**
  * Шаг 1 — раса: карточки как в каталоге рас, подробности — в попапе.
- * Самостоятельные подрасы (`replaces_race`: дуэргар MPMM, альтернативный
- * человек, марки Эберрона) идут отдельными карточками: черты базовой расы к
- * ним не применяются, поэтому выбирать их на шаге подрасы было бы неверно.
+ * Подрасы, в том числе самостоятельные (`replaces_race`), выбираются
+ * следующим шагом.
  */
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Eye, Footprints, GitFork, Ruler, VenetianMask } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { ABILITY_RU, realImage, sizeRu } from '../../api'
-import type { Race, Subrace } from '../../api'
+import { ABILITY_RU, isFramedArt, realImage, sizeRu } from '../../api'
+import type { Race } from '../../api'
 import { RaceDetailBody } from '../../pages/DetailPages'
 import { useBookWorld } from '../../worldArt'
 import type { StepProps } from '../draft'
@@ -44,8 +43,9 @@ function RailCell({ icon: Icon, value, label }: { icon: LucideIcon; value: strin
 /** Портрет без подложки — фигура стоит прямо на панели, как в каталоге */
 function RacePortrait({ src }: { src: string | null }) {
   const [broken, setBroken] = useState(false)
+  const framed = isFramedArt(src)
   return (
-    <span className="class-card-portrait">
+    <span className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
       {src && !broken ? (
         <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
       ) : (
@@ -56,22 +56,24 @@ function RacePortrait({ src }: { src: string | null }) {
 }
 
 /** Карточка расы в стиле каталога: клик — выбор, язычок «Подробнее» — описание */
-function RaceCard({
+export function RaceCard({
   race,
-  hasSubraces,
+  hasSubraces = false,
   selected,
   onSelect,
   onDetails,
+  slotRef,
 }: {
   race: Race
-  hasSubraces: boolean
+  hasSubraces?: boolean
   selected: boolean
   onSelect: () => void
   onDetails: () => void
+  slotRef?: (el: HTMLDivElement | null) => void
 }) {
   const boosts = Object.entries(race.increase_ability_scores ?? {})
   return (
-    <div className="cw-pick-slot cw-pick-slot--catalog">
+    <div className="cw-pick-slot cw-pick-slot--catalog" ref={slotRef}>
       <button
         type="button"
         className={`card card--portrait card--race cw-catalog-card${selected ? ' is-selected' : ''}`}
@@ -121,14 +123,16 @@ function RaceCard({
 }
 
 /** Подробности расы — та же страница, что в каталоге, только внутри попапа */
-function RaceModal({
+export function RaceModal({
   race,
   selected,
+  chooseLabel,
   onChoose,
   onClose,
 }: {
   race: Race
   selected: boolean
+  chooseLabel?: string
   onChoose: () => void
   onClose: () => void
 }) {
@@ -138,6 +142,7 @@ function RaceModal({
       bare
       world={world?.art}
       title={race.race_name}
+      chooseLabel={chooseLabel}
       selected={selected}
       onChoose={onChoose}
       onClose={onClose}
@@ -149,43 +154,16 @@ function RaceModal({
   )
 }
 
-/** id карточки самостоятельной подрасы в общей сетке */
-const SUB = 'sub:'
-
-/** Самостоятельная подраса как карточка расы: свои бонусы, размер и скорость */
-function standaloneRace(sr: Subrace, parent: Race): Race {
-  return {
-    ...parent,
-    id: `${SUB}${sr.id}`,
-    race_name: sr.subrace_name,
-    description: sr.description ?? sr.traits ?? parent.description,
-    increase_ability_scores: sr.increase_ability_scores ?? {},
-    size: sr.size ?? parent.size,
-    speed: sr.speed ?? parent.speed,
-    darkvision: sr.darkvision_override ?? parent.darkvision,
-    book_source_id: sr.book_source_id ?? parent.book_source_id,
-  }
-}
-
 export default function RaceStep({ draft, update }: StepProps) {
   const { items: races, loading, error } = useCatalogList<Race>('races')
-  const { items: subraces } = useCatalogList<Subrace>('subraces')
-  // самостоятельные подрасы — рядом с расами, со ссылкой на родителя
-  const standalone = useMemo(() => {
-    const byId = new Map(races.map((r) => [r.id, r]))
-    return subraces
-      .filter((sr) => sr.replaces_race && byId.has(sr.parent_race_id))
-      .map((sr) => ({ card: standaloneRace(sr, byId.get(sr.parent_race_id)!), sub: sr, parent: byId.get(sr.parent_race_id)! }))
-  }, [races, subraces])
-  const items = useMemo(() => [...races, ...standalone.map((x) => x.card)], [races, standalone])
   const raceIds = useMemo(() => races.map((r) => r.id), [races])
   const withSubraces = useRacesWithSubraces(raceIds)
   const [open, setOpen] = useState<Race | null>(null)
 
   const books = useBookMap()
   const groups = useMemo<PickFilterGroup<Race>[]>(() => {
-    const sizes = new Set(items.map(sizeKey).filter(Boolean))
-    const abilities = new Set(items.flatMap((r) => Object.keys(r.increase_ability_scores ?? {})))
+    const sizes = new Set(races.map(sizeKey).filter(Boolean))
+    const abilities = new Set(races.flatMap((r) => Object.keys(r.increase_ability_scores ?? {})))
     return [
       {
         key: 'size',
@@ -208,28 +186,18 @@ export default function RaceStep({ draft, update }: StepProps) {
         options: withSubraces.size > 0 ? [{ key: 'yes', label: 'есть подрасы' }] : [],
         match: (r) => withSubraces.has(r.id),
       },
-      bookFilterGroup(items, books, (r) => r.book_source_id),
+      bookFilterGroup(races, books, (r) => r.book_source_id),
     ]
-  }, [items, withSubraces, books])
+  }, [races, withSubraces, books])
 
-  const picker = usePicker(items, raceName, groups)
+  const picker = usePicker(races, raceName, groups)
   const close = useCallback(() => setOpen(null), [])
 
-  const variantOf = (race: Race) => standalone.find((x) => x.card.id === race.id)
-  const isSelected = (race: Race) => {
-    const v = variantOf(race)
-    return v ? draft.subrace?.id === v.sub.id : draft.race?.id === race.id && !draft.subrace?.replaces_race
-  }
+  const isSelected = (race: Race) => draft.race?.id === race.id
 
   const choose = (race: Race) => {
-    const v = variantOf(race)
-    if (v) {
-      // самостоятельная подраса: раса-родитель + сама подраса, шаг подрасы не нужен
-      update({ race: v.parent, subrace: v.sub })
-    } else if (draft.race?.id !== race.id || draft.subrace?.replaces_race) {
-      // смена расы сбрасывает подрасу — она привязана к родителю
-      update({ race, subrace: null })
-    }
+    // смена расы сбрасывает подрасу — она привязана к родителю
+    if (draft.race?.id !== race.id) update({ race, subrace: null })
     setOpen(null)
   }
 
@@ -240,7 +208,7 @@ export default function RaceStep({ draft, update }: StepProps) {
       <PickToolbar picker={picker} groups={groups} placeholder="Искать расу…" />
 
       <StepStatus loading={loading} error={error} />
-      <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
+      <PickEmpty show={!loading && races.length > 0 && picker.visible.length === 0} />
 
       <div className="cw-catalog-grid">
         {picker.visible.map((race) => (

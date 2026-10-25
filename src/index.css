@@ -2250,6 +2250,33 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   filter: saturate(1) brightness(1);
 }
 
+/* раса с артом dnd.su (белый фон, не вырезка) — то же окно, золотая окантовка */
+.card--race:not(.card--creature) .creature-portrait--framed {
+  align-items: stretch;
+  padding: 28px 14% 52px;
+}
+.card--race:not(.card--creature) .creature-portrait--framed > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 22%;
+  border-radius: 999px 999px 4px 4px;
+  transform: none;
+  filter: saturate(0.92) brightness(0.94);
+  box-shadow:
+    0 0 0 1px rgba(168, 175, 186, 0.4),
+    0 0 0 5px rgba(14, 16, 22, 0.9),
+    0 0 0 6px rgba(196, 154, 60, 0.45),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  transition: filter 0.28s ease;
+}
+.card--race:not(.card--creature):hover .creature-portrait--framed > img {
+  transform: none;
+  filter: saturate(1) brightness(1);
+}
+
 /* жетон ПО в углу портрета, окантовка — цвет опасности */
 .creature-cr {
   position: absolute;
@@ -8259,6 +8286,28 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgba(205, 211
 
 /* Раса — фигура в полный рост: ноги/полы одежды/оружие лезут под плашку имени и
    мешают читать название. Обрезаем низ картинки чуть выше имени мягким срезом. */
+.race-detail-portrait.is-framed {
+  width: min(340px, 52vw);
+  height: 64%;
+  bottom: 22%;
+  align-items: stretch;
+}
+.race-detail-portrait.is-framed > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  border-radius: 999px 999px 8px 8px;
+  -webkit-mask-image: none;
+  mask-image: none;
+  filter: saturate(0.95) brightness(0.96);
+  box-shadow:
+    0 0 0 1px rgba(168, 175, 186, 0.45),
+    0 0 0 7px rgba(14, 16, 22, 0.92),
+    0 0 0 8px rgba(196, 154, 60, 0.5),
+    0 22px 48px rgba(0, 0, 0, 0.55);
+}
+
 .race-detail-portrait > img {
   /* короче зона скрытия (раньше начиналась с ~62%), мягче feather/spread */
   -webkit-mask-image: linear-gradient(
@@ -10518,6 +10567,77 @@ a.se-hex-pick:hover { color: var(--gold-4); }
   color: var(--gold-3);
 }
 
+/* ---------- Шаг «Подраса»: родословное древо ---------- */
+
+.cw-race-tree {
+  position: relative;
+  padding: 8px 0;
+}
+.cw-race-tree-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cw-race-tree-trunk,
+.cw-race-tree-drop {
+  stroke: rgba(196, 154, 60, 0.42);
+  stroke-width: 2;
+}
+.cw-race-tree-knot {
+  fill: var(--bg-1);
+  stroke: rgba(196, 154, 60, 0.6);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(45deg);
+}
+.cw-race-tree-lines .is-on .cw-race-tree-drop {
+  stroke: var(--gold-3);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgba(228, 196, 110, 0.7));
+}
+.cw-race-tree-lines .is-on .cw-race-tree-knot {
+  fill: var(--gold-3);
+  stroke: var(--gold-4);
+}
+
+.cw-race-tree-root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+/* в колонке flex-basis карточки стал бы высотой — ширину задаём явно */
+.cw-race-tree-root > .cw-pick-slot--catalog { flex: none; width: 250px; }
+.cw-race-tree-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.cw-race-tree-branches {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  /* сверху и между рядами — место под перекладины древа и язычок «Подробнее» */
+  gap: 76px 22px;
+  margin-top: 84px;
+}
+
+@media (max-width: 720px) {
+  .cw-race-tree-branches { gap: 68px 14px; }
+}
+
 
 
 /* ---------- Шаг «Снаряжение» ---------- */
@@ -12023,6 +12143,8 @@ button.cw-rollslot:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
 .cw-slider-num::-webkit-outer-spin-button,
 .cw-slider-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .cw-slider-num:focus { outline: none; border-color: var(--gold-2); }
+/* ориентир расы, пока значение не задано, — тем же числом, что и под бегунком */
+.cw-slider-num::placeholder { color: var(--text-dim); opacity: 1; }
 .cw-slider-unit { font-size: 0.82rem; color: var(--text-dim); }
 .cw-range {
   -webkit-appearance: none;
@@ -14792,6 +14914,18 @@ button.cw-orb:disabled { cursor: default; }
 .cw-sky-cap i { font-style: normal; font-size: 0.72rem; color: var(--text-dim); }
 .cw-sky.is-empty .cw-sky-cap b { color: var(--text-dim); }
 
+/* прокачка: ячейки, добавленные уровнем, — зелёные звёзды и связи к ним */
+.cw-slot-rail--levelup { margin: 4px 0 6px; }
+.cw-sky.is-locked .cw-star { cursor: default; }
+.cw-star.is-new .cw-star-flare {
+  fill: #e6ffe9;
+  filter: drop-shadow(0 0 1.6px rgba(120, 230, 150, 0.95)) drop-shadow(0 0 5px rgba(60, 190, 100, 0.85));
+}
+.cw-star.is-new .cw-star-core { fill: #b8ffc8; }
+.cw-star.is-new .cw-star-ring { opacity: 1; stroke: rgba(120, 230, 150, 0.55); }
+.cw-sky-edge.is-new { stroke: rgba(120, 230, 150, 0.7); }
+.cw-sky-cap .cw-sky-fresh { color: #7fe39a; font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) {
   .cw-star-flare { animation: none; }
 }
@@ -15907,15 +16041,95 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 
 /* ---------- сцена героя: меню хитов, облик ---------- */
 
-.cw-hpctl-type {
+/* тип урона: кнопка внизу панели хитов и список с цветными знаками */
+.cw-dmg-trigger {
+  --tone: 168, 175, 186;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  padding: 4px 8px;
+  padding: 5px 8px;
   border: none;
-  border-top: 1px solid rgba(168, 175, 186, 0.2);
+  border-top: 1px solid rgba(168, 175, 186, 0.16);
   background: transparent;
-  color: var(--text);
+  color: var(--text-dim);
   font: inherit;
   font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.cw-dmg-trigger:hover { color: var(--parchment); background: rgba(var(--tone), 0.08); }
+.cw-dmg-trigger:focus-visible { outline: none; background: rgba(var(--tone), 0.14); }
+.cw-dmg-trigger svg { width: 13px; height: 13px; flex-shrink: 0; }
+.cw-dmg-trigger.is-set { color: rgb(var(--tone)); background: linear-gradient(180deg, transparent, rgba(var(--tone), 0.12)); }
+.cw-dmg-trigger.is-set > svg:first-child { filter: drop-shadow(0 0 4px rgba(var(--tone), 0.7)); }
+.cw-dmg-chev { opacity: 0.6; transition: transform 0.2s ease; }
+.cw-dmg-trigger[aria-expanded='true'] .cw-dmg-chev { transform: rotate(180deg); }
+
+.cw-dmg-pop {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: 300px;
+  padding: 8px;
+  translate: -50% 0;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(228, 196, 110, 0.08), transparent 70%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
+  animation: cw-dmg-in 0.16s ease-out;
+}
+@keyframes cw-dmg-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.cw-dmg-opt {
+  --tone: 168, 175, 186;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  background: rgba(var(--tone), 0.05);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.cw-dmg-opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-dmg-opt svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: rgb(var(--tone));
+  filter: drop-shadow(0 0 3px rgba(var(--tone), 0.55));
+}
+.cw-dmg-opt:hover,
+.cw-dmg-opt:focus-visible {
+  outline: none;
+  background: rgba(var(--tone), 0.14);
+  border-color: rgba(var(--tone), 0.45);
+  color: var(--parchment);
+}
+.cw-dmg-opt.is-on {
+  background: rgba(var(--tone), 0.2);
+  border-color: rgba(var(--tone), 0.75);
+  color: rgb(var(--tone));
+}
+.cw-dmg-opt--none { grid-column: 1 / -1; justify-content: center; color: var(--text-dim); }
+.cw-dmg-opt--none svg { filter: none; opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-dmg-pop { animation: none; }
 }
 .cw-hphex-own { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; color: #f0b880; }
 .cw-hphex-own svg { width: 12px; height: 12px; }
@@ -16129,7 +16343,8 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 
 .eng-hd { display: flex; flex-direction: column; gap: 8px; }
 .eng-hd-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.eng-hd-row > span { display: flex; flex-direction: column; }
+/* только подпись класса: степпер справа — тоже span, ему колонка ломает кнопки */
+.eng-hd-row > span:not(.ed-step) { display: flex; flex-direction: column; }
 .eng-hd-row b { color: var(--parchment); font-weight: 600; }
 .eng-hd-row i { font-style: normal; font-size: 0.76rem; color: var(--text-dim); }
 .eng-hp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

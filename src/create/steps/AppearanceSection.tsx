@@ -66,6 +66,7 @@ function Slider({
             type="number"
             className="cw-slider-num"
             value={value ?? ''}
+            placeholder={String(fallback)}
             min={0}
             step={step}
             onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}

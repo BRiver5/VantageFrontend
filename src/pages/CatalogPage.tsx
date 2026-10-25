@@ -55,6 +55,7 @@ import {
   formatCR,
   getBookMap,
   getMetaEnums,
+  isFramedArt,
   realImage,
   sizeRu,
   creatureTypeRu,
@@ -860,8 +861,9 @@ function ClassCardPortrait({
   imgStyle?: CSSProperties
 }) {
   const [broken, setBroken] = useState(false)
+  const framed = isFramedArt(src)
   return (
-    <div className="class-card-portrait">
+    <div className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
       {src && !broken ? (
         <img src={src} alt={alt} loading="lazy" style={imgStyle} onError={() => setBroken(true)} />
       ) : (

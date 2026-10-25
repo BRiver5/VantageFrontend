@@ -42,6 +42,7 @@ import {
   getSubList,
   getSubraces,
   cleanDescription,
+  isFramedArt,
   realImage,
   sizeRu,
   creatureTypeRu,
@@ -88,6 +89,7 @@ import { hasClassProficiencies, parseClassProficiencies } from '../classProficie
 import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
 import { CreatureBoard, CreatureStage, WorldBackdrop } from '../creatureSheet'
 import { useBookWorld, type BookWorld } from '../worldArt'
+import { splitRaceArticle } from '../raceArticle'
 
 /* ---------- Общие детали ---------- */
 
@@ -1156,8 +1158,9 @@ export function ClassDetailView({
 
 function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
   const [broken, setBroken] = useState(false)
+  const framed = isFramedArt(src)
   return (
-    <div className="class-detail-portrait race-detail-portrait">
+    <div className={`class-detail-portrait race-detail-portrait${framed ? ' is-framed' : ''}`}>
       {src && !broken ? (
         <img
           src={src}
@@ -1205,7 +1208,7 @@ function RaceFact({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 /**
  * Тело страницы расы: герой с портретом, факты, языки, описание и подрасы.
  * Его же показывает попап выбора расы в конструкторе персонажа — поэтому
- * `embedded` убирает переходы, которые увели бы из конструктора.
+ * `embedded` убирает переходы и список подрас: ветвь выбирается следующим шагом.
  */
 export function RaceDetailBody({
   race: r,
@@ -1223,6 +1226,11 @@ export function RaceDetailBody({
     setSubraces([])
     getSubraces(r.id).then(setSubraces).catch(() => {})
   }, [r.id])
+  // тексты подрас из статьи — на их карточках, в статье расы они только мешают
+  const article = useMemo(
+    () => (isHtmlDescription(r.description) ? splitRaceArticle(r.description!, r.race_name, subraces).race : null),
+    [r.description, r.race_name, subraces],
+  )
 
   return (
     <OpenLinksInNewTab.Provider value={embedded}>
@@ -1284,10 +1292,10 @@ export function RaceDetailBody({
         </div>
       )}
 
-      {isHtmlDescription(r.description) ? (
+      {article !== null ? (
         // размеченное описание с dnd.su (таблицы, отдельные способности, языки)
         <section className="detail-section">
-          <ClassArticle html={r.description!} cutSubclasses={false} backLabel={r.race_name} />
+          <ClassArticle html={article} cutSubclasses={false} backLabel={r.race_name} />
         </section>
       ) : (
         <DetailSection title="Описание">
@@ -1301,7 +1309,7 @@ export function RaceDetailBody({
         </DetailSection>
       )}
 
-      {subraces.length > 0 && (
+      {!embedded && subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
           <div className="subrace-grid">
             {subraces.map((sr) => {
@@ -1491,6 +1499,13 @@ export function SubraceDetailPage() {
   const { data: sr, error } = useOne<Subrace>('subraces', id)
   const book = useBookRef(sr?.book_source_id)
   const { data: parent } = useOne<Race>('races', sr?.parent_race_id)
+  const article = useMemo(
+    () =>
+      sr && parent && isHtmlDescription(parent.description)
+        ? (splitRaceArticle(parent.description!, parent.race_name, [sr]).bySubrace.get(sr.id) ?? null)
+        : null,
+    [sr, parent],
+  )
   if (error) return <p className="status-line is-error">Подраса не найдена: {error}</p>
   if (!sr) return <p className="status-line">Изучаем родословную…</p>
 
@@ -1522,6 +1537,16 @@ export function SubraceDetailPage() {
         </>
       }
     >
+      {(sr.abilities?.length ?? 0) > 0 && (
+        <DetailSection title="Способности и механика">
+          <AbilityList refs={sr.abilities} />
+        </DetailSection>
+      )}
+      {article && (
+        <section className="detail-section">
+          <ClassArticle html={article} cutSubclasses={false} backLabel={sr.subrace_name} />
+        </section>
+      )}
       {sr.description && (
         <DetailSection title="Описание">
           <Rich text={structureTraitText(sr.description)} />
@@ -1537,11 +1562,6 @@ export function SubraceDetailPage() {
           <div className="card-chips">
             {sr.extra_languages.map((l) => <Chip key={l} icon={Users}>{l}</Chip>)}
           </div>
-        </DetailSection>
-      )}
-      {(sr.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
-          <AbilityList refs={sr.abilities} />
         </DetailSection>
       )}
     </DetailShell>

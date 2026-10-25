@@ -110,9 +110,9 @@ export default function CreateCharacterWizard() {
     setDraft((prev) => ({ ...prev, ...patch }))
   }, [])
 
-  const { items: allSubraces } = useSubraces(draft.race?.id ?? null)
-  // самостоятельные подрасы выбираются на шаге расы, на шаге подрасы их нет
-  const subraces = useMemo(() => allSubraces.filter((sr) => !sr.replaces_race), [allSubraces])
+  const { items: subraces } = useSubraces(draft.race?.id ?? null)
+  // ветви, которые заменяют расу, не обязательны: базовый народ можно оставить
+  const subraceOptional = subraces.length > 0 && subraces.every((sr) => sr.replaces_race)
   const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null)
   const subclassFeatures = useSubclassFeatures(bundle, draft.subclass?.id ?? null)
   const equipmentIndex = useEquipmentIndex()
@@ -145,7 +145,7 @@ export default function CreateCharacterWizard() {
 
   const steps = useMemo<StepDef[]>(() => {
     const list: StepDef[] = [{ id: 'race', label: 'Раса' }]
-    if (subraces.length > 0 && !draft.subrace?.replaces_race) list.push({ id: 'subrace', label: 'Подраса' })
+    if (subraces.length > 0) list.push({ id: 'subrace', label: 'Подраса' })
     list.push(
       { id: 'class', label: 'Класс' },
       { id: 'background', label: 'Предыстория' },
@@ -164,7 +164,7 @@ export default function CreateCharacterWizard() {
     }
     list.push({ id: 'review', label: 'Итог' })
     return list
-  }, [subraces.length, draft.subrace, draft.cls, granted, draft.targetLevel])
+  }, [subraces.length, draft.cls, granted, draft.targetLevel])
 
   const safeIdx = Math.min(stepIdx, steps.length - 1)
   const step = steps[safeIdx]
@@ -197,7 +197,7 @@ export default function CreateCharacterWizard() {
       case 'race':
         return draft.race !== null
       case 'subrace':
-        return draft.subrace !== null
+        return subraceOptional || draft.subrace !== null
       case 'class':
         return draft.cls !== null
       case 'level':
@@ -284,7 +284,7 @@ export default function CreateCharacterWizard() {
       <div className="cw-stage">
         {step.id === 'race' && <RaceStep draft={draft} update={update} />}
         {step.id === 'subrace' && (
-          <SubraceStep draft={draft} update={update} subraces={subraces} />
+          <SubraceStep draft={draft} update={update} subraces={subraces} allowBase={subraceOptional} />
         )}
         {step.id === 'class' && <ClassStep draft={draft} update={update} />}
         {step.id === 'level' && <LevelStep draft={draft} update={update} bundle={bundle} />}

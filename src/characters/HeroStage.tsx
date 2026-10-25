@@ -33,6 +33,7 @@ import type { SheetView } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
 import { DEFAULT_FACE, FALLBACK_FACE, type FaceCrop } from './portrait'
 import type { SheetRoller } from './sheetPlay'
+import { DamageTypePicker } from './DamageTypePicker'
 import type { VitalsOp } from '../api'
 import { useWhy, WhyDot } from './WhyPopover'
 
@@ -285,20 +286,7 @@ export function HeroStage({
                 </button>
               </span>
               {stage?.damageTypes && stage.damageTypes.length > 0 && (
-                <select
-                  className="cw-hpctl-type"
-                  value={dmgType}
-                  onChange={(e) => setDmgType(e.target.value)}
-                  aria-label="Тип урона"
-                  title="Тип урона: сопротивления и иммунитеты учтутся"
-                >
-                  <option value="">тип урона</option>
-                  {stage.damageTypes.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
+                <DamageTypePicker types={stage.damageTypes} value={dmgType} onChange={setDmgType} />
               )}
             </form>
           )}
