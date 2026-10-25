@@ -13768,6 +13768,13 @@ button.cw-sp-main:disabled { cursor: not-allowed; }
 }
 .cw-inv-left,
 .cw-inv-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cw-inv-right .cw-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.cw-inv-right .cw-seg-btn { justify-content: center; }
+a.cw-mini-btn { text-decoration: none; }
 .cw-inv-grid--edit { gap: 4px; }
 .cw-inv-slot {
   aspect-ratio: 1;

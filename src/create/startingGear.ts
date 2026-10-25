@@ -8,7 +8,7 @@
  * входит id класса/предыстории — после смены класса старые решения просто
  * перестают совпадать, сбрасывать их отдельно не нужно.
  */
-import type { Currency, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry } from '../api'
+import type { Currency, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, Item } from '../api'
 import { matchesGrantEntry } from '../equipment'
 import type { AbilityName, AttackEntry, InventoryItemInstance } from '../types/character'
 import { abilityMod } from './dnd5e'
@@ -249,6 +249,23 @@ export function inventoryItem(
     position: { col: slot % 7, row: Math.floor(slot / 7) },
     equipped: equip.equipped,
     equip_slot: equip.slot,
+    is_attuned: false,
+  }
+}
+
+/** Магический предмет из каталога `/items` — в ту же сетку инвентаря */
+export function magicInventoryItem(it: Item): InventoryItemInstance {
+  return {
+    instance_id: crypto.randomUUID(),
+    kind: 'magic_item',
+    equipment: null,
+    magic_item: it,
+    catalog_ref: it.id,
+    quantity: 1,
+    notes: '',
+    position: { col: 0, row: 0 },
+    equipped: false,
+    equip_slot: null,
     is_attuned: false,
   }
 }

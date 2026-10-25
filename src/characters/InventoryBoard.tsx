@@ -6,9 +6,9 @@
  * Добавление из каталога — в окне управления инвентарём.
  */
 import { useState, type DragEvent } from 'react'
-import { BookOpen, Minus, PackageOpen, Package, Plus, Shield, Trash2 } from 'lucide-react'
+import { BookOpen, Gem, Minus, PackageOpen, Package, Plus, Shield, Sparkles, Trash2 } from 'lucide-react'
 import { realImage } from '../api'
-import type { Currency, Equipment } from '../api'
+import type { Currency, Equipment, Item } from '../api'
 import { categoryIcon } from '../equipment'
 import { useEquipmentDrawer } from '../equipmentDrawer'
 import { useEquipmentIndex } from '../equipmentIndex'
@@ -30,10 +30,18 @@ function firstFree(items: InventoryItemInstance[]): { col: number; row: number }
 const itemName = (it: InventoryItemInstance) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? 'Предмет'
 const contentsOf = (it: InventoryItemInstance) => it.equipment?.container?.default_contents ?? []
 
-function ItemFace({ eq, src: forced }: { eq: Equipment | null | undefined; src?: string | null }) {
+function ItemFace({
+  eq,
+  magic,
+  src: forced,
+}: {
+  eq: Equipment | null | undefined
+  magic?: Item | null
+  src?: string | null
+}) {
   const [broken, setBroken] = useState(false)
-  const src = forced ?? realImage(eq?.equipment_image_gallery)
-  const Icon = categoryIcon(eq?.category)
+  const src = forced ?? realImage(eq?.equipment_image_gallery) ?? realImage(magic?.item_image_gallery)
+  const Icon = magic ? Gem : categoryIcon(eq?.category)
   return src && !broken ? (
     <img src={src} alt="" draggable={false} loading="lazy" onError={() => setBroken(true)} />
   ) : (
@@ -159,7 +167,7 @@ export function InventoryBoard({
                   }}
                   title={`${itemName(it)}${it.quantity > 1 ? ` ×${it.quantity}` : ''}${packed ? ` · внутри ${packed}` : ''}`}
                 >
-                  <ItemFace eq={it.equipment} />
+                  <ItemFace eq={it.equipment} magic={it.magic_item} />
                   {it.quantity > 1 && <i className="cw-inv-qty">{it.quantity}</i>}
                   {it.equipped && <Shield className="cw-inv-worn" aria-label="надето" />}
                   {packed > 0 && (
@@ -188,12 +196,16 @@ export function InventoryBoard({
         <div className="cw-ib-detail">
           <div className="cw-ib-detail-row">
             <span className="cw-ib-face">
-              <ItemFace eq={current.equipment} />
+              <ItemFace eq={current.equipment} magic={current.magic_item} />
             </span>
             <span className="cw-ib-detail-body">
               <b>{itemName(current)}</b>
               <i>
-                {[current.equipment?.subcategory ?? current.equipment?.category, current.equipped ? 'надето' : null]
+                {[
+                  current.magic_item?.rarity ?? current.equipment?.subcategory ?? current.equipment?.category,
+                  current.equipped ? 'надето' : null,
+                  current.is_attuned ? 'настроено' : null,
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </i>
@@ -216,6 +228,20 @@ export function InventoryBoard({
             {current.equipment?.id && (
               <button type="button" className="cw-mini-btn" onClick={() => drawer.open(current.equipment!.id)}>
                 <BookOpen aria-hidden="true" /> подробнее
+              </button>
+            )}
+            {current.magic_item?.id && (
+              <a className="cw-mini-btn" href={`/items/${current.magic_item.id}`} target="_blank" rel="noreferrer">
+                <BookOpen aria-hidden="true" /> подробнее
+              </a>
+            )}
+            {current.magic_item?.attunement_required && (
+              <button
+                type="button"
+                className={`cw-mini-btn${current.is_attuned ? ' is-on' : ''}`}
+                onClick={() => patch(current.instance_id, { is_attuned: !current.is_attuned })}
+              >
+                <Sparkles aria-hidden="true" /> {current.is_attuned ? 'настроено' : 'настроить'}
               </button>
             )}
             <button type="button" className="cw-mini-btn cw-mini-btn--danger" onClick={() => remove(current.instance_id)}>
