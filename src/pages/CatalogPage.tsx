@@ -75,6 +75,7 @@ import type {
   Termin,
 } from '../api'
 import { ABILITY_KEYS, ABILITY_LABELS } from '../types/character'
+import { RaceBoosts, boostInfo } from '../raceBoosts'
 import type { AbilityName } from '../types/character'
 import { abilitiesFromSkills } from '../skills'
 import { categoryIcon, containerKindRu, formatDice, formatWeight } from '../equipment'
@@ -943,7 +944,6 @@ function RaceRailCell({ icon: Icon, value, label }: { icon: LucideIcon; value: s
 }
 
 function raceCard(r: Race) {
-  const boosts = Object.entries(r.increase_ability_scores ?? {})
   return (
     <article className="card card--portrait card--race">
       <div className="class-card-visual">
@@ -952,16 +952,7 @@ function raceCard(r: Race) {
       <div className="class-card-lower">
         <div className="class-card-glow" aria-hidden="true" />
         <div className="class-card-panel race-card-panel">
-          {boosts.length > 0 && (
-            <div className="race-boosts">
-              {boosts.map(([k, v]) => (
-                <span className="race-boost" key={k}>
-                  {ABILITY_RU[k] ?? k}
-                  <i>+{v}</i>
-                </span>
-              ))}
-            </div>
-          )}
+          <RaceBoosts info={boostInfo(r)} />
           <div className="race-rail">
             <RaceRailCell icon={Ruler} value={sizeRu(r.size)} label="размер" />
             <RaceRailCell icon={Footprints} value={`${r.speed} фт.`} label="скорость" />
