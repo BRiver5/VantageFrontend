@@ -192,11 +192,15 @@ export function SpellBook({
   spellcasting: sc,
   play,
   roller,
+  tabbed = false,
 }: {
   spellcasting: Spellcasting
   play: SheetPlay
   roller: SheetRoller
+  /** круги — вкладками слева, вместо длинной прокрутки (окно на телефоне) */
+  tabbed?: boolean
 }) {
+  const [circleTab, setCircleTab] = useState<number | null>(null)
   const { slotsUsed, setSlotsUsed, racialUsed, setRacialUsed, slotsLocked = false } = play
   const [open, setOpen] = useState<Known | null>(null)
   const { items: catalog } = useCatalogList<Spell>('spells', sc.spells_known.length > 0)
@@ -249,12 +253,7 @@ export function SpellBook({
     setOpen(null)
   }
 
-  return (
-    <div className="cw-book">
-      {/* ---------- числа и ячейки — одной строкой, без рамки ---------- */}
-      {(sc.is_spellcaster || slotCircles.length > 0) && (
-        <div className="cw-book-top">
-          {sc.is_spellcaster && (
+  const statsEl = (
             <div className="cw-bstats">
               <span className="cw-bstat cw-bstat--word">
                 <i>базовая</i>
@@ -278,41 +277,9 @@ export function SpellBook({
                 </b>
               </button>
             </div>
-          )}
+  )
 
-          {slotCircles.length > 0 && (
-            <div className="cw-slot-rail" aria-label="Ячейки заклинаний">
-              {slotCircles.map((s) => (
-                <Constellation
-                  key={s.circle}
-                  circle={s.circle}
-                  max={s.max}
-                  used={s.used}
-                  locked={slotsLocked}
-                  onToggle={(spent) => toggleSlot(s.circle, spent)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ---------- карточки по кругам ---------- */}
-      {circles.map((circle) => {
-        const list = byCircle.get(circle) ?? []
-        return (
-          <section key={circle} className="cw-book-circle">
-            <header className="cw-book-circle-head">
-              <span className="cw-book-circle-num">{circle === 0 ? '◈' : ROMAN[circle]}</span>
-              <b>{circleName(circle)}</b>
-              {circle > 0 && sc.spell_slots[String(circle)]?.max ? (
-                <i>
-                  ячеек {left(circle)} из {sc.spell_slots[String(circle)].max}
-                </i>
-              ) : null}
-              <span className="cw-book-circle-line" aria-hidden="true" />
-            </header>
-            {list.length > 0 ? (
+  const gridOf = (list: Known[]) => (
               <div className="cw-book-grid">
                 {list.map((sp) => {
                   const data = lookup(sp)
@@ -348,14 +315,9 @@ export function SpellBook({
                   )
                 })}
               </div>
-            ) : (
-              <p className="cw-field-note">Заклинаний этого круга нет.</p>
-            )}
-          </section>
-        )
-      })}
+  )
 
-      {open && (
+  const modal = open && (
         <SpellModal
           sp={open}
           data={lookup(open)}
@@ -367,7 +329,100 @@ export function SpellBook({
           onCast={(how) => castWith(open, how)}
           onClose={() => setOpen(null)}
         />
+  )
+
+  if (tabbed) {
+    const active = circleTab != null && circles.includes(circleTab) ? circleTab : (circles[0] ?? 0)
+    const activeSlot = slotCircles.find((x) => x.circle === active)
+    const list = byCircle.get(active) ?? []
+    return (
+      <div className="cw-book is-tabbed">
+        <aside className="cw-book-side">
+          {sc.is_spellcaster && statsEl}
+          <nav className="cw-book-tabs" aria-label="Круги заклинаний">
+            {circles.map((circle) => {
+              const slot = slotCircles.find((x) => x.circle === circle)
+              return (
+                <button key={circle} type="button" className={active === circle ? 'is-on' : ''} aria-pressed={active === circle} onClick={() => setCircleTab(circle)}>
+                  <span>{circle === 0 ? '◈' : ROMAN[circle]}</span>
+                  <i>{circle === 0 ? 'заговоры' : slot ? `${slot.max - slot.used}/${slot.max}` : (byCircle.get(circle)?.length ?? 0)}</i>
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
+        <div key={active} className="cw-book-main">
+          <header className="cw-book-main-head">
+            <div>
+              <b className="gold-text">{circleName(active)}</b>
+              <i>заклинаний: {list.length}</i>
+            </div>
+            {activeSlot && (
+              <Constellation
+                circle={activeSlot.circle}
+                max={activeSlot.max}
+                used={activeSlot.used}
+                locked={slotsLocked}
+                onToggle={(spent) => toggleSlot(activeSlot.circle, spent)}
+              />
+            )}
+          </header>
+          {list.length > 0 ? gridOf(list) : <p className="cw-field-note">Заклинаний этого круга нет.</p>}
+        </div>
+        {modal}
+      </div>
+    )
+  }
+
+  return (
+    <div className="cw-book">
+      {/* ---------- числа и ячейки — одной строкой, без рамки ---------- */}
+      {(sc.is_spellcaster || slotCircles.length > 0) && (
+        <div className="cw-book-top">
+          {sc.is_spellcaster && statsEl}
+
+          {slotCircles.length > 0 && (
+            <div className="cw-slot-rail" aria-label="Ячейки заклинаний">
+              {slotCircles.map((s) => (
+                <Constellation
+                  key={s.circle}
+                  circle={s.circle}
+                  max={s.max}
+                  used={s.used}
+                  locked={slotsLocked}
+                  onToggle={(spent) => toggleSlot(s.circle, spent)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
+
+      {/* ---------- карточки по кругам ---------- */}
+      {circles.map((circle) => {
+        const list = byCircle.get(circle) ?? []
+        return (
+          <section key={circle} className="cw-book-circle">
+            <header className="cw-book-circle-head">
+              <span className="cw-book-circle-num">{circle === 0 ? '◈' : ROMAN[circle]}</span>
+              <b>{circleName(circle)}</b>
+              {circle > 0 && sc.spell_slots[String(circle)]?.max ? (
+                <i>
+                  ячеек {left(circle)} из {sc.spell_slots[String(circle)].max}
+                </i>
+              ) : null}
+              <span className="cw-book-circle-line" aria-hidden="true" />
+            </header>
+            {list.length > 0 ? (
+              gridOf(list)
+            ) : (
+              <p className="cw-field-note">Заклинаний этого круга нет.</p>
+            )}
+          </section>
+        )
+      })}
+
+      {modal}
     </div>
   )
 }

@@ -566,7 +566,8 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth
       if (w === 0) return
-      const s = w < 620 ? 150 : w < 980 ? 172 : 196
+      // на телефоне три соты в ряд: улей заметно короче
+      const s = w < 330 ? 130 : w < 620 ? Math.min(150, Math.floor(w / 3) - 14) : w < 980 ? 172 : 196
       const cols = Math.max(1, Math.floor(w / (s + 14)))
       setLayout((prev) => (prev.s === s && prev.cols === cols ? prev : { s, cols }))
     })
@@ -713,7 +714,7 @@ function AppTabBar() {
   return (
     <>
       <nav className="app-tabbar" aria-label="Навигация приложения">
-        <NavLink to="/" end className={({ isActive }) => `app-tab${isActive ? ' is-on' : ''}`}>
+        <NavLink to="/" end className={({ isActive }) => `app-tab${isActive && !codexOpen ? ' is-on' : ''}`}>
           <Home aria-hidden="true" />
           <span>Главная</span>
         </NavLink>

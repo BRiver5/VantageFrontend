@@ -7,12 +7,14 @@ import {
   ArrowDownAZ,
   ArrowLeft,
   ArrowRight,
+  ArrowUpDown,
   ArrowUpRight,
   Award,
   Backpack,
   BookMarked,
   BookOpen,
   Bookmark,
+  Check,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -45,6 +47,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { APP_SHELL_QUERY, useAppShell } from '../shell'
 import {
   ABILITY_RU,
   cacheEntity,
@@ -303,6 +306,8 @@ interface CatalogConfig<T> {
   card: (item: T, bookMap: BookMap, role?: RecRole) => ReactNode
   /** если задано — под поиском появляется переключатель сортировки */
   sorts?: SortOption<T>[]
+  /** сортировка, с которой раздел открывается на телефоне */
+  mobileDefaultSort?: string
   /** если задано — рядом с поиском появляется кнопка «Фильтры» с меню */
   filters?: FilterGroup<T>[]
   /** если задано — список делится на группы по книге-источнику с перегородками */
@@ -960,6 +965,9 @@ function raceCard(r: Race) {
             <RaceRailCell icon={Footprints} value={`${r.speed} фт.`} label="скорость" />
             <RaceRailCell icon={Eye} value={r.darkvision > 0 ? `${r.darkvision} фт.` : null} label="тьма" />
           </div>
+          <span className="bg-card-go race-card-go">
+            перейти <ArrowRight aria-hidden="true" />
+          </span>
         </div>
         <h3 className="class-card-name-plate">{r.race_name}</h3>
       </div>
@@ -1094,6 +1102,7 @@ function BackgroundCard({ bg, book }: { bg: Background; book: Book | undefined }
   const [broken, setBroken] = useState(false)
   const src = realImage(bg.image_gallery)
   const preview = descriptionPreview(bg.description, 180)
+  const abilities = abilitiesFromSkills(bg.skill_proficiencies)
 
   return (
     <article className="card card--bg">
@@ -1117,6 +1126,13 @@ function BackgroundCard({ bg, book }: { bg: Background; book: Book | undefined }
           <SourceBadge book={book} />
         </div>
         {preview && <p className="bg-card-desc">{preview}</p>}
+        {abilities.length > 0 && (
+          <div className="bg-card-abilities">
+            {abilities.map((a) => (
+              <span className="bg-ability" key={a}><b>{ABILITY_LABELS[a].abbr}</b></span>
+            ))}
+          </div>
+        )}
         {!!bg.skill_proficiencies?.length && (
           <div className="card-chips bg-card-skills">
             {bg.skill_proficiencies.map((s) => (
@@ -1593,6 +1609,71 @@ const spellSorts: SortOption<Spell>[] = [
   { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.spell_source, b.spell_source, bm) },
 ]
 
+/** Телефон: кнопка с текущей сортировкой и нижняя шторка выбора */
+function SortMenu<T>({
+  sorts,
+  value,
+  onChange,
+}: {
+  sorts: SortOption<T>[]
+  value: string
+  onChange: (key: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const current = sorts.find((s) => s.key === value)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const choose = (key: string) => {
+    onChange(key)
+    setOpen(false)
+  }
+  const options = [{ key: 'none', label: 'Без сортировки', icon: X }, ...sorts]
+
+  return (
+    <div className="sort-menu">
+      <button
+        type="button"
+        className={`sort-btn sort-menu-btn${current ? ' is-active' : ''}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+      >
+        <ArrowUpDown aria-hidden="true" />
+        {current?.label ?? 'Сортировка'}
+      </button>
+      {open && (
+        <>
+          <button type="button" className="sort-sheet-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
+          <div className="sort-sheet" role="dialog" aria-label="Сортировка">
+            <p className="sort-sheet-title">Сортировка</p>
+            {options.map(({ key, label, icon: Icon }) => (
+              <button
+                type="button"
+                key={key}
+                className={`sort-sheet-row${value === key ? ' is-on' : ''}`}
+                aria-pressed={value === key}
+                onClick={() => choose(key)}
+              >
+                <Icon aria-hidden="true" />
+                <span>{label}</span>
+                {value === key && <Check aria-hidden="true" className="sort-sheet-check" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Сама страница ---------- */
 
 /** Номер листа из `?page=` (1-based в адресе, 0-based в стейте). */
@@ -1616,7 +1697,10 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [page, setPage] = useState(() => (cfg.noPaging ? 0 : pageFromSearch(searchParams)))
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
-  const [sortKey, setSortKey] = useState('none')
+  const [sortKey, setSortKey] = useState(() =>
+    cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none',
+  )
+  const { app } = useAppShell()
   // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
   const [filterSel, setFilterSel] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
@@ -1981,6 +2065,10 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
           />
         )}
 
+        {app && cfg.sorts && cfg.sorts.length > 0 && (
+          <SortMenu sorts={cfg.sorts} value={sortKey} onChange={setSortKey} />
+        )}
+
         <span className="quest-total">
           {loading
             ? activeFilterCount > 0
@@ -1992,7 +2080,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         </span>
       </div>
 
-      {cfg.sorts && cfg.sorts.length > 0 && (
+      {!app && cfg.sorts && cfg.sorts.length > 0 && (
         <div className="sort-bar" role="group" aria-label="Сортировка">
           <span className="sort-label">Сортировать:</span>
           {cfg.sorts.map(({ key, label, icon: Icon }) => (
@@ -2172,6 +2260,7 @@ export const SpellsPage = () => (
       emptyIcon: Sparkles,
       card: spellCard,
       sorts: spellSorts,
+      mobileDefaultSort: 'level',
       filters: spellFilters,
     }}
   />

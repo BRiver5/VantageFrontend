@@ -74,7 +74,7 @@ function HeroArt({ src, crop, onEdit }: { src: string | null; crop: FaceCrop; on
 }
 
 /** Щит КД — тот же, что у существ в бестиарии; блик бежит мягкой полосой по форме щита */
-function ArmorShield({ ac }: { ac: number }) {
+export function ArmorShield({ ac }: { ac: number }) {
   return (
     <span className="beast-shield cw-orb-shield">
       <svg viewBox="0 0 100 116" aria-hidden="true">
@@ -136,7 +136,7 @@ export interface StageEngine {
 }
 
 /** Кликабельное число с расшифровкой; без вкладов — просто блок */
-function WhyArea({
+export function WhyArea({
   path,
   title,
   total,

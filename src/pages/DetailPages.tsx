@@ -78,7 +78,7 @@ import {
 import { EquipmentContentsGallery } from '../equipmentDrawer'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../dice/diceAssets'
 import { RichText, TermDesc, highlightTerms, useTermIndex } from '../terms/terms'
-import { AbilityList } from '../abilities/AbilityList'
+import { AbilitiesMissingFrom, AbilityList } from '../abilities/AbilityList'
 import { RaceBoosts, boostInfo } from '../raceBoosts'
 import { parseClassTable, stripClassTable } from '../classTable'
 import type { ClassTable } from '../classTable'
@@ -91,6 +91,7 @@ import { SpellSchoolMark, spellSchoolIcon } from '../spellSchools'
 import { CreatureBoard, CreatureStage, WorldBackdrop } from '../creatureSheet'
 import { useBookWorld, type BookWorld } from '../worldArt'
 import { splitRaceArticle } from '../raceArticle'
+import { useAppShell } from '../shell'
 
 /* ---------- Общие детали ---------- */
 
@@ -359,6 +360,7 @@ export function SpellDetailPage() {
   const { data: s, error } = useOne<Spell>('spells', id)
   const book = useBookRef(s?.spell_source)
   const { backTo, backLabel } = useContextualBack('/spells', 'к гримуару')
+  const { app } = useAppShell()
   if (error) return <p className="status-line is-error">Заклинание не найдено: {error}</p>
   if (!s) return <p className="status-line">Разворачиваем свиток…</p>
 
@@ -384,15 +386,24 @@ export function SpellDetailPage() {
       chips={
         <>
           <SourceBadge book={book} />
-          {s.casting_time && <Chip icon={Hourglass}>{s.casting_time}</Chip>}
-          {s.range && <Chip icon={Target}>{s.range}</Chip>}
-          {s.duration && <Chip icon={Hourglass}>{s.duration}</Chip>}
-          {comps && <Chip icon={Sparkles}>{comps}</Chip>}
+          {/* на телефоне параметры идут подписанной сеткой под шапкой */}
+          {!app && s.casting_time && <Chip icon={Hourglass}>{s.casting_time}</Chip>}
+          {!app && s.range && <Chip icon={Target}>{s.range}</Chip>}
+          {!app && s.duration && <Chip icon={Hourglass}>{s.duration}</Chip>}
+          {!app && comps && <Chip icon={Sparkles}>{comps}</Chip>}
           {s.concentration && <Chip icon={Eye}>концентрация</Chip>}
           {s.ritual && <Chip icon={Star}>ритуал</Chip>}
         </>
       }
     >
+      {app && (
+        <dl className="spell-facts">
+          {s.casting_time && <div><dt>Время</dt><dd>{s.casting_time}</dd></div>}
+          {s.range && <div><dt>Дистанция</dt><dd>{s.range}</dd></div>}
+          {s.duration && <div><dt>Длительность</dt><dd>{s.duration}</dd></div>}
+          {comps && <div><dt>Компоненты</dt><dd>{comps}</dd></div>}
+        </dl>
+      )}
       {s.material_components && (
         <p className="detail-note">Материальные компоненты: {s.material_components}</p>
       )}
@@ -402,7 +413,7 @@ export function SpellDetailPage() {
       </DetailSection>
       {(s.available_classes?.length || s.available_subclasses?.length || s.available_races?.length) ? (
         <DetailSection title="Кому доступно">
-          <div className="card-chips">
+          <div className="card-chips spell-access">
             {s.available_classes?.map((c) => <Chip key={c} icon={Swords}>{c}</Chip>)}
             {s.available_subclasses?.map((c) => <Chip key={c} icon={Shield}>{c}</Chip>)}
             {s.available_races?.map((c) => <Chip key={c} icon={VenetianMask}>{c}</Chip>)}
@@ -1102,9 +1113,9 @@ export function ClassDetailView({
           </div>
         )}
         {hasStartingEquipment(c.starting_equipment, c.starting_equipment_text) && (
-          <DetailSection title="Стартовое снаряжение">
+          <MobileFold title="Стартовое снаряжение">
             <StartingEquipment grants={c.starting_equipment} sourceText={c.starting_equipment_text} backLabel={c.class_name} />
-          </DetailSection>
+          </MobileFold>
         )}
         {isHtml ? (
           <section className="detail-section">
@@ -1131,11 +1142,11 @@ export function ClassDetailView({
             )}
           </>
         )}
-        {(c.abilities?.length ?? 0) > 0 && (
-          <DetailSection title="Способности и механика">
-            <AbilityList refs={c.abilities} />
-          </DetailSection>
-        )}
+        <AbilitiesMissingFrom
+  refs={c.abilities}
+  text={c.description ?? ''}
+  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
+/>
         {subclasses.length > 0 && (
           <div ref={subsRef}>
             <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
@@ -1289,11 +1300,11 @@ export function RaceDetailBody({
         </DetailSection>
       )}
 
-{(r.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
-          <AbilityList refs={r.abilities} />
-        </DetailSection>
-      )}
+<AbilitiesMissingFrom
+  refs={r.abilities}
+  text={article ?? r.description ?? ''}
+  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
+/>
 
       {!embedded && subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
@@ -1447,11 +1458,11 @@ export function SubclassDetailPage() {
           <Rich text={sc.description} />
         </DetailSection>
       )}
-      {(sc.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
-          <AbilityList refs={sc.abilities} />
-        </DetailSection>
-      )}
+      <AbilitiesMissingFrom
+  refs={sc.abilities}
+  text={`${subclassHtml ?? ''} ${sc.description ?? ''}`}
+  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
+/>
     </DetailShell>
   )
 }
@@ -1523,11 +1534,11 @@ export function SubraceDetailPage() {
         </>
       }
     >
-      {(sr.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
-          <AbilityList refs={sr.abilities} />
-        </DetailSection>
-      )}
+      <AbilitiesMissingFrom
+  refs={sr.abilities}
+  text={`${article ?? ''} ${sr.description ?? ''} ${sr.traits ?? ''}`}
+  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
+/>
       {article && (
         <section className="detail-section">
           <ClassArticle html={article} cutSubclasses={false} backLabel={sr.subrace_name} />
@@ -1712,20 +1723,20 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
       )}
 
       {hasStartingEquipment(bg.starting_equipment, bg.equipment) && (
-        <DetailSection title="Снаряжение">
+        <MobileFold title="Снаряжение">
           <StartingEquipment
             grants={bg.starting_equipment}
             fallbackText={bg.equipment}
             backLabel={bg.background_name}
             columns={2}
           />
-        </DetailSection>
+        </MobileFold>
       )}
 
-      {(bg.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
+      {!bg.description && (bg.abilities?.length ?? 0) > 0 && (
+        <MobileFold title="Способности и механика">
           <AbilityList refs={bg.abilities} />
-        </DetailSection>
+        </MobileFold>
       )}
 
       {descHtml ? (
@@ -1735,9 +1746,9 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
         </section>
       ) : (
         bg.description && (
-          <DetailSection title="Описание">
+          <MobileFold title="Описание">
             <Rich text={bg.description} />
-          </DetailSection>
+          </MobileFold>
         )
       )}
     </OpenLinksInNewTab.Provider>
@@ -1816,7 +1827,7 @@ export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: bo
 
       <Divider />
 
-      {(f.abilities?.length ?? 0) > 0 && (
+      {!f.description && (f.abilities?.length ?? 0) > 0 && (
         <DetailSection title="Способности и механика">
           <AbilityList refs={f.abilities} />
         </DetailSection>
@@ -2061,5 +2072,17 @@ export function TerminDetailPage() {
         <Rich text={t.description} />
       </DetailSection>
     </DetailShell>
+  )
+}
+
+/** На телефоне раздел свёрнут до заголовка, на десктопе это обычная секция. */
+function MobileFold({ title, children }: { title: string; children: ReactNode }) {
+  const { app } = useAppShell()
+  if (!app) return <DetailSection title={title}>{children}</DetailSection>
+  return (
+    <details className="mobile-fold">
+      <summary className="mobile-fold-head">{title}</summary>
+      {children}
+    </details>
   )
 }

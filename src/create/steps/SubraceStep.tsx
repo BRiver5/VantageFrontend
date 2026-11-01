@@ -9,7 +9,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Footprints, Languages, Users } from 'lucide-react'
 import { ABILITY_RU, realImage } from '../../api'
 import type { Race, Subrace } from '../../api'
-import { AbilityList } from '../../abilities/AbilityList'
+import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
 import { ClassArticle, OpenLinksInNewTab, isHtmlDescription } from '../../classArticle'
 import { splitRaceArticle } from '../../raceArticle'
 import { RichText } from '../../terms/terms'
@@ -257,11 +257,11 @@ export default function SubraceStep({
           {open.extra_languages && open.extra_languages.length > 0 && (
             <ModalLine icon={Languages}>{open.extra_languages.join(', ')}</ModalLine>
           )}
-          {(open.abilities?.length ?? 0) > 0 && (
-            <ModalSection title="Способности">
-              <AbilityList refs={open.abilities} />
-            </ModalSection>
-          )}
+          <AbilitiesMissingFrom
+            refs={open.abilities}
+            text={`${articles.get(open.id) ?? ''} ${open.description ?? ''} ${open.traits ?? ''}`}
+            render={(list) => <ModalSection title="Способности">{list}</ModalSection>}
+          />
           {articles.has(open.id) && (
             <ModalSection title="Особенности и описание">
               <OpenLinksInNewTab.Provider value>

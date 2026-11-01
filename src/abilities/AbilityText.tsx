@@ -41,11 +41,33 @@ const NOT_LEAD = /^(Вы|Вам|Вас|Ваш\S*|Если|Когда|Это\S*|�
 /** …и подзаголовок — именная фраза: без «вы», связок и чисел */
 const SENTENCE_HINT = /\d|—|\s(вы|вас|вам|ваш\S*|себя|есть|имеет|является|может|можете|становится|получает|дарят|научила|колеблются|улучшается|усиливается|изменяют|замедляет|считаются|остается|остаётся|должно|должен|требует)(\s|$)/i
 
+/**
+ * Вокруг вырезанных ссылок в данных стоят переводы строк: «Харизмы (\nОбман\n), когда…»,
+ * «Вы узнаёте два\nприёма». Это одно предложение, а не отдельные абзацы.
+ */
+function joinBrokenLines(lines: string[]): string[] {
+  const out: string[] = []
+  for (const line of lines) {
+    const prev = out[out.length - 1]
+    if (prev === undefined) {
+      out.push(line)
+      continue
+    }
+    const continuesPunct = /^[),.;:]/.test(line) || prev.endsWith('(')
+    const continuesWord = /^[a-zа-яё]/.test(line) && !/[.!?:;]$/.test(prev)
+    // без точки в конце длинная строка не закончена; короткая может быть подзаголовком
+    const unfinished = !/[.!?:;»]$/.test(prev) && (prev.length >= 40 || prev.endsWith(','))
+    if (!continuesPunct && !continuesWord && !unfinished) {
+      out.push(line)
+      continue
+    }
+    out[out.length - 1] = tidyText(prev.endsWith('(') ? prev + line : `${prev} ${line}`)
+  }
+  return out
+}
+
 export function parseAbilityText(raw: string | null | undefined): ParsedAbilityText {
-  const lines = tidyText(raw ?? '')
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter(Boolean)
+  const lines = joinBrokenLines(tidyText(raw ?? '').split(/\n+/).map((l) => l.trim()).filter(Boolean))
   const meta: string[] = []
   // служебные строки идут в начале: уровень и требование
   while (lines.length) {

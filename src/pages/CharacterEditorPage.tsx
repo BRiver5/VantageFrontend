@@ -42,6 +42,8 @@ import { SheetEditor } from '../characters/SheetEditor'
 import { sheetPlayFromServer } from '../characters/sheetPlay'
 import { buildSheetView, valuesOf } from '../characters/sheetView'
 import { useCharacterEngine } from '../characters/useCharacterEngine'
+import type { HudControls } from '../characters/GameHud'
+import { useAppShell } from '../shell'
 import { useNames } from '../characters/useNames'
 import { WorldBackdrop } from '../creatureSheet'
 import { getEngineCatalog, getEngineDictionaries, type EngineDictionaries } from '../api'
@@ -78,6 +80,7 @@ export default function CharacterEditorPage() {
   const [copying, setCopying] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { app: hudMode } = useAppShell()
 
   useEffect(() => {
     void getEngineDictionaries().then(setDict)
@@ -273,69 +276,6 @@ export default function CharacterEditorPage() {
   const banner = eng.conflict ?? eng.notice
   const canCopy = ready && !owner
 
-  const liveExtras = (
-    <div className="cw-hud-actions">
-      {status && StatusIcon && (
-        <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">
-          <StatusIcon aria-hidden="true" />
-          {status.text}
-          {save === 'error' && owner && (
-            <button type="button" className="cw-mini-btn" onClick={() => void eng.retrySave()}>
-              повторить
-            </button>
-          )}
-        </span>
-      )}
-      {canCopy && (
-        <>
-          <button type="button" className="cs-btn" onClick={() => void copyToMe()} disabled={copying}>
-            {copying ? <Loader2 className="cw-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}
-            Скопировать себе
-          </button>
-          {copyError && <span className="cw-save cw-save--error">{copyError}</span>}
-        </>
-      )}
-      {owner && (
-        <>
-          <label className="cw-vis" title={vis.label}>
-            <VisIcon aria-hidden="true" />
-            <select
-              value={character.visibility}
-              aria-label="Кто видит лист"
-              onChange={(e) => patchDoc(() => ({ visibility: e.target.value as CharacterVisibility }))}
-            >
-              {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => (
-                <option key={v} value={v}>
-                  {VISIBILITY[v].label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="cw-mini-btn" onClick={() => setRestOpen(true)} disabled={eng.busy} title="Кости хитов, ресурсы короткого отдыха">
-            <Coffee aria-hidden="true" /> короткий отдых
-          </button>
-          <button type="button" className="cw-mini-btn" onClick={longRest} disabled={eng.busy} title="Хиты, ячейки, ресурсы и половина костей хитов">
-            <Moon aria-hidden="true" /> продолжительный отдых
-          </button>
-          <button type="button" className="cw-mini-btn" onClick={() => setJournalOpen(true)} title="Журнал действий: всё, что делал герой">
-            <ScrollText aria-hidden="true" /> журнал
-          </button>
-          <button
-            type="button"
-            className="cs-btn"
-            onClick={() => navigate(`/characters/${character.id}/level-up`)}
-            disabled={eng.busy || view.basic_info.total_level >= 20}
-          >
-            <GraduationCap aria-hidden="true" /> Новый уровень
-          </button>
-          <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
-            <PencilLine aria-hidden="true" /> Правка листа
-          </button>
-        </>
-      )}
-    </div>
-  )
-
   /** Чужой лист целиком — новый персонаж текущего игрока */
   const copyToMe = async () => {
     if (!user) {
@@ -360,10 +300,112 @@ export default function CharacterEditorPage() {
     }
   }
 
+  const statusNode = status && StatusIcon && (
+    <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">
+      <StatusIcon aria-hidden="true" />
+      {status.text}
+      {save === 'error' && owner && (
+        <button type="button" className="cw-mini-btn" onClick={() => void eng.retrySave()}>
+          повторить
+        </button>
+      )}
+    </span>
+  )
+  const bannerNode = banner && (
+    <div key="banner" className={`eng-banner${eng.conflict ? ' is-conflict' : ''}`} role="alert">
+      {eng.conflict ? <RefreshCw aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+      <span>{banner}</span>
+      <button type="button" className="cw-mini-btn" onClick={eng.dismissNotice} aria-label="Скрыть">
+        <X aria-hidden="true" />
+      </button>
+    </div>
+  )
+  const pendingNode = (
+    <PendingBanner
+      decisions={sheet.pending_decisions}
+      canPlay={owner}
+      busy={eng.busy}
+      onDecide={(d) => eng.decide(d.id, d.label)}
+      onDismiss={(d) => void eng.dismiss(d.id)}
+    />
+  )
+  const warningsNode = admin && sheet.warnings.length > 0 && (
+    <details key="warnings" className="eng-warnings">
+      <summary>Предупреждения движка · {sheet.warnings.length}</summary>
+      <ul>
+        {sheet.warnings.map((w, i) => (
+          <li key={i}>{w}</li>
+        ))}
+      </ul>
+    </details>
+  )
+
+  const hudControls: HudControls = {
+    background: pic.background,
+    notices: [
+      bannerNode,
+      save === 'error' && owner ? <div key="save">{statusNode}</div> : null,
+      warningsNode,
+    ].filter(Boolean),
+    noticeKey: [banner, save === 'error' ? eng.saveError : ''].filter(Boolean).join('|'),
+    decisions: pendingNode,
+    decisionCount: sheet.pending_decisions.length,
+    onJournal: owner ? () => setJournalOpen(true) : undefined,
+    onLongRest: owner ? longRest : undefined,
+    status: statusNode || undefined,
+    menu: (
+      <>
+        {canCopy && (
+          <>
+            <button type="button" className="hud-menu-item" onClick={() => void copyToMe()} disabled={copying}>
+              {copying ? <Loader2 className="cw-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+              Скопировать себе
+            </button>
+            {copyError && <span className="cw-save cw-save--error">{copyError}</span>}
+          </>
+        )}
+        {owner && (
+          <>
+            <button
+              type="button"
+              className="hud-menu-item"
+              onClick={() => navigate(`/characters/${character.id}/level-up`)}
+              disabled={eng.busy || view.basic_info.total_level >= 20}
+            >
+              <GraduationCap aria-hidden="true" /> Новый уровень
+            </button>
+            <button type="button" className="hud-menu-item" onClick={() => setEditOpen(true)}>
+              <PencilLine aria-hidden="true" /> Правка листа
+            </button>
+            <div className="hud-menu-vis" role="group" aria-label="Кто видит лист">
+              <span>Кто видит лист</span>
+              <div>
+                {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => {
+                  const Icon = VISIBILITY[v].icon
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      className={character.visibility === v ? 'is-on' : ''}
+                      aria-pressed={character.visibility === v}
+                      onClick={() => patchDoc(() => ({ visibility: v }))}
+                    >
+                      <Icon aria-hidden="true" /> {VISIBILITY[v].label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </>
+    ),
+  }
+
   return (
     <section className={`cw cw-live${pic.background ? ' has-world' : ''}`}>
-      {pic.background && <WorldBackdrop key={pic.background} art={pic.background} />}
-      <header className="cw-live-top">
+      {!hudMode && pic.background && <WorldBackdrop key={pic.background} art={pic.background} />}
+      {!hudMode && <header className="cw-live-top">
         <Link to="/characters" className="back-link back-link--btn">
           <ChevronLeft aria-hidden="true" /> к персонажам
         </Link>
@@ -429,9 +471,9 @@ export default function CharacterEditorPage() {
             </>
           )}
         </div>
-      </header>
+      </header>}
 
-      {banner && (
+      {!hudMode && banner && (
         <div className={`eng-banner${eng.conflict ? ' is-conflict' : ''}`} role="alert">
           {eng.conflict ? <RefreshCw aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
           <span>{banner}</span>
@@ -441,15 +483,9 @@ export default function CharacterEditorPage() {
         </div>
       )}
 
-      <PendingBanner
-        decisions={sheet.pending_decisions}
-        canPlay={owner}
-        busy={eng.busy}
-        onDecide={(d) => eng.decide(d.id, d.label)}
-        onDismiss={(d) => void eng.dismiss(d.id)}
-      />
+      {!hudMode && pendingNode}
 
-      {admin && sheet.warnings.length > 0 && (
+      {!hudMode && admin && sheet.warnings.length > 0 && (
         <details className="eng-warnings">
           <summary>Предупреждения движка · {sheet.warnings.length}</summary>
           <ul>
@@ -476,7 +512,7 @@ export default function CharacterEditorPage() {
         stage={stage}
         serverLog={eng.outcome}
         onToggleAbility={owner ? (g, on) => void eng.toggle(g, on) : undefined}
-        hudMore={liveExtras}
+        hud={hudControls}
       />
 
       {flow && (flow.prompt || flow.message) && <ActionDialog flow={flow} onAnswer={eng.answer} onClose={eng.closeFlow} />}

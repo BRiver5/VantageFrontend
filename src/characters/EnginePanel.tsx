@@ -66,6 +66,15 @@ export function costText(a: SheetAction, sheet: Sheet, labels: Record<string, st
     .join(' · ')
 }
 
+/** Причина отказа с сервера: служебные пути заменяем названиями — «res.ki.current (0 < 1)» → «Ци» */
+function reasonText(reason: string, sheet: Sheet, labels: Record<string, string>): string {
+  return reason
+    .replace(/\s*\(\d+\s*<\s*\d+\)/g, '')
+    .replace(/res\.([a-z0-9_]+)\.current/gi, (_, key: string) => sheet.resources.find((r) => r.key === key)?.label ?? labels[`res.${key}.current`] ?? humanize(key))
+    .replace(/slots\.spell\.(\d+)(\.\w+)?/gi, 'ячейка $1 ур.')
+    .replace(/slots\.pact(\.\w+)*/gi, 'ячейка договора')
+}
+
 /** Чип действия: подпись и стоимость; тип — цветом обводки; недоступный — с причиной */
 export function ActionButton({
   a,
@@ -77,7 +86,8 @@ export function ActionButton({
   showAbility?: boolean
 }) {
   const cost = costText(a, engine.sheet, engine.labels)
-  const tip = [showAbility ? a.ability_name : '', !a.enabled && a.reason ? a.reason : a.description ?? ''].filter(Boolean).join(' — ')
+  const reason = a.reason ? reasonText(a.reason, engine.sheet, engine.labels) : ''
+  const tip = [showAbility ? a.ability_name : '', !a.enabled && reason ? reason : a.description ?? ''].filter(Boolean).join(' — ')
   return (
     <button
       type="button"
@@ -88,7 +98,7 @@ export function ActionButton({
     >
       <b>{a.label}</b>
       {cost && <span className="eng-cost">{cost}</span>}
-      {!a.enabled && a.reason && <em>{a.reason}</em>}
+      {!a.enabled && reason && <em>{reason}</em>}
     </button>
   )
 }
@@ -112,7 +122,7 @@ function savedFilter(): string {
   }
 }
 
-export function EnginePanel({ engine }: { engine: EngineView }) {
+export function EnginePanel({ engine, showAll = false }: { engine: EngineView; showAll?: boolean }) {
   const { sheet } = engine
   const [filter, setFilterState] = useState(savedFilter)
   const [expanded, setExpanded] = useState(false)
@@ -132,7 +142,7 @@ export function EnginePanel({ engine }: { engine: EngineView }) {
   const list = sheet.actions
     .filter((a) => filter === 'all' || economyOf(a) === filter)
     .sort((a, b) => Number(b.enabled) - Number(a.enabled) || ECONOMY.findIndex((e) => e.key === economyOf(a)) - ECONOMY.findIndex((e) => e.key === economyOf(b)))
-  const shown = expanded ? list : list.slice(0, COLLAPSED)
+  const shown = expanded || showAll ? list : list.slice(0, COLLAPSED)
 
   return (
     <section className="beast-card cw-sheet-card eng">
@@ -185,7 +195,7 @@ export function EnginePanel({ engine }: { engine: EngineView }) {
               <ActionButton key={`${a.grant_id}:${a.key}`} a={a} engine={engine} />
             ))}
           </div>
-          {list.length > COLLAPSED && (
+          {!showAll && list.length > COLLAPSED && (
             <button type="button" className="cw-mini-btn eng-more" onClick={() => setExpanded((v) => !v)}>
               {expanded ? 'свернуть' : `ещё ${list.length - COLLAPSED}`}
             </button>

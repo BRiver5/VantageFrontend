@@ -13,6 +13,7 @@
 import { createContext, useContext, useMemo, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cutProficiencySection } from './classProficiencies'
+import { APP_SHELL_QUERY } from './shell'
 import { normSpellName, useSpellIndex } from './spellIndex'
 
 /** Похоже ли описание на HTML-разметку (а не на старый плоский текст). */
@@ -64,6 +65,7 @@ function makeDetails(head: Element, doc: Document, open: boolean): void {
   const summary = doc.createElement('summary')
   summary.className = ('ca-summary ' + summaryClasses(head)).trim()
   summary.innerHTML = head.innerHTML
+  if (head.id) summary.id = head.id // на этот якорь ведут ссылки из таблицы развития
 
   head.replaceWith(details)
   details.append(summary, body)
@@ -104,6 +106,7 @@ function makeSectionDetails(head: Element, doc: Document, open: boolean): void {
   const summary = doc.createElement('summary')
   summary.className = ('ca-summary ' + summaryClasses(head)).trim()
   summary.innerHTML = head.innerHTML
+  if (head.id) summary.id = head.id // на этот якорь ведут ссылки из таблицы развития
 
   const body = doc.createElement('div')
   body.className = 'ca-collapse-body'
@@ -468,13 +471,16 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
     }
   }
 
+  // На телефоне статья свёрнута до заголовков: открыты только крупные группы.
+  const compact = window.matchMedia(APP_SHELL_QUERY).matches
+
   // 7. Спойлеры (раскрыты) и свёрнутые блоки подклассов (свёрнуты) → <details>.
   //    В сыром HTML dnd.su тело спойлера — просто следующий <span>/<div> после
   //    заголовка «.spoiler_head», а подклассы — «.hide-next» + «.hide-wrapper».
   root.querySelectorAll('.spoiler_head').forEach((head) => {
     const next = head.nextElementSibling
     if (next && (next.tagName === 'SPAN' || next.tagName === 'DIV')) {
-      makeDetails(head, doc, true)
+      makeDetails(head, doc, !compact || head.classList.contains('bigSectionTitle'))
     }
   })
   root.querySelectorAll('.hide-next').forEach((head) => {
@@ -490,7 +496,31 @@ function transformClassHtml(html: string, options: TransformOptions = {}): strin
   ).filter((h) => !h.closest('details') && !h.classList.contains('hide-next') && !h.classList.contains('spoiler_head'))
   // с конца — чтобы не сбивать nextElementSibling при обходе
   for (let i = sectionHeads.length - 1; i >= 0; i--) {
-    makeSectionDetails(sectionHeads[i], doc, true)
+    makeSectionDetails(sectionHeads[i], doc, !compact || sectionHeads[i].classList.contains('bigSectionTitle'))
+  }
+
+  if (compact) {
+    // Вступление без заголовка стоит перед таблицей и отодвигает её на целый экран.
+    const intro = content.firstElementChild
+    if (intro?.tagName === 'DIV' && !intro.querySelector('table') && (intro.textContent ?? '').trim().length > 300) {
+      const details = doc.createElement('details')
+      details.className = 'ca-collapse'
+      const summary = doc.createElement('summary')
+      summary.className = 'ca-summary underlined'
+      summary.textContent = 'Описание'
+      intro.replaceWith(details)
+      details.append(summary, intro)
+    }
+    // Подпункты («Ячейки заклинаний») в разметке стоят рядом с родителем
+    // («Использование заклинаний») — на телефоне вкладываем их внутрь него.
+    content.querySelectorAll(':scope details.ca-collapse > summary.smallSectionTitle').forEach((sub) => {
+      const item = sub.parentElement
+      const parent = item?.previousElementSibling
+      if (item && parent?.tagName === 'DETAILS' && parent.querySelector(':scope > summary.underlined')) {
+        item.classList.add('ca-collapse--sub')
+        parent.append(item)
+      }
+    })
   }
 
   return root.innerHTML
@@ -660,6 +690,8 @@ export function ClassArticle({
     if (!targetId) return
     const target = document.getElementById(targetId)
     if (!target) return
+    // цель может лежать в свёрнутых разделах: раскрываем всю цепочку, иначе прокручивать некуда
+    for (let d = target.closest('details'); d; d = d.parentElement?.closest('details') ?? null) d.open = true
     target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     target.classList.add('ca-flash')
     window.setTimeout(() => target.classList.remove('ca-flash'), 1400)

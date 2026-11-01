@@ -12,6 +12,7 @@ import type { StepProps } from '../draft'
 import { resizeLevels } from '../draft'
 import type { ClassBundle } from '../useClassBundle'
 import { asiLevels, casterKind, proficiencyBonus, spellSlotsAt, subclassLevelFallback } from '../dnd5e'
+import { useAppShell } from '../../shell'
 import { StepHeader } from './ui'
 
 const LEVELS = Array.from({ length: 20 }, (_, i) => i + 1)
@@ -36,6 +37,7 @@ export default function LevelStep({
   update,
   bundle,
 }: StepProps & { bundle: ClassBundle | null }) {
+  const { app } = useAppShell()
   const className = draft.cls?.class_name ?? ''
   const level = draft.targetLevel
   const kind = casterKind(className, draft.cls?.is_caster)
@@ -69,6 +71,52 @@ export default function LevelStep({
   const circle = topCircle(kind, level)
   const pick = (l: number) => update({ targetLevel: l, levels: resizeLevels(draft.levels, l) })
 
+  const node = (l: number) => {
+      const marks = milestones.get(l) ?? []
+      const state = l === level ? ' is-active' : l < level ? ' is-passed' : ''
+      return (
+        <div key={l} className={`cw-path-node${state}`}>
+          <button
+            type="button"
+            className="cw-path-hex"
+            onClick={() => pick(l)}
+            aria-pressed={l === level}
+            aria-label={`${l} уровень`}
+          >
+            {l}
+          </button>
+          <span className="cw-path-marks">
+            {marks.map(({ icon: Icon, label, kind: k }) => (
+              <span key={k} className={`cw-path-mark cw-path-mark--${k}`} title={`${l} ур.: ${label}`}>
+                <Icon aria-hidden="true" />
+              </span>
+            ))}
+          </span>
+        </div>
+      )
+  }
+
+  const legend = (
+    <div className="cw-path-legend" aria-label="Обозначения">
+      {draft.cls && (
+        <span className="cw-path-mark--sub">
+          <Shield aria-hidden="true" /> подкласс
+        </span>
+      )}
+      <span className="cw-path-mark--asi">
+        <Award aria-hidden="true" /> усиление характеристик
+      </span>
+      {kind !== 'none' && (
+        <span className="cw-path-mark--spell">
+          <Sparkles aria-hidden="true" /> новый круг заклинаний
+        </span>
+      )}
+      <span className="cw-path-mark--pb">
+        <TrendingUp aria-hidden="true" /> бонус мастерства
+      </span>
+    </div>
+  )
+
   return (
     <div className="cw-step cw-path-step">
       <StepHeader title="До какой ступени подняться?" />
@@ -89,7 +137,20 @@ export default function LevelStep({
       </div>
 
       {/* дорога: четыре ступени, узлы уровней и вехи под ними */}
-      <div className="cw-path" style={{ '--fill': `${((level - 1) / 19) * 100}%` } as CSSProperties}>
+      {app ? (
+        <div className="cw-path-rows">
+          {TIERS.map((t) => (
+            <section key={t.roman} className={`cw-path-row${t === tier ? ' is-current' : ''}`}>
+              <h4>
+                <b>{t.roman}</b> {t.name}
+              </h4>
+              <div className="cw-path-row-nodes">{LEVELS.filter((l) => l >= t.from && l <= t.to).map(node)}</div>
+            </section>
+          ))}
+          {legend}
+        </div>
+      ) : (
+        <div className="cw-path" style={{ '--fill': `${((level - 1) / 19) * 100}%` } as CSSProperties}>
         <div className="cw-path-tiers" aria-hidden="true">
           {TIERS.map((t) => (
             <span
@@ -104,51 +165,12 @@ export default function LevelStep({
 
         <div className="cw-path-track">
           <span className="cw-path-line" aria-hidden="true" />
-          {LEVELS.map((l) => {
-            const marks = milestones.get(l) ?? []
-            const state = l === level ? ' is-active' : l < level ? ' is-passed' : ''
-            return (
-              <div key={l} className={`cw-path-node${state}`}>
-                <button
-                  type="button"
-                  className="cw-path-hex"
-                  onClick={() => pick(l)}
-                  aria-pressed={l === level}
-                  aria-label={`${l} уровень`}
-                >
-                  {l}
-                </button>
-                <span className="cw-path-marks">
-                  {marks.map(({ icon: Icon, label, kind: k }) => (
-                    <span key={k} className={`cw-path-mark cw-path-mark--${k}`} title={`${l} ур.: ${label}`}>
-                      <Icon aria-hidden="true" />
-                    </span>
-                  ))}
-                </span>
-              </div>
-            )
-          })}
+          {LEVELS.map(node)}
         </div>
 
-        <div className="cw-path-legend" aria-label="Обозначения">
-          {draft.cls && (
-            <span className="cw-path-mark--sub">
-              <Shield aria-hidden="true" /> подкласс
-            </span>
-          )}
-          <span className="cw-path-mark--asi">
-            <Award aria-hidden="true" /> усиление характеристик
-          </span>
-          {kind !== 'none' && (
-            <span className="cw-path-mark--spell">
-              <Sparkles aria-hidden="true" /> новый круг заклинаний
-            </span>
-          )}
-          <span className="cw-path-mark--pb">
-            <TrendingUp aria-hidden="true" /> бонус мастерства
-          </span>
-        </div>
+        {legend}
       </div>
+      )}
 
       {/* сводка строкой, без рамки */}
       <div className="cw-path-stats">

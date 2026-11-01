@@ -40,7 +40,6 @@ import {
   Trash2,
   UserRound,
   Zap,
-  MoreHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cleanDescription, realImage } from '../api'
@@ -59,14 +58,13 @@ import type { AbilityName, AttackEntry, InventoryItemInstance, LogEntry, SheetVi
 import { abilityMod } from '../create/dnd5e'
 import { ChoicePortrait } from '../create/steps/ui'
 import { alignmentAbbr } from '../create/steps/AlignmentChart'
-import { FaceAvatar } from './FacePortrait'
-import { HudBar } from './HudBar'
+import { GameHud, HudSplit, RotateGate, type HudControls, type HudTab } from './GameHud'
 import { HeroStage } from './HeroStage'
 import { InventoryBoard } from './InventoryBoard'
 import { useAppShell } from '../shell'
 import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
-import { DEFAULT_FACE, FALLBACK_FACE, type FaceCrop } from './portrait'
+import type { FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay, SheetRoller } from './sheetPlay'
 import { attackTags, d20Cards, rollMode, tagBonus, tagCards, type RollContext, type RollMode } from './rollBonuses'
 import { RollTheater, type RollReaction, type RollSpec } from '../dice/theater/RollTheater'
@@ -98,9 +96,27 @@ interface RollShown {
  * История бросков — закреплена в правом нижнем углу экрана. Новый бросок
  * появляется сверху и подсвечивается; список можно свернуть или очистить.
  */
-function RollLog({ rolls, onClear }: { rolls: RollShown[]; onClear: () => void }) {
+function RollLog({ rolls, onClear, inline = false }: { rolls: RollShown[]; onClear: () => void; inline?: boolean }) {
   const [collapsed, setCollapsed] = useState(false)
   if (rolls.length === 0) return null
+  if (inline) {
+    return (
+      <div className="hud-rolls">
+        <ol className="cw-rolllog-list">
+          {rolls.map((r) => (
+            <li key={r.id} className={r.crit ? 'is-crit' : r.fumble ? 'is-fumble' : ''}>
+              <span>{r.label}</span>
+              <small>{r.dice.length > 0 ? `${r.dice.length}к${r.sides} [${r.dice.join(', ')}]${r.bonus ? ` ${signed(r.bonus)}` : ''}` : ''}</small>
+              <b>{r.total}</b>
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="cw-mini-btn" onClick={onClear}>
+          <Trash2 aria-hidden="true" /> очистить
+        </button>
+      </div>
+    )
+  }
   const [last, ...older] = rolls
   const mark = (r: RollShown) => (r.crit ? ' is-crit' : r.fumble ? ' is-fumble' : '')
   return createPortal(
@@ -309,7 +325,7 @@ interface FeatureRow {
 }
 
 /** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
-export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'more'
+export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'skills' | 'actions'
 
 export interface CharacterSheetProps {
   sheet: SheetView
@@ -339,8 +355,8 @@ export interface CharacterSheetProps {
   serverLog?: Outcome | null
   /** включить или отключить умение (только своё) */
   onToggleAbility?: (grantId: string, enabled: boolean) => void
-  /** отдых, журнал, правка — в «Ещё» и в меню полосы на телефоне */
-  hudMore?: ReactNode
+  /** телефон: уведомления, выборы, журнал, отдых и меню экрана героя */
+  hud?: HudControls
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -369,14 +385,15 @@ export default function CharacterSheet({
   stage,
   serverLog = null,
   onToggleAbility,
-  hudMore,
+  hud,
 }: CharacterSheetProps) {
   const [ownTab, setOwnTab] = useState<SheetTab>('main')
   const tab = tabProp ?? ownTab
   const setTab = (t: SheetTab) => (onTab ? onTab(t) : setOwnTab(t))
   const shell = useAppShell()
   const hudMode = paged && shell.app
-  const hudLandscape = hudMode && shell.landscape
+  const [featureGroup, setFeatureGroup] = useState<string | null>(null)
+  const [reviewTab, setReviewTab] = useState('combat')
   const live = !!onPatch
 
   useLayoutEffect(() => {
@@ -814,6 +831,94 @@ export default function CharacterSheet({
     </Card>
   )
 
+  const attackRow = (a: SheetAttack) => {
+      const crit = critFor === a.key
+      // бонусы способностей по тегам атаки: к попаданию и к урону (Ярость +2)
+      const { tags, ability } = attackTags(a, sheet)
+      const ctx: RollContext = { kind: 'attack', ability, tags }
+      const hit = a.attack_bonus + tagBonus(sheet, 'attackBonus', tags)
+      const dmgExtra = tagBonus(sheet, 'dmgBonus', tags)
+      const dmg = parseDamage(a.damage)
+      const dmgText = (formula: string) => {
+        const p = parseDamage(formula)
+        if (!p || !dmgExtra) return formatDice(formula) ?? formula
+        const b = p.bonus + dmgExtra
+        return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
+      }
+      const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
+      return (
+        <div key={a.key} className={`cw-wpn${crit ? ' is-crit' : ''}`}>
+          <WeaponArt src={a.image} icon={a.type === 'ranged' ? Crosshair : a.key === 'unarmed' ? Hand : Swords} />
+          <span className="cw-wpn-body">
+            <b>{a.name}</b>
+            <i title={props}>{props}</i>
+          </span>
+          <span className="cw-wpn-dice">
+            <DieButton
+              sides={20}
+              value={signed(hit)}
+              label="атака"
+              onClick={() =>
+                void rollD20(`${a.name}, попадание`, hit, a.key, {
+                  ...ctx,
+                  bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
+                })
+              }
+              disabled={dice.rolling}
+              title="Бросок атаки: к20 + бонус"
+            />
+            {a.damage && (
+              <DieButton
+                sides={dmg?.sides ?? 0}
+                value={dmgText(a.damage)}
+                label={crit ? 'крит ×2' : (a.damage_type || 'урон').toLocaleLowerCase('ru')}
+                hot={crit}
+                onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key, { kind: 'damage', ability, tags })}
+                disabled={dice.rolling}
+                title={crit ? 'Критическое попадание: кости урона удваиваются' : 'Бросок урона'}
+              />
+            )}
+            {a.versatile && (
+              <DieButton
+                sides={parseDamage(a.versatile)?.sides ?? 0}
+                value={dmgText(a.versatile)}
+                label="двуручно"
+                hot={crit}
+                onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key, { kind: 'damage', ability, tags })}
+                disabled={dice.rolling}
+                title="Универсальное оружие двумя руками"
+              />
+            )}
+          </span>
+        </div>
+      )
+  }
+
+  const spellAttackRow = spell.is_spellcaster && spell.spell_attack_bonus != null && (
+      <div className="cw-wpn cw-wpn--spell">
+        <WeaponArt src={null} icon={Sparkles} />
+        <span className="cw-wpn-body">
+          <b>Атака заклинанием</b>
+          <i>Сл спасброска {spell.spell_save_dc}</i>
+        </span>
+        <span className="cw-wpn-dice">
+          <DieButton
+            sides={20}
+            value={signed(spell.spell_attack_bonus)}
+            label="атака"
+            onClick={() =>
+              void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
+                kind: 'spell',
+                ability: spell.spellcasting_ability ?? undefined,
+                tags: ['spell'],
+              })
+            }
+            disabled={dice.rolling}
+          />
+        </span>
+      </div>
+  )
+
   const combatCard = (
     <Card
       title="Бой"
@@ -822,92 +927,8 @@ export default function CharacterSheet({
       aside={[perAction > 1 ? `атак за действие: ×${perAction}` : '', critMin < 20 ? `крит от ${critMin}` : ''].filter(Boolean).join(' · ') || null}
     >
       <div className="cw-wpns">
-        {attacks.map((a) => {
-          const crit = critFor === a.key
-          // бонусы способностей по тегам атаки: к попаданию и к урону (Ярость +2)
-          const { tags, ability } = attackTags(a, sheet)
-          const ctx: RollContext = { kind: 'attack', ability, tags }
-          const hit = a.attack_bonus + tagBonus(sheet, 'attackBonus', tags)
-          const dmgExtra = tagBonus(sheet, 'dmgBonus', tags)
-          const dmg = parseDamage(a.damage)
-          const dmgText = (formula: string) => {
-            const p = parseDamage(formula)
-            if (!p || !dmgExtra) return formatDice(formula) ?? formula
-            const b = p.bonus + dmgExtra
-            return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
-          }
-          const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
-          return (
-            <div key={a.key} className={`cw-wpn${crit ? ' is-crit' : ''}`}>
-              <WeaponArt src={a.image} icon={a.type === 'ranged' ? Crosshair : a.key === 'unarmed' ? Hand : Swords} />
-              <span className="cw-wpn-body">
-                <b>{a.name}</b>
-                <i title={props}>{props}</i>
-              </span>
-              <span className="cw-wpn-dice">
-                <DieButton
-                  sides={20}
-                  value={signed(hit)}
-                  label="атака"
-                  onClick={() =>
-                    void rollD20(`${a.name}, попадание`, hit, a.key, {
-                      ...ctx,
-                      bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
-                    })
-                  }
-                  disabled={dice.rolling}
-                  title="Бросок атаки: к20 + бонус"
-                />
-                {a.damage && (
-                  <DieButton
-                    sides={dmg?.sides ?? 0}
-                    value={dmgText(a.damage)}
-                    label={crit ? 'крит ×2' : (a.damage_type || 'урон').toLocaleLowerCase('ru')}
-                    hot={crit}
-                    onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key, { kind: 'damage', ability, tags })}
-                    disabled={dice.rolling}
-                    title={crit ? 'Критическое попадание: кости урона удваиваются' : 'Бросок урона'}
-                  />
-                )}
-                {a.versatile && (
-                  <DieButton
-                    sides={parseDamage(a.versatile)?.sides ?? 0}
-                    value={dmgText(a.versatile)}
-                    label="двуручно"
-                    hot={crit}
-                    onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key, { kind: 'damage', ability, tags })}
-                    disabled={dice.rolling}
-                    title="Универсальное оружие двумя руками"
-                  />
-                )}
-              </span>
-            </div>
-          )
-        })}
-        {spell.is_spellcaster && spell.spell_attack_bonus != null && (
-          <div className="cw-wpn cw-wpn--spell">
-            <WeaponArt src={null} icon={Sparkles} />
-            <span className="cw-wpn-body">
-              <b>Атака заклинанием</b>
-              <i>Сл спасброска {spell.spell_save_dc}</i>
-            </span>
-            <span className="cw-wpn-dice">
-              <DieButton
-                sides={20}
-                value={signed(spell.spell_attack_bonus)}
-                label="атака"
-                onClick={() =>
-                  void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
-                    kind: 'spell',
-                    ability: spell.spellcasting_ability ?? undefined,
-                    tags: ['spell'],
-                  })
-                }
-                disabled={dice.rolling}
-              />
-            </span>
-          </div>
-        )}
+        {attacks.map(attackRow)}
+        {spellAttackRow}
       </div>
     </Card>
   )
@@ -945,7 +966,7 @@ export default function CharacterSheet({
     </Card>
   )
 
-  const spellBook = hasMagic && <SpellBook spellcasting={spell} play={play} roller={roller} />
+  const spellBook = hasMagic && <SpellBook spellcasting={spell} play={play} roller={roller} tabbed={hudMode} />
 
   const featureTile = (f: FeatureRow) => (
     <button
@@ -1226,54 +1247,8 @@ export default function CharacterSheet({
     { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length, alert: engine?.sheet.pending_decisions.length },
     { id: 'story', label: 'Характер', icon: UserRound },
   ]
-  const hudTabs: TabRow[] = [
-    ...(!hudLandscape ? [{ id: 'hero' as const, label: 'Герой', icon: UserRound }] : []),
-    { id: 'main', label: 'Бой', icon: Swords },
-    { id: 'bag', label: 'Сумка', icon: Backpack, badge: items.length || undefined },
-    ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
-    { id: 'features', label: 'Умения', icon: BookOpen, badge: featureRows.length, alert: engine?.sheet.pending_decisions.length },
-    { id: 'more', label: 'Ещё', icon: MoreHorizontal },
-  ]
-  const tabs = hudMode ? hudTabs : deskTabs
-  const rawTab = tab === 'story' && hudMode ? 'more' : tab === 'more' && !hudMode ? 'story' : tab === 'bag' || tab === 'hero' ? (hudMode ? tab : 'main') : tab
-  const current = tabs.some((t) => t.id === rawTab) ? rawTab : 'main'
-
-  const hudCrop = portrait ? (face ?? DEFAULT_FACE) : FALLBACK_FACE
-  const hudRail = (
-    <aside className="cw-hud-rail">
-      <button
-        type="button"
-        className="cw-hud-face"
-        onClick={onPortraitClick}
-        disabled={!onPortraitClick}
-        title={onPortraitClick ? 'Сменить портрет' : info.name}
-      >
-        <FaceAvatar src={portrait ?? fallbackPortrait} crop={hudCrop} />
-      </button>
-      <div className="cw-hud-stats">
-        {ABILITY_KEYS.map((k) => {
-          const label = ABILITY_LABELS[k]
-          return (
-            <button
-              key={k}
-              type="button"
-              className="cw-hud-abil"
-              onClick={() => void rollD20(`${label.label}, проверка`, mod(k), undefined, { kind: 'check', ability: k })}
-              disabled={dice.rolling}
-              title={`Проверка: к20 ${signed(mod(k))}`}
-            >
-              <i>{label.abbr}</i>
-              <b>{signed(mod(k))}</b>
-              <em>{score(k)}</em>
-            </button>
-          )
-        })}
-      </div>
-      <p className="cw-hud-passive">
-        <Eye aria-hidden="true" /> {combat.passive_perception}
-      </p>
-    </aside>
-  )
+  const rawTab = tab === 'hero' ? 'story' : tab
+  const current = deskTabs.some((t) => t.id === rawTab) ? rawTab : 'main'
 
   const resources = engine && (
     <ResourceBand
@@ -1283,15 +1258,15 @@ export default function CharacterSheet({
     />
   )
 
-  const tabButtons = (rows: TabRow[], compact?: boolean) => (
-    <nav className={compact ? 'cw-hud-tabs' : 'cw-tabs'} role="tablist" aria-label="Страницы листа">
+  const tabButtons = (rows: TabRow[]) => (
+    <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
       {rows.map(({ id, label, icon: Icon, badge, alert }) => (
         <button
           key={id}
           type="button"
           role="tab"
           aria-selected={current === id}
-          className={`${compact ? 'cw-hud-tab' : 'cw-tab'}${current === id ? ' is-on' : ''}`}
+          className={`cw-tab${current === id ? ' is-on' : ''}`}
           onClick={() => setTab(id)}
         >
           <Icon aria-hidden="true" /> {label}
@@ -1306,37 +1281,57 @@ export default function CharacterSheet({
     </nav>
   )
 
-  const hudPane =
-    current === 'hero' ? (
-      <div className="cw-hud-hero">
-        <button
-          type="button"
-          className="cw-hud-hero-art"
-          onClick={onPortraitClick}
-          disabled={!onPortraitClick}
-          title={onPortraitClick ? 'Сменить портрет' : info.name}
-        >
-          <FaceAvatar src={portrait ?? fallbackPortrait} crop={hudCrop} />
-        </button>
-        {abilitiesCard}
-      </div>
-    ) : current === 'main' ? (
-      <>
-        {engine && <EnginePanel engine={engine} />}
-        {combatCard}
-      </>
-    ) : current === 'bag' ? (
-      invCard
-    ) : current === 'magic' ? (
-      spellBook
-    ) : current === 'features' ? (
-      featuresPage
-    ) : (
-      <>
-        {hudMore && <div className="cw-hud-extras">{hudMore}</div>}
-        {storyPage}
-      </>
-    )
+  /* ---------- итог создания на телефоне: разделы вместо длинной ленты ---------- */
+
+  const reviewTabs: { id: string; label: string; icon: LucideIcon; body: ReactNode }[] = [
+    { id: 'combat', label: 'Бой', icon: Swords, body: combatCard },
+    { id: 'skills', label: 'Навыки', icon: ShieldCheck, body: abilitiesCard },
+    { id: 'bag', label: 'Сумка', icon: Backpack, body: invCard },
+    ...(spellBook ? [{ id: 'magic', label: 'Магия', icon: Sparkles, body: <Card title="Магия" icon={Sparkles} className="cw-sheet-card--magic">{spellBook}</Card> }] : []),
+    { id: 'features', label: 'Умения', icon: BookOpen, body: <>{featuresCard}{profsCard}</> },
+    ...(personaCard ? [{ id: 'persona', label: 'Характер', icon: UserRound, body: personaCard }] : []),
+  ]
+  const reviewCurrent = reviewTabs.find((t) => t.id === reviewTab) ?? reviewTabs[0]
+
+  /* ---------- экран героя на телефоне ---------- */
+
+  const hudTab: HudTab | null =
+    tab === 'story' || tab === 'hero' ? 'hero' : tab === 'bag' || tab === 'magic' || tab === 'features' || tab === 'skills' || tab === 'actions' ? tab : null
+
+  // на экране — оружие, атака заклинанием и безоружный удар, сколько поместится
+  const hotbarRows = [
+    ...attacks.filter((a) => a.key !== 'unarmed').map(attackRow),
+    ...(spellAttackRow ? [spellAttackRow] : []),
+    ...attacks.filter((a) => a.key === 'unarmed').map(attackRow),
+  ]
+
+  const featureTabs = [
+    ...SOURCE_GROUPS.map((g) => ({
+      key: g.title,
+      label: g.sources.includes('choice') ? 'Выбранные' : g.title,
+      count: featureRows.filter((f) => g.sources.includes(f.source)).length,
+    })).filter((g) => g.count > 0),
+    { key: 'profs', label: 'Владения' },
+    ...(rulesCard ? [{ key: 'rules', label: 'Особые правила' }] : []),
+  ]
+  const featureKey = featureTabs.some((t) => t.key === featureGroup) ? featureGroup! : featureTabs[0].key
+  const featureGroupDef = SOURCE_GROUPS.find((g) => g.title === featureKey)
+  const hudFeatures = (
+    <HudSplit tabs={featureTabs} active={featureKey} onChange={setFeatureGroup}>
+      {featureKey === 'profs' ? profsCard : featureKey === 'rules' ? rulesCard : (
+        <div className="cw-ftiles">{featureRows.filter((f) => featureGroupDef?.sources.includes(f.source)).map(featureTile)}</div>
+      )}
+    </HudSplit>
+  )
+
+  const hudSlots = Object.entries(spell.spell_slots)
+    .map(([c, sl]) => ({ circle: Number(c), max: sl.max, used: Math.min(sl.max, play.slotsUsed[c] ?? 0) }))
+    .filter((sl) => sl.max > 0)
+    .sort((a, b) => a.circle - b.circle)
+
+  const hudActive = engine
+    ? [...activeStates(engine.sheet, engine.labels).map((x) => x.label), ...engine.sheet.active_effects.map((e) => e.label)]
+    : []
 
   return (
     <WhyProvider breakdown={sheet.breakdown} bases={sheet.bases} names={sheet.sourceNames}>
@@ -1344,19 +1339,46 @@ export default function CharacterSheet({
       {heading}
 
       {hudMode ? (
-        <div className={`cw-hud${hudLandscape ? ' is-land' : ' is-port'}`}>
-          <HudBar sheet={sheet} roller={roller} stage={stage} extras={hudMore} />
-          <div className="cw-hud-body">
-            {hudLandscape && hudRail}
-            <div className="cw-hud-main">
-              {resources}
-              <div key={current} className="cw-hud-pane" role="tabpanel">
-                {hudPane}
-              </div>
-            </div>
-          </div>
-          {tabButtons(hudTabs, true)}
-        </div>
+        shell.rotate ? (
+          <RotateGate coarse={shell.coarse} />
+        ) : (
+          <GameHud
+            sheet={sheet}
+            roller={roller}
+            stage={stage}
+            portrait={portrait}
+            face={face}
+            fallbackPortrait={fallbackPortrait}
+            controls={hud}
+            hotbar={hotbarRows.slice(0, 3)}
+            hotbarMore={Math.max(0, hotbarRows.length - 3)}
+            resources={engine?.sheet.resources ?? []}
+            activeKeys={activeKeys}
+            activeLabels={hudActive}
+            onOpenAbility={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
+            slots={hudSlots}
+            rollLog={<RollLog rolls={rolls} onClear={clearRolls} inline />}
+            rollCount={rolls.length}
+            tab={hudTab}
+            onTab={(t) => setTab(t ?? 'main')}
+            windows={{
+              actions: (
+                <div className="hud-combat">
+                  <div className="hud-combat-main">
+                    {resources}
+                    {engine && <EnginePanel engine={engine} showAll />}
+                  </div>
+                  <div className="hud-combat-side">{combatCard}</div>
+                </div>
+              ),
+              skills: abilitiesCard,
+              bag: invCard,
+              magic: spellBook || undefined,
+              features: hudFeatures,
+              hero: storyPage,
+            }}
+          />
+        )
       ) : paged ? (
         <>
           <HeroStage
@@ -1384,6 +1406,21 @@ export default function CharacterSheet({
             {current === 'story' && storyPage}
           </div>
         </>
+      ) : shell.app ? (
+        <>
+          {flatHero}
+          <nav className="cw-rtabs" aria-label="Разделы листа">
+            {reviewTabs.map(({ id, label, icon: Icon }) => (
+              <button key={id} type="button" className={reviewCurrent.id === id ? 'is-on' : ''} aria-pressed={reviewCurrent.id === id} onClick={() => setReviewTab(id)}>
+                <Icon aria-hidden="true" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+          <div key={reviewCurrent.id} className="cw-rpane">
+            {reviewCurrent.body}
+          </div>
+        </>
       ) : (
         <>
           {flatHero}
@@ -1403,7 +1440,7 @@ export default function CharacterSheet({
         </>
       )}
 
-      <RollLog rolls={rolls} onClear={clearRolls} />
+      {!hudMode && <RollLog rolls={rolls} onClear={clearRolls} />}
       {theater[0] && <RollTheater key={theater[0].id} spec={theater[0]} onDone={() => setTheater((q) => q.slice(1))} />}
       {openFeature && (
         <SheetModal

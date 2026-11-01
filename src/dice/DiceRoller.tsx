@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Palette, RotateCcw, SlidersHorizontal } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { ChevronLeft, Palette, RotateCcw, SlidersHorizontal } from 'lucide-react'
 import type DiceBoxType from '@3d-dice/dice-box'
 import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
@@ -8,6 +8,7 @@ import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from '.
 import { registerDiceRoller } from './diceControl'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
+import { useAppShell } from '../shell'
 
 type DicePool = Record<DieType, number>
 type DieColors = Record<DieType, string>
@@ -111,6 +112,109 @@ function animateHistoryScroll(el: HTMLElement, to: number, duration: number) {
     if (t < 1) requestAnimationFrame(step)
   }
   requestAnimationFrame(step)
+}
+
+const STASH_KEY = 'vantage-dice-stashed'
+/** Сколько пикселей вправо нужно протянуть кнопку, чтобы она спряталась */
+const STASH_DISTANCE = 44
+
+function readStashed(): boolean {
+  try {
+    return localStorage.getItem(STASH_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Кнопка кубика. На телефоне её можно смахнуть за правый край — остаётся
+ * маленькая стрелка, которая возвращает кнопку. Выбор переживает перезагрузку.
+ */
+function StashableFab({
+  shown,
+  onOpen,
+  title,
+  'aria-label': ariaLabel,
+  children,
+}: {
+  shown: boolean
+  onOpen: () => void
+  title: string
+  'aria-label': string
+  children: ReactNode
+}) {
+  const { app } = useAppShell()
+  const [stashed, setStashedState] = useState(readStashed)
+  const [dragX, setDragX] = useState<number | null>(null)
+  const start = useRef<number | null>(null)
+  const swiped = useRef(false)
+
+  const setStashed = (value: boolean) => {
+    setStashedState(value)
+    try {
+      localStorage.setItem(STASH_KEY, value ? '1' : '0')
+    } catch {
+      /* без хранилища выбор живёт до перезагрузки */
+    }
+  }
+
+  if (app && stashed) {
+    return (
+      <button
+        type="button"
+        className="dice-stash-tab"
+        aria-label="Показать кнопку кубика"
+        onPointerDown={(e) => { start.current = e.clientX }}
+        onClick={() => setStashed(false)}
+      >
+        <ChevronLeft aria-hidden="true" />
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className={`dice-fab${shown ? ' is-visible' : ''}${dragX !== null ? ' is-dragging' : ''}`}
+      style={dragX ? { transform: `translateX(${dragX}px)`, opacity: Math.max(0.3, 1 - dragX / 90) } : undefined}
+      title={title}
+      aria-label={ariaLabel}
+      onPointerDown={(e) => {
+        if (!app) return
+        start.current = e.clientX
+        swiped.current = false
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        if (start.current === null) return
+        const dx = e.clientX - start.current
+        if (Math.abs(dx) > 6) swiped.current = true
+        if (swiped.current) setDragX(Math.max(0, dx))
+      }}
+      onPointerUp={(e) => {
+        if (start.current === null) return
+        const dx = e.clientX - start.current
+        start.current = null
+        setDragX(null)
+        if (dx >= STASH_DISTANCE) setStashed(true)
+      }}
+      onPointerCancel={() => {
+        start.current = null
+        swiped.current = false
+        setDragX(null)
+      }}
+      onClick={() => {
+        // жест смахивания не должен открывать панель
+        if (swiped.current) {
+          swiped.current = false
+          return
+        }
+        onOpen()
+      }}
+    >
+      {children}
+    </button>
+  )
 }
 
 export default function DiceRoller() {
@@ -823,10 +927,9 @@ export default function DiceRoller() {
 
         <div className="dice-action-bar">
           {!showOpenControls ? (
-            <button
-              type="button"
-              className={`dice-fab${fabShown ? ' is-visible' : ''}`}
-              onClick={() => {
+            <StashableFab
+              shown={fabShown}
+              onOpen={() => {
                 initDiceAudio()
                 setOpen(true)
               }}
@@ -834,7 +937,7 @@ export default function DiceRoller() {
               aria-label="Бросить кубик"
             >
               <DieImage type={20} size={30} className="die-fab-icon" />
-            </button>
+            </StashableFab>
           ) : (
             <>
               <button
