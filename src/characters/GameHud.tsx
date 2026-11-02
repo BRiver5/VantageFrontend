@@ -73,6 +73,15 @@ const RAIL: { id: HudTab; label: string; icon: LucideIcon }[] = [
 ]
 
 /** Что страница героя отдаёт экрану: уведомления, выборы, меню и отдых */
+/** Что добавляет комната к экрану героя: свои окна в панели, пункты меню и журнал */
+export interface HudExtra {
+  windows: { id: string; label: string; icon: LucideIcon; badge?: number; body: ReactNode }[]
+  menu?: ReactNode
+  /** вместо истории своих бросков — общий журнал комнаты */
+  rollLog?: ReactNode
+  rollCount?: number
+}
+
 export interface HudControls {
   /** арт мира за героем */
   background: string | null
@@ -87,6 +96,10 @@ export interface HudControls {
   status?: ReactNode
   /** пункты меню за шевроном: новый уровень, правка, видимость */
   menu?: ReactNode
+  /** куда ведёт первый пункт меню; по умолчанию — к списку персонажей */
+  backTo?: { to: string; label: string }
+  /** окна и пункты комнаты */
+  extra?: HudExtra
 }
 
 /* ---------- просьба повернуть экран ---------- */
@@ -458,6 +471,10 @@ export function GameHud({
   onTab: (t: HudTab | null) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // окно комнаты («Партия», «Стол»): живёт отдельно от вкладок листа
+  const [extraTab, setExtraTab] = useState<string | null>(null)
+  const extra = controls?.extra
+  const extraMeta = extra?.windows.find((w) => w.id === extraTab) ?? null
   const [hpOpen, setHpOpen] = useState(false)
   const [inspOpen, setInspOpen] = useState(false)
   const [pop, setPop] = useState<Pop>(null)
@@ -533,7 +550,7 @@ export function GameHud({
           )}
           {controls && <RoundButton icon={Bell} label="События" badge={noticeCount} alert={noticeCount > 0} on={pop === 'notices'} onClick={() => togglePop('notices')} />}
           {controls?.onJournal && <RoundButton icon={ScrollText} label="Журнал" onClick={controls.onJournal} />}
-          <RoundButton icon={Dices} label="Броски" badge={rollCount} on={pop === 'rolls'} onClick={() => togglePop('rolls')} />
+          <RoundButton icon={Dices} label="Броски" badge={extra?.rollCount ?? rollCount} on={pop === 'rolls'} onClick={() => togglePop('rolls')} />
           {canRest && <RoundButton icon={Moon} label="Отдых" on={pop === 'rest'} onClick={() => togglePop('rest')} />}
         </div>
       </header>
@@ -700,16 +717,49 @@ export function GameHud({
       {/* ---------- панель разделов ---------- */}
       <nav className="ghud-rail" aria-label="Разделы героя">
         {RAIL.filter((r) => windows[r.id]).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className={tab === id ? 'is-on' : ''} aria-pressed={tab === id} onClick={() => onTab(tab === id ? null : id)}>
+          <button
+            key={id}
+            type="button"
+            className={tab === id && !extraMeta ? 'is-on' : ''}
+            aria-pressed={tab === id && !extraMeta}
+            onClick={() => {
+              setExtraTab(null)
+              onTab(tab === id && !extraMeta ? null : id)
+            }}
+          >
             <span className="ghud-rail-sign">
               <Icon aria-hidden="true" />
             </span>
             <i>{label}</i>
           </button>
         ))}
+        {extra?.windows.map(({ id, label, icon: Icon, badge }) => (
+          <button
+            key={id}
+            type="button"
+            className={extraTab === id ? 'is-on' : ''}
+            aria-pressed={extraTab === id}
+            onClick={() => {
+              onTab(null)
+              setExtraTab(extraTab === id ? null : id)
+            }}
+          >
+            <span className="ghud-rail-sign">
+              <Icon aria-hidden="true" />
+              {badge ? <em>{badge}</em> : null}
+            </span>
+            <i>{label}</i>
+          </button>
+        ))}
       </nav>
 
-      {windowMeta && tab && (
+      {extraMeta && (
+        <HudWindow key={`x-${extraMeta.id}`} id={extraMeta.id} title={extraMeta.label} icon={extraMeta.icon} onClose={() => setExtraTab(null)}>
+          {extraMeta.body}
+        </HudWindow>
+      )}
+
+      {windowMeta && tab && !extraMeta && (
         <HudWindow key={tab} id={tab} title={windowMeta.label} icon={windowMeta.icon} onClose={() => onTab(null)}>
           {windows[tab]}
         </HudWindow>
@@ -741,7 +791,7 @@ export function GameHud({
                 <h3 className="hud-pop-title">
                   <Dices aria-hidden="true" /> Последние броски
                 </h3>
-                {rollCount > 0 ? rollLog : <p className="hud-pop-empty">Бросков ещё не было. Нажмите на характеристику или кость атаки.</p>}
+                {(extra?.rollCount ?? rollCount) > 0 ? (extra?.rollLog ?? rollLog) : <p className="hud-pop-empty">Бросков ещё не было. Нажмите на характеристику или кость атаки.</p>}
               </>
             )}
             {pop === 'rest' && (
@@ -794,10 +844,11 @@ export function GameHud({
               </button>
             </header>
             <div className="hud-menu-list">
-              <Link to="/characters" className="hud-menu-item">
-                <Users aria-hidden="true" /> К персонажам
+              <Link to={controls?.backTo?.to ?? '/characters'} className="hud-menu-item">
+                <Users aria-hidden="true" /> {controls?.backTo?.label ?? 'К персонажам'}
               </Link>
               {controls?.menu}
+              {extra?.menu}
               {canFullscreen && (
                 <button
                   type="button"

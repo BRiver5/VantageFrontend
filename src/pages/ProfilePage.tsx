@@ -5,12 +5,12 @@ import {
   type Locale,
 } from '../api'
 import { useAuth } from '../auth/AuthContext'
+import ProfileAvatar from './ProfileAvatar'
 
 export default function ProfilePage() {
   const { user, updateMe, logout } = useAuth()
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('')
   const [locale, setLocale] = useState<Locale>('ru')
   const [visibility, setVisibility] = useState<CharacterVisibility>('private')
   const [bodyColor, setBodyColor] = useState(DEFAULT_DICE_PREFERENCES.body_color)
@@ -24,7 +24,6 @@ export default function ProfilePage() {
     if (!user) return
     setDisplayName(user.display_name ?? '')
     setBio(user.bio ?? '')
-    setAvatarUrl(user.avatar_url ?? '')
     setLocale(user.preferences?.locale ?? 'ru')
     setVisibility(user.preferences?.default_character_visibility ?? 'private')
     setBodyColor(user.preferences?.dice?.body_color ?? DEFAULT_DICE_PREFERENCES.body_color)
@@ -43,7 +42,6 @@ export default function ProfilePage() {
       await updateMe({
         display_name: displayName.trim(),
         bio,
-        avatar_url: avatarUrl.trim() || null,
         preferences: {
           locale,
           default_character_visibility: visibility,
@@ -77,14 +75,12 @@ export default function ProfilePage() {
           </button>
         </div>
 
+        <ProfileAvatar />
+
         <form className="auth-form" onSubmit={onSubmit}>
           <label className="auth-field">
             <span>Отображаемое имя</span>
             <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
-          </label>
-          <label className="auth-field">
-            <span>Аватар (URL)</span>
-            <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…" />
           </label>
           <label className="auth-field">
             <span>О себе</span>

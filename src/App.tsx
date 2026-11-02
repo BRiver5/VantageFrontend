@@ -6,6 +6,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  DoorOpen,
   Gem,
   Home,
   Landmark,
@@ -39,6 +40,8 @@ import BookPage from './pages/BookPage'
 import SettingPage from './pages/SettingPage'
 import CharacterEditorPage from './pages/CharacterEditorPage'
 import CharactersPage from './pages/CharactersPage'
+import RoomsPage from './pages/RoomsPage'
+import RoomPage from './rooms/RoomPage'
 import CreateCharacterWizard from './create/CreateCharacterWizard'
 import LevelUpWizard from './create/LevelUpWizard'
 import LoginPage from './pages/LoginPage'
@@ -73,9 +76,11 @@ const CATEGORIES = [
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
   { path: '/characters', label: 'Персонажи', icon: ScrollText },
+  { path: '/rooms', label: 'Комнаты', icon: DoorOpen },
 ] as const
 
-const CODEX = CATEGORIES.filter((c) => c.path !== '/characters')
+// «Персонажи» и «Комнаты» — не справочник: у них свои вкладки внизу и пункты в меню
+const CODEX = CATEGORIES.filter((c) => c.path !== '/characters' && c.path !== '/rooms')
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -732,6 +737,10 @@ function AppTabBar() {
           <ScrollText aria-hidden="true" />
           <span>Герои</span>
         </NavLink>
+        <NavLink to="/rooms" className={({ isActive }) => `app-tab${isActive ? ' is-on' : ''}`}>
+          <DoorOpen aria-hidden="true" />
+          <span>Комнаты</span>
+        </NavLink>
         {!ready ? (
           <span className="app-tab is-wait" aria-hidden="true">
             <UserRound />
@@ -859,6 +868,30 @@ export default function App() {
               element={
                 <RequireAuth>
                   <CharacterEditorPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/rooms"
+              element={
+                <RequireAuth>
+                  <RoomsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/rooms/join/:code"
+              element={
+                <RequireAuth>
+                  <RoomsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/rooms/:id"
+              element={
+                <RequireAuth>
+                  <RoomPage />
                 </RequireAuth>
               }
             />

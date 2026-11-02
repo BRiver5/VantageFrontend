@@ -18,6 +18,7 @@ import type {
   SpellKnown,
 } from './types/character'
 import { characterPayload } from './types/character'
+import type { UploadResponse } from './types/rooms'
 
 export type { Character, CharacterInput, Sheet } from './types/character'
 export type {
@@ -55,12 +56,21 @@ export class ApiError extends Error {
   }
 }
 
+/** Размер картинок в ответе: сервер подменяет ссылки на уменьшенные копии */
+export type ImageQuality = 'high' | 'medium' | 'low'
+
 type RequestOpts = {
   method?: string
+  /** объект уходит JSON-ом, FormData — как есть (загрузка файлов) */
   body?: unknown
   /** If true, require token and send Authorization. If 'optional', send when present. */
   auth?: boolean | 'optional'
   signal?: AbortSignal
+  /**
+   * Отдавать картинки уменьшенными (`?quality=`). Только для чтения: прочитанное
+   * с `quality` нельзя сохранять обратно — в базу попадут ссылки на копии.
+   */
+  quality?: ImageQuality
 }
 
 /**
@@ -92,9 +102,11 @@ export function isLegacySchemaError(e: unknown): boolean {
  * auth и characters — через request().
  */
 export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
-  const { method = 'GET', body, auth = false, signal } = opts
+  const { method = 'GET', body, auth = false, signal, quality } = opts
   const headers: Record<string, string> = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // у FormData границу multipart выставляет сам браузер
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
 
   const token = getAccessToken()
   if (auth === true) {
@@ -104,10 +116,13 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
     headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`${API_BASE}${path.startsWith('/') ? path : `/${path}`}`, {
+  let url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  if (quality && quality !== 'high') url += `${url.includes('?') ? '&' : '?'}quality=${quality}`
+
+  const res = await fetch(url, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
     signal,
   })
 
@@ -155,6 +170,36 @@ export function patchMe(body: PatchMeBody): Promise<UserMe> {
   return request<UserMe>('/auth/me', { method: 'PATCH', body, auth: true })
 }
 
+/** Загрузить файл-аватар: PNG, JPEG, GIF или WebP до 10 МБ (400 — не картинка, 413 — слишком большой) */
+export function uploadAvatar(file: File): Promise<UserMe> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<UserMe>('/auth/me/avatar', { method: 'POST', body: form, auth: true })
+}
+
+/* ---------- Картинки ---------- */
+
+/**
+ * Загрузить картинку в хранилище (PNG, JPEG, GIF, WebP, SVG). В сущности
+ * сохраняют `url` из ответа; уменьшенные копии сервер делает сам.
+ */
+export function uploadMedia(file: File): Promise<UploadResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<UploadResponse>('/media/upload', { method: 'POST', body: form, auth: true })
+}
+
+/**
+ * Адрес нужного размера для картинки нашего хранилища. Нужен там, где `quality`
+ * не работает, — в событиях WebSocket адреса всегда исходные. Чужие сайты, SVG и
+ * уже уменьшенные копии не трогаем.
+ */
+export function imageVariant(url: string, quality: ImageQuality): string {
+  const own = /\/media\/[^?#]+\.(png|jpe?g|gif|webp)$/i.test(url)
+  const already = /\.(medium|low)\.webp$/i.test(url)
+  return quality === 'high' || !own || already ? url : `${url}.${quality}.webp`
+}
+
 /* ---------- Characters (schema v2) ---------- */
 
 /** Ответ списка: массив или страница { items } — сервер отдаёт по-разному */
@@ -181,7 +226,7 @@ export async function listCharacters(opts: { mine?: boolean; q?: string } = {}):
 }
 
 export function getCharacter(id: string): Promise<Character> {
-  return request<Character>(`/characters/${id}`, { auth: 'optional' })
+  return request<Character>(ch(id), { auth: 'optional' })
 }
 
 /** Создать: только выбор игрока; способности по источникам сервер выдаст сам */
@@ -195,7 +240,7 @@ export function createCharacter(body: CharacterInput): Promise<Character> {
 
 /** PATCH — только изменённые поля; поля движка сервер не принимает */
 export function updateCharacter(id: string, body: CharacterInput): Promise<Character> {
-  return request<Character>(`/characters/${id}`, {
+  return request<Character>(ch(id), {
     method: 'PATCH',
     body: characterPayload(body),
     auth: true,
@@ -203,12 +248,24 @@ export function updateCharacter(id: string, body: CharacterInput): Promise<Chara
 }
 
 export function deleteCharacter(id: string): Promise<void> {
-  return request<void>(`/characters/${id}`, { method: 'DELETE', auth: true })
+  return request<void>(ch(id), { method: 'DELETE', auth: true })
 }
 
 /* ---------- Лист и движок ---------- */
 
-const ch = (id: string, path = '') => `/characters/${id}${path}`
+/**
+ * Ссылка на персонажа для всех игровых запросов: обычный id (`/characters/{id}`)
+ * или готовая база пути — у персонажа в комнате это
+ * `/rooms/{rid}/characters/{cid}` (см. roomCharacterRef). Маршруты листа в комнате
+ * те же, что у обычного персонажа, только с этим префиксом.
+ */
+export type CharacterRef = string
+
+/** Признак готовой базы: id персонажа слэшей не содержит */
+const ch = (ref: CharacterRef, path = '') => (ref.startsWith('/') ? `${ref}${path}` : `/characters/${ref}${path}`)
+
+/** Ссылка на копию персонажа внутри комнаты */
+export const roomCharacterRef = (roomId: string, characterId: string): CharacterRef => `/rooms/${roomId}/characters/${characterId}`
 
 /** Вычисленный лист: все числа, ресурсы, ячейки и доступные действия */
 export function getSheet(id: string): Promise<Sheet> {

@@ -6,7 +6,7 @@
  * Добавление из каталога — в окне управления инвентарём.
  */
 import { useState, type DragEvent } from 'react'
-import { BookOpen, Gem, Minus, PackageOpen, Package, Plus, Shield, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowDownToLine, BookOpen, Gem, Minus, PackageOpen, Package, Plus, Send, Shield, Sparkles, Trash2 } from 'lucide-react'
 import { realImage } from '../api'
 import type { Currency, Equipment, Item } from '../api'
 import { categoryIcon } from '../equipment'
@@ -52,10 +52,19 @@ function ItemFace({
 export function InventoryBoard({
   items,
   onChange,
+  locked = false,
+  onTransfer,
+  onDropToTable,
 }: {
   items: InventoryItemInstance[]
   /** новые предметы и монеты, высыпанные из контейнера */
   onChange: (items: InventoryItemInstance[], coins?: Partial<Record<Currency, number>>) => void
+  /** состав инвентаря закрыт: нельзя добавлять, удалять и менять количество (игрок в комнате) */
+  locked?: boolean
+  /** комната: передать предмет другому персонажу партии */
+  onTransfer?: (item: InventoryItemInstance) => void
+  /** комната: бросить предмет на общий стол */
+  onDropToTable?: (item: InventoryItemInstance) => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -187,9 +196,11 @@ export function InventoryBoard({
         <span className="cw-field-note">
           {current ? 'Нажмите пустую клетку, чтобы переложить предмет' : 'Перетаскивайте предметы; нажмите — подробности'}
         </span>
-        <button type="button" className="cw-mini-btn" onClick={() => setManage(true)}>
-          <Plus aria-hidden="true" /> добавить
-        </button>
+        {!locked && (
+          <button type="button" className="cw-mini-btn" onClick={() => setManage(true)}>
+            <Plus aria-hidden="true" /> добавить
+          </button>
+        )}
       </div>
 
       {current && (
@@ -210,6 +221,11 @@ export function InventoryBoard({
                   .join(' · ')}
               </i>
             </span>
+            {locked ? (
+              <span className="cw-inv-qty-ctl is-static" aria-label="Количество">
+                <b>×{current.quantity}</b>
+              </span>
+            ) : (
             <span className="cw-inv-qty-ctl" aria-label="Количество">
               <button
                 type="button"
@@ -223,6 +239,7 @@ export function InventoryBoard({
                 <Plus aria-hidden="true" />
               </button>
             </span>
+            )}
           </div>
           <div className="cw-ib-detail-actions">
             {current.equipment?.id && (
@@ -244,9 +261,21 @@ export function InventoryBoard({
                 <Sparkles aria-hidden="true" /> {current.is_attuned ? 'настроено' : 'настроить'}
               </button>
             )}
-            <button type="button" className="cw-mini-btn cw-mini-btn--danger" onClick={() => remove(current.instance_id)}>
-              <Trash2 aria-hidden="true" /> удалить
-            </button>
+            {onTransfer && (
+              <button type="button" className="cw-mini-btn" onClick={() => onTransfer(current)}>
+                <Send aria-hidden="true" /> передать
+              </button>
+            )}
+            {onDropToTable && (
+              <button type="button" className="cw-mini-btn" onClick={() => onDropToTable(current)}>
+                <ArrowDownToLine aria-hidden="true" /> на стол
+              </button>
+            )}
+            {!locked && (
+              <button type="button" className="cw-mini-btn cw-mini-btn--danger" onClick={() => remove(current.instance_id)}>
+                <Trash2 aria-hidden="true" /> удалить
+              </button>
+            )}
           </div>
 
           {contents.length > 0 && (

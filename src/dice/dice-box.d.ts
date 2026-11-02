@@ -19,10 +19,10 @@ declare module '@3d-dice/dice-box' {
     rolls: DieRollResult[]
   }
 
-  export type DiceNotation =
-    | string
-    | Array<string | { qty: number; sides: number | string }>
-    | { qty: number; sides: number | string }
+  /** rollId задаёт вызывающий: в нём зашито нужное значение (см. forcedFaces.ts) */
+  type DieNotation = { qty: number; sides: number | string; rollId?: string | number }
+
+  export type DiceNotation = string | Array<string | DieNotation> | DieNotation
 
   /** результат отдельной кости — то, чем реально резолвится roll()/add() */
   export interface RollResult {
@@ -80,5 +80,15 @@ declare module '@3d-dice/dice-box' {
     onRemoveComplete: (die: DieRollResult) => void
     onThemeConfigLoaded: (config: unknown) => void
     onThemeLoaded: (config: unknown) => void
+  }
+}
+
+/**
+ * Общий модуль dice-box с классом кубика. Нужен один статический метод
+ * `getRollResult` — через него читается выпавшая грань (см. dice/forcedFaces.ts).
+ */
+declare module '@3d-dice/dice-box/dist/Dice.js' {
+  export const D: {
+    getRollResult(die: unknown, scene: unknown): Promise<unknown>
   }
 }

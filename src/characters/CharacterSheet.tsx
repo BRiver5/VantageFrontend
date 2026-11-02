@@ -32,6 +32,7 @@ import {
   Heart,
   Languages,
   NotebookPen,
+  Send,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -46,6 +47,7 @@ import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
 import { CoinImg } from '../coins'
 import { useCreatureDice } from '../creatureSheet'
+import { useRoomRoll } from '../rooms/RoomDice'
 import { formatDice } from '../equipment'
 import { DIE_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { useCatalogList } from '../create/useCatalog'
@@ -357,6 +359,19 @@ export interface CharacterSheetProps {
   onToggleAbility?: (grantId: string, enabled: boolean) => void
   /** телефон: уведомления, выборы, журнал, отдых и меню экрана героя */
   hud?: HudControls
+  /**
+   * Лист играется в комнате: кости бросает сервер (запрос + событие у всех),
+   * а у игрока инвентарь и кошелёк закрыты от правки — выдаёт и забирает мастер.
+   */
+  roomMode?: {
+    isDm: boolean
+    /** передать предмет другому герою партии */
+    onTransfer?: (item: InventoryItemInstance) => void
+    /** бросить предмет на общий стол */
+    onDropToTable?: (item: InventoryItemInstance) => void
+    /** передать монеты */
+    onTransferCoins?: () => void
+  }
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -386,6 +401,7 @@ export default function CharacterSheet({
   serverLog = null,
   onToggleAbility,
   hud,
+  roomMode,
 }: CharacterSheetProps) {
   const [ownTab, setOwnTab] = useState<SheetTab>('main')
   const tab = tabProp ?? ownTab
@@ -404,6 +420,11 @@ export default function CharacterSheet({
     }
   }, [hudMode])
   const dice = useCreatureDice()
+  // в комнате кости бросает сервер; вне её (и в предпросмотре) — локальные 3D-кости
+  const roomRoll = useRoomRoll()
+  const viaServer = !!roomMode && !!roomRoll
+  const [roomPending, setRoomPending] = useState(false)
+  const lockedPurse = !!roomMode && !roomMode.isDm
   // история бросков: свежий — первым, держим последние 30
   const [rolls, setRolls] = useState<RollShown[]>([])
   const clearRolls = useCallback(() => setRolls([]), [])
@@ -432,6 +453,22 @@ export default function CharacterSheet({
     [],
   )
 
+  /** Выбросить кости: сервером (в комнате) или локальными 3D-костями */
+  const rollValues = async (n: number, sides: number, label: string): Promise<number[] | null> => {
+    if (!viaServer || !roomRoll) return dice.roll(n, sides)
+    setRoomPending(true)
+    try {
+      const res = await roomRoll.roll({ expression: `${n}d${sides}`, label })
+      await roomRoll.whenPlayed(res.seq)
+      return res.dice.flatMap((d) => d.rolls)
+    } catch (e) {
+      note('!', e instanceof Error ? e.message : 'Бросок не удался')
+      return null
+    } finally {
+      setRoomPending(false)
+    }
+  }
+
   /**
    * Реакции после к20 — что герой может добавить к уже выпавшему:
    * вдохновение и Везунчик — ещё к20 и взять лучшую, кость превосходства — к
@@ -455,7 +492,7 @@ export default function CharacterSheet({
         icon: Star,
         run: async () => {
           vitals('inspiration', -1)
-          const v = await dice.roll(1, 20)
+          const v = await rollValues(1, 20, 'Реакция: к20')
           return v ? { newD20: v[0] } : null
         },
       })
@@ -471,7 +508,7 @@ export default function CharacterSheet({
         icon: Clover,
         run: async () => {
           if (!(await spendRes('luck', 1, 'Везунчик: дополнительная к20'))) return null
-          const v = await dice.roll(1, 20)
+          const v = await rollValues(1, 20, 'Реакция: к20')
           return v ? { newD20: v[0] } : null
         },
       })
@@ -489,7 +526,7 @@ export default function CharacterSheet({
         icon: Swords,
         run: async () => {
           if (!(await spendRes(sup.key, 1, 'Приём точности: кость к атаке'))) return null
-          const v = await dice.roll(1, sides)
+          const v = await rollValues(1, sides, 'Кость превосходства')
           return v ? { addDie: { sides, value: v[0] }, label: 'Кость превосходства' } : null
         },
       })
@@ -504,7 +541,7 @@ export default function CharacterSheet({
         icon: Flame,
         run: async () => {
           if (!(await spendRes('dark_ones_luck', 1, 'Удача темнейшего: +к10'))) return null
-          const v = await dice.roll(1, 10)
+          const v = await rollValues(1, 10, 'Удача темнейшего: к10')
           return v ? { addDie: { sides: 10, value: v[0] }, label: 'Удача темнейшего' } : null
         },
       })
@@ -526,7 +563,32 @@ export default function CharacterSheet({
   const rollD20 = async (label: string, bonus: number, attackKey?: string, ctx?: RollContext) => {
     // преимущество и помеха — из листа: Безрассудная атака, ярость на Силу
     const { mode, label: modeLabel } = rollMode(sheet, ctx)
-    const values = await dice.roll(mode === 'normal' ? 1 : 2, 20)
+    const tagForServer = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
+    let values: number[] | null
+    if (viaServer && roomRoll) {
+      // с модификатором и режимом: итог в журнале комнаты сходится с листом
+      setRoomPending(true)
+      try {
+        const res = await roomRoll.roll({
+          expression: `1d20${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`,
+          label: `${label}${tagForServer}`,
+          mode: mode === 'normal' ? null : mode,
+        })
+        const rolls = res.dice.flatMap((d) => d.rolls)
+        // в dice остаётся только оставленная кость, вторую восстанавливаем из итога
+        const other = res.discarded_total != null ? res.discarded_total - res.modifier : null
+        values = rolls.length === 1 && mode !== 'normal' && other != null && other >= 1 && other <= 20 ? [rolls[0], other] : rolls
+        // сначала кости ложатся, потом показываем числа
+        await roomRoll.whenPlayed(res.seq)
+      } catch (e) {
+        note('!', e instanceof Error ? e.message : 'Бросок не удался')
+        values = null
+      } finally {
+        setRoomPending(false)
+      }
+    } else {
+      values = await dice.roll(mode === 'normal' ? 1 : 2, 20)
+    }
     if (!values) return null
     const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : values[0]
     // у атаки крит может начинаться раньше 20 (Улучшенные критические попадания)
@@ -562,7 +624,23 @@ export default function CharacterSheet({
       return
     }
     const n = crit ? parsed.n * 2 : parsed.n
-    const values = await dice.roll(n, parsed.sides)
+    let values: number[] | null
+    if (viaServer && roomRoll) {
+      const mod = parsed.bonus + extraSum
+      setRoomPending(true)
+      try {
+        const res = await roomRoll.roll({ expression: `${n}d${parsed.sides}${mod ? (mod > 0 ? `+${mod}` : `${mod}`) : ''}`, label: crit ? `${label} · крит!` : label })
+        values = res.dice.flatMap((d) => d.rolls)
+        await roomRoll.whenPlayed(res.seq)
+      } catch (e) {
+        note('!', e instanceof Error ? e.message : 'Бросок не удался')
+        values = null
+      } finally {
+        setRoomPending(false)
+      }
+    } else {
+      values = await dice.roll(n, parsed.sides)
+    }
     if (!values) return
     const total = Math.max(1, values.reduce((a, b) => a + b, 0) + parsed.bonus + extraSum)
     const title = crit ? `${label} · крит!` : label
@@ -572,7 +650,22 @@ export default function CharacterSheet({
   }
 
   const rollDice = async (label: string, n: number, sides: number, bonus: number) => {
-    const values = await dice.roll(n, sides)
+    let values: number[] | null
+    if (viaServer && roomRoll) {
+      setRoomPending(true)
+      try {
+        const res = await roomRoll.roll({ expression: `${n}d${sides}${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`, label })
+        values = res.dice.flatMap((d) => d.rolls)
+        await roomRoll.whenPlayed(res.seq)
+      } catch (e) {
+        note('!', e instanceof Error ? e.message : 'Бросок не удался')
+        values = null
+      } finally {
+        setRoomPending(false)
+      }
+    } else {
+      values = await dice.roll(n, sides)
+    }
     if (!values) return null
     show({ label, dice: values, sides, bonus, total: values.reduce((a, b) => a + b, 0) + bonus })
     enqueue({
@@ -585,7 +678,7 @@ export default function CharacterSheet({
     return values
   }
 
-  const roller: SheetRoller = { rolling: dice.rolling, critFor, rollD20, rollDamage, rollDice, note }
+  const roller: SheetRoller = { rolling: dice.rolling || roomPending, critFor, rollD20, rollDamage, rollDice, note }
 
   /*
    * Броски сервера (Скрытая атака, отдых): 3D-кости катятся для вида, а театр
@@ -631,7 +724,7 @@ export default function CharacterSheet({
         }
         if (sides !== 20 || values.length !== 2) mode = 'normal'
         // визуальный бросок: число костей и граней как у сервера
-        await rollDice3d(values.length, sides).catch(() => null)
+        if (!viaServer) await rollDice3d(values.length, sides).catch(() => null)
         const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : null
         const sum = kept ?? values.reduce((a, b) => a + b, 0)
         const total = typeof l.data?.total === 'number' ? l.data.total : sum
@@ -935,13 +1028,13 @@ export default function CharacterSheet({
 
   const invCard = (
     <Card title="Инвентарь" icon={Backpack} className="cw-sheet-card--inv" aside={items.length ? String(items.length) : null}>
-      <InventoryBoard items={items} onChange={onInventory} />
+      <InventoryBoard items={items} onChange={onInventory} locked={lockedPurse} onTransfer={roomMode?.onTransfer} onDropToTable={roomMode?.onDropToTable} />
       {purse.length > 0 && (
         <div className={`cw-purse${live ? ' is-live' : ''}`}>
           {purse.map((c) => (
             <span key={c}>
               <CoinImg currency={c} size={20} />
-              {onPatch ? (
+              {onPatch && !lockedPurse ? (
                 <input
                   type="number"
                   min={0}
@@ -961,6 +1054,11 @@ export default function CharacterSheet({
               )}
             </span>
           ))}
+          {roomMode?.onTransferCoins && (
+            <button type="button" className="cw-mini-btn" onClick={roomMode.onTransferCoins} title="Передать монеты другому герою">
+              <Send aria-hidden="true" /> передать
+            </button>
+          )}
         </div>
       )}
     </Card>

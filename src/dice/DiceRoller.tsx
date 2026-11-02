@@ -5,7 +5,8 @@ import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
 import DiceD20Mod from './DiceD20Mod'
 import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from './diceSounds'
-import { registerDiceRoller } from './diceControl'
+import { getRoomRollHandler, registerDiceRoller, registerForcedRoller } from './diceControl'
+import { FORCEABLE_SIDES, forcedRollId } from './forcedIds'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
 import { useAppShell } from '../shell'
@@ -399,7 +400,12 @@ export default function DiceRoller() {
     if (initPromise.current) return initPromise.current
     initPromise.current = (async () => {
       const { default: DiceBox } = await import('@3d-dice/dice-box')
+      // перехват чтения граней: кубики комнат падают на значения сервера
+      const { installForcedFaces } = await import('./forcedFaces')
+      installForcedFaces()
       const box = new DiceBox({
+        // перехват работает, только пока сцена в основном потоке (в воркере код вшит строкой)
+        offscreen: false,
         container: '#dice-box-stage',
         assetPath: '/assets/',
         // тема vantage: палитра PNG перекрашена — цифры золотые, корпус = themeColor
@@ -448,6 +454,42 @@ export default function DiceRoller() {
           return results.map((r) => r.value)
         } finally {
           // кости задерживаются на сцене, чтобы игрок увидел грани
+          diceClearTimer.current = setTimeout(() => {
+            boxRef.current?.clear()
+            setExternalActive(false)
+            diceClearTimer.current = null
+          }, 4000)
+        }
+      }),
+    [ensureBox, clear3DDice],
+  )
+
+  // бросок с заранее известными значениями (комнаты): грани доворачиваются под сервер
+  const forcedSeed = useRef(0)
+  useEffect(
+    () =>
+      registerForcedRoller(async ({ dice, themeColor }) => {
+        await ensureBox()
+        const box = boxRef.current
+        if (!box) throw new Error('Кости недоступны')
+        const { favorites: favs } = colorsRef.current
+        const seed = ++forcedSeed.current
+
+        initDiceAudio()
+        playDropsForRoll(dice.length)
+        clear3DDice()
+        setExternalActive(true)
+        try {
+          const scale = dice.length <= 10 ? DEFAULT_SCALE : Math.max(3, DEFAULT_SCALE * Math.sqrt(10 / dice.length))
+          await box.updateConfig({ scale })
+          const notation = dice.map((d, i) => ({
+            qty: 1,
+            sides: d.sides,
+            ...(FORCEABLE_SIDES.has(d.sides) ? { rollId: forcedRollId(d.value, `${seed}x${i}`) } : {}),
+          }))
+          const results = await box.roll(notation, { themeColor: themeColor || favs[0] })
+          return results.map((r) => r.value)
+        } finally {
           diceClearTimer.current = setTimeout(() => {
             boxRef.current?.clear()
             setExternalActive(false)
@@ -608,7 +650,25 @@ export default function DiceRoller() {
     }, 5000)
   }, [rollResults, pool, revealClash, clearDiceTimer])
 
+  // в комнате кости бросает сервер: лоток только отправляет бросок
+  const roomBusy = useRef(false)
+  const rollInRoom = async (expression: string, label: string, mode: 'adv' | 'dis' | null) => {
+    const handler = getRoomRollHandler()
+    if (!handler || roomBusy.current) return
+    roomBusy.current = true
+    setError(null)
+    initDiceAudio()
+    try {
+      await handler({ expression, label, mode })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      roomBusy.current = false
+    }
+  }
+
   const rollD20Mod = async (mod: 'adv' | 'dis') => {
+    if (getRoomRollHandler()) return void rollInRoom('1d20', mod === 'adv' ? 'к20 с преимуществом' : 'к20 с помехой', mod)
     const box = boxRef.current
     if (!box || phase === 'rolling' || !ready) return
 
@@ -636,6 +696,10 @@ export default function DiceRoller() {
   }
 
   const roll = async () => {
+    const roomActive = DIE_TYPES.filter((t) => pool[t] > 0)
+    if (getRoomRollHandler() && roomActive.length > 0) {
+      return void rollInRoom(roomActive.map((t) => `${pool[t]}d${t}`).join('+'), 'Бросок из лотка', null)
+    }
     const box = boxRef.current
     const active = DIE_TYPES.filter((t) => pool[t] > 0)
     if (!box || phase === 'rolling' || active.length === 0) return

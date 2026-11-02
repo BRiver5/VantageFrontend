@@ -1,0 +1,324 @@
+/**
+ * Состояние комнаты на клиенте и применение событий WebSocket.
+ *
+ * Принцип контракта: ответ REST экран не меняет — его меняют события, поэтому у
+ * всех участников порядок один и тот же. Функции здесь чистые: идемпотентны
+ * (upsert по id), потому что один и тот же seq может прийти дважды при sync.
+ *
+ * Мастер и игроки получают РАЗНЫЕ события с разными номерами (например,
+ * creature.updated — полное мастеру и урезанное игрокам); чужое приходит как
+ * `noop`. Поэтому в состоянии существа лежат в том виде, в каком их прислали
+ * именно этой роли (RoomCreature или CreaturePlayerView).
+ */
+import type {
+  AnyCreature,
+  CharacterCard,
+  CombatActionResult,
+  CombatView,
+  DiceRollEvent,
+  OnlineUser,
+  Room,
+  RoomCreature,
+  RoomEventMessage,
+  RoomItem,
+  RoomLogEntry,
+  RoomMemberView,
+  RoomState,
+  RoomStatus,
+} from '../types/rooms'
+import { isEngineRoll, type RollPayload } from '../types/rooms'
+
+/** Сколько записей журнала держим в памяти */
+export const LOG_LIMIT = 300
+
+export interface RoomData {
+  seq: number
+  room: Room
+  me: RoomState['me']
+  members: RoomMemberView[]
+  characters: CharacterCard[]
+  /** у мастера здесь и предметы ширмы: различайте по holder */
+  items: RoomItem[]
+  creatures: AnyCreature[]
+  combat: CombatView | null
+  online: OnlineUser[]
+  /** ревизия листа каждого персонажа: меняется — лист надо перечитать */
+  sheetRev: Record<string, number>
+  log: RoomLogEntry[]
+}
+
+export function fromSnapshot(s: RoomState, prevLog: RoomLogEntry[] = []): RoomData {
+  return {
+    seq: s.seq,
+    room: s.room,
+    me: s.me,
+    members: s.members,
+    characters: s.characters,
+    items: s.table,
+    creatures: s.creatures,
+    combat: s.combat,
+    online: s.online,
+    sheetRev: {},
+    log: prevLog,
+  }
+}
+
+/* ---------- мелкие помощники ---------- */
+
+const upsert = <T extends { id: string }>(list: T[], item: T): T[] => {
+  const i = list.findIndex((x) => x.id === item.id)
+  if (i < 0) return [...list, item]
+  const next = list.slice()
+  next[i] = item
+  return next
+}
+const without = <T extends { id: string }>(list: T[], id: string): T[] => list.filter((x) => x.id !== id)
+
+/** Данные мёрджим поверх старых: у room.updated нет invite_code, даже у мастера */
+const mergeRoom = (room: Room, patch: Partial<Room>): Room => ({ ...room, ...patch, invite_code: room.invite_code ?? patch.invite_code })
+
+const mark = (members: RoomMemberView[], online: OnlineUser[]): RoomMemberView[] => {
+  const on = new Set(online.map((o) => o.user_id))
+  return members.map((m) => (m.online === on.has(m.user_id) ? m : { ...m, online: on.has(m.user_id) }))
+}
+
+/** Обновить карточки и существ, которые пришли внутри результата боя */
+function mergeCombat(combat: CombatView | null, upd: { id: string; card?: CharacterCard; creature?: AnyCreature }[]): CombatView | null {
+  if (!combat) return combat
+  const byId = new Map(upd.map((u) => [u.id, u]))
+  return {
+    ...combat,
+    combatants: combat.combatants.map((c) => {
+      const u = byId.get(c.id)
+      return u ? { ...c, card: u.card ?? c.card, creature: u.creature ?? c.creature } : c
+    }),
+  }
+}
+
+type P = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/* ---------- применение события ---------- */
+
+export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
+  const seq = msg.seq != null && msg.seq > state.seq ? msg.seq : state.seq
+  const base = seq === state.seq ? state : { ...state, seq }
+  const p = (msg.payload ?? {}) as P
+
+  switch (msg.type) {
+    case 'room.updated':
+      return { ...base, room: mergeRoom(base.room, p as Partial<Room>) }
+
+    case 'room.status':
+      return { ...base, room: { ...base.room, status: p.status as RoomStatus } }
+
+    case 'member.requested': {
+      const m: RoomMemberView = {
+        user_id: p.user_id,
+        role: 'player',
+        status: 'pending',
+        room_character_id: null,
+        nickname: p.nickname ?? null,
+        display_name: p.display_name ?? null,
+        avatar_url: null,
+        online: false,
+        source_character_id: p.character_id ?? null,
+        character_name: p.character_name ?? null,
+      }
+      const i = base.members.findIndex((x) => x.user_id === m.user_id)
+      const members = i < 0 ? [...base.members, m] : base.members.map((x, j) => (j === i ? { ...x, ...m } : x))
+      return { ...base, members }
+    }
+
+    case 'member.approved': {
+      const card = p.card as CharacterCard
+      return {
+        ...base,
+        members: base.members.map((m) => (m.user_id === p.user_id ? { ...m, status: 'approved', room_character_id: card?.id ?? m.room_character_id } : m)),
+        characters: card ? upsert(base.characters, card) : base.characters,
+        me: p.user_id === base.me.user_id && card ? { ...base.me, room_character_id: card.id } : base.me,
+      }
+    }
+
+    case 'member.kicked':
+    case 'member.left': {
+      const status = msg.type === 'member.kicked' ? 'kicked' : 'left'
+      return {
+        ...base,
+        members: base.members.map((m) => (m.user_id === p.user_id ? { ...m, status, online: false } : m)),
+        characters: p.character_id ? without(base.characters, p.character_id) : base.characters,
+      }
+    }
+
+    case 'presence.changed': {
+      const online = (p.online ?? []) as OnlineUser[]
+      return { ...base, online, members: mark(base.members, online) }
+    }
+
+    case 'character.updated': {
+      const card = p.card as CharacterCard | undefined
+      return card ? { ...base, characters: upsert(base.characters, card) } : base
+    }
+
+    case 'character.sheet_changed':
+      return { ...base, sheetRev: { ...base.sheetRev, [p.character_id]: p.revision } }
+
+    case 'item.issued': {
+      const item = p.item as RoomItem | undefined
+      return item ? { ...base, items: upsert(base.items, item) } : base
+    }
+
+    case 'item.claimed':
+      return { ...base, items: without(base.items, p.item_id) }
+
+    case 'item.taken_back': {
+      // со стола на ширму: игрокам предмет исчезает, мастеру остаётся с holder = screen
+      if (p.from !== 'table') return base
+      if (base.me.role === 'dm') {
+        return { ...base, items: base.items.map((it) => (it.id === p.item_id ? { ...it, holder: 'screen' } : it)) }
+      }
+      return { ...base, items: without(base.items, p.item_id) }
+    }
+
+    case 'creature.added':
+    case 'creature.updated':
+    case 'creature.revealed': {
+      const c = p.creature as AnyCreature | undefined
+      return c ? { ...base, creatures: upsert(base.creatures, c) } : base
+    }
+
+    case 'creature.removed':
+      return { ...base, creatures: without(base.creatures, p.creature_id) }
+
+    case 'combat.started':
+    case 'combat.updated':
+    case 'combat.turn':
+      return { ...base, combat: p as unknown as CombatView, room: { ...base.room, active_combat_id: (p as CombatView).id } }
+
+    case 'combat.ended':
+      return { ...base, combat: null, room: { ...base.room, active_combat_id: null } }
+
+    case 'combat.action': {
+      const res = p as unknown as CombatActionResult
+      let characters = base.characters
+      let creatures = base.creatures
+      for (const t of res.targets ?? []) {
+        if (t.card) characters = upsert(characters, t.card)
+        if (t.creature) creatures = upsert(creatures, t.creature)
+      }
+      const combat = mergeCombat(
+        base.combat,
+        (res.targets ?? []).map((t) => ({ id: t.combatant_id, card: t.card, creature: t.creature })),
+      )
+      return { ...base, characters, creatures, combat }
+    }
+
+    default:
+      // dice.*, content.*, combat.action_reverted, item.transferred, currency.transferred,
+      // noop: меняют только журнал и анимации (см. describeEvent / подписчиков)
+      return base
+  }
+}
+
+/* ---------- журнал ---------- */
+
+const nameOf = (state: RoomData, id: string | null | undefined): string => {
+  if (!id) return ''
+  const card = state.characters.find((c) => c.id === id)
+  if (card) return card.name
+  const m = state.members.find((x) => x.user_id === id || x.room_character_id === id)
+  return m?.display_name || m?.nickname || ''
+}
+
+const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
+
+export function rollSummary(r: DiceRollEvent): string {
+  const parts = r.dice.map((d) => `${d.sign < 0 ? '−' : ''}${d.rolls.length}к${d.sides} [${d.rolls.join(', ')}]`)
+  return `${parts.join(' + ')}${r.modifier ? ` ${signed(r.modifier)}` : ''} = ${r.total}`
+}
+
+/** Что показать в общем журнале; null — событие в журнал не идёт */
+export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEntry | null {
+  const p = (msg.payload ?? {}) as P
+  const key = `${msg.seq ?? `t${msg.ts ?? ''}`}:${msg.type}`
+  const base = { key, seq: msg.seq, ts: msg.ts ?? new Date().toISOString(), type: msg.type }
+  const who = msg.actor?.label ?? null
+
+  switch (msg.type) {
+    case 'dice.rolled': {
+      const roll = p as unknown as RollPayload
+      if (isEngineRoll(roll)) {
+        return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `${roll.label}: ${roll.engine.dice} [${roll.engine.rolls.join(', ')}] = ${roll.engine.total}` }
+      }
+      return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `${roll.label || roll.expression}: ${rollSummary(roll)}`, roll }
+    }
+    case 'item.issued': {
+      if (p.item) {
+        const it = p.item as RoomItem
+        const name = it.equipment?.equipment_name ?? it.magic_item?.item_name ?? 'предмет'
+        return { ...base, kind: 'item', who, text: `${it.holder === 'screen' ? 'За ширму' : 'На стол'}: ${name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}` }
+      }
+      return { ...base, kind: 'item', who, text: `${nameOf(state, p.character_id) || 'Персонаж'} получает ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''}` }
+    }
+    case 'item.claimed':
+      return { ...base, kind: 'item', who: p.character_name, text: `забирает ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''} со стола` }
+    case 'item.transferred':
+      return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
+    case 'item.taken_back':
+      return { ...base, kind: 'item', who, text: p.from === 'table' ? 'Предмет убран со стола' : `Мастер забирает ${p.name ?? 'предмет'}` }
+    case 'currency.transferred': {
+      const amount = Object.entries(p.amount ?? {}).map(([k, v]) => `${v} ${k}`).join(', ')
+      return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${amount}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
+    }
+    case 'combat.started':
+      return { ...base, kind: 'combat', who, text: 'Бой начался' }
+    case 'combat.ended':
+      return { ...base, kind: 'combat', who, text: 'Бой окончен' }
+    case 'combat.turn': {
+      const v = p as unknown as CombatView
+      const cur = v.combatants?.find((c) => c.id === v.current_combatant_id)
+      const cr = cur?.creature
+      const name = cur?.card?.name ?? (cr ? ('snapshot' in cr ? cr.display_name : cr.name) : '')
+      return name ? { ...base, kind: 'combat', who, text: `Ход: ${name} (раунд ${v.round})` } : null
+    }
+    case 'combat.action': {
+      const a = p as unknown as CombatActionResult
+      if (a.secret) return { ...base, kind: 'combat', who, text: 'Скрытое действие' }
+      const unit = (id: string) => {
+        const c = state.combat?.combatants.find((x) => x.id === id)
+        const cr = c?.creature
+        return c?.card?.name ?? (cr ? ('snapshot' in cr ? cr.display_name : cr.name) : 'цель')
+      }
+      const parts = (a.targets ?? []).map((t) => {
+        const dmg = t.damage.reduce((sum, d) => sum + (d.taken ?? d.amount ?? d.roll.total), 0)
+        const res = t.attack ? (t.crit ? 'крит' : t.hit ? 'попал' : 'промах') : t.save ? (t.saved ? 'спас' : 'провал') : ''
+        return `${unit(t.combatant_id)}${res ? ` (${res})` : ''}${dmg > 0 && (t.hit || !t.attack) ? ` −${dmg}` : ''}${t.healed ? ` +${t.healed}` : ''}`
+      })
+      const head = `${unit(a.actor_combatant_id)}: ${a.label || 'действие'}`
+      return { ...base, kind: 'combat', who, text: parts.length ? `${head} → ${parts.join(', ')}` : head }
+    }
+    case 'member.approved':
+      return { ...base, kind: 'member', who: p.card?.name, text: 'вступает в партию' }
+    case 'member.left':
+      return { ...base, kind: 'member', who, text: 'покидает партию' }
+    case 'member.kicked':
+      return { ...base, kind: 'member', who, text: 'исключён из комнаты' }
+    case 'room.status':
+      return { ...base, kind: 'room', who, text: `Статус комнаты: ${statusRu(p.status)}` }
+    case 'character.updated':
+      return p.label ? { ...base, kind: 'room', who: p.card?.name, text: String(p.label) } : null
+    default:
+      return null
+  }
+}
+
+export const statusRu = (s: string): string =>
+  ({ lobby: 'сбор', active: 'идёт игра', paused: 'перерыв', closed: 'закрыта' })[s] ?? s
+
+/** Добавить запись в журнал без дубликатов; старейшие обрезаем */
+export function pushLog(state: RoomData, entry: RoomLogEntry): RoomData {
+  if (state.log.some((e) => e.key === entry.key)) return state
+  const log = [...state.log, entry]
+  return { ...state, log: log.length > LOG_LIMIT ? log.slice(log.length - LOG_LIMIT) : log }
+}
+
+export type { RoomCreature }

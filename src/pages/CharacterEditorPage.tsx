@@ -42,7 +42,9 @@ import { SheetEditor } from '../characters/SheetEditor'
 import { sheetPlayFromServer } from '../characters/sheetPlay'
 import { buildSheetView, valuesOf } from '../characters/sheetView'
 import { useCharacterEngine } from '../characters/useCharacterEngine'
-import type { HudControls } from '../characters/GameHud'
+import { useRoomOptional } from '../rooms/RoomProvider'
+import { syncRoomInventory } from '../rooms/inventorySync'
+import type { HudControls, HudExtra } from '../characters/GameHud'
 import { useAppShell } from '../shell'
 import { useNames } from '../characters/useNames'
 import { WorldBackdrop } from '../creatureSheet'
@@ -59,14 +61,47 @@ const VISIBILITY: Record<CharacterVisibility, { icon: LucideIcon; label: string 
 /** Сколько держится тост «Сделано · Отменить» */
 const TOAST_MS = 7000
 
+/** Лист героя, играемый внутри комнаты */
+export interface RoomLiveContext {
+  roomId: string
+  /** мастер комнаты: действует за любого и правит лист целиком */
+  isDm: boolean
+  /** id персонажа-источника: по нему каталог движка подписывает способности */
+  sourceCharacterId?: string | null
+  /** куда ведёт «назад» и как подписана ссылка */
+  backTo: { to: string; label: string }
+  /** окна и пункты меню экрана героя на телефоне (партия, стол) */
+  hudExtra?: HudExtra
+  /** действия с предметами и монетами героя: диалоги открывает комната */
+  items?: {
+    onTransfer: (item: InventoryItemInstance) => void
+    onDropToTable: (item: InventoryItemInstance) => void
+    onTransferCoins: () => void
+  }
+}
+
+export interface LiveCharacterProps {
+  /** id персонажа или база пути копии в комнате (api.ts, CharacterRef) */
+  characterRef: string
+  tab: SheetTab
+  onTab: (t: SheetTab) => void
+  room?: RoomLiveContext
+}
+
+/** Страница /characters/:id: открытая вкладка листа живёт в адресе, чтобы её можно было переслать */
 export default function CharacterEditorPage() {
   const { id } = useParams<{ id: string }>()
-  // открытая страница листа — в адресе, чтобы её можно было переслать и обновить
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as SheetTab | null) ?? 'main'
   const setTab = (t: SheetTab) => setParams(t === 'main' ? {} : { tab: t }, { replace: true })
+  if (!id) return null
+  return <LiveCharacter key={id} characterRef={id} tab={tab} onTab={setTab} />
+}
+
+export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCharacterProps) {
   const { user, ready } = useAuth()
-  const eng = useCharacterEngine(id)
+  const roomCtx = useRoomOptional()
+  const eng = useCharacterEngine(characterRef)
   const { character, sheet } = eng
   const { names, races, classes } = useNames(character)
   const [dict, setDict] = useState<EngineDictionaries | null>(null)
@@ -89,10 +124,12 @@ export default function CharacterEditorPage() {
   // набор способностей поменялся (уровень, выбор, предмет) — подписи перечитываем
   const abilityKey = sheet?.abilities.map((a) => a.slug).join(',') ?? ''
   const characterId = character?.id
+  const sourceId = room ? (character as { source_character_id?: string } | null)?.source_character_id : undefined
   useEffect(() => {
     if (!characterId || !abilityKey) return
     let alive = true
-    getEngineCatalog(characterId)
+    // у копии в комнате подписи способностей берём по её источнику: каталог знает его набор
+    getEngineCatalog(room?.sourceCharacterId ?? sourceId ?? characterId)
       .then((c) => {
         if (!alive) return
         setLabels(c.labels)
@@ -102,11 +139,22 @@ export default function CharacterEditorPage() {
     return () => {
       alive = false
     }
-  }, [characterId, abilityKey])
+  }, [characterId, abilityKey, room?.sourceCharacterId, sourceId])
 
   // свой лист — играть и сохранять; админ видит и меняет всё
-  const admin = user?.role === 'admin'
+  // в комнате мастер действует как админ: за любого игрока и с правкой листа
+  const admin = user?.role === 'admin' || !!room?.isDm
   const owner = !!character && !!user && (admin || character.player_id === user.id)
+  // копию в комнате игрок правит ограниченно: числа, уровень и состав способностей — мастер
+  const canEditSheet = room ? room.isDm : owner
+
+  // лист изменили на сервере (мастер, другой клиент): комната сообщает новую ревизию
+  const roomRev = room && character ? roomCtx?.data?.sheetRev[character.id] : undefined
+  const { reload } = eng
+  const sheetRevision = sheet?.revision ?? 0
+  useEffect(() => {
+    if (roomRev != null && roomRev > sheetRevision) void reload()
+  }, [roomRev, sheetRevision, reload])
 
   const view = useMemo(
     () => (character && sheet ? buildSheetView(character, sheet, names, dict, labels) : null),
@@ -149,17 +197,25 @@ export default function CharacterEditorPage() {
         ...(next.personality !== view.personality ? { personality: next.personality } : {}),
         ...(next.backstory !== view.backstory ? { backstory: next.backstory } : {}),
         ...(next.notes !== view.notes ? { notes: next.notes } : {}),
-        ...(next.inventory.currency !== view.inventory.currency
+        ...(next.inventory.currency !== view.inventory.currency && (!room || room.isDm)
           ? { inventory: { ...c.inventory, currency: next.inventory.currency } }
           : {}),
       }))
     },
-    [view, patchDoc],
+    [view, patchDoc, room],
   )
 
   /** Инвентарь: монеты из контейнера — в кошелёк; КД и умения предметов пересчитает сервер */
   const onInventory = useCallback(
-    (items: InventoryItemInstance[], coins?: Partial<Record<keyof SheetView['inventory']['currency'], number>>) =>
+    (items: InventoryItemInstance[], coins?: Partial<Record<keyof SheetView['inventory']['currency'], number>>) => {
+      if (room && character) {
+        // копия в комнате: владелец не может править инвентарь через PATCH персонажа,
+        // перемещения и «надето» идут на маршруты предметов; сначала показываем сразу
+        const before = character.inventory.items
+        eng.patchLocal((c) => ({ ...c, inventory: { ...c.inventory, items } }))
+        void syncRoomInventory(room.roomId, character.id, before, items, { canRemove: room.isDm }).finally(() => void reload())
+        return
+      }
       patchDoc((c) => {
         const currency = { ...c.inventory.currency }
         for (const [k, v] of Object.entries(coins ?? {})) currency[k as keyof typeof currency] += v ?? 0
@@ -170,8 +226,9 @@ export default function CharacterEditorPage() {
           inventory: { ...c.inventory, items, currency },
           ...(attacks.length !== c.attacks.length ? { attacks } : {}),
         }
-      }),
-    [patchDoc],
+      })
+    },
+    [patchDoc, room, character, eng, reload],
   )
 
   const fallbackPortrait = useMemo(() => {
@@ -185,8 +242,8 @@ export default function CharacterEditorPage() {
     return (
       <section className="cw cw-live">
         <p className="auth-error">{eng.loadError}</p>
-        <Link to="/characters" className="cs-btn">
-          К списку
+        <Link to={room?.backTo.to ?? '/characters'} className="cs-btn">
+          {room ? room.backTo.label : 'К списку'}
         </Link>
       </section>
     )
@@ -274,7 +331,7 @@ export default function CharacterEditorPage() {
   const StatusIcon = status?.icon
   const flow = eng.flow
   const banner = eng.conflict ?? eng.notice
-  const canCopy = ready && !owner
+  const canCopy = ready && !owner && !room
 
   /** Чужой лист целиком — новый персонаж текущего игрока */
   const copyToMe = async () => {
@@ -352,6 +409,8 @@ export default function CharacterEditorPage() {
     decisionCount: sheet.pending_decisions.length,
     onJournal: owner ? () => setJournalOpen(true) : undefined,
     onLongRest: owner ? longRest : undefined,
+    backTo: room?.backTo,
+    extra: room?.hudExtra,
     status: statusNode || undefined,
     menu: (
       <>
@@ -364,19 +423,23 @@ export default function CharacterEditorPage() {
             {copyError && <span className="cw-save cw-save--error">{copyError}</span>}
           </>
         )}
-        {owner && (
+        {owner && !room && (
+          <button
+            type="button"
+            className="hud-menu-item"
+            onClick={() => navigate(`/characters/${character.id}/level-up`)}
+            disabled={eng.busy || view.basic_info.total_level >= 20}
+          >
+            <GraduationCap aria-hidden="true" /> Новый уровень
+          </button>
+        )}
+        {canEditSheet && (
+          <button type="button" className="hud-menu-item" onClick={() => setEditOpen(true)}>
+            <PencilLine aria-hidden="true" /> Правка листа
+          </button>
+        )}
+        {owner && !room && (
           <>
-            <button
-              type="button"
-              className="hud-menu-item"
-              onClick={() => navigate(`/characters/${character.id}/level-up`)}
-              disabled={eng.busy || view.basic_info.total_level >= 20}
-            >
-              <GraduationCap aria-hidden="true" /> Новый уровень
-            </button>
-            <button type="button" className="hud-menu-item" onClick={() => setEditOpen(true)}>
-              <PencilLine aria-hidden="true" /> Правка листа
-            </button>
             <div className="hud-menu-vis" role="group" aria-label="Кто видит лист">
               <span>Кто видит лист</span>
               <div>
@@ -406,8 +469,8 @@ export default function CharacterEditorPage() {
     <section className={`cw cw-live${pic.background ? ' has-world' : ''}`}>
       {!hudMode && pic.background && <WorldBackdrop key={pic.background} art={pic.background} />}
       {!hudMode && <header className="cw-live-top">
-        <Link to="/characters" className="back-link back-link--btn">
-          <ChevronLeft aria-hidden="true" /> к персонажам
+        <Link to={room?.backTo.to ?? '/characters'} className="back-link back-link--btn">
+          <ChevronLeft aria-hidden="true" /> {room ? room.backTo.label : 'к персонажам'}
         </Link>
         <div className="cw-live-actions">
           {status && StatusIcon && (
@@ -432,6 +495,7 @@ export default function CharacterEditorPage() {
           )}
           {owner && (
             <>
+              {!room && (
               <label className="cw-vis" title={vis.label}>
                 <VisIcon aria-hidden="true" />
                 <select
@@ -446,6 +510,7 @@ export default function CharacterEditorPage() {
                   ))}
                 </select>
               </label>
+              )}
               <span className="cw-live-group" role="group" aria-label="Отдых и журнал">
                 <button type="button" className="cw-mini-btn" onClick={() => setRestOpen(true)} disabled={eng.busy} title="Кости хитов, ресурсы короткого отдыха">
                   <Coffee aria-hidden="true" /> короткий отдых
@@ -457,17 +522,21 @@ export default function CharacterEditorPage() {
                   <ScrollText aria-hidden="true" /> журнал
                 </button>
               </span>
-              <button
-                type="button"
-                className="cs-btn"
-                onClick={() => navigate(`/characters/${character.id}/level-up`)}
-                disabled={eng.busy || view.basic_info.total_level >= 20}
-              >
-                <GraduationCap aria-hidden="true" /> Новый уровень
-              </button>
-              <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
-                <PencilLine aria-hidden="true" /> Правка листа
-              </button>
+              {!room && (
+                <button
+                  type="button"
+                  className="cs-btn"
+                  onClick={() => navigate(`/characters/${character.id}/level-up`)}
+                  disabled={eng.busy || view.basic_info.total_level >= 20}
+                >
+                  <GraduationCap aria-hidden="true" /> Новый уровень
+                </button>
+              )}
+              {canEditSheet && (
+                <button type="button" className="cs-btn" onClick={() => setEditOpen(true)}>
+                  <PencilLine aria-hidden="true" /> Правка листа
+                </button>
+              )}
             </>
           )}
         </div>
@@ -506,8 +575,9 @@ export default function CharacterEditorPage() {
         fallbackPortrait={fallbackPortrait}
         play={play}
         onPatch={owner ? sheetPatch : undefined}
-        onPortraitClick={owner ? () => setEditOpen(true) : undefined}
+        onPortraitClick={canEditSheet ? () => setEditOpen(true) : undefined}
         onInventory={owner ? onInventory : () => {}}
+        roomMode={room ? { isDm: room.isDm, ...room.items } : undefined}
         engine={engineView}
         stage={stage}
         serverLog={eng.outcome}
@@ -540,7 +610,7 @@ export default function CharacterEditorPage() {
       )}
       {journalOpen && (
         <JournalDrawer
-          characterId={character.id}
+          characterId={characterRef}
           revision={sheet.revision}
           canUndo={owner}
           onUndo={(eventId) => void eng.undo(eventId)}
@@ -549,7 +619,7 @@ export default function CharacterEditorPage() {
       )}
       {hpJournalOpen && (
         <JournalModal
-          characterId={character.id}
+          characterId={characterRef}
           revision={sheet.revision}
           canUndo={owner}
           onUndo={(eventId) => void eng.undo(eventId)}

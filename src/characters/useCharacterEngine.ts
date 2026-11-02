@@ -6,6 +6,9 @@
  * уровень, решения, отмена — выполняет сервер и возвращает новый лист; клиент
  * его только заменяет. Если ревизию персонажа успели поменять с другого
  * устройства (409), лист перезапрашивается и действие предлагается повторить.
+ *
+ * Аргумент — ссылка на персонажа (api.ts, CharacterRef): обычный id или база
+ * пути копии в комнате (`/rooms/{rid}/characters/{cid}`). Маршруты листа там те же.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -93,6 +96,9 @@ export interface Outcome {
 const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Ошибка сервера')
 
 export function useCharacterEngine(id: string | undefined) {
+  const ref = id ?? ''
+  const refLatest = useRef(ref)
+  refLatest.current = ref
   const [character, setCharacter] = useState<Character | null>(null)
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -165,12 +171,12 @@ export function useCharacterEngine(id: string | undefined) {
     setSaveState('saving')
     setSaveError(null)
     try {
-      const saved = await updateCharacter(c.id, body)
+      const saved = await updateCharacter(ref, body)
       // правки, сделанные пока шёл запрос, поверх ответа
       setCharacter({ ...saved, ...pendingPatch.current } as Character)
       setSaveState(Object.keys(pendingPatch.current).length ? 'pending' : 'saved')
       if (Object.keys(body).some((k) => !TEXT_FIELDS.has(k as keyof Character))) {
-        setSheet(await getSheet(c.id))
+        setSheet(await getSheet(ref))
       }
     } catch (e) {
       pendingPatch.current = { ...body, ...pendingPatch.current }
@@ -183,7 +189,7 @@ export function useCharacterEngine(id: string | undefined) {
       setSaveState('error')
       setSaveError(errorText(e))
     }
-  }, [onConflict])
+  }, [onConflict, ref])
 
   /** Правка документа: сразу в состоянии, на сервер — с задержкой одним PATCH */
   const patchDoc = useCallback(
@@ -202,6 +208,15 @@ export function useCharacterEngine(id: string | undefined) {
     [flush],
   )
 
+  /** Показать правку сразу, не отправляя PATCH: её применяют отдельными маршрутами (инвентарь в комнате) */
+  const patchLocal = useCallback((fn: (c: Character) => Character) => {
+    const prev = latest.current
+    if (!prev) return
+    const next = fn(prev)
+    latest.current = next
+    setCharacter(next)
+  }, [])
+
   // уход со страницы не теряет последнюю правку
   useEffect(() => {
     const onUnload = (e: BeforeUnloadEvent) => {
@@ -212,7 +227,7 @@ export function useCharacterEngine(id: string | undefined) {
       window.removeEventListener('beforeunload', onUnload)
       if (saveTimer.current) clearTimeout(saveTimer.current)
       const c = latest.current
-      if (c && Object.keys(pendingPatch.current).length) void updateCharacter(c.id, pendingPatch.current).catch(() => {})
+      if (c && Object.keys(pendingPatch.current).length) void updateCharacter(refLatest.current, pendingPatch.current).catch(() => {})
     }
   }, [])
 
@@ -299,7 +314,7 @@ export function useCharacterEngine(id: string | undefined) {
     [onConflict],
   )
 
-  const cid = character?.id ?? ''
+  const cid = ref
 
   const action = useCallback(
     (grantId: string, key: string, title: string) => startFlow(title, (inputs) => runAction(cid, grantId, key, inputs)),
@@ -425,6 +440,7 @@ export function useCharacterEngine(id: string | undefined) {
     retrySave: flush,
     reload,
     patchDoc,
+    patchLocal,
     action,
     decide,
     answer,

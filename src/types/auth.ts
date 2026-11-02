@@ -20,6 +20,8 @@ export type UserMe = {
   nickname: string
   display_name: string
   avatar_url: string | null
+  /** показывать картинку своего персонажа (только в /auth/me) */
+  avatar_character_id?: string | null
   bio: string
   role: UserRole
   is_active: boolean
@@ -58,6 +60,7 @@ export type LoginBody = {
 export type PatchMeBody = {
   display_name?: string
   avatar_url?: string | null
+  avatar_character_id?: string | null
   bio?: string
   preferences?: Partial<UserPreferences> & {
     dice?: Partial<DicePreferences>

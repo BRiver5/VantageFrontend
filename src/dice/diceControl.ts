@@ -46,6 +46,73 @@ export async function rollDice(notation: string): Promise<number[]> {
   }
 }
 
+/* ---------- кости с заданным исходом (комнаты) ---------- */
+
+export interface ForcedDie {
+  sides: number
+  /** значение, которое сервер уже выбросил */
+  value: number
+}
+export interface ForcedRoll {
+  dice: ForcedDie[]
+  /** цвет корпуса бросившего; цвет цифр и акцент в текстуре темы, на бросок не меняются */
+  themeColor?: string
+}
+type ForcedRoller = (roll: ForcedRoll) => Promise<number[]>
+
+const FORCED_TIMEOUT_MS = 12000
+
+let forcedRoller: ForcedRoller | null = null
+/** Очередь: чужие броски катятся по одному и не стирают друг друга со сцены */
+let forcedQueue: Promise<unknown> = Promise.resolve()
+
+/** Вызывается из DiceRoller; возвращает отписку */
+export function registerForcedRoller(fn: ForcedRoller): () => void {
+  forcedRoller = fn
+  return () => {
+    if (forcedRoller === fn) forcedRoller = null
+  }
+}
+
+/**
+ * Показать на 3D-костях бросок, значения которого уже известны. Возвращает
+ * значения, которые кубики показали на самом деле (для проверки).
+ */
+export function playForcedRoll(roll: ForcedRoll): Promise<number[]> {
+  const run = () => {
+    if (!forcedRoller) return Promise.reject(new Error('Кости недоступны'))
+    // зависший бросок (скрытая вкладка не рисует кадры) не должен держать очередь
+    return Promise.race([
+      forcedRoller(roll),
+      new Promise<number[]>((_, reject) => setTimeout(() => reject(new Error('Бросок не завершился')), FORCED_TIMEOUT_MS)),
+    ])
+  }
+  const p = forcedQueue.then(run, run)
+  forcedQueue = p.catch(() => undefined)
+  return p
+}
+
+/* ---------- режим комнаты: бросает сервер ---------- */
+
+export interface RoomRollRequest {
+  expression: string
+  label?: string
+  mode?: 'adv' | 'dis' | null
+}
+/** Пока комната открыта, лоток костей шлёт броски на сервер вместо локального броска */
+type RoomRollHandler = (req: RoomRollRequest) => Promise<void>
+
+let roomHandler: RoomRollHandler | null = null
+
+/** Вызывается мостом комнаты; возвращает отписку */
+export function setRoomRollHandler(fn: RoomRollHandler | null): () => void {
+  roomHandler = fn
+  return () => {
+    if (roomHandler === fn) roomHandler = null
+  }
+}
+export const getRoomRollHandler = () => roomHandler
+
 export interface DiceApi {
   /** Бросок в процессе — кнопки должны блокироваться */
   rolling: boolean
@@ -55,4 +122,9 @@ export interface DiceApi {
 export function useDice(): DiceApi {
   const isRolling = useSyncExternalStore(subscribe, () => rolling)
   return { rolling: isRolling, roll: rollDice }
+}
+
+// Крюк для проверок в браузере: только в dev или в тестовой сборке (VITE_DICE_TEST_HOOK=1)
+if ((import.meta.env.DEV || import.meta.env.VITE_DICE_TEST_HOOK) && typeof window !== 'undefined') {
+  Object.assign(window, { __playForcedRoll: playForcedRoll })
 }

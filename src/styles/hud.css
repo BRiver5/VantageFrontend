@@ -1991,3 +1991,20 @@ html[data-rotate] .dice-dock {
     font-size: 0.9rem;
   }
 }
+
+/* число на значке раздела комнаты (заявки, предметы на столе) */
+.ghud-rail-sign em {
+  position: absolute;
+  top: calc(var(--u) * -3);
+  right: calc(var(--u) * -5);
+  min-width: calc(var(--u) * 15);
+  padding: 0 calc(var(--u) * 3);
+  border-radius: 999px;
+  background: var(--gold-3);
+  color: var(--bg-0);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  font-weight: 700;
+  line-height: calc(var(--u) * 15);
+  text-align: center;
+}
