@@ -5,34 +5,34 @@
  * то, что принадлежит мастеру: состав инвентаря, кошелёк, уровень.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Backpack, LogOut, Skull, Swords, Users } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Hexagon, LogOut, Swords } from 'lucide-react'
 import { getCharacter, roomCharacterRef, type Currency } from '../api'
 import type { SheetTab } from '../characters/CharacterSheet'
 import type { HudExtra } from '../characters/GameHud'
 import { LiveCharacter } from '../pages/CharacterEditorPage'
-import { PartyPanel } from './Lobby'
-import { TablePanel, TransferCoinsDialog, TransferItemDialog, dropToTable } from './Items'
-import { CombatStage } from './Combat'
-import { CreaturesPanel } from './Creatures'
+import { TransferCoinsDialog, TransferItemDialog, dropToTable } from './Items'
 import { useRoom } from './RoomProvider'
 import { RoomLog } from './RoomLog'
 import type { InventoryItemInstance } from '../types/character'
 
-/** Окна и меню экрана героя на телефоне: партия и журнал комнаты */
-function useHudExtra(characterId: string): HudExtra {
-  const { data } = useRoom()
+/** Экран героя на телефоне: кнопка обратно к столу (или в бой), меню и общий журнал */
+function useHudExtra(): HudExtra {
+  const { data, roomId } = useRoom()
+  const navigate = useNavigate()
   const rolls = data?.log.filter((e) => e.kind === 'roll').length ?? 0
   const onTable = data?.items.filter((i) => i.holder === 'table').length ?? 0
   const inCombat = !!data?.combat && data.combat.status !== 'ended'
-  const creatures = data?.creatures.length ?? 0
   return useMemo<HudExtra>(
     () => ({
       windows: [
-        ...(inCombat ? [{ id: 'combat', label: 'Схватка', icon: Swords, body: <CombatStage bare /> }] : []),
-        { id: 'party', label: 'Партия', icon: Users, body: <PartyPanel /> },
-        { id: 'table', label: 'Стол', icon: Backpack, badge: onTable || undefined, body: <TablePanel characterId={characterId} bare /> },
-        ...(creatures > 0 ? [{ id: 'creatures', label: 'Существа', icon: Skull, badge: creatures, body: <CreaturesPanel bare /> }] : []),
+        {
+          id: 'table',
+          label: inCombat ? 'Схватка' : 'Стол',
+          icon: inCombat ? Swords : Hexagon,
+          badge: (!inCombat && onTable) || undefined,
+          onOpen: () => navigate(`/rooms/${roomId}`),
+        },
       ],
       menu: (
         <Link to="/rooms" className="hud-menu-item">
@@ -42,7 +42,7 @@ function useHudExtra(characterId: string): HudExtra {
       rollLog: <RoomLog bare limit={40} />,
       rollCount: rolls,
     }),
-    [rolls, onTable, characterId, inCombat, creatures],
+    [rolls, onTable, inCombat, navigate, roomId],
   )
 }
 
@@ -50,7 +50,7 @@ function useHudExtra(characterId: string): HudExtra {
 export function RoomHero({ characterId }: { characterId: string }) {
   const { roomId, isDm } = useRoom()
   const [tab, setTab] = useState<SheetTab>('main')
-  const hudExtra = useHudExtra(characterId)
+  const hudExtra = useHudExtra()
   const [transfer, setTransfer] = useState<InventoryItemInstance | null>(null)
   const [coins, setCoins] = useState(false)
   const [dropError, setDropError] = useState<string | null>(null)
@@ -58,7 +58,7 @@ export function RoomHero({ characterId }: { characterId: string }) {
     () => ({
       roomId,
       isDm,
-      backTo: { to: `/rooms/${roomId}`, label: 'к комнате' },
+      backTo: { to: `/rooms/${roomId}`, label: 'К столу' },
       hudExtra,
       items: {
         onTransfer: (item: InventoryItemInstance) => setTransfer(item),

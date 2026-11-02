@@ -8,15 +8,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { Dices, GripHorizontal, LayoutGrid, Lock, Pencil, Plus, ScrollText, Swords, Trash2, Users, Volume2, Package, Map as MapIcon, NotebookPen, Skull } from 'lucide-react'
 import { ApiError } from '../api'
 import type { DashboardWidget, WidgetType } from '../types/rooms'
-import { CombatStage } from './Combat'
-import { CreaturesPanel } from './Creatures'
 import { HeroCardLine } from './Lobby'
 import { RoomLog } from './RoomLog'
 import { useRoomRoll } from './RoomDice'
-import { TablePanel } from './Items'
 import { useRoom } from './RoomProvider'
 import { getDashboard, saveDashboard } from './roomsApi'
-import { MapsPanel, NotesPanel } from './Screen'
+import { CreatureCard, LootCard } from './table/Cards'
+import { LeafMaps, LeafNotes } from './table/DmScreen'
+import { creatureArt, creatureHp, creatureName, Hex, itemName, itemArt, originFromEvent, type Origin } from './table/parts'
 
 const COLS = 12
 const ROW_H = 72
@@ -92,11 +91,69 @@ function DiceWidget() {
   )
 }
 
+/** Жетоны существ: нажатие открывает ту же карту, что и на столе */
+function CreaturesWidget() {
+  const { data } = useRoom()
+  const [open, setOpen] = useState<{ id: string; origin: Origin } | null>(null)
+  if (!data || data.creatures.length === 0) return <p className="tb-hint">Существ пока нет.</p>
+  return (
+    <div className="sc-tokens">
+      {data.creatures.map((c) => (
+        <button key={c.id} type="button" className="sc-token" onClick={(e) => setOpen({ id: c.id, origin: originFromEvent(e) })}>
+          <Hex plain={creatureArt(c)} name={creatureName(c)} ratio={creatureHp(c).ratio} tone="enemy" />
+          <b>{creatureName(c)}</b>
+        </button>
+      ))}
+      {open && <CreatureCard id={open.id} origin={open.origin} onClose={() => setOpen(null)} />}
+    </div>
+  )
+}
+
+/** Предметы на столе и за ширмой */
+function ItemsWidget() {
+  const { data } = useRoom()
+  const [open, setOpen] = useState<{ id: string; origin: Origin } | null>(null)
+  const items = data?.items ?? []
+  const openItem = open ? items.find((i) => i.id === open.id) : null
+  if (items.length === 0) return <p className="tb-hint">На столе и за ширмой пусто.</p>
+  return (
+    <div className="sc-behind is-column">
+      {items.map((it) => (
+        <button key={it.id} type="button" className="sc-mini-item" onClick={(e) => setOpen({ id: it.id, origin: originFromEvent(e) })}>
+          {itemArt(it) ? <img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
+          {itemName(it)}
+          {it.quantity > 1 && <em>×{it.quantity}</em>}
+          <small>{it.holder === 'table' ? 'на столе' : 'за ширмой'}</small>
+        </button>
+      ))}
+      {openItem && open && <LootCard item={openItem} origin={open.origin} canClaim={false} onClaim={() => {}} onClose={() => setOpen(null)} />}
+    </div>
+  )
+}
+
+/** Порядок хода одной строкой */
+function InitiativeWidget() {
+  const { data } = useRoom()
+  const combat = data?.combat
+  if (!combat || combat.status === 'ended') return <p className="tb-hint">Боя нет.</p>
+  return (
+    <ol className="sc-init">
+      {combat.combatants.map((c) => (
+        <li key={c.id} className={c.id === combat.current_combatant_id ? 'is-now' : ''}>
+          {c.card ? <Hex raw={c.card.avatar_url} name={c.card.name} /> : c.creature ? <Hex plain={creatureArt(c.creature)} name={creatureName(c.creature)} tone="enemy" /> : null}
+          <b>{c.card?.name ?? (c.creature ? creatureName(c.creature) : 'Участник')}</b>
+          <i>{c.initiative ?? '—'}</i>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function WidgetBody({ type }: { type: WidgetType }): ReactNode {
   const { data } = useRoom()
   switch (type) {
     case 'notes':
-      return <NotesPanel bare />
+      return <LeafNotes />
     case 'party':
       return data && data.characters.length > 0 ? (
         <ul className="rm-dash-party">
@@ -107,26 +164,22 @@ function WidgetBody({ type }: { type: WidgetType }): ReactNode {
           ))}
         </ul>
       ) : (
-        <p className="rm-hint">В партии пока никого.</p>
+        <p className="tb-hint">В партии пока никого.</p>
       )
     case 'initiative':
-      return data?.combat ? <CombatStage bare /> : <p className="rm-hint">Боя нет. Начните его во вкладке «Существа».</p>
+      return <InitiativeWidget />
     case 'creatures':
-      return <CreaturesPanel bare />
+      return <CreaturesWidget />
     case 'quick_items':
-      return <TablePanel characterId={null} bare />
+      return <ItemsWidget />
     case 'quick_maps':
-      return <MapsPanel bare onlyQuick />
+      return <LeafMaps onlyQuick />
     case 'dice':
       return <DiceWidget />
     case 'log':
       return <RoomLog bare limit={60} />
     case 'soundboard':
-      return (
-        <p className="rm-hint">
-          <Volume2 aria-hidden="true" /> Звуки и музыка появятся позже — место под них уже готово.
-        </p>
-      )
+      return <p className="tb-hint">Звуки и музыка появятся позже: место под них уже готово.</p>
   }
 }
 

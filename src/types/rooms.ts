@@ -517,7 +517,8 @@ export interface CreaturePatchBody {
 export interface CombatStartBody {
   character_ids?: string[]
   creature_ids?: string[]
-  hidden_creatures?: string[]
+  /** один флаг на всех существ запроса; смешанный состав — через POST /combatants */
+  hidden_creatures?: boolean
   map_id?: string | null
 }
 

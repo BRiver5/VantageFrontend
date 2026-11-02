@@ -75,7 +75,8 @@ const RAIL: { id: HudTab; label: string; icon: LucideIcon }[] = [
 /** Что страница героя отдаёт экрану: уведомления, выборы, меню и отдых */
 /** Что добавляет комната к экрану героя: свои окна в панели, пункты меню и журнал */
 export interface HudExtra {
-  windows: { id: string; label: string; icon: LucideIcon; badge?: number; body: ReactNode }[]
+  /** body — окно на экране героя; onOpen — кнопка просто уводит с экрана */
+  windows: { id: string; label: string; icon: LucideIcon; badge?: number; body?: ReactNode; onOpen?: () => void }[]
   menu?: ReactNode
   /** вместо истории своих бросков — общий журнал комнаты */
   rollLog?: ReactNode
@@ -104,7 +105,7 @@ export interface HudControls {
 
 /* ---------- просьба повернуть экран ---------- */
 
-export function RotateGate({ coarse }: { coarse: boolean }) {
+export function RotateGate({ coarse, text, backTo = '/characters', backLabel = 'К персонажам' }: { coarse: boolean; text?: string; backTo?: string; backLabel?: string }) {
   useEffect(() => {
     document.documentElement.dataset.rotate = '1'
     return () => {
@@ -129,10 +130,10 @@ export function RotateGate({ coarse }: { coarse: boolean }) {
         </g>
       </svg>
       <h2 className="gold-text">{coarse ? 'Поверните устройство' : 'Расширьте окно'}</h2>
-      <p>Лист героя создан для горизонтального экрана — так всё важное видно сразу, без прокрутки.</p>
+      <p>{text ?? 'Лист героя создан для горизонтального экрана — так всё важное видно сразу, без прокрутки.'}</p>
       {coarse && <p className="hud-rotate-hint">Не поворачивается? Проверьте, включён ли автоповорот экрана.</p>}
-      <Link to="/characters" className="hud-rotate-back">
-        К персонажам
+      <Link to={backTo} className="hud-rotate-back">
+        {backLabel}
       </Link>
     </div>
   )
@@ -733,13 +734,14 @@ export function GameHud({
             <i>{label}</i>
           </button>
         ))}
-        {extra?.windows.map(({ id, label, icon: Icon, badge }) => (
+        {extra?.windows.map(({ id, label, icon: Icon, badge, onOpen }) => (
           <button
             key={id}
             type="button"
             className={extraTab === id ? 'is-on' : ''}
             aria-pressed={extraTab === id}
             onClick={() => {
+              if (onOpen) return onOpen()
               onTab(null)
               setExtraTab(extraTab === id ? null : id)
             }}

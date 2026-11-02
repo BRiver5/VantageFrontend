@@ -61,6 +61,8 @@ export interface ForcedRoll {
 type ForcedRoller = (roll: ForcedRoll) => Promise<number[]>
 
 const FORCED_TIMEOUT_MS = 12000
+/** Для автотестов: какие броски запускались */
+let addForcedListener: ((roll: ForcedRoll) => void) | null = null
 
 let forcedRoller: ForcedRoller | null = null
 /** Очередь: чужие броски катятся по одному и не стирают друг друга со сцены */
@@ -79,6 +81,7 @@ export function registerForcedRoller(fn: ForcedRoller): () => void {
  * значения, которые кубики показали на самом деле (для проверки).
  */
 export function playForcedRoll(roll: ForcedRoll): Promise<number[]> {
+  addForcedListener?.(roll)
   const run = () => {
     if (!forcedRoller) return Promise.reject(new Error('Кости недоступны'))
     // зависший бросок (скрытая вкладка не рисует кадры) не должен держать очередь
@@ -126,5 +129,10 @@ export function useDice(): DiceApi {
 
 // Крюк для проверок в браузере: только в dev или в тестовой сборке (VITE_DICE_TEST_HOOK=1)
 if ((import.meta.env.DEV || import.meta.env.VITE_DICE_TEST_HOOK) && typeof window !== 'undefined') {
-  Object.assign(window, { __playForcedRoll: playForcedRoll })
+  const forcedLog: { at: number; dice: ForcedDie[] }[] = []
+  Object.assign(window, {
+    __forcedLog: forcedLog,
+    __playForcedRoll: playForcedRoll,
+  })
+  addForcedListener = (roll) => forcedLog.push({ at: Date.now(), dice: roll.dice })
 }

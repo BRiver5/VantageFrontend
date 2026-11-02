@@ -156,10 +156,10 @@ export function ContentPanel({ bare = false }: { bare?: boolean }) {
 
   return (
     <div className={bare ? 'rm-content-panel' : 'rm-panel rm-content-panel'}>
-      <h3 className="rm-panel-title">
-        <Presentation aria-hidden="true" /> Показать всем
+      <h3 className="sc-subtitle">
+        <Presentation aria-hidden="true" /> Показать картинку всем
       </h3>
-      <p className="rm-hint">Картинки сначала тихо загрузятся у всех, а потом появятся одновременно — без «у меня ещё грузится».</p>
+      <p className="tb-hint">Сначала она тихо загрузится у каждого, а появится у всех одновременно.</p>
       <Field label="Название (покажется над картинкой)">
         <input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} />
       </Field>
