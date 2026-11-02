@@ -42,9 +42,14 @@ const BACKOFF = [1000, 2000, 4000, 8000, 15000]
 /** Подряд столько неудач без единого hello — считаем сервер недоступным */
 const MAX_FAILS_BEFORE_FATAL = 12
 
+const PROD_WS_BASE = 'wss://vantage-api-production-0324.up.railway.app/api'
+
 export function wsBase(): string {
   const env = (import.meta.env.VITE_WS_BASE as string | undefined)?.replace(/\/+$/, '')
   if (env) return env
+  // На проде rewrite Vercel не проксирует WebSocket: без адреса сервера сокет не откроется
+  // и страница будет обновляться только перезагрузкой.
+  if (import.meta.env.PROD) return PROD_WS_BASE
   return `${location.origin.replace(/^http/, 'ws')}/api`
 }
 

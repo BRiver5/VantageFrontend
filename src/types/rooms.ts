@@ -60,7 +60,7 @@ export interface Room {
 }
 
 /** Строка списка GET /rooms */
-export type RoomListItem = Room & { my_status: MemberStatus; my_role: RoomRole }
+export type RoomListItem = Room & { my_status: MemberStatus; my_role: RoomRole; pending_requests?: number }
 
 export interface RoomMemberView {
   user_id: string

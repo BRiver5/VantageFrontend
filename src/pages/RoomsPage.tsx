@@ -1,10 +1,10 @@
 /**
  * Комнаты: список своих (мастер и игрок), создание и вход по коду.
  *
- * Пока заявка игрока не принята, сама комната отвечает 404 и сокет не
- * подключится, поэтому о принятии узнаём опросом списка: у комнаты с
- * `my_status: 'pending'` после принятия станет `approved`, а отклонённая заявка
- * просто пропадёт из списка — это и есть «отклонена».
+ * Пока заявка игрока не принята, сама комната отвечает 404 и её сокет не
+ * подключится, поэтому список живёт от личного канала /me/ws: по каждому его
+ * сообщению перечитываем GET /rooms. Опрос остаётся только страховкой на время,
+ * пока канал не открыт.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -13,11 +13,12 @@ import { ApiError, listMyCharacters, uploadMedia, imageVariant, type Character, 
 import { parsePortrait } from '../characters/portrait'
 import { useCatalogList } from '../create/useCatalog'
 import { SheetModal } from '../characters/SheetModal'
+import { useMyRoomsChannel, type RoomsChanged } from '../rooms/meSocket'
 import { createRoom, joinRoom, listRooms } from '../rooms/roomsApi'
 import { Field, ROLE_RU, StatusChip, RoomAvatar } from '../rooms/ui'
 import type { RoomListItem } from '../types/rooms'
 
-/** Как часто спрашиваем список, пока есть заявки без ответа */
+/** Как часто спрашиваем список, если личный канал не открыт и есть заявки без ответа */
 const POLL_MS = 6000
 
 /** 404 на корне /rooms — на сервере ещё нет комнат (бэкенд не обновлён) */
@@ -49,6 +50,11 @@ function RoomCard({ room }: { room: RoomListItem }) {
             </span>
           ) : (
             <StatusChip status={room.status} />
+          )}
+          {!!room.pending_requests && (
+            <span className="rm-status is-wait">
+              <Users aria-hidden="true" /> заявки: {room.pending_requests}
+            </span>
           )}
         </span>
       </span>
@@ -311,12 +317,23 @@ export default function RoomsPage() {
     void load()
   }, [load])
 
+  const live = useMyRoomsChannel((event?: RoomsChanged) => {
+    // Комнаты уже нет в списке, поэтому её имя приходит в самом сообщении.
+    if (event?.reason === 'member.kicked' && event.my_status === 'kicked' && !isDmOf(event.room_id)) {
+      setNotice(`Мастер исключил вас из комнаты «${event.room_name ?? ''}»`)
+    } else if (event?.reason === 'room.deleted' && !isDmOf(event.room_id)) {
+      setNotice(`Мастер удалил комнату «${event.room_name ?? ''}»`)
+    }
+    void load()
+  })
+  const isDmOf = (roomId: string) => rooms?.some((r) => r.id === roomId && r.my_role === 'dm') ?? false
+
   const hasPending = rooms?.some((r) => r.my_status === 'pending') ?? false
   useEffect(() => {
-    if (!hasPending) return
+    if (live || !hasPending) return
     const t = setInterval(() => void load(), POLL_MS)
     return () => clearInterval(t)
-  }, [hasPending, load])
+  }, [live, hasPending, load])
 
   const approved = useMemo(() => rooms?.filter((r) => r.my_status !== 'pending') ?? [], [rooms])
   const waiting = useMemo(() => rooms?.filter((r) => r.my_status === 'pending') ?? [], [rooms])

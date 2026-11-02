@@ -139,6 +139,9 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       }
     }
 
+    case 'member.rejected':
+      return { ...base, members: base.members.map((m) => (m.user_id === p.user_id ? { ...m, status: 'rejected' } : m)) }
+
     case 'member.kicked':
     case 'member.left': {
       const status = msg.type === 'member.kicked' ? 'kicked' : 'left'

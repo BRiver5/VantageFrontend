@@ -86,7 +86,7 @@ function MemberRow({ m, card, isDm, me, busy, onAct }: {
 }
 
 export function PartyPanel() {
-  const { data, roomId, isDm, refresh } = useRoom()
+  const { data, roomId, isDm } = useRoom()
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,11 +98,8 @@ export function PartyPanel() {
     setError(null)
     try {
       if (kind === 'approve') await approveMember(roomId, m.user_id)
-      else if (kind === 'reject') {
-        await rejectMember(roomId, m.user_id)
-        // об отказе события нет — перечитываем снимок
-        await refresh()
-      } else await kickMember(roomId, m.user_id)
+      else if (kind === 'reject') await rejectMember(roomId, m.user_id)
+      else await kickMember(roomId, m.user_id)
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? 'Нет свободных мест: поднимите лимит игроков в настройках комнаты.' : errText(e))
     } finally {

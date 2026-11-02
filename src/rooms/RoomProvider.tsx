@@ -66,6 +66,8 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
 
   const lastSeq = useRef(0)
   const syncPending = useRef(false)
+  /** во время sync пришло событие с дырой: когда sync закончится, надо догнать ещё раз */
+  const gapDuringSync = useRef(false)
   const socketRef = useRef<RoomSocket | null>(null)
   const listeners = useRef(new Set<(msg: RoomEventMessage) => void>())
 
@@ -88,6 +90,8 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
           if (!syncPending.current) {
             syncPending.current = true
             socketRef.current?.requestSync()
+          } else {
+            gapDuringSync.current = true
           }
           return
         }
@@ -122,6 +126,12 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
             syncPending.current = true
           },
           onSynced: () => {
+            if (gapDuringSync.current) {
+              // иначе это событие потерялось бы до следующего события в комнате
+              gapDuringSync.current = false
+              socketRef.current?.requestSync()
+              return
+            }
             syncPending.current = false
           },
         })
