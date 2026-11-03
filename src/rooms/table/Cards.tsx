@@ -11,7 +11,8 @@ import type { AnyCreature, CharacterCard, CreatureVisibility, HpVisibility, Room
 import { isFullCreature } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
 import { creatureVitals, patchRoomCreature, removeRoomCreature, revealCreature, takeBackItem } from '../roomsApi'
-import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, HpArc, itemArt, itemName, itemSub, Silhouette, SIZE_RU, useEmergeClose, type Origin } from './parts'
+import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, HpArc, itemArt, itemName, itemSub, Silhouette, SIZE_RU, useEmergeClose, useHeroArt, type Origin } from './parts'
+import { Img } from '../../media'
 
 const sizeRu = (s: string | null | undefined) => (s ? (SIZE_RU[s] ?? s) : null)
 export const stripTags = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -28,13 +29,14 @@ function CloseMark() {
 /* ---------- лист напарника ---------- */
 
 export function HeroCard({ card, origin, online, player, rotate, onClose }: { card: CharacterCard; origin: Origin; online?: boolean; player?: string; rotate?: number; onClose: () => void }) {
-  const { isDm, roomId } = useRoom()
+  const { isDm, roomId, data } = useRoom()
   const ratio = cardRatio(card)
+  const art = useHeroArt(roomId, card.id, card.avatar_url, isDm || data?.me.room_character_id === card.id)
   return (
     <Emerge origin={origin} rotate={rotate} kind="paper" label={card.name} className="tb-herocard" onClose={onClose}>
       <CloseMark />
       <header>
-        <Hex raw={card.avatar_url} name={card.name} ratio={ratio} online={online} />
+        <Hex raw={art} name={card.name} ratio={ratio} online={online} />
         <div>
           <h2>{card.name}</h2>
           <p>
@@ -167,7 +169,7 @@ export function CreatureFace({ c, onFlip }: { c: AnyCreature; onFlip?: () => voi
   return (
     <div className="tb-face">
       <div className="tb-face-art">
-        {art ? <img src={art} alt="" draggable={false} /> : <Silhouette enemy />}
+        {art ? <Img src={art} alt="" draggable={false} /> : <Silhouette enemy />}
         <span className="tb-face-shade" />
         <h2>{creatureName(c)}</h2>
         {ac != null && (
@@ -348,7 +350,7 @@ function LootBody({ item, canClaim, onClaim }: { item: RoomItem; canClaim: boole
   return (
     <>
       <CloseMark />
-      <div className={`tb-lootcard-art${item.magic_item ? ' is-magic' : ''}`}>{art ? <img src={art} alt="" draggable={false} /> : <Hand aria-hidden="true" />}</div>
+      <div className={`tb-lootcard-art${item.magic_item ? ' is-magic' : ''}`}>{art ? <Img src={art} alt="" draggable={false} /> : <Hand aria-hidden="true" />}</div>
       <h2>
         {itemName(item)}
         {item.quantity > 1 && <em> ×{item.quantity}</em>}

@@ -12,6 +12,7 @@ import type { CharacterCard, RoomItem } from '../types/rooms'
 import { useRoom } from './RoomProvider'
 import { dropItem, transferCurrency, transferItem } from './roomsApi'
 import { RoomAvatar } from './ui'
+import { itemArt, relayArt, relayKey } from './table/parts'
 
 const CURRENCIES: Currency[] = ['pp', 'gp', 'ep', 'sp', 'cp']
 
@@ -58,6 +59,8 @@ export function TransferItemDialog({ characterId, item, onClose }: { characterId
     setBusy(true)
     setError(null)
     try {
+      const art = itemArt({ equipment: item.equipment, magic_item: item.magic_item } as unknown as RoomItem)
+      if (art) relayArt.set(relayKey(characterId, to, name), art)
       await transferItem(roomId, characterId, item.instance_id, { to_character_id: to, quantity: qty })
       onClose()
     } catch (e) {

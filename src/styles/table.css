@@ -41,7 +41,7 @@
 /* кнопка костей: левый нижний угол стола */
 [data-room]:not([data-hud]) .dice-dock { left: calc(var(--t) * 16) !important; right: auto !important; bottom: calc(var(--t) * 14) !important; align-items: flex-start; }
 [data-room]:not([data-hud]) .dice-stash-tab { left: 0; right: auto; }
-[data-room]:not([data-hud]) .dice-fab { width: max(44px, calc(var(--t) * 66)); height: calc(max(44px, var(--t) * 66) * var(--hex-aspect, 1.1547)); }
+[data-room]:not([data-hud]) .dice-fab { width: max(40px, calc(var(--t) * 46)); height: calc(max(40px, var(--t) * 46) * var(--hex-aspect, 1.1547)); }
 [data-room]:not([data-hud]) .dice-tray-wrap { max-height: calc(100dvh - var(--t) * 96); overflow-y: auto; }
 
 /* ---------- сцена стола ---------- */
@@ -415,6 +415,18 @@
 .tb-flying { display: grid; place-items: center; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.65)); }
 .tb-flying img { width: 100%; height: 100%; object-fit: contain; }
 .tb-flying svg { width: 70%; height: 70%; color: var(--gold-3); }
+/* передача из рук в руки: вещь с биркой на миг ложится на стол */
+.tb-relay { position: fixed; z-index: 130; display: flex; flex-direction: column; align-items: center; gap: calc(var(--t) * 4); width: calc(var(--t) * 118); pointer-events: none; }
+.tb-relay-art { display: grid; place-items: center; width: calc(var(--t) * 86); height: calc(var(--t) * 86); color: var(--gold-3); filter: drop-shadow(0 calc(var(--t) * 6) calc(var(--t) * 5) rgba(0, 0, 0, 0.75)); }
+.tb-relay-art img { width: 100%; height: 100%; object-fit: contain; }
+.tb-relay-art svg { width: 70%; height: 70%; }
+.tb-relay-coins { position: relative; }
+.tb-relay-coins img { position: absolute; width: 58% !important; height: 58% !important; }
+.tb-relay-coins .is-0 { left: 21%; top: 21%; z-index: 3; }
+.tb-relay-coins .is-1 { left: 4%; top: 34%; z-index: 2; transform: rotate(-14deg); }
+.tb-relay-coins .is-2 { left: 38%; top: 36%; z-index: 1; transform: rotate(12deg); }
+.tb-relay-tag { max-width: 100%; padding: calc(var(--t) * 2) calc(var(--t) * 8); border-radius: calc(var(--t) * 3); background: #e9d9b4; color: var(--ink); font-size: calc(var(--t) * 12); font-weight: 700; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(var(--t) * 3) calc(var(--t) * 6) rgba(0, 0, 0, 0.5); }
+.tb-relay-tag em { font-style: normal; font-weight: 800; }
 
 .tb-claimerr {
   position: absolute;

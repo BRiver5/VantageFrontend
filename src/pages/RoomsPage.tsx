@@ -17,6 +17,7 @@ import { useMyRoomsChannel, type RoomsChanged } from '../rooms/meSocket'
 import { createRoom, joinRoom, listRooms } from '../rooms/roomsApi'
 import { Field, ROLE_RU, StatusChip, RoomAvatar } from '../rooms/ui'
 import type { RoomListItem } from '../types/rooms'
+import { Img } from '../media'
 
 /** Как часто спрашиваем список, если личный канал не открыт и есть заявки без ответа */
 const POLL_MS = 6000
@@ -37,7 +38,7 @@ function RoomCard({ room }: { room: RoomListItem }) {
   const inner = (
     <>
       <span className="rm-card-cover">
-        {room.cover_url ? <img src={imageVariant(room.cover_url, 'medium')} alt="" loading="lazy" /> : <DoorOpen aria-hidden="true" />}
+        {room.cover_url ? <Img src={imageVariant(room.cover_url, 'medium')} alt="" loading="lazy" /> : <DoorOpen aria-hidden="true" />}
       </span>
       <span className="rm-card-body">
         <b className="rm-card-name">{room.name}</b>
@@ -146,7 +147,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         <div className="rm-field">
           <span>Обложка</span>
           <div className="rm-cover-pick">
-            <span className="rm-cover-prev">{cover ? <img src={imageVariant(cover, 'medium')} alt="" /> : <ImagePlus aria-hidden="true" />}</span>
+            <span className="rm-cover-prev">{cover ? <Img src={imageVariant(cover, 'medium')} alt="" /> : <ImagePlus aria-hidden="true" />}</span>
             <button type="button" className="cw-mini-btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
               {uploading ? 'Загружаем…' : cover ? 'Заменить' : 'Выбрать картинку'}
             </button>

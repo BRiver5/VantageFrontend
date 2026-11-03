@@ -19,6 +19,7 @@ import {
 import { AlignmentChart, alignmentAbbr } from './AlignmentChart'
 import { AppearanceSection } from './AppearanceSection'
 import { ChoicePortrait, StepHeader, StepPanel } from './ui'
+import { Img } from '../../media'
 
 const VISIBILITY: { id: CharacterVisibility; label: string; hint: string; icon: LucideIcon }[] = [
   { id: 'private', label: 'Только я', hint: 'Лист видите только вы', icon: Lock },
@@ -133,7 +134,7 @@ function HeroPreview({ draft, update }: StepProps) {
         onDrop={onDrop}
       >
         {ownArt ? (
-          <img src={ownArt} alt="" onError={() => setBroken(avatar)} />
+          <Img src={ownArt} alt="" onError={() => setBroken(avatar)} />
         ) : (
           <ChoicePortrait src={realImage(draft.race?.image_gallery)} icon={UserRound} />
         )}

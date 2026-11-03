@@ -76,6 +76,7 @@ import { abilityPath } from './sheetView'
 import { WhyDot, WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
+import { Img } from '../media'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -254,7 +255,7 @@ function HeroPortrait({ own, fallback }: { own: string | null; fallback: string 
   const [broken, setBroken] = useState(false)
   useEffect(() => setBroken(false), [own])
   return own && !broken ? (
-    <img src={own} alt="" onError={() => setBroken(true)} />
+    <Img src={own} alt="" onError={() => setBroken(true)} />
   ) : (
     <ChoicePortrait src={fallback} icon={UserRound} />
   )
@@ -265,7 +266,7 @@ function WeaponArt({ src, icon: Icon }: { src: string | null; icon: LucideIcon }
   const [broken, setBroken] = useState(false)
   return (
     <span className="cw-wpn-art">
-      {src && !broken ? <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} /> : <Icon aria-hidden="true" />}
+      {src && !broken ? <Img src={src} alt="" loading="lazy" onError={() => setBroken(true)} /> : <Icon aria-hidden="true" />}
     </span>
   )
 }
@@ -297,7 +298,7 @@ function DieButton({
       title={title}
     >
       <span className="cw-die-shape" aria-hidden="true">
-        {sides > 0 ? <img src={DIE_IMAGE_URLS[hitDieType(sides)]} alt="" draggable={false} /> : <i className="cw-die-flat" />}
+        {sides > 0 ? <Img src={DIE_IMAGE_URLS[hitDieType(sides)]} alt="" draggable={false} /> : <i className="cw-die-flat" />}
       </span>
       <b>{value}</b>
       <i>{label}</i>

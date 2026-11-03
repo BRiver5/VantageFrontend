@@ -5,19 +5,26 @@
  * выставляет на стол существ (жетоны) и находки; предмет можно поднять и убрать
  * в мешок, который сам выдвигается из-за листа героя.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { Crown, Gem, Backpack, Check, Feather, X } from 'lucide-react'
-import { ApiError, getCharacter, roomCharacterRef, updateCharacter } from '../../api'
+import { ApiError, getCharacter, roomCharacterRef, updateCharacter, type Currency } from '../../api'
+import { CoinImg } from '../../coins'
 import type { AnyCreature, CharacterCard, RollPayload, RoomItem } from '../../types/rooms'
 import { isEngineRoll, isFullCreature } from '../../types/rooms'
 import { useRoomRoll } from '../RoomDice'
 import { useRoom, useRoomEvents } from '../RoomProvider'
 import { claimItem } from '../roomsApi'
 import { CreatureCard, HeroCard, LootCard } from './Cards'
-import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, hpTone, itemArt, itemName, originFromEvent, originOf, seed, useEmergeClose, type Origin } from './parts'
+import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, hpTone, itemArt, itemName, originFromEvent, originOf, relayArt, relayKey, seed, useEmergeClose, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
+import { Img } from '../../media'
 
 /* ---------- полёт предмета ---------- */
+
+const COIN_ORDER: Currency[] = ['pp', 'gp', 'ep', 'sp', 'cp']
+const COIN_RU: Record<Currency, string> = { pp: 'пм', gp: 'зм', ep: 'эм', sp: 'см', cp: 'мм' }
 
 const EASE_ARC = 'cubic-bezier(0.45, 0.05, 0.3, 1)'
 
@@ -44,6 +51,51 @@ function flyTo(from: Element, to: Element, onLanded: () => void) {
   anim.onfinish = () => {
     clone.remove()
     onLanded()
+  }
+}
+
+/**
+ * Передача из рук в руки: вещь выходит от отправителя, по дуге ложится на
+ * середину стола, лежит мгновение и уже оттуда улетает получателю.
+ */
+function relay(from: Element | null, content: ReactNode, onLand: (piece: HTMLElement) => void) {
+  const field = document.querySelector('.tb-field')
+  if (!field) return
+  const f = field.getBoundingClientRect()
+  const node = document.createElement('div')
+  node.className = 'tb-relay'
+  document.body.appendChild(node)
+  const root = createRoot(node)
+  flushSync(() => root.render(content))
+  const w = node.offsetWidth
+  const h = node.offsetHeight
+  const mx = f.left + f.width / 2 + (Math.random() * 2 - 1) * f.width * 0.12
+  const my = f.top + f.height / 2 + (Math.random() * 2 - 1) * f.height * 0.1
+  Object.assign(node.style, { left: `${mx - w / 2}px`, top: `${my - h / 2}px` })
+  const s = from?.getBoundingClientRect()
+  const dx = s ? s.left + s.width / 2 - mx : 0
+  const dy = s ? s.top + s.height / 2 - my : -f.height / 2
+  const lift = Math.min(-50, -Math.abs(dy) * 0.35 - 40)
+  const tilt = (Math.random() * 2 - 1) * 9
+  const drop = node.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px) scale(0.3) rotate(-70deg)`, opacity: 0 },
+      { transform: `translate(${dx * 0.55}px, ${dy * 0.5 + lift}px) scale(1.18) rotate(-18deg)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(0, 0) scale(0.94) rotate(${tilt + 4}deg)`, opacity: 1, offset: 0.8 },
+      { transform: `translate(0, -6px) scale(1.04) rotate(${tilt - 2}deg)`, opacity: 1, offset: 0.9 },
+      { transform: `translate(0, 0) scale(1) rotate(${tilt}deg)`, opacity: 1 },
+    ],
+    { duration: 900, easing: 'cubic-bezier(0.3, 0.6, 0.35, 1)', fill: 'forwards' },
+  )
+  drop.onfinish = () => {
+    // полежать на столе, чтобы все успели разглядеть, что передают
+    setTimeout(() => {
+      drop.cancel()
+      node.style.transform = `rotate(${tilt}deg)`
+      onLand(node)
+      root.unmount()
+      node.remove()
+    }, 520)
   }
 }
 
@@ -205,6 +257,8 @@ interface SeatInfo {
 
 function Seat({ seat, bubble, nudge, onOpen }: { seat: SeatInfo; bubble?: Bubble; nudge: boolean; onOpen: (o: Origin) => void }) {
   const { card, side, y, online } = seat
+  const { roomId, isDm } = useRoom()
+  const art = useHeroArt(roomId, card.id, card.avatar_url, isDm)
   const down = card.hp.current <= 0
   const tilt = (seed(card.id, 3) * 14 - 7).toFixed(1)
   return (
@@ -220,7 +274,7 @@ function Seat({ seat, bubble, nudge, onOpen }: { seat: SeatInfo; bubble?: Bubble
         <i>{card.name}</i>
       </span>
       <span className="tb-seat-token">
-        <Hex raw={card.avatar_url} name={card.name} ratio={cardRatio(card)} online={online} />
+        <Hex raw={art} name={card.name} ratio={cardRatio(card)} online={online} />
         <b>{card.name}</b>
         {card.effects.length > 0 && <span className="tb-seat-fx" title={card.effects.join(', ')} />}
         {bubble && <RollBubble key={bubble.id} b={bubble} />}
@@ -300,7 +354,7 @@ function Loot({ item, origin, onOpen }: { item: RoomItem; origin?: Origin; onOpe
       aria-label={`${itemName(item)}${item.quantity > 1 ? `, ${item.quantity} шт.` : ''}: рассмотреть`}
     >
       <span className="tb-loot-art" data-art>
-        {art && !broken ? <img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : item.magic_item ? <Gem aria-hidden="true" /> : <Backpack aria-hidden="true" />}
+        {art && !broken ? <Img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : item.magic_item ? <Gem aria-hidden="true" /> : <Backpack aria-hidden="true" />}
       </span>
       <span className="tb-loot-tag">
         {itemName(item)}
@@ -399,6 +453,62 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
       }
       return
     }
+    if (msg.type === 'item.transferred' || msg.type === 'currency.transferred') {
+      if (msg.ts && Date.now() - Date.parse(msg.ts) > 20000) return
+      const p = msg.payload as { from_character_id: string; to_character_id: string; name?: string; quantity?: number; amount?: Partial<Record<Currency, number>> }
+      const handOf = (cid: string) => (cid === mine ? document.querySelector('.tb-mysheet-token') : seatEl(cid))
+      let content: ReactNode
+      if (msg.type === 'item.transferred') {
+        const key = relayKey(p.from_character_id, p.to_character_id, p.name ?? '')
+        const art = relayArt.get(key)
+        relayArt.delete(key)
+        content = (
+          <>
+            <span className="tb-relay-art">{art ? <Img src={art} alt="" draggable={false} /> : <Backpack aria-hidden="true" />}</span>
+            <span className="tb-relay-tag">
+              {p.name ?? 'Предмет'}
+              {(p.quantity ?? 1) > 1 && <em> ×{p.quantity}</em>}
+            </span>
+          </>
+        )
+      } else {
+        const coins = COIN_ORDER.filter((c) => (p.amount?.[c] ?? 0) > 0)
+        if (coins.length === 0) return
+        content = (
+          <>
+            <span className="tb-relay-art tb-relay-coins">
+              {coins.slice(0, 3).map((c, i) => (
+                <CoinImg key={c} currency={c} size={40} className={`is-${i}`} />
+              ))}
+            </span>
+            <span className="tb-relay-tag">{coins.map((c) => `${p.amount?.[c]} ${COIN_RU[c]}`).join(' · ')}</span>
+          </>
+        )
+      }
+      const toMe = p.to_character_id === mine
+      if (toMe) {
+        clearTimeout(sackTimer.current)
+        setSack(true)
+      }
+      relay(handOf(p.from_character_id), content, (piece) => {
+        const target = toMe ? document.querySelector('.tb-sack-mouth') : handOf(p.to_character_id)
+        if (!target) {
+          if (toMe) lowerSack(300)
+          return
+        }
+        flyTo(piece, target, () => {
+          if (toMe) {
+            setGulp(true)
+            setTimeout(() => setGulp(false), 480)
+            lowerSack(760)
+          } else {
+            setNudges((n) => ({ ...n, [p.to_character_id]: true }))
+            setTimeout(() => setNudges((n) => ({ ...n, [p.to_character_id]: false })), 520)
+          }
+        })
+      })
+      return
+    }
     if (msg.type === 'item.issued') {
       const p = msg.payload as { item?: RoomItem; target?: string; from_character_id?: string }
       if (!p.item || p.item.holder !== 'table') return
@@ -422,6 +532,9 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
       })
     }
   })
+
+  const meCard = data?.characters.find((c) => c.id === mine)
+  const myArtHook = useHeroArt(roomId, mine, meCard?.avatar_url, true)
 
   const seats = useMemo<SeatInfo[]>(() => {
     if (!data) return []
@@ -449,6 +562,7 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
   const tokens = data.creatures.filter((c) => !isFullCreature(c) || !c.on_screen_only)
   const loot = data.items.filter((i) => i.holder === 'table')
   const me = data.characters.find((c) => c.id === mine)
+  const myArt = myArtHook
   const openLoot = lootOpen ? loot.find((i) => i.id === lootOpen.id) : null
   const openHero = heroOpen ? data.characters.find((c) => c.id === heroOpen.id) : null
 
@@ -527,7 +641,7 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
               <u>{me.level} уровень</u>
             </span>
             <span className="tb-mysheet-token">
-              <Hex raw={me.avatar_url} name={me.name} ratio={cardRatio(me)} tone={hpTone(cardRatio(me)) === 'down' ? 'down' : undefined} />
+              <Hex raw={myArt} name={me.name} ratio={cardRatio(me)} tone={hpTone(cardRatio(me)) === 'down' ? 'down' : undefined} />
               <b>
                 {me.hp.current}
                 <i>/{me.hp.max}</i>

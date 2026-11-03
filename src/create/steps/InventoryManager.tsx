@@ -16,6 +16,7 @@ import type { InventoryItemInstance } from '../../types/character'
 import { useCatalogList } from '../useCatalog'
 import { inventoryItem, magicInventoryItem } from '../startingGear'
 import { PickToolbar, usePicker, type PickFilterGroup } from './ui'
+import { Img } from '../../media'
 
 const COLS = 7
 const cellKey = (col: number, row: number) => `${col}:${row}`
@@ -38,7 +39,7 @@ function ItemFace({
   const src = realImage(gear?.equipment_image_gallery) ?? realImage(mag?.item_image_gallery)
   const Icon = mag ? Gem : categoryIcon(gear?.category)
   return src && !broken ? (
-    <img src={src} alt="" draggable={false} onError={() => setBroken(true)} />
+    <Img src={src} alt="" draggable={false} onError={() => setBroken(true)} />
   ) : (
     <Icon aria-hidden="true" />
   )

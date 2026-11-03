@@ -15,6 +15,7 @@ import { useEquipmentIndex } from '../equipmentIndex'
 import { coinOf, inventoryItem } from '../create/startingGear'
 import { InventoryManager } from '../create/steps/InventoryManager'
 import type { InventoryItemInstance } from '../types/character'
+import { Img } from '../media'
 
 const COLS = 7
 const cellKey = (col: number, row: number) => `${col}:${row}`
@@ -43,7 +44,7 @@ function ItemFace({
   const src = forced ?? realImage(eq?.equipment_image_gallery) ?? realImage(magic?.item_image_gallery)
   const Icon = magic ? Gem : categoryIcon(eq?.category)
   return src && !broken ? (
-    <img src={src} alt="" draggable={false} loading="lazy" onError={() => setBroken(true)} />
+    <Img src={src} alt="" draggable={false} loading="lazy" onError={() => setBroken(true)} />
   ) : (
     <Icon aria-hidden="true" />
   )

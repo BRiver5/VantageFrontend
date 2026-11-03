@@ -36,6 +36,7 @@ import type { SheetRoller } from './sheetPlay'
 import { DamageTypePicker } from './DamageTypePicker'
 import type { VitalsOp } from '../api'
 import { useWhy, WhyDot } from './WhyPopover'
+import { Img } from '../media'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -56,7 +57,7 @@ function HeroArt({ src, crop, onEdit }: { src: string | null; crop: FaceCrop; on
         <>
           <span className="beast-art-floor" aria-hidden="true" />
           {src && !broken ? (
-            <img className="cw-art-full" src={src} alt="" onError={() => setBroken(true)} />
+            <Img className="cw-art-full" src={src} alt="" onError={() => setBroken(true)} />
           ) : (
             <FaceAvatar src={null} crop={DEFAULT_FACE} className="cw-art-face" />
           )}

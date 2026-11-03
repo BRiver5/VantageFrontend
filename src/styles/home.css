@@ -342,7 +342,7 @@
   gap: 10px;
   padding: 9px 14px;
   width: clamp(240px, 44vw, 440px);
-  cursor: default;
+  cursor: text;
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
@@ -359,9 +359,10 @@
   font-family: var(--font-body);
   font-size: 1.02rem;
   letter-spacing: 0.03em;
-  cursor: default;
 }
 .setting-search input::placeholder { color: var(--text-dim); font-style: italic; }
+.setting-search:focus-within { background: linear-gradient(var(--bg-1), var(--bg-1)) padding-box, linear-gradient(160deg, var(--gold-3), rgba(196, 154, 60, 0.35) 40%, var(--gold-3)) border-box; }
+.setting-search-count { flex-shrink: 0; color: var(--gold-3); font-size: 0.78rem; font-style: italic; }
 .soon-badge {
   flex-shrink: 0;
   font-family: var(--font-display);
@@ -985,3 +986,6 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
   opacity: 0.7;
 }
 
+
+/* список в соте стал короче и уголки рамки ложились поверх строк */
+.hex-expand-inner .corner { display: none; }

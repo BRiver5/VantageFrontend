@@ -1248,3 +1248,33 @@ export const ABILITY_RU: Record<string, string> = {
   wisdom: 'МДР',
   charisma: 'ХАР',
 }
+
+/* ---------- Поиск по всему каталогу ---------- */
+
+export interface SearchHit {
+  entity: string
+  entity_title: string
+  id: string
+  title: string
+  alias: string | null
+  snippet: string | null
+  match: string
+  score: number
+}
+
+export interface SearchResult {
+  query: string
+  total: number
+  skip: number
+  limit: number
+  /** сколько нашлось в каждом разделе — для фильтров */
+  counts: Record<string, number>
+  items: SearchHit[]
+}
+
+/** Поиск по каталогу: русский, английский, неверная раскладка и опечатки */
+export function searchCatalog(q: string, opts: { entities?: string[]; skip?: number; limit?: number; signal?: AbortSignal } = {}): Promise<SearchResult> {
+  const params = new URLSearchParams({ q, skip: String(opts.skip ?? 0), limit: String(opts.limit ?? 20) })
+  for (const e of opts.entities ?? []) params.append('entities', e)
+  return request<SearchResult>(`/search?${params}`, { auth: 'optional', signal: opts.signal })
+}

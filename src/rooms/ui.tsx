@@ -4,10 +4,10 @@
  */
 import { useState, type ReactNode } from 'react'
 import { Crown, Radio, UserRound, WifiOff } from 'lucide-react'
-import { imageVariant } from '../api'
 import type { SocketStatus } from './roomSocket'
 import type { MemberStatus, RoomRole, RoomStatus } from '../types/rooms'
 import { statusRu } from './applyEvent'
+import { Img } from '../media'
 
 /** Круглый аватар: картинка в малом размере, а без неё — инициал */
 export function RoomAvatar({
@@ -28,7 +28,7 @@ export function RoomAvatar({
   return (
     <span className={`rm-avatar${dm ? ' is-dm' : ''}`} style={{ width: size, height: size }}>
       {src && !broken ? (
-        <img src={imageVariant(src, 'low')} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+        <Img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
       ) : initial ? (
         <b style={{ fontSize: size * 0.42 }}>{initial}</b>
       ) : (

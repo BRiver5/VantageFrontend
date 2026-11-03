@@ -92,6 +92,7 @@ import { CreatureBoard, CreatureStage, WorldBackdrop } from '../creatureSheet'
 import { useBookWorld, type BookWorld } from '../worldArt'
 import { splitRaceArticle } from '../raceArticle'
 import { useAppShell } from '../shell'
+import { Img, bgUrl } from '../media'
 
 /* ---------- Общие детали ---------- */
 
@@ -242,7 +243,7 @@ function DetailShell({
         {!omitCover && heroHex !== undefined ? (
           <div className="detail-hex">
             {heroHex && !broken ? (
-              <img
+              <Img
                 className="detail-hex-cover"
                 src={heroHex}
                 alt={title}
@@ -269,7 +270,7 @@ function DetailShell({
           >
             {backdrop}
             {image && !broken ? (
-              <img
+              <Img
                 src={image}
                 alt={title}
                 style={heroNames?.img ? ({ viewTransitionName: heroNames.img } as CSSProperties) : undefined}
@@ -667,7 +668,7 @@ function SubclassCover({ sc, vtName }: { sc: Subclass; vtName?: string }) {
     )
   }
   return (
-    <img
+    <Img
       className="hex-cover"
       src={src}
       alt=""
@@ -852,7 +853,7 @@ function ClassDetailPortrait({ src, alt, vt = true }: { src: string | null; alt:
   return (
     <div className="class-detail-portrait">
       {src && !broken ? (
-        <img
+        <Img
           src={src}
           alt={alt}
           style={vt ? ({ viewTransitionName: 'class-hero-img' } as CSSProperties) : undefined}
@@ -1017,7 +1018,7 @@ export function ClassDetailView({
         <header ref={heroRef} className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>
           <div className="class-detail-stage">
             <div className="class-detail-aura" aria-hidden="true" />
-            <img
+            <Img
               className="class-detail-die"
               src={DIE_NUM_IMAGE_URLS[dieType]}
               alt=""
@@ -1048,7 +1049,7 @@ export function ClassDetailView({
                     rel={embedded ? 'noopener' : undefined}
                   >
                     {realImage(selectedSub.image_gallery) ? (
-                      <img
+                      <Img
                         className="detail-hex-cover"
                         src={realImage(selectedSub.image_gallery)!}
                         alt={selectedSub.subclass_name}
@@ -1174,7 +1175,7 @@ function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
   return (
     <div className={`class-detail-portrait race-detail-portrait${framed ? ' is-framed' : ''}`}>
       {src && !broken ? (
-        <img
+        <Img
           src={src}
           alt={alt}
           style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
@@ -1625,7 +1626,7 @@ function HeroHexArt({
     <span className="bg-hero-hex">
       <span className="bg-hero-hex-inner">
         {src && !broken ? (
-          <img src={src} alt={alt} onError={() => setBroken(true)} />
+          <Img src={src} alt={alt} onError={() => setBroken(true)} />
         ) : (
           <Fallback className="bg-hero-hex-fallback" aria-hidden="true" />
         )}
@@ -1672,7 +1673,7 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
     <OpenLinksInNewTab.Provider value={embedded}>
       <header className="bg-hero">
         {/* тот же арт размытым фоном — шапка перестаёт быть пустой справа */}
-        {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
+        {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${bgUrl(art)}")` }} aria-hidden="true" />}
         <span className="bg-hero-aura" aria-hidden="true" />
         <Corners size={40} />
         <div className="bg-hero-art">
@@ -1790,7 +1791,7 @@ export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: bo
   return (
     <OpenLinksInNewTab.Provider value={embedded}>
       <header className="bg-hero">
-        {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
+        {art && <span className="bg-hero-bg" style={{ backgroundImage: `url("${bgUrl(art)}")` }} aria-hidden="true" />}
         <span className="bg-hero-aura" aria-hidden="true" />
         <Corners size={40} />
         <div className="bg-hero-art">
@@ -1867,7 +1868,7 @@ function ItemArt({
     <div className="item-art">
       <span className="item-glow" aria-hidden="true" />
       {src && !broken ? (
-        <img src={src} alt={alt} onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} onError={() => setBroken(true)} />
       ) : (
         <Fallback className="item-art-fallback" aria-hidden="true" />
       )}

@@ -19,6 +19,7 @@ import { useRoom } from '../RoomProvider'
 import { addCombatants, addCreatures, claimItem, createMap, createNote, createTemplate, deleteMap, deleteNote, deleteTemplate, issueItem, issueTemplate, listMaps, listNotes, listTemplates, patchMap, patchNote, revealCreature, startCombat } from '../roomsApi'
 import { CreatureBack, HpControls, STAT_RU, statsOf } from './Cards'
 import { creatureArt, creatureHp, creatureName, errText, Hex, HpArc, itemArt, itemName, SIZE_RU } from './parts'
+import { Img } from '../../media'
 
 /* ---------- общее ---------- */
 
@@ -198,7 +199,7 @@ function BeastPage({ c, onFlip }: { c: RoomCreature; onFlip: () => void }) {
   const actionText = (name: string, text: string) => (text.startsWith(name) ? text.slice(name.length).replace(/^[.\s:]+/, '') : text)
   return (
     <article className="sc-page">
-      <div className="sc-page-art">{art ? <img src={art} alt="" draggable={false} /> : <Skull aria-hidden="true" />}</div>
+      <div className="sc-page-art">{art ? <Img src={art} alt="" draggable={false} /> : <Skull aria-hidden="true" />}</div>
       <div className="sc-page-main">
         <header>
           <div>
@@ -426,7 +427,7 @@ function NewTemplate({ onSaved, onClose }: { onSaved: (t: ScreenItemTemplate) =>
     >
       <div className="sc-newtpl-top">
         <label className={`sc-newtpl-art${magic ? ' is-magic' : ''}${uploading ? ' is-busy' : ''}`} title="Картинка предмета">
-          {image ? <img src={image} alt="" /> : <ImagePlus aria-hidden="true" />}
+          {image ? <Img src={image} alt="" /> : <ImagePlus aria-hidden="true" />}
           <input
             type="file"
             accept="image/*"
@@ -545,7 +546,7 @@ function LeafLoot() {
               aria-pressed={pick?.id === p.id}
               title={p.sub}
             >
-              <span className={`sc-tile-art${p.kind === 'magic_item' ? ' is-magic' : ''}`}>{p.art ? <img src={p.art} alt="" loading="lazy" draggable={false} /> : p.kind === 'magic_item' ? <Gem aria-hidden="true" /> : <Backpack aria-hidden="true" />}</span>
+              <span className={`sc-tile-art${p.kind === 'magic_item' ? ' is-magic' : ''}`}>{p.art ? <Img src={p.art} alt="" loading="lazy" draggable={false} /> : p.kind === 'magic_item' ? <Gem aria-hidden="true" /> : <Backpack aria-hidden="true" />}</span>
               <b>{p.name}</b>
             </button>
             {p.source === 'template' && (
@@ -569,7 +570,7 @@ function LeafLoot() {
           <span>За ширмой:</span>
           {screen.map((it) => (
             <button key={it.id} type="button" className={`sc-mini-item${screenPick?.id === it.id ? ' is-on' : ''}`} onClick={() => setScreenPick(screenPick?.id === it.id ? null : it)} title={itemName(it)}>
-              {itemArt(it) ? <img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
+              {itemArt(it) ? <Img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
               {itemName(it)}
               {it.quantity > 1 && <em>×{it.quantity}</em>}
             </button>
@@ -785,7 +786,7 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
           {list.map((m) => (
             <li key={m.id}>
               <div className="sc-map">
-                {m.image_url ? <img src={m.image_url} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}
+                {m.image_url ? <Img src={m.image_url} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}
                 <b>{m.name}</b>
                 <span className="sc-map-acts">
                   <button type="button" className="tb-goldbtn" disabled={!m.image_url} onClick={() => act(() => showToAll(roomId, m.image_url ?? '', m.name), () => setSent(m.id))}>

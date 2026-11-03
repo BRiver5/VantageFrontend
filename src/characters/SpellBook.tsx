@@ -18,6 +18,7 @@ import { ABILITY_LABELS } from '../types/character'
 import type { Spellcasting } from '../types/character'
 import { SheetModal } from './SheetModal'
 import type { SheetPlay, SheetRoller } from './sheetPlay'
+import { Img } from '../media'
 
 type Known = Spellcasting['spells_known'][number]
 
@@ -185,7 +186,7 @@ export function Constellation({
 
 function SchoolGlyph({ school, className }: { school: string | null | undefined; className?: string }) {
   const src = spellSchoolIcon(school)
-  return src ? <img className={className} src={src} alt="" draggable={false} /> : <Sparkles className={className} aria-hidden="true" />
+  return src ? <Img className={className} src={src} alt="" draggable={false} /> : <Sparkles className={className} aria-hidden="true" />
 }
 
 export function SpellBook({

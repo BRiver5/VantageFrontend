@@ -8,24 +8,12 @@ import {
   Star,
 } from 'lucide-react'
 import { enrichBookContents, getBookContents, getBookFull, getOne, settingPictureUrl, splitTitle } from '../api'
-import type { BookContents, BookFull, ContentTotals, Setting } from '../api'
-import { scrollToTomeSection } from '../contentSections'
+import type { BookContents, BookFull, Setting } from '../api'
+import { CONTENT_SECTIONS, scrollToTomeSection } from '../contentSections'
 import { Corners, CoverImage, Divider } from '../ornaments'
-import { LootChips } from '../App'
 import { TomeSections } from './bookContentsUi'
+import { bgUrl } from '../media'
 
-function totalsFromContents(contents: BookContents): ContentTotals {
-  return {
-    classes: contents.classes?.length ?? 0,
-    subclasses: contents.subclasses?.length ?? 0,
-    races: contents.races?.length ?? 0,
-    subraces: contents.subraces?.length ?? 0,
-    feats: contents.feats?.length ?? 0,
-    backgrounds: contents.backgrounds?.length ?? 0,
-    spells: contents.spells?.length ?? 0,
-    items: contents.items?.length ?? 0,
-  }
-}
 
 export default function BookPage() {
   const { id } = useParams<{ id: string }>()
@@ -52,7 +40,8 @@ export default function BookPage() {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [id])
 
-  const totals = useMemo(() => (contents ? totalsFromContents(contents) : null), [contents])
+  // только то, что в книге действительно есть, и существа тоже
+  const present = useMemo(() => (contents ? CONTENT_SECTIONS.map((s) => ({ ...s, count: contents[s.key]?.length ?? 0 })).filter((s) => s.count > 0) : []), [contents])
 
   useEffect(() => {
     if (!contents) return
@@ -81,7 +70,7 @@ export default function BookPage() {
         {bleedArt && (
           <span
             className={`world-hero-bg${heroArt ? '' : ' world-hero-bg--cover'}`}
-            style={{ backgroundImage: `url("${bleedArt}")` }}
+            style={{ backgroundImage: `url("${bgUrl(bleedArt)}")` }}
             aria-hidden="true"
           />
         )}
@@ -107,11 +96,20 @@ export default function BookPage() {
 
       <Divider />
 
-      {totals && (
+      {contents && (
         <div className="loot-bar">
           <Corners size={38} />
-          <div className="loot-title">Нововведения тома — {ru}</div>
-          <LootChips totals={totals} onSelect={(key) => scrollToTomeSection(key)} />
+          <div className="loot-title">{present.length ? 'Что добавляет книга' : 'В книге пока ничего не отмечено'}</div>
+          {present.length > 0 && (
+            <div className="loot-grid">
+              {present.map(({ key, label, icon: Icon, count }) => (
+                <button key={key} type="button" className="loot-chip loot-chip--clickable" onClick={() => scrollToTomeSection(key)} title={`Показать: ${label}`}>
+                  <Icon aria-hidden="true" />
+                  <span className="loot-num">{count}</span> {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

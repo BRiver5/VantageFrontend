@@ -13,6 +13,7 @@ import d12NumUrl from '../assets/dices/d12-num.svg'
 import d20NumUrl from '../assets/dices/d20-num.svg'
 import type { DieType } from './DiceShapeIcons'
 import { DIE_TYPES } from './DiceShapeIcons'
+import { Img } from '../media'
 
 export const DIE_IMAGE_URLS: Record<DieType, string> = {
   4: d4Url,
@@ -49,7 +50,7 @@ interface DieImageProps {
 /** Рендер кости из ассетов — вписывается в квадрат с сохранением пропорций */
 export function DieImage({ type, size = 26, className = '', title }: DieImageProps) {
   return (
-    <img
+    <Img
       src={DIE_IMAGE_URLS[type]}
       alt=""
       aria-hidden={title ? undefined : true}

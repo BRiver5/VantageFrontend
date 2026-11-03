@@ -2298,3 +2298,17 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   overflow: hidden;
 }
 
+
+/* ---------- записи книги и мира карточками ---------- */
+
+.te-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 0; padding: 4px 16px 16px; list-style: none; }
+.te-cards .te-card { display: flex; align-items: center; gap: 12px; height: 100%; padding: 8px 10px; border-radius: 10px; background: rgba(168, 175, 186, 0.05); box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.12); color: var(--text); text-decoration: none; transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.2s ease; }
+.te-cards a.te-card:hover { background: rgba(196, 154, 60, 0.1); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5); transform: translateY(-2px); }
+.te-art { flex: none; display: grid; place-items: center; width: 48px; aspect-ratio: 100 / 115.47; overflow: hidden; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: radial-gradient(circle at 50% 35%, #2e2a24, #121214); color: var(--gold-2); }
+.te-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; }
+.te-art.is-school img { width: 64%; height: 64%; object-fit: contain; }
+.te-art svg { width: 44%; height: 44%; }
+.te-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.te-text b { overflow: hidden; color: var(--parchment); font-size: 0.92rem; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.te-text i { overflow: hidden; color: var(--text-dim); font-size: 0.78rem; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .te-cards { grid-template-columns: minmax(0, 1fr); padding: 4px 8px 12px; } }

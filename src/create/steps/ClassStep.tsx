@@ -19,6 +19,7 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { useBookMap, useCatalogList } from '../useCatalog'
+import { Img } from '../../media'
 
 const className = (c: GameClass) => c.class_name
 const isCaster = (c: GameClass) => casterKind(c.class_name, c.is_caster) !== 'none'
@@ -28,7 +29,7 @@ function ClassPortrait({ src, alt }: { src: string | null; alt: string }) {
   return (
     <span className="class-card-portrait">
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" draggable={false} onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} loading="lazy" draggable={false} onError={() => setBroken(true)} />
       ) : (
         <Swords className="class-card-fallback" aria-hidden="true" />
       )}
@@ -71,7 +72,7 @@ function ClassCard({
       >
         <span className="class-card-visual">
           <span className="cw-class-aura" aria-hidden="true" />
-          <img
+          <Img
             className="class-card-die"
             src={DIE_NUM_IMAGE_URLS[hitDieType(cls.hit_dice)]}
             alt=""

@@ -20,6 +20,7 @@ import {
 import { parsePortrait } from '../characters/portrait'
 import { useCatalogList } from '../create/useCatalog'
 import type { CharacterVisibility } from '../types/auth'
+import { Img } from '../media'
 
 /** Сколько мест в «лобби» минимум: герои в центре, свободные слоты по бокам */
 const MIN_SLOTS = 5
@@ -78,7 +79,7 @@ function HeroBanner({
         <span className="lobby-hero-frame">
           <span className="lobby-hero-art">
             {art && !broken ? (
-              <img src={art} alt="" loading="lazy" onError={() => setBroken(true)} />
+              <Img src={art} alt="" loading="lazy" onError={() => setBroken(true)} />
             ) : (
               <UserRound className="lobby-hero-fallback" aria-hidden="true" />
             )}

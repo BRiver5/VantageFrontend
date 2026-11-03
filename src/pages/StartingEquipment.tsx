@@ -9,6 +9,7 @@ import { PriceMark } from '../coins'
 import { EquipmentContentsGallery, useEquipmentDrawer } from '../equipmentDrawer'
 import { useEquipmentIndex } from '../equipmentIndex'
 import { RichText } from '../terms/terms'
+import { Img } from '../media'
 
 export { useEquipmentIndex }
 
@@ -45,7 +46,7 @@ function EquipmentThumb({ eq }: { eq: Equipment | undefined }) {
 
   if (src && !broken) {
     return (
-      <img
+      <Img
         className="se-card-thumb"
         src={src}
         alt=""
@@ -302,7 +303,7 @@ function EquipmentIconTile({
           ?
         </span>
       ) : src && !broken ? (
-        <img
+        <Img
           className="eq-icon-face"
           src={src}
           alt=""
@@ -317,7 +318,7 @@ function EquipmentIconTile({
       {content && (
         <span className="eq-icon-badge" title={contentEq?.equipment_name ?? content.slug}>
           {contentSrc && !contentBroken ? (
-            <img
+            <Img
               src={contentSrc}
               alt=""
               loading="lazy"

@@ -24,6 +24,7 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { useBookMap, useCatalogList, useRacesWithSubraces } from '../useCatalog'
+import { Img } from '../../media'
 
 const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']
 const ABILITY_ORDER = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
@@ -48,7 +49,7 @@ function RacePortrait({ src }: { src: string | null }) {
   return (
     <span className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
       {src && !broken ? (
-        <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+        <Img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
       ) : (
         <VenetianMask className="class-card-fallback" aria-hidden="true" />
       )}

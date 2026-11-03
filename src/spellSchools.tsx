@@ -10,6 +10,7 @@ import evocationUrl from './assets/spell_schools/Evocation.svg'
 import illusionUrl from './assets/spell_schools/Illusion.svg'
 import necromancyUrl from './assets/spell_schools/Necromancy.svg'
 import transmutationUrl from './assets/spell_schools/Transmutation.svg'
+import { Img } from './media'
 
 const SCHOOL_ICONS: Record<string, string> = {
   ограждение: abjurationUrl,
@@ -45,7 +46,7 @@ export function SpellSchoolMark({
   const src = spellSchoolIcon(school)
   if (!src) return null
   return (
-    <img
+    <Img
       src={src}
       alt=""
       aria-hidden="true"

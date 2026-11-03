@@ -23,6 +23,7 @@ import {
   type GrantRef,
 } from '../startingGear'
 import { StepHeader, StepStatus } from './ui'
+import { Img } from '../../media'
 
 const COIN_CURRENCY: Record<string, Currency> = {
   copper: 'cp',
@@ -39,7 +40,7 @@ function GearImage({ eq, src, category }: { eq?: Equipment; src?: string | null;
   const url = src ?? realImage(eq?.equipment_image_gallery)
   const Icon = categoryIcon(eq?.category ?? category)
   return url && !broken ? (
-    <img src={url} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+    <Img src={url} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
   ) : (
     <Icon aria-hidden="true" />
   )

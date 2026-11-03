@@ -5,6 +5,7 @@ import { Check, Image as ImageIcon, Search, SlidersHorizontal, X } from 'lucide-
 import type { LucideIcon } from 'lucide-react'
 import { Corners } from '../../ornaments'
 import type { BookMap } from '../../api'
+import { Img, bgUrl } from '../../media'
 
 export function StepHeader({
   kicker,
@@ -36,7 +37,7 @@ export function ChoiceArt({ src, icon: Icon }: { src: string | null; icon: Lucid
   }
   return (
     <span className="cw-card-art">
-      <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+      <Img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
       <span className="cw-card-art-shade" aria-hidden="true" />
     </span>
   )
@@ -48,7 +49,7 @@ export function ChoicePortrait({ src, icon: Icon }: { src: string | null; icon: 
   return (
     <span className="cw-portrait">
       {src && !broken ? (
-        <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <Img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <Icon className="cw-portrait-fallback" aria-hidden="true" />
       )}
@@ -385,7 +386,7 @@ export function ChoiceModal({
       >
         {world && (
           <span className="cw-modal-world" aria-hidden="true">
-            <span style={{ backgroundImage: `url("${world}")` }} />
+            <span style={{ backgroundImage: `url("${bgUrl(world)}")` }} />
           </span>
         )}
         <button type="button" className="cw-modal-close" onClick={onClose} aria-label="Закрыть">

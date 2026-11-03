@@ -1439,3 +1439,159 @@
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* ============================================================
+   БЫСТРОЕ МЕНЮ КУБИКОВ
+   Столбик кубиков раскрывается над кнопкой: наведение (компьютер) или
+   нажатие (телефон). Справа от кубика выезжают количество и, у d20,
+   преимущество с помехой.
+   ============================================================ */
+
+.dq { --dq-die: 50px; --dq-ease: cubic-bezier(0.2, 1.15, 0.35, 1); }
+/* без поворотов и масштаба: векторный значок во время трансформации браузер рисует мылом */
+.dq .dice-fab { transition: filter 0.2s ease, opacity 0.3s ease; }
+.dq .dice-fab:hover { filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.45)); }
+.dq .dice-fab.is-open { filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.6)); }
+.dq .dice-fab::before { transition: background 0.25s ease; }
+.dq .dice-fab.is-open::before { background: linear-gradient(180deg, #3a3524, #1d1a12); }
+.dq .dice-fab.is-busy { opacity: 0.6; }
+
+.dq-menu {
+  position: absolute;
+  left: 4px;
+  bottom: calc(100% + 10px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.dq.is-open .dq-menu { pointer-events: auto; }
+/* мостик между кнопкой и меню: курсор не «проваливается» в щель */
+.dq.is-open .dq-menu::after { content: ''; position: absolute; left: 0; right: 0; bottom: -12px; height: 12px; }
+
+.dq-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.dq-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  /* только сдвиг: масштаб заставил бы браузер рисовать значок мылом во время анимации */
+  transform: translateY(14px);
+  transition: opacity 0.18s ease, transform 0.22s ease;
+  /* закрываются сверху вниз */
+  transition-delay: calc((6 - var(--i)) * 18ms);
+}
+.dq.is-open .dq-row {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.28s ease, transform 0.42s var(--dq-ease);
+  /* раскрываются от кнопки вверх */
+  transition-delay: calc((6 - var(--i)) * 34ms);
+}
+
+.dq-die {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: var(--dq-die);
+  height: calc(var(--dq-die) * var(--hex-aspect, 1.1547));
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  transition: filter 0.2s ease;
+}
+.dq-die::before { content: ''; position: absolute; inset: 2px; clip-path: var(--hex-point); background: linear-gradient(180deg, var(--bg-3), var(--bg-1)); transition: background 0.2s ease; }
+.dq-die > * { position: relative; }
+.dq-die .die-asset-img { width: 26px; height: 26px; margin-top: -7px; }
+.dq-die-name { position: absolute !important; bottom: 7px; left: 0; right: 0; color: var(--gold-3); font-family: var(--font-display); font-size: 0.66rem; font-style: normal; font-weight: 700; letter-spacing: 0.04em; text-align: center; }
+.dq-die:hover:not(:disabled), .dq-row.is-active .dq-die { filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.55)); }
+.dq-die:hover:not(:disabled)::before, .dq-row.is-active .dq-die::before { background: linear-gradient(180deg, #3a3524, #1d1a12); }
+.dq-die:active:not(:disabled) { filter: brightness(0.85); }
+.dq-die:disabled { opacity: 0.5; cursor: default; }
+.dq-badge { position: absolute; z-index: 4; top: -3px; left: calc(var(--dq-die) - 18px); pointer-events: none; min-width: 18px; padding: 0 4px; border-radius: 9px; background: var(--gold-3); color: #1c1007; font-size: 0.62rem; font-style: normal; font-weight: 800; line-height: 15px; text-align: center; }
+.dq-badge.is-adv { background: #62c47b; }
+.dq-badge.is-dis { background: #e0573f; color: #fff; }
+
+/* полоска настроек: выезжает из-под кубика вправо */
+.dq-side {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -14px;
+  padding: 6px 12px 6px 22px;
+  border-radius: 0 99px 99px 0;
+  background: rgba(16, 17, 21, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35), 0 8px 18px rgba(0, 0, 0, 0.45);
+  clip-path: inset(0 100% 0 0 round 0 99px 99px 0);
+  opacity: 0;
+  transition: clip-path 0.32s var(--dq-ease), opacity 0.2s ease;
+  pointer-events: none;
+}
+.dq-row.is-active .dq-side { clip-path: inset(0 0 0 0 round 0 99px 99px 0); opacity: 1; pointer-events: auto; }
+.dq-qty { display: flex; align-items: center; gap: 6px; }
+.dq-qty button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(196, 154, 60, 0.16); color: var(--gold-3); transition: background 0.18s ease, transform 0.18s ease; }
+.dq-qty button svg { width: 14px; height: 14px; }
+.dq-qty button:hover:not(:disabled) { background: rgba(196, 154, 60, 0.34); }
+.dq-qty button:disabled { opacity: 0.3; cursor: default; }
+.dq-qty b { min-width: 1.4em; color: var(--parchment); font-family: var(--font-display); font-size: 1.1rem; text-align: center; }
+.dq-mode { display: flex; gap: 4px; padding-left: 8px; border-left: 1px solid rgba(196, 154, 60, 0.25); }
+.dq-mode button { padding: 5px 10px; border: none; border-radius: 99px; cursor: pointer; background: rgba(168, 175, 186, 0.08); color: var(--text-dim); font: inherit; font-size: 0.78rem; white-space: nowrap; transition: background 0.18s ease, color 0.18s ease; }
+.dq-mode button:hover { color: var(--text); }
+.dq-mode button.is-adv.is-on { background: rgba(98, 196, 123, 0.25); color: #b6f0c4; box-shadow: inset 0 0 0 1px rgba(98, 196, 123, 0.6); }
+.dq-mode button.is-dis.is-on { background: rgba(224, 87, 63, 0.25); color: #ffc2b8; box-shadow: inset 0 0 0 1px rgba(224, 87, 63, 0.6); }
+
+/* язычок для телефона: открыть полоску без броска */
+.dq-tab { position: relative; z-index: 3; display: grid; place-items: center; width: 22px; height: 30px; margin-left: -6px; padding: 0; border: none; border-radius: 0 8px 8px 0; cursor: pointer; background: rgba(16, 17, 21, 0.94); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35); color: var(--gold-3); }
+.dq-tab svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
+.dq-row.is-active .dq-tab svg { transform: rotate(180deg); }
+.dq-row:has(.dq-tab) .dq-side { margin-left: -4px; }
+
+/* журнал бросков: маленькая кнопка рядом с кубиком, список — над ней */
+.dq-journal { position: relative; align-self: flex-end; }
+.dq-journal-btn { position: relative; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(16, 17, 21, 0.92); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45), 0 6px 14px rgba(0, 0, 0, 0.45); color: var(--gold-3); transition: transform 0.2s ease, color 0.2s ease; }
+.dq-journal-btn svg { width: 16px; height: 16px; }
+.dq-journal-btn:hover, .dq-journal-btn.is-on { color: var(--gold-4); box-shadow: inset 0 0 0 1px var(--gold-3), 0 0 12px rgba(228, 196, 110, 0.45); }
+.dq-journal-btn em { position: absolute; top: -5px; right: -6px; min-width: 17px; padding: 0 4px; border-radius: 9px; background: var(--gold-3); color: #1c1007; font-size: 0.62rem; font-style: normal; font-weight: 800; line-height: 16px; text-align: center; }
+.dq-history { position: absolute; left: 0; bottom: calc(100% + 8px); display: flex; flex-direction: column; gap: 3px; width: max-content; min-width: 150px; max-width: 260px; max-height: min(60vh, 420px); margin: 0; padding: 6px; overflow-y: auto; list-style: none; border-radius: 12px; background: rgba(16, 17, 21, 0.95); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.3), 0 12px 28px rgba(0, 0, 0, 0.55); transform-origin: 0 100%; animation: dq-pop 0.28s cubic-bezier(0.2, 1.15, 0.35, 1); scrollbar-width: thin; }
+@keyframes dq-pop { from { opacity: 0; transform: translateY(8px) scale(0.9); } }
+.dq-history li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 14px; padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; outline: none; }
+.dq-history li.has-calc { cursor: help; }
+.dq-history li.has-calc:hover, .dq-history li.has-calc:focus { background: rgba(196, 154, 60, 0.12); }
+.dq-history i { color: var(--text-dim); font-style: normal; }
+.dq-history b { color: var(--parchment); font-family: var(--font-display); font-size: 1.02rem; }
+/* формула расчёта: раскрывается под строкой при наведении (на телефоне — касанием) */
+.dq-calc { flex-basis: 100%; max-height: 0; overflow: hidden; color: var(--gold-4); font-size: 0.78rem; opacity: 0; transition: max-height 0.22s ease, opacity 0.18s ease; }
+.dq-history li.has-calc:hover .dq-calc, .dq-history li.has-calc:focus .dq-calc { max-height: 2.6em; opacity: 1; }
+[data-shell='app']:not([data-room]) .dq-journal, [data-hud='sheet'] .dq-journal { order: -1; }
+[data-shell='app']:not([data-room]) .dq-history, [data-hud='sheet'] .dq-history { left: auto; right: 0; transform-origin: 100% 100%; }
+[data-shell='app']:not([data-room]) .dq-badge, [data-hud='sheet'] .dq-badge { left: auto; right: calc(var(--dq-die) - 18px); }
+.dq-error { max-width: 240px; margin: 0; color: #f4a99f; font-size: 0.8rem; }
+.dq.is-loading .dq-die .die-asset-img { animation: dq-wait 1s ease-in-out infinite; }
+@keyframes dq-wait { 50% { opacity: 0.4; } }
+
+/* на экране героя кнопка справа: меню зеркальное, полоска выезжает влево */
+[data-hud='sheet'] .dq { --dq-die: calc(var(--u) * 44); }
+[data-hud='sheet'] .dq-menu,
+[data-shell='app']:not([data-room]) .dq-menu { left: auto; right: 4px; align-items: flex-end; }
+[data-hud='sheet'] .dq-row,
+[data-shell='app']:not([data-room]) .dq-row { flex-direction: row-reverse; }
+[data-hud='sheet'] .dq-side,
+[data-shell='app']:not([data-room]) .dq-side { margin: 0 -14px 0 0; padding: 6px 22px 6px 12px; border-radius: 99px 0 0 99px; clip-path: inset(0 0 0 100% round 99px 0 0 99px); }
+[data-hud='sheet'] .dq-row.is-active .dq-side,
+[data-shell='app']:not([data-room]) .dq-row.is-active .dq-side { clip-path: inset(0 0 0 0 round 99px 0 0 99px); }
+[data-hud='sheet'] .dq-tab,
+[data-shell='app']:not([data-room]) .dq-tab { margin: 0 -6px 0 0; border-radius: 8px 0 0 8px; }
+[data-hud='sheet'] .dq-row .dq-tab svg,
+[data-shell='app']:not([data-room]) .dq-row .dq-tab svg { transform: rotate(180deg); }
+[data-hud='sheet'] .dq-row.is-active .dq-tab svg,
+[data-shell='app']:not([data-room]) .dq-row.is-active .dq-tab svg { transform: none; }
+[data-room] .dq { --dq-die: max(38px, calc(var(--t) * 42)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dq-row, .dq.is-open .dq-row, .dq-side, .dq-history { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
+}

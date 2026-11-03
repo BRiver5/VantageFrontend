@@ -52,7 +52,8 @@ import { Corners } from './ornaments'
 import { abilitiesFromSkills } from './skills'
 import { ABILITY_LABELS } from './types/character'
 import { useDice } from './dice/diceControl'
-import knightUrl from './assets/sillhouette.png'
+import knightUrl from './assets/silhouette.webp'
+import { Img, bgUrl } from './media'
 
 /* ---------- Кубики ---------- */
 
@@ -396,7 +397,7 @@ function MovementCard({ c }: { c: Creature }) {
 export function WorldBackdrop({ art }: { art: string }) {
   return (
     <div className="beast-world" aria-hidden="true">
-      <span className="beast-world-bg" style={{ backgroundImage: `url("${art}")` }} />
+      <span className="beast-world-bg" style={{ backgroundImage: `url("${bgUrl(art)}")` }} />
     </div>
   )
 }
@@ -448,7 +449,7 @@ export function CreatureStage({
           </svg>
           <span className="beast-art-floor" aria-hidden="true" />
           {image && !broken ? (
-            <img
+            <Img
               src={image}
               alt={c.name}
               style={{ viewTransitionName: 'class-hero-img' } as CSSProperties}
@@ -816,7 +817,7 @@ export function HeightChart({
         <div className="beast-size-figure beast-size-figure--monster" style={{ height: pct(height) }}>
           <span className="beast-size-mark">≈ {fmtM(height)}</span>
           {image && broken !== image ? (
-            <img src={image} alt={name} onError={() => setBroken(image)} />
+            <Img src={image} alt={name} onError={() => setBroken(image)} />
           ) : (
             <Fallback className="beast-size-fallback" aria-hidden="true" />
           )}

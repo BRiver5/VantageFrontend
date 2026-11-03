@@ -91,6 +91,7 @@ import { SpellSchoolMark } from '../spellSchools'
 import { RichText, TermDesc } from '../terms/terms'
 import { EquipmentIconRow } from './StartingEquipment'
 import { useEquipmentDrawer } from '../equipmentDrawer'
+import { Img } from '../media'
 
 const PAGE_SIZE = 24
 
@@ -668,7 +669,7 @@ function RecCard({ item, onSelect, role }: { item: Item; onSelect: (item: Item) 
       <span className="rec-thumb" style={vt(role === 'incoming' ? 'incoming-art' : undefined)}>
         <span className="rec-thumb-glow" aria-hidden="true" />
         {image && !broken ? (
-          <img src={image} alt="" loading="lazy" onError={() => setBroken(true)} />
+          <Img src={image} alt="" loading="lazy" onError={() => setBroken(true)} />
         ) : (
           <Gem aria-hidden="true" />
         )}
@@ -757,7 +758,7 @@ function ItemSplitView({
           <div className="item-art" style={vt(artName)}>
             <span className="item-glow" aria-hidden="true" />
             {image && !broken ? (
-              <img src={image} alt={selected.item_name} onError={() => setBroken(true)} />
+              <Img src={image} alt={selected.item_name} onError={() => setBroken(true)} />
             ) : (
               <Gem className="item-art-fallback" aria-hidden="true" />
             )}
@@ -871,7 +872,7 @@ function ClassCardPortrait({
   return (
     <div className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" style={imgStyle} onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} loading="lazy" style={imgStyle} onError={() => setBroken(true)} />
       ) : (
         <Fallback className="class-card-fallback" aria-hidden="true" />
       )}
@@ -910,7 +911,7 @@ function classCard(c: GameClass) {
   return (
     <article className="card card--portrait card--class">
       <div className="class-card-visual">
-        <img
+        <Img
           className="class-card-die"
           src={DIE_NUM_IMAGE_URLS[dieType]}
           alt=""
@@ -1001,7 +1002,7 @@ function FeatCard({ f, book }: { f: Feat; book: Book | undefined }) {
     <article className="card card--feat">
       <div className="feat-card-art" aria-hidden={!src}>
         {src && !broken ? (
-          <img
+          <Img
             src={src}
             alt=""
             loading="lazy"
@@ -1109,7 +1110,7 @@ function BackgroundCard({ bg, book }: { bg: Background; book: Book | undefined }
       <span className="bg-card-hex" aria-hidden={!src}>
         <span className="bg-card-hex-inner">
           {src && !broken ? (
-            <img
+            <Img
               src={src}
               alt={bg.background_name}
               loading="lazy"
@@ -1295,7 +1296,7 @@ function CreaturePortrait({ src, alt }: { src: string | null; alt: string }) {
   return (
     <div className={`class-card-portrait${framed ? ' creature-portrait--framed' : ''}`}>
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <Skull className="class-card-fallback" aria-hidden="true" />
       )}
@@ -1373,7 +1374,7 @@ function EquipmentCardArt({ src, alt, fallback: Icon }: { src: string | null; al
   return (
     <span className="eq-card-art">
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <Icon className="eq-card-fallback" aria-hidden="true" />
       )}
@@ -1440,7 +1441,7 @@ function ItemCardArt({ src, alt, vtName }: { src: string | null; alt: string; vt
     >
       <span className="item-card-glow" aria-hidden="true" />
       {src && !broken ? (
-        <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+        <Img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <Gem className="item-card-fallback" aria-hidden="true" />
       )}

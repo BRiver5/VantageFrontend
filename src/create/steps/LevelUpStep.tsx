@@ -58,6 +58,7 @@ import { checkPrereq, type PrereqContext } from '../prereq'
 import { ChoiceModal, FactChip, ModalSection, MoreTab, StepHeader } from './ui'
 import { SpellDetails } from './SpellsStep'
 import { spellSchoolIcon } from '../../spellSchools'
+import { Img } from '../../media'
 
 const SKILL_BY_KEY = new Map(DEFAULT_SKILLS.map((s) => [s.key, s]))
 
@@ -555,7 +556,7 @@ export default function LevelUpStep({
                       aria-pressed={on}
                     >
                       {art ? (
-                        <img src={art} alt="" loading="lazy" className="cw-subclass-art" />
+                        <Img src={art} alt="" loading="lazy" className="cw-subclass-art" />
                       ) : (
                         <span className="cw-subclass-art cw-subclass-art--empty">
                           <Shield aria-hidden="true" />
@@ -825,7 +826,7 @@ export default function LevelUpStep({
 /** Значок школы магии, без него — искра */
 function SchoolFace({ school }: { school: string | null }) {
   const src = spellSchoolIcon(school)
-  return src ? <img src={src} alt="" draggable={false} /> : <Sparkles aria-hidden="true" />
+  return src ? <Img src={src} alt="" draggable={false} /> : <Sparkles aria-hidden="true" />
 }
 
 const spellMeta = (s: Spell) =>

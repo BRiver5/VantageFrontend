@@ -17,8 +17,9 @@ import { isFullCreature } from '../../types/rooms'
 import { useRoom, useRoomEvents } from '../RoomProvider'
 import { addCombatants, beginCombat, combatAction, endCombat, nextTurn, revertCombatAction, rollInitiative, setInitiative } from '../roomsApi'
 import { CreatureCard, HeroCard } from './Cards'
-import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, type Origin } from './parts'
+import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
+import { Img } from '../../media'
 
 const errText = (e: unknown) => {
   if (e instanceof ApiError) {
@@ -113,7 +114,10 @@ function Figure({
   onClick: (o: Origin) => void
   onInit: (v: number) => void
 }) {
-  const art = artOf(c)
+  const { roomId } = useRoom()
+  // герой без своей картинки — с картинкой расы, как в листе
+  const heroArt = useHeroArt(roomId, c.card?.id, c.card?.avatar_url, isDm || mine)
+  const art = c.card ? parsePortrait(heroArt).src : artOf(c)
   const [broken, setBroken] = useState(false)
   const [initVal, setInitVal] = useState<string | null>(null)
   const hp = c.card ? { ratio: cardRatio(c.card), current: c.card.hp.current, max: c.card.hp.max, temp: c.card.hp.temp } : c.creature ? creatureHp(c.creature) : { ratio: null }
@@ -137,7 +141,7 @@ function Figure({
       <button type="button" className="bt-fig-hit" onClick={(e) => onClick(originFromEvent(e))} aria-pressed={targeting ? picked : undefined} aria-label={`${nameOf(c)}${targeting ? (picked ? ': цель выбрана' : ': выбрать целью') : ': открыть карточку'}`}>
         <span className="bt-fig-ground" aria-hidden="true" />
         <span className="bt-fig-body">
-          {art && !broken ? <img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : <Silhouette enemy={c.side === 'enemies'} />}
+          {art && !broken ? <Img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : <Silhouette enemy={c.side === 'enemies'} />}
         </span>
         {targeting && (
           <svg className="bt-reticle" viewBox="0 0 100 100" aria-hidden="true">

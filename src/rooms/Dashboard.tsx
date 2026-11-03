@@ -16,6 +16,7 @@ import { getDashboard, saveDashboard } from './roomsApi'
 import { CreatureCard, LootCard } from './table/Cards'
 import { LeafMaps, LeafNotes } from './table/DmScreen'
 import { creatureArt, creatureHp, creatureName, Hex, itemName, itemArt, originFromEvent, type Origin } from './table/parts'
+import { Img } from '../media'
 
 const COLS = 12
 const ROW_H = 72
@@ -120,7 +121,7 @@ function ItemsWidget() {
     <div className="sc-behind is-column">
       {items.map((it) => (
         <button key={it.id} type="button" className="sc-mini-item" onClick={(e) => setOpen({ id: it.id, origin: originFromEvent(e) })}>
-          {itemArt(it) ? <img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
+          {itemArt(it) ? <Img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
           {itemName(it)}
           {it.quantity > 1 && <em>×{it.quantity}</em>}
           <small>{it.holder === 'table' ? 'на столе' : 'за ширмой'}</small>

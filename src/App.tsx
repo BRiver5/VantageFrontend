@@ -23,8 +23,7 @@ import {
 import { RequireAuth, useAuth } from './auth/AuthContext'
 import { getBookContents, getBooks, getSettings, settingArt, splitTitle, totalsOf } from './api'
 import type { Book, BookContents, ContentTotals, Setting } from './api'
-import { Corners, VantageLogo, Divider } from './ornaments'
-import { DieImage } from './dice/diceAssets'
+import { Corners, VantageLogo } from './ornaments'
 import {
   BestiaryPage,
   BackgroundsPage,
@@ -63,6 +62,9 @@ import DiceRoller from './dice/DiceRoller'
 import RouteReadyGate from './RouteReadyGate'
 import { bookSectionEntries, contentEntryLink, HEX_EXPAND_ROWS, LOOT_CHIP_ROWS } from './contentSections'
 import { useAppShell } from './shell'
+import { DieImage } from './dice/diceAssets'
+import { SearchBar, SearchProvider, useOpenSearch } from './search/GlobalSearch'
+import { Img, bgUrl } from './media'
 
 /* ---------- Разделы каталога ---------- */
 
@@ -76,11 +78,10 @@ const CATEGORIES = [
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
   { path: '/characters', label: 'Персонажи', icon: ScrollText },
-  { path: '/rooms', label: 'Комнаты', icon: DoorOpen },
 ] as const
 
 // «Персонажи» и «Комнаты» — не справочник: у них свои вкладки внизу и пункты в меню
-const CODEX = CATEGORIES.filter((c) => c.path !== '/characters' && c.path !== '/rooms')
+const CODEX = CATEGORIES.filter((c) => c.path !== '/characters')
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -125,6 +126,8 @@ function Sidebar() {
             <span className="sidebar-brand-name gold-text">Vantage</span>
           </Link>
         </div>
+
+        <SidebarSearch expanded={expanded} />
 
         <nav className="sidebar-nav" aria-label="Разделы каталога">
           {CATEGORIES.map(({ path, label, icon: Icon }) => (
@@ -178,20 +181,19 @@ function Sidebar() {
   )
 }
 
-/* ---------- Кнопка «Играть» — вытянутый гексагон (бросок кубика — кнопка в углу, см. DiceRoller) ---------- */
-
-function PlayButton() {
+/** Кнопка поиска в боковом меню: открывает поиск по всему сайту */
+function SidebarSearch({ expanded }: { expanded: boolean }) {
+  const openSearch = useOpenSearch()
   return (
-    <div className="play-wrap">
-      <button type="button" className="play-btn" title="Скоро в игре">
-        <span className="play-btn-inner">
-          <DieImage type={20} size={26} className="die-play-icon" />
-          <span className="gold-text">Играть</span>
-          <DieImage type={20} size={26} className="die-play-icon die-play-icon--flip" />
-        </span>
-      </button>
-      <span className="play-hint">— врата откроются вскоре —</span>
-    </div>
+    <button type="button" className="sidebar-search" onClick={() => openSearch()} title="Поиск по сайту (Ctrl+K)">
+      <Search aria-hidden="true" className="sidebar-link-icon" />
+      {expanded && (
+        <>
+          <span className="sidebar-link-label">Поиск</span>
+          <kbd>Ctrl K</kbd>
+        </>
+      )}
+    </button>
   )
 }
 
@@ -299,13 +301,12 @@ function SettingsCarousel({
                 className="setting-card-inner"
                 style={{ '--accent': ACCENTS[i % ACCENTS.length] } as React.CSSProperties}
               >
-                <span className="setting-art" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />
+                <span className="setting-art" style={{ backgroundImage: `url("${bgUrl(art, 320)}")` }} aria-hidden="true" />
                 <span className="setting-kicker">{realm.id === BASIC_ID ? 'Основа' : 'Сеттинг'}</span>
                 <span className="setting-name">
                   {ru}
                   {en && <span className="setting-name-en">{en}</span>}
                 </span>
-                {realm.desc && <span className="setting-desc">{realm.desc}</span>}
                 <span className="setting-meta">
                   <BookOpen aria-hidden="true" />
                   {tomes(realm.books.length)}
@@ -351,7 +352,7 @@ export function LootChips({
 }) {
   return (
     <div className="loot-grid">
-      {LOOT_ROWS.map(({ key, label, icon: Icon }) => {
+      {LOOT_ROWS.filter(({ key }) => totals[key] > 0).map(({ key, label, icon: Icon }) => {
         const count = totals[key]
         const clickable = !!onSelect && count > 0
         const Tag = clickable ? 'button' : 'span'
@@ -377,7 +378,7 @@ function LootBar({ realm }: { realm: Realm }) {
   return (
     <div className="loot-bar">
       <Corners size={38} />
-      <div className="loot-title">Нововведения — {splitTitle(realm.title).ru}</div>
+      <div className="loot-title">Что в книгах мира</div>
       <LootChips totals={totals} />
     </div>
   )
@@ -396,7 +397,7 @@ function HexCover({ book }: { book: Book }) {
     )
   }
   return (
-    <img
+    <Img
       className="hex-cover"
       src={book.book_cover_url}
       alt=""
@@ -411,7 +412,7 @@ function HexLootExpand({ book, contents }: { book: Book; contents: BookContents 
     const { ids, count } = bookSectionEntries(book, key, contents)
     const href = contentEntryLink(book.id, key, base, ids)
     return { key, label, Icon, count, href }
-  })
+  }).filter((r) => r.count > 0)
   const total = rows.reduce((s, r) => s + r.count, 0)
 
   return (
@@ -423,8 +424,8 @@ function HexLootExpand({ book, contents }: { book: Book; contents: BookContents 
       <div className="hex-expand-inner">
         <Corners size={20} />
         <div className="hex-expand-title">
-          <span className="hex-expand-title-text">Нововведения</span>
-          <span className="hex-expand-total">{total}</span>
+          <span className="hex-expand-title-text">{total ? 'В книге' : 'Пока пусто'}</span>
+          {total > 0 && <span className="hex-expand-total">{total}</span>}
         </div>
         <ul className="hex-expand-list">
           {rows.map(({ key, label, Icon, count, href }) => {
@@ -436,7 +437,7 @@ function HexLootExpand({ book, contents }: { book: Book; contents: BookContents 
               </>
             )
             return (
-              <li key={key} className={`hex-expand-row${count === 0 ? ' is-zero' : ''}`}>
+              <li key={key} className="hex-expand-row">
                 {href ? (
                   <Link to={href} className="hex-expand-link" title={`${label}: ${count}`}>
                     {inner}
@@ -616,6 +617,7 @@ function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {
 /* ---------- Главная ---------- */
 
 function HomePage() {
+  const { user } = useAuth()
   const [settings, setSettings] = useState<Setting[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
@@ -636,7 +638,7 @@ function HomePage() {
     const basic: Realm = {
       id: BASIC_ID,
       title: 'Базовые правила [Core Rules]',
-      desc: 'Общие тома мультивселенной: правила, монстры и сокровища, не привязанные к одному миру.',
+      desc: 'Общие тома: правила, монстры и сокровища, не привязанные к одному миру.',
       pictureUrl: CORE_RULES_ART,
       books: books.filter((b) => !b.settings_id),
     }
@@ -656,26 +658,20 @@ function HomePage() {
 
   return (
     <>
-      <section className="hero">
-        <h1 className="hero-title gold-text">Кодекс Приключений</h1>
-        <p className="hero-sub">
-          Хроники миров, бестиарии, гримуары и реликвии — всё знание мультивселенной, переплетённое в золото.
-        </p>
-        <PlayButton />
+      <section className="home-top">
+        <h1 className="home-title gold-text">Vantage</h1>
+        <SearchBar />
+        <Link to={user ? '/rooms' : '/login'} className="play-btn">
+          <span className="play-btn-inner">
+            <DieImage type={20} size={26} className="die-play-icon" />
+            <span className="gold-text">Играть</span>
+            <DieImage type={20} size={26} className="die-play-icon die-play-icon--flip" />
+          </span>
+        </Link>
       </section>
 
-      <Divider />
-
-      <section aria-label="Сеттинги">
-        <h2 className="section-title gold-text">Миры и Сеттинги</h2>
-        <p className="section-sub">Изберите мир — и соты архива раскроют его тома</p>
-        <div className="setting-search-bar">
-          <label className="setting-search" title="Поиск миров появится позже">
-            <Search aria-hidden="true" />
-            <input type="search" placeholder="Искать мир…" readOnly aria-label="Поиск мира (скоро)" />
-            <span className="soon-badge">скоро</span>
-          </label>
-        </div>
+      <section className="home-section" aria-label="Миры">
+        <h2 className="home-h2">Миры</h2>
         {error ? (
           <p className="status-line is-error">Архив недоступен: {error}</p>
         ) : (
@@ -683,11 +679,11 @@ function HomePage() {
         )}
       </section>
 
-      <Divider />
-
-      <section aria-label="Книги сеттинга">
-        <h2 className="section-title gold-text">Тома Архива</h2>
-        <p className="section-sub">Каждая сота — книга избранного мира, нажмите — и том раскроется</p>
+      <section className="home-section" aria-label="Книги мира">
+        <h2 className="home-h2">
+          Книги
+          <span>{splitTitle(realm.title).ru}</span>
+        </h2>
         {!loading && !error && <LootBar realm={realm} />}
         {!error && <BookHive books={realm.books} loading={loading} />}
       </section>
@@ -809,6 +805,7 @@ function ScrollToTop() {
 export default function App() {
   const { app } = useAppShell()
   return (
+    <SearchProvider>
     <div className="app-shell">
       <ScrollToTop />
       <Sidebar />
@@ -910,10 +907,10 @@ export default function App() {
             <Route path="/settings/:id" element={<SettingPage />} />
           </Routes>
         </RouteReadyGate>
-        <footer className="footer">Vantage · Codex Adventurae · MMXXVI</footer>
       </main>
       <DiceRoller />
       {app && <AppTabBar />}
     </div>
+    </SearchProvider>
   )
 }

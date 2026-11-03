@@ -36,13 +36,14 @@ import {
   usePicker,
   type PickFilterGroup,
 } from './ui'
+import { Img } from '../../media'
 
 const spellName = (s: Spell) => s.spell_name
 const circleLabel = (n: number) => (n === 0 ? 'заговор' : `${n} круг`)
 
 function SchoolIcon({ school }: { school: string | null }) {
   const src = spellSchoolIcon(school)
-  return src ? <img src={src} alt="" /> : <Sparkles aria-hidden="true" />
+  return src ? <Img src={src} alt="" /> : <Sparkles aria-hidden="true" />
 }
 
 /** Карточка заклинания: круг, школа, время и дистанция, концентрация/ритуал */
@@ -111,7 +112,7 @@ export function SpellDetails({ spell, onClose }: { spell: Spell; onClose: () => 
   return (
     <ChoiceModal
       title={spell.spell_name}
-      visual={icon ? <img className="cw-sp-hero" src={icon} alt="" /> : undefined}
+      visual={icon ? <Img className="cw-sp-hero" src={icon} alt="" /> : undefined}
       icon={Sparkles}
       selected={false}
       chooseLabel="Закрыть"

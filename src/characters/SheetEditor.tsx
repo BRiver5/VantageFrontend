@@ -39,6 +39,7 @@ import { AreaField, AutoNum, CatalogSearch, EdField, EdSection, Stepper, TextFie
 import { FaceAvatar, FaceCropper } from './FacePortrait'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
 import { abilityPath, contributionsOf, whyText } from './sheetView'
+import { bgUrl } from '../media'
 
 type CombatField = { auto: boolean; value: number; computed: number }
 
@@ -414,7 +415,7 @@ export function SheetEditor({
               <div className="ed-grid">
                 <ImageSource label="Картинка за листом" value={pic.background} maxSide={1600} onChange={(background) => setPic((p) => ({ ...p, background }))} />
               </div>
-              {pic.background && <span className="ed-bg-preview" style={{ backgroundImage: `url("${pic.background}")` }} aria-hidden="true" />}
+              {pic.background && <span className="ed-bg-preview" style={{ backgroundImage: `url("${bgUrl(pic.background, 320)}")` }} aria-hidden="true" />}
             </div>
           </EdSection>
 

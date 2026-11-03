@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { ChevronLeft, ChevronRight, Footprints, Heart, PawPrint, Search, Shield } from 'lucide-react'
 import { getCachedEntity, getOne, realImage, type Creature } from '../api'
 import type { PromptInput, PromptOption } from '../types/character'
+import { Img } from '../media'
 
 /** Видно по столько карточек с каждой стороны от центральной */
 const SIDE = 2
@@ -77,7 +78,7 @@ function Slot({ opt, offset, onPick }: { opt: PromptOption; offset: number; onPi
     >
       <span className="cpod-art">
         {beast.image && !broken ? (
-          <img src={beast.image} alt="" draggable={false} onError={() => setBroken(true)} />
+          <Img src={beast.image} alt="" draggable={false} onError={() => setBroken(true)} />
         ) : (
           <PawPrint aria-hidden="true" />
         )}

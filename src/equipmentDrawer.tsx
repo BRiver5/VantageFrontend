@@ -12,6 +12,7 @@ import { PriceMark } from './coins'
 import { useEquipmentIndex } from './equipmentIndex'
 import { Corners } from './ornaments'
 import { RichText } from './terms/terms'
+import { Img } from './media'
 
 /* ============================================================
    Панель предмета: выезжает справа, гасит страницу вуалью
@@ -219,7 +220,7 @@ export function EquipmentContentsCorner({
         const Icon = categoryIcon(item?.category)
         return (
           <span className="detail-plate-contents-item" key={entry.slug + i}>
-            {src ? <img src={src} alt="" /> : <Icon aria-hidden="true" />}
+            {src ? <Img src={src} alt="" /> : <Icon aria-hidden="true" />}
           </span>
         )
       })}
@@ -236,7 +237,7 @@ function DrawerArt({ eq, index }: { eq: Equipment; index: EquipmentIndex | null 
   return (
     <span className="eq-drawer-art-wrap">
       {src && !broken ? (
-        <img className="eq-drawer-art" src={src} alt="" onError={() => setBroken(true)} />
+        <Img className="eq-drawer-art" src={src} alt="" onError={() => setBroken(true)} />
       ) : (
         <span className="eq-drawer-art eq-drawer-art--empty">
           <Icon aria-hidden="true" />
@@ -373,7 +374,7 @@ function ContentTile({
   const face = (
     <>
       {src && !broken ? (
-        <img className="se-tile-face" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <Img className="se-tile-face" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <span className="se-tile-face se-tile-face--empty" aria-hidden="true">
           <Icon />

@@ -1,10 +1,11 @@
 import type { Cost } from './api'
 import { CURRENCY_RU, formatCost, formatCostAmount, resolveCost } from './equipment'
-import copperCoin from './assets/coins/copper coin icon.png'
-import silverCoin from './assets/coins/silver coin icon.png'
-import electrumCoin from './assets/coins/electrum coin icon.png'
-import goldCoin from './assets/coins/golden coin icon.png'
-import platinumCoin from './assets/coins/platinum coin icon.png'
+import copperCoin from './assets/coins/copper.webp'
+import silverCoin from './assets/coins/silver.webp'
+import electrumCoin from './assets/coins/electrum.webp'
+import goldCoin from './assets/coins/gold.webp'
+import platinumCoin from './assets/coins/platinum.webp'
+import { Img } from './media'
 
 const COIN_SRC = {
   cp: copperCoin,
@@ -32,7 +33,7 @@ export function PriceMark({
   const label = formatCost(resolved, null) ?? ''
   return (
     <span className={['price-mark', className].filter(Boolean).join(' ')} title={label}>
-      <img src={COIN_SRC[resolved.currency]} alt={CURRENCY_RU[resolved.currency]} />
+      <Img src={COIN_SRC[resolved.currency]} alt={CURRENCY_RU[resolved.currency]} />
       <b>{formatCostAmount(resolved.amount)}</b>
     </span>
   )
@@ -49,7 +50,7 @@ export function CoinImg({
   className?: string
 }) {
   return (
-    <img
+    <Img
       src={COIN_SRC[currency]}
       alt={CURRENCY_RU[currency]}
       width={size}

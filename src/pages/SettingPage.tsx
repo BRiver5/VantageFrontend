@@ -15,6 +15,7 @@ import { Corners, CoverImage, Divider } from '../ornaments'
 import { TomeSections } from './bookContentsUi'
 import { LootChips } from '../App'
 import { scrollToTomeSection } from '../contentSections'
+import { bgUrl } from '../media'
 
 export default function SettingPage() {
   const { id } = useParams<{ id: string }>()
@@ -69,7 +70,7 @@ export default function SettingPage() {
       </Link>
 
       <div className="world-hero">
-        <span className="world-hero-bg" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />
+        <span className="world-hero-bg" style={{ backgroundImage: `url("${bgUrl(art)}")` }} aria-hidden="true" />
         <div className="world-hero-inner">
           <span className="setting-kicker">Сеттинг</span>
           <h1 className="book-title gold-text">{ru}</h1>

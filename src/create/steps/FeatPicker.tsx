@@ -19,6 +19,7 @@ import {
   usePicker,
   type PickFilterGroup,
 } from './ui'
+import { Img } from '../../media'
 
 const featName = (f: Feat) => f.feat_name
 
@@ -28,7 +29,7 @@ function FeatArt({ feat }: { feat: Feat }) {
   return (
     <span className="cw-feat-art">
       {src && !broken ? (
-        <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <Img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <Sparkles aria-hidden="true" />
       )}

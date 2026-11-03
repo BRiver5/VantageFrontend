@@ -9,16 +9,17 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Circle, Hexagon, RectangleVertical, UserRound } from 'lucide-react'
 import { clampFace, type FaceCrop, type FaceShape } from './portrait'
+import { Img } from '../media'
 
 export function FaceImage({ src, crop }: { src: string | null; crop: FaceCrop }) {
   const [broken, setBroken] = useState(false)
   useEffect(() => setBroken(false), [src])
   if (!src || broken) return <UserRound className="cw-face-fallback" aria-hidden="true" />
   if (crop.shape === 'full') {
-    return <img className="cw-face-full" src={src} alt="" draggable={false} onError={() => setBroken(true)} />
+    return <Img className="cw-face-full" src={src} alt="" draggable={false} onError={() => setBroken(true)} />
   }
   return (
-    <img
+    <Img
       className="cw-face-img"
       src={src}
       alt=""
@@ -130,7 +131,7 @@ export function FaceCropper({
     <div className="cw-crop">
       <div className="cw-crop-stage">
         <div className={`cw-crop-box${full ? ' is-full' : ''}`} ref={boxRef}>
-          <img
+          <Img
             src={src}
             alt=""
             draggable={false}

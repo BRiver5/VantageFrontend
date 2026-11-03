@@ -7,11 +7,14 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { createPortal } from 'react-dom'
 import { ImageOff, Skull } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { imageVariant, realImage } from '../../api'
+import { getCharacter, getOne, listMyCharacters, realImage, roomCharacterRef, type GameClass, type Race } from '../../api'
+import { useRoom } from '../RoomProvider'
+import { setRoomCharacterAvatar } from '../roomsApi'
 import { FaceImage } from '../../characters/FacePortrait'
 import { parsePortrait } from '../../characters/portrait'
 import type { AnyCreature, CharacterCard, HpBand, RoomItem } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
+import { Img } from '../../media'
 
 /* ---------- данные ---------- */
 
@@ -27,6 +30,13 @@ export const creatureSize = (c: AnyCreature): string | null | undefined => (isFu
 
 export const itemName = (it: RoomItem) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? 'Предмет'
 export const itemArt = (it: RoomItem) => realImage(it.equipment?.equipment_image_gallery) ?? realImage(it.magic_item?.item_image_gallery)
+
+/**
+ * В событии передачи нет картинки предмета. Отправитель её знает, поэтому
+ * оставляет подсказку, и у него вещь летит с настоящей картинкой.
+ */
+export const relayArt = new Map<string, string>()
+export const relayKey = (from: string, to: string, name: string) => `${from}>${to}>${name}`
 export const itemSub = (it: RoomItem) => it.magic_item?.rarity ?? it.equipment?.subcategory ?? it.equipment?.category ?? ''
 
 /** Хиты существа в долях; у игрока могут быть только словом или не быть совсем */
@@ -49,6 +59,63 @@ export function seed(id: string, k = 0): number {
 }
 
 export const errText = (e: unknown, fallback = 'Ошибка сервера') => (e instanceof Error && e.message ? e.message : fallback)
+
+/* ---------- картинка героя, как в листе ---------- */
+
+const heroArtCache = new Map<string, Promise<string | null>>()
+
+/**
+ * В комнате лежит копия героя, снятая при входе. Картинку, загруженную в
+ * оригинал позже, копия не знает: ищем оригинал среди своих героев (по имени
+ * и расе) и заодно переносим картинку в копию, чтобы её увидела вся партия.
+ */
+async function avatarFromOriginal(roomId: string, characterId: string, name: string, raceId: string | null | undefined): Promise<string | null> {
+  const mine = await listMyCharacters().catch(() => [])
+  const same = mine.filter((x) => x.avatar_url && x.character_name === name)
+  const hit = same.find((x) => !raceId || x.race_id === raceId) ?? (same.length === 1 ? same[0] : undefined)
+  if (!hit?.avatar_url) return null
+  void setRoomCharacterAvatar(roomId, characterId, hit.avatar_url).catch(() => undefined)
+  return hit.avatar_url
+}
+
+/** Своя картинка героя, а без неё — картинка расы (или класса), как в листе */
+function loadHeroArt(roomId: string, characterId: string, own: boolean): Promise<string | null> {
+  const key = `${roomId}/${characterId}/${own ? 'own' : ''}`
+  const known = heroArtCache.get(key)
+  if (known) return known
+  const job = getCharacter(roomCharacterRef(roomId, characterId))
+    .then(async (c) => {
+      if (c.avatar_url) return c.avatar_url
+      const original = own ? await avatarFromOriginal(roomId, characterId, c.character_name, c.race_id) : null
+      if (original) return original
+      const race = c.race_id ? await getOne<Race>('races', c.race_id).catch(() => null) : null
+      const fromRace = realImage(race?.image_gallery)
+      if (fromRace) return fromRace
+      const cls = c.classes[0]?.class_id ? await getOne<GameClass>('classes', c.classes[0].class_id).catch(() => null) : null
+      return realImage(cls?.image_gallery)
+    })
+    .catch(() => null)
+  heroArtCache.set(key, job)
+  return job
+}
+
+/**
+ * Картинка героя для стола: из карточки, а если там пусто — из листа. Чужой лист
+ * игроку не открыт, поэтому догружаем только свой (мастеру — все).
+ */
+export function useHeroArt(roomId: string, characterId: string | null | undefined, cardAvatar: string | null | undefined, allowed: boolean): string | null {
+  const [art, setArt] = useState<string | null>(null)
+  const own = useRoom().data?.me.room_character_id === characterId
+  useEffect(() => {
+    if (cardAvatar || !characterId || !(allowed || own)) return
+    let alive = true
+    void loadHeroArt(roomId, characterId, own).then((a) => alive && setArt(a))
+    return () => {
+      alive = false
+    }
+  }, [roomId, characterId, cardAvatar, allowed, own])
+  return cardAvatar || art
+}
 
 /* ---------- шестигранник ---------- */
 
@@ -90,7 +157,7 @@ export function Hex({
           !plain && info.face && info.face.shape !== 'full' ? (
             <FaceImage src={src} crop={info.face} />
           ) : (
-            <img className="tb-hex-img" src={plain ? imageVariant(src, 'medium') : src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+            <Img className="tb-hex-img" src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
           )
         ) : Fallback ? (
           <Fallback className="tb-hex-icon" aria-hidden="true" />

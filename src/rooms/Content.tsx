@@ -14,6 +14,7 @@ import type { RoomEventMessage } from '../types/rooms'
 import { useRoom, useRoomEvents } from './RoomProvider'
 import { preloadContent, revealContent } from './roomsApi'
 import { Field } from './ui'
+import { Img } from '../media'
 
 interface Shown {
   id: string
@@ -83,7 +84,7 @@ export function ContentOverlay() {
       {shown.title && <h2>{shown.title}</h2>}
       <div className={`rm-content-grid${shown.urls.length > 1 ? ' is-many' : ''}`} onClick={(e) => e.stopPropagation()}>
         {shown.urls.map((u) => (
-          <img key={u} src={u} alt={shown.title || 'Показ мастера'} />
+          <Img key={u} src={u} alt={shown.title || 'Показ мастера'} />
         ))}
       </div>
     </div>,
@@ -187,7 +188,7 @@ export function ContentPanel({ bare = false }: { bare?: boolean }) {
         <ul className="rm-content-thumbs">
           {urls.map((u) => (
             <li key={u}>
-              <img src={u} alt="" />
+              <Img src={u} alt="" />
               <button type="button" aria-label="Убрать" onClick={() => setUrls((l) => l.filter((x) => x !== u))}>
                 <X aria-hidden="true" />
               </button>

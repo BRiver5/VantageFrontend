@@ -1,19 +1,29 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ChevronLeft, Palette, RotateCcw, SlidersHorizontal } from 'lucide-react'
+/**
+ * Кубики сайта: 3D-сцена, быстрое меню бросков и связь с остальным кодом
+ * (броски листа, комнаты, мастера создания).
+ *
+ * Меню: наведение на кнопку (на компьютере) или нажатие (на телефоне) плавно
+ * раскрывает столбик кубиков. Нажатие на кубик сразу бросает его, меню прячется
+ * до конца броска. Справа от кубика выезжает количество, у d20 — преимущество и
+ * помеха. На телефоне эта полоска открывается язычком сбоку от кубика.
+ *
+ * Цвета и громкость настраиваются в профиле.
+ */
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight, Minus, Plus, ScrollText } from 'lucide-react'
 import type DiceBoxType from '@3d-dice/dice-box'
 import DiceResultOverlay from './DiceResultOverlay'
-import { critClass, DIE_TYPES, DiceShapeIcon, type DieResult, type DieType } from './DiceShapeIcons'
-import DiceD20Mod from './DiceD20Mod'
-import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from './diceSounds'
+import { critClass, DIE_TYPES, type DieResult, type DieType } from './DiceShapeIcons'
+import { initDiceAudio, playDropsForRoll } from './diceSounds'
 import { getRoomRollHandler, registerDiceRoller, registerForcedRoller } from './diceControl'
 import { FORCEABLE_SIDES, forcedRollId } from './forcedIds'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
 import { useAppShell } from '../shell'
 
-type DicePool = Record<DieType, number>
-type DieColors = Record<DieType, string>
+type DicePool = Partial<Record<DieType, number>>
 type Phase = 'idle' | 'rolling' | 'reveal'
+type Mode = 'adv' | 'dis' | null
 
 interface RollHistoryEntry {
   id: number
@@ -23,50 +33,15 @@ interface RollHistoryEntry {
 }
 
 const MAX_QTY = 10
-const MAX_FAVORITES = 5
-const FAV_KEY = 'vantage-dice-favorites'
 const DEFAULT_SCALE = 6
-
-// стартовые «избранные» расцветки корпуса (цифры всегда золотые из текстуры)
-const DEFAULT_FAVORITES = ['#34302a', '#792c22', '#1e5b4f', '#2a3f74', '#4a2f6b']
-
-// палитра для быстрого добавления в избранное
-const PRESET_COLORS = [
-  '#34302a', '#111318', '#792c22', '#b0451f', '#5a3a1c',
-  '#1e5b4f', '#2f6d34', '#2a3f74', '#123f5c', '#4a2f6b',
-  '#7a2f5c', '#8a1f2f', '#3a3d44', '#b0b6bf',
-]
-
-const EMPTY_POOL = Object.fromEntries(DIE_TYPES.map((t) => [t, 0])) as DicePool
-const D20_MOD_TOGGLE_HEIGHT = Math.round(32 * 1.1547)
-
-/** Смещение элемента внутри контейнера по layout-дереву — не зависит от CSS transform. */
-function getOffsetTopWithin(el: HTMLElement, container: HTMLElement): number {
-  let top = 0
-  let node: HTMLElement | null = el
-  while (node && node !== container) {
-    top += node.offsetTop
-    const offsetParent: Element | null = node.offsetParent
-    if (!(offsetParent instanceof HTMLElement) || !container.contains(offsetParent)) {
-      return el.getBoundingClientRect().top - container.getBoundingClientRect().top
-    }
-    node = offsetParent
-  }
-  return top
-}
-
-function loadFavorites(): string[] {
-  try {
-    const raw = localStorage.getItem(FAV_KEY)
-    if (raw) {
-      const arr = JSON.parse(raw)
-      if (Array.isArray(arr) && arr.length > 0) return arr.slice(0, MAX_FAVORITES)
-    }
-  } catch {
-    /* ignore */
-  }
-  return DEFAULT_FAVORITES
-}
+/** цвет корпуса темы: «обычные» кубики */
+const THEME_BODY = '#34302a'
+/** закрыть меню после ухода курсора не сразу: можно промахнуться на пару пикселей */
+const HOVER_CLOSE_MS = 260
+/** сверху вниз: d20 ближе всех к кнопке, под рукой */
+const MENU_ORDER: DieType[] = [...DIE_TYPES].sort((a, b) => (a === 100 ? -1 : b === 100 ? 1 : a - b))
+/** сколько бросков хранит журнал */
+const HISTORY_KEEP = 30
 
 function parseSides(s: number | string): number {
   if (typeof s === 'number') return s
@@ -74,15 +49,12 @@ function parseSides(s: number | string): number {
   return Number.isNaN(n) ? 0 : n
 }
 
-function buildRollFormula(pool: DicePool): string {
-  return DIE_TYPES.filter((t) => pool[t] > 0)
+const buildRollFormula = (pool: DicePool) =>
+  DIE_TYPES.filter((t) => (pool[t] ?? 0) > 0)
     .map((t) => `${pool[t]}d${t}`)
     .join(' + ')
-}
 
-function buildClashFormula(mod: 'adv' | 'dis'): string {
-  return mod === 'adv' ? '2d20 (преим.)' : '2d20 (помеха)'
-}
+const buildClashFormula = (mod: 'adv' | 'dis') => (mod === 'adv' ? '2d20 (преим.)' : '2d20 (помеха)')
 
 function clashOutcome(dice: DieResult[], mod: 'adv' | 'dis') {
   const a = dice[0].value
@@ -92,28 +64,16 @@ function clashOutcome(dice: DieResult[], mod: 'adv' | 'dis') {
   return { kept, dropped }
 }
 
-function mapRollResults(raw: { sides: number | string; value: number }[]): DieResult[] {
-  return raw.map((d) => ({ sides: parseSides(d.sides), value: d.value }))
+const mapRollResults = (raw: { sides: number | string; value: number }[]): DieResult[] => raw.map((d) => ({ sides: parseSides(d.sides), value: d.value }))
+
+/** «Обычные» кубики профиля (или ничего не настроено): корпус темы */
+function bodyColorOf(prefs: { body_color: string; accent_color: string; number_color: string } | undefined): string {
+  if (!prefs) return THEME_BODY
+  const serverDefault = prefs.body_color === '#1a1a2e' && prefs.number_color === '#ffffff' && prefs.accent_color === '#e94560'
+  return serverDefault ? THEME_BODY : prefs.body_color
 }
 
-const HISTORY_ANIM_MS = 1200
-
-function easeHistory(t: number): number {
-  return 1 - (1 - t) ** 2.4
-}
-
-function animateHistoryScroll(el: HTMLElement, to: number, duration: number) {
-  const from = el.scrollTop
-  const delta = to - from
-  if (Math.abs(delta) < 0.5) return
-  const start = performance.now()
-  const step = (now: number) => {
-    const t = Math.min(1, (now - start) / duration)
-    el.scrollTop = from + delta * easeHistory(t)
-    if (t < 1) requestAnimationFrame(step)
-  }
-  requestAnimationFrame(step)
-}
+/* ---------- кнопка, которую на телефоне можно смахнуть ---------- */
 
 const STASH_KEY = 'vantage-dice-stashed'
 /** Сколько пикселей вправо нужно протянуть кнопку, чтобы она спряталась */
@@ -131,19 +91,7 @@ function readStashed(): boolean {
  * Кнопка кубика. На телефоне её можно смахнуть за правый край — остаётся
  * маленькая стрелка, которая возвращает кнопку. Выбор переживает перезагрузку.
  */
-function StashableFab({
-  shown,
-  onOpen,
-  title,
-  'aria-label': ariaLabel,
-  children,
-}: {
-  shown: boolean
-  onOpen: () => void
-  title: string
-  'aria-label': string
-  children: ReactNode
-}) {
+function StashableFab({ open, busy, onToggle, children }: { open: boolean; busy: boolean; onToggle: () => void; children: ReactNode }) {
   const { app } = useAppShell()
   const [stashed, setStashedState] = useState(readStashed)
   const [dragX, setDragX] = useState<number | null>(null)
@@ -161,13 +109,7 @@ function StashableFab({
 
   if (app && stashed) {
     return (
-      <button
-        type="button"
-        className="dice-stash-tab"
-        aria-label="Показать кнопку кубика"
-        onPointerDown={(e) => { start.current = e.clientX }}
-        onClick={() => setStashed(false)}
-      >
+      <button type="button" className="dice-stash-tab" aria-label="Показать кнопку кубика" onClick={() => setStashed(false)}>
         <ChevronLeft aria-hidden="true" />
       </button>
     )
@@ -176,10 +118,11 @@ function StashableFab({
   return (
     <button
       type="button"
-      className={`dice-fab${shown ? ' is-visible' : ''}${dragX !== null ? ' is-dragging' : ''}`}
+      className={`dice-fab is-visible${open ? ' is-open' : ''}${busy ? ' is-busy' : ''}${dragX !== null ? ' is-dragging' : ''}`}
       style={dragX ? { transform: `translateX(${dragX}px)`, opacity: Math.max(0.3, 1 - dragX / 90) } : undefined}
-      title={title}
-      aria-label={ariaLabel}
+      title="Кубики"
+      aria-label="Кубики"
+      aria-expanded={open}
       onPointerDown={(e) => {
         if (!app) return
         start.current = e.clientX
@@ -205,12 +148,12 @@ function StashableFab({
         setDragX(null)
       }}
       onClick={() => {
-        // жест смахивания не должен открывать панель
+        // жест смахивания не должен открывать меню
         if (swiped.current) {
           swiped.current = false
           return
         }
-        onOpen()
+        onToggle()
       }}
     >
       {children}
@@ -218,169 +161,109 @@ function StashableFab({
   )
 }
 
+/* ---------- один кубик в меню ---------- */
+
+function DieRow({
+  type,
+  index,
+  count,
+  mode,
+  active,
+  touch,
+  disabled,
+  onActive,
+  onRoll,
+  onCount,
+  onMode,
+}: {
+  type: DieType
+  index: number
+  count: number
+  mode: Mode
+  active: boolean
+  touch: boolean
+  disabled: boolean
+  onActive: (on: boolean) => void
+  onRoll: () => void
+  onCount: (n: number) => void
+  onMode: (m: Mode) => void
+}) {
+  const label = mode && type === 20 ? `d20 с ${mode === 'adv' ? 'преимуществом' : 'помехой'}` : `${count}d${type}`
+  return (
+    <li className={`dq-row${active ? ' is-active' : ''}`} style={{ '--i': index } as CSSProperties} onPointerEnter={touch ? undefined : () => onActive(true)}>
+      <button type="button" className="dq-die" disabled={disabled} onClick={onRoll} title={`Бросить ${label}`} aria-label={`Бросить ${label}`}>
+        <DieImage type={type} size={30} />
+        <i className="dq-die-name">d{type}</i>
+      </button>
+      {(count > 1 || (type === 20 && mode)) && <em className={`dq-badge${mode && type === 20 ? ` is-${mode}` : ''}`}>{mode && type === 20 ? (mode === 'adv' ? 'П' : 'Пм') : `×${count}`}</em>}
+      {touch && (
+        <button type="button" className="dq-tab" onClick={() => onActive(!active)} aria-label={`Настроить d${type}`} aria-expanded={active}>
+          <ChevronRight aria-hidden="true" />
+        </button>
+      )}
+      <div className="dq-side" aria-hidden={!active}>
+        <div className="dq-qty" role="group" aria-label={`Сколько d${type}`}>
+          <button type="button" onClick={() => onCount(Math.max(1, count - 1))} disabled={count <= 1 || (type === 20 && !!mode)} tabIndex={active ? 0 : -1} aria-label="Меньше">
+            <Minus aria-hidden="true" />
+          </button>
+          <b>{type === 20 && mode ? 2 : count}</b>
+          <button type="button" onClick={() => onCount(Math.min(MAX_QTY, count + 1))} disabled={count >= MAX_QTY || (type === 20 && !!mode)} tabIndex={active ? 0 : -1} aria-label="Больше">
+            <Plus aria-hidden="true" />
+          </button>
+        </div>
+        {type === 20 && (
+          <div className="dq-mode" role="radiogroup" aria-label="Преимущество или помеха">
+            <button type="button" role="radio" aria-checked={mode === 'adv'} className={`is-adv${mode === 'adv' ? ' is-on' : ''}`} tabIndex={active ? 0 : -1} onClick={() => onMode(mode === 'adv' ? null : 'adv')}>
+              Преимущество
+            </button>
+            <button type="button" role="radio" aria-checked={mode === 'dis'} className={`is-dis${mode === 'dis' ? ' is-on' : ''}`} tabIndex={active ? 0 : -1} onClick={() => onMode(mode === 'dis' ? null : 'dis')}>
+              Помеха
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  )
+}
+
+/* ---------- всё вместе ---------- */
+
 export default function DiceRoller() {
   const { user } = useAuth()
+  const { app, coarse } = useAppShell()
+  const touch = app || coarse
   const boxRef = useRef<DiceBoxType | null>(null)
-  const appliedPrefColor = useRef<string | null>(null)
   const initPromise = useRef<Promise<void> | null>(null)
   const diceClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const historyRef = useRef<HTMLDivElement | null>(null)
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const historyId = useRef(0)
-  const prevHistoryRects = useRef<Map<number, DOMRect>>(new Map())
-  const historyCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const dockCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const trayClusterRef = useRef<HTMLDivElement | null>(null)
-  const d20RowRef = useRef<HTMLDivElement | null>(null)
-  const d20ModOuterRef = useRef<HTMLDivElement | null>(null)
+  const lastPool = useRef<DicePool>({})
+  const dockRef = useRef<HTMLDivElement | null>(null)
 
-  const [open, setOpen] = useState(false)
-  const [dockUi, setDockUi] = useState<'off' | 'on' | 'hiding'>('off')
-  const [dockTrayShown, setDockTrayShown] = useState(false)
-  const [fabShown, setFabShown] = useState(true)
-  const prevDockUi = useRef<'off' | 'on' | 'hiding'>('off')
-  const [historyUi, setHistoryUi] = useState<'off' | 'on' | 'hiding'>('off')
-  const [historyPanelShown, setHistoryPanelShown] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [journal, setJournal] = useState(false)
+  const [activeDie, setActiveDie] = useState<DieType | null>(null)
+  const [counts, setCounts] = useState<Record<DieType, number>>(() => Object.fromEntries(DIE_TYPES.map((t) => [t, 1])) as Record<DieType, number>)
+  const [mode, setMode] = useState<Mode>(null)
   const [ready, setReady] = useState(false)
-  const [pool, setPool] = useState<DicePool>({ ...EMPTY_POOL })
   const [phase, setPhase] = useState<Phase>('idle')
   const [rollResults, setRollResults] = useState<DieResult[]>([])
   const [history, setHistory] = useState<RollHistoryEntry[]>([])
   const [error, setError] = useState<string | null>(null)
-
-  const [favorites, setFavorites] = useState<string[]>(loadFavorites)
-  const [dieColors, setDieColors] = useState<DieColors>(
-    () => Object.fromEntries(DIE_TYPES.map((t) => [t, DEFAULT_FAVORITES[0]])) as DieColors,
-  )
-  const [paletteOpen, setPaletteOpen] = useState(false)
-  const [draftColor, setDraftColor] = useState('#c49a3c')
-  const [soundVolume, setSoundVolume] = useState(() => Math.round(getDiceVolume() * 100))
-  const [d20ModOpen, setD20ModOpen] = useState(false)
-  const [d20ModTop, setD20ModTop] = useState(0)
   const [revealClash, setRevealClash] = useState<'adv' | 'dis' | null>(null)
-  // бросок из кода (визард): сцена видна, но оверлей результата не нужен
+  // бросок из кода (лист, комната): сцена видна, но оверлей результата не нужен
   const [externalActive, setExternalActive] = useState(false)
 
-  const hasDice = DIE_TYPES.some((t) => pool[t] > 0)
-  const hideTrayOnMobile = phase === 'rolling' || phase === 'reveal'
+  const prefDice = user?.preferences?.dice
+  const bodyColor = bodyColorOf(prefDice)
+  const colorRef = useRef(bodyColor)
+  colorRef.current = bodyColor
 
-  const showHistoryPanel = history.length > 0 && historyUi !== 'off'
-  const showDockTray = dockUi !== 'off'
-  const showOpenControls = dockUi === 'on' || dockUi === 'hiding'
-
-  const beginHistoryHide = useCallback(() => {
-    if (historyCloseTimer.current) {
-      clearTimeout(historyCloseTimer.current)
-      historyCloseTimer.current = null
-    }
-    if (history.length === 0) {
-      setHistoryUi('off')
-      return
-    }
-    setHistoryUi('hiding')
-    historyCloseTimer.current = setTimeout(() => {
-      setHistoryUi('off')
-      historyCloseTimer.current = null
-    }, HISTORY_ANIM_MS)
-  }, [history.length])
-
-  const beginHistoryShow = useCallback(() => {
-    if (historyCloseTimer.current) {
-      clearTimeout(historyCloseTimer.current)
-      historyCloseTimer.current = null
-    }
-    if (history.length > 0) setHistoryUi('on')
-  }, [history.length])
-
-  // открытие дока — плавно показать лоток и историю
+  // цвета профиля: цифры и отблеск — у материалов, корпус — цвет каждого броска
   useEffect(() => {
-    if (!open) return
-    if (dockCloseTimer.current) {
-      clearTimeout(dockCloseTimer.current)
-      dockCloseTimer.current = null
-    }
-    setDockUi('on')
-    beginHistoryShow()
-  }, [open, beginHistoryShow])
-
-  // первый бросок при открытом доке
-  useEffect(() => {
-    if (open && history.length > 0 && historyUi === 'off') beginHistoryShow()
-  }, [open, history.length, historyUi, beginHistoryShow])
-
-  // плавное появление лотка
-  useEffect(() => {
-    if (dockUi === 'on') {
-      setDockTrayShown(false)
-      const id = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setDockTrayShown(true))
-      })
-      return () => cancelAnimationFrame(id)
-    }
-    setDockTrayShown(false)
-  }, [dockUi])
-
-  // плавное появление FAB после закрытия меню
-  useEffect(() => {
-    if (dockUi === 'off' && prevDockUi.current === 'hiding') {
-      setFabShown(false)
-      const id = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setFabShown(true))
-      })
-      prevDockUi.current = dockUi
-      return () => cancelAnimationFrame(id)
-    }
-    prevDockUi.current = dockUi
-  }, [dockUi])
-
-  // плавное появление истории
-  useEffect(() => {
-    if (historyUi === 'on') {
-      setHistoryPanelShown(false)
-      const id = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setHistoryPanelShown(true))
-      })
-      return () => cancelAnimationFrame(id)
-    }
-    setHistoryPanelShown(false)
-  }, [historyUi])
-
-  useEffect(() => () => {
-    if (historyCloseTimer.current) clearTimeout(historyCloseTimer.current)
-    if (dockCloseTimer.current) clearTimeout(dockCloseTimer.current)
-  }, [])
-
-  // цвет корпуса из preferences.dice при логине
-  useEffect(() => {
-    const color = user?.preferences?.dice?.body_color
-    if (!color || appliedPrefColor.current === color) return
-    appliedPrefColor.current = color
-    setDieColors(Object.fromEntries(DIE_TYPES.map((t) => [t, color])) as DieColors)
-    setFavorites((fav) => (fav.includes(color) ? fav : [color, ...fav].slice(0, MAX_FAVORITES)))
-  }, [user?.preferences?.dice?.body_color])
-
-  // сохраняем избранное
-  useEffect(() => {
-    try {
-      localStorage.setItem(FAV_KEY, JSON.stringify(favorites))
-    } catch {
-      /* ignore */
-    }
-  }, [favorites])
-
-  // если цвет кости выпал из избранного (удалили) — откатываем на первый избранный
-  useEffect(() => {
-    setDieColors((prev) => {
-      let changed = false
-      const next = { ...prev }
-      for (const t of DIE_TYPES) {
-        if (!favorites.includes(next[t])) {
-          next[t] = favorites[0]
-          changed = true
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [favorites])
+    if (!prefDice) return
+    void import('./diceStyle').then(({ applyDiceStyle }) => applyDiceStyle(prefDice))
+  }, [prefDice])
 
   const clearDiceTimer = useCallback(() => {
     if (diceClearTimer.current) {
@@ -395,7 +278,7 @@ export default function DiceRoller() {
     setExternalActive(false)
   }, [clearDiceTimer])
 
-  // бокс поднимается по первому открытию лотка или по первому броску из кода
+  // бокс поднимается по первому открытию меню или по первому броску из кода
   const ensureBox = useCallback(() => {
     if (initPromise.current) return initPromise.current
     initPromise.current = (async () => {
@@ -403,15 +286,17 @@ export default function DiceRoller() {
       // перехват чтения граней: кубики комнат падают на значения сервера
       const { installForcedFaces } = await import('./forcedFaces')
       installForcedFaces()
+      // сцена нужна, чтобы перекрасить цифры и отблеск под профиль
+      const { hookDiceScene } = await import('./diceStyle')
+      hookDiceScene()
       const box = new DiceBox({
         // перехват работает, только пока сцена в основном потоке (в воркере код вшит строкой)
         offscreen: false,
         container: '#dice-box-stage',
         assetPath: '/assets/',
-        // тема vantage: палитра PNG перекрашена — цифры золотые, корпус = themeColor
         theme: 'vantage',
         // themeColor берётся из КОНФИГА бокса (не из theme.config.json), иначе зелёный
-        themeColor: DEFAULT_FAVORITES[0],
+        themeColor: THEME_BODY,
         scale: DEFAULT_SCALE,
         gravity: 1,
         throwForce: 6,
@@ -426,31 +311,24 @@ export default function DiceRoller() {
   }, [])
 
   useEffect(() => {
-    if (open) void ensureBox()
-  }, [open, ensureBox])
+    if (menu) void ensureBox()
+  }, [menu, ensureBox])
 
-  // цвета читаем через ref, чтобы обработчик не перерегистрировался на каждый клик
-  const colorsRef = useRef({ dieColors, favorites })
-  colorsRef.current = { dieColors, favorites }
-
+  // бросок из кода: лист героя, мастер создания
   useEffect(
     () =>
       registerDiceRoller(async (notation) => {
         await ensureBox()
         const box = boxRef.current
         if (!box) throw new Error('Кости недоступны')
-
         const count = parseInt(notation, 10) || 1
-        const sides = parseSides(notation.split('d')[1] ?? '') as DieType
-        const { dieColors: colors, favorites: favs } = colorsRef.current
-
         initDiceAudio()
         playDropsForRoll(count)
         clear3DDice()
         setExternalActive(true)
         try {
           await box.updateConfig({ scale: DEFAULT_SCALE })
-          const results = await box.roll(notation, { themeColor: colors[sides] || favs[0] })
+          const results = await box.roll(notation, { themeColor: colorRef.current })
           return results.map((r) => r.value)
         } finally {
           // кости задерживаются на сцене, чтобы игрок увидел грани
@@ -464,7 +342,7 @@ export default function DiceRoller() {
     [ensureBox, clear3DDice],
   )
 
-  // бросок с заранее известными значениями (комнаты): грани доворачиваются под сервер
+  // бросок с заранее известными значениями (комнаты): кубики падают на значения сервера
   const forcedSeed = useRef(0)
   useEffect(
     () =>
@@ -472,9 +350,7 @@ export default function DiceRoller() {
         await ensureBox()
         const box = boxRef.current
         if (!box) throw new Error('Кости недоступны')
-        const { favorites: favs } = colorsRef.current
         const seed = ++forcedSeed.current
-
         initDiceAudio()
         playDropsForRoll(dice.length)
         clear3DDice()
@@ -490,7 +366,7 @@ export default function DiceRoller() {
           // сколько тел создаст библиотека: d100 — это две кости
           const { armForcedReplay } = await import('./forcedFaces')
           armForcedReplay(dice.reduce((n, d) => n + (d.sides === 100 ? 2 : 1), 0))
-          const results = await box.roll(notation, { themeColor: themeColor || favs[0] })
+          const results = await box.roll(notation, { themeColor: themeColor || colorRef.current })
           return results.map((r) => r.value)
         } finally {
           diceClearTimer.current = setTimeout(() => {
@@ -503,166 +379,50 @@ export default function DiceRoller() {
     [ensureBox, clear3DDice],
   )
 
-  useLayoutEffect(() => {
-    const el = historyRef.current
-    if (!el) return
-
-    const prev = prevHistoryRects.current
-    el.querySelectorAll<HTMLElement>('.dice-history-card').forEach((card) => {
-      const id = Number(card.dataset.entryId)
-      const oldRect = prev.get(id)
-      if (!oldRect) return
-      const newRect = card.getBoundingClientRect()
-      const dy = oldRect.top - newRect.top
-      if (Math.abs(dy) < 0.5) return
-
-      card.classList.remove('is-shifting')
-      card.style.transform = `translateY(${dy}px)`
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          card.classList.add('is-shifting')
-          card.style.transform = 'translateY(0)'
-          const clear = () => {
-            card.classList.remove('is-shifting')
-            card.style.transform = ''
-            card.removeEventListener('transitionend', clear)
-          }
-          card.addEventListener('transitionend', clear)
-        })
-      })
-    })
-    prevHistoryRects.current = new Map()
-
-    animateHistoryScroll(el, el.scrollHeight - el.clientHeight, HISTORY_ANIM_MS)
-  }, [history])
-
-  const syncD20ModPosition = useCallback(() => {
-    const cluster = trayClusterRef.current
-    const row = d20RowRef.current
-    const modOuter = d20ModOuterRef.current
-    if (!cluster || !row) return
-    const rowTop = getOffsetTopWithin(row, cluster)
-    const mod = modOuter?.querySelector<HTMLElement>('.dice-d20-mod')
-    const toggle = modOuter?.querySelector<HTMLElement>('.dice-d20-mod-toggle')
-    const modHeight = mod?.offsetHeight ?? toggle?.offsetHeight ?? D20_MOD_TOGGLE_HEIGHT
-    setD20ModTop(rowTop + (row.offsetHeight - modHeight) / 2)
-  }, [])
-
-  useLayoutEffect(() => {
-    if (!showDockTray || !dockTrayShown) return
-    syncD20ModPosition()
-    const cluster = trayClusterRef.current
-    const modOuter = d20ModOuterRef.current
-    if (!cluster) return
-    const ro = new ResizeObserver(syncD20ModPosition)
-    ro.observe(cluster)
-    if (modOuter) ro.observe(modOuter)
-    return () => ro.disconnect()
-  }, [showDockTray, paletteOpen, dockTrayShown, d20ModOpen, syncD20ModPosition])
-
   useEffect(() => () => clearDiceTimer(), [clearDiceTimer])
 
-  const adjustQty = (type: DieType, delta: number) => {
-    setPool((prev) => ({
-      ...prev,
-      [type]: Math.max(0, Math.min(MAX_QTY, prev[type] + delta)),
-    }))
-  }
+  /* ---------- меню ---------- */
 
-  const resetPool = () => setPool({ ...EMPTY_POOL })
+  const openMenu = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    initDiceAudio()
+    setMenu(true)
+  }, [])
+  const closeMenu = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    setMenu(false)
+    setActiveDie(null)
+  }, [])
 
-  const handleVolumeChange = (pct: number) => {
-    setSoundVolume(pct)
-    setDiceVolume(pct / 100)
-  }
-
-  // клик по цветному чипу кости — следующий избранный цвет
-  const cycleDieColor = (type: DieType) => {
-    setDieColors((prev) => {
-      if (favorites.length === 0) return prev
-      const idx = favorites.indexOf(prev[type])
-      const next = favorites[(idx + 1) % favorites.length] ?? favorites[0]
-      return { ...prev, [type]: next }
-    })
-  }
-
-  const addFavorite = (color: string) => {
-    setFavorites((f) => (f.length >= MAX_FAVORITES || f.includes(color) ? f : [...f, color]))
-  }
-
-  const removeFavorite = (color: string) => {
-    setFavorites((f) => (f.length <= 1 ? f : f.filter((c) => c !== color)))
-  }
-
-  const close = useCallback(() => {
-    clear3DDice()
-    setPaletteOpen(false)
-    setPhase('idle')
-    setRollResults([])
-    setRevealClash(null)
-    setError(null)
-    beginHistoryHide()
-
-    if (dockCloseTimer.current) {
-      clearTimeout(dockCloseTimer.current)
-      dockCloseTimer.current = null
+  // на телефоне меню закрывается нажатием мимо
+  useEffect(() => {
+    if (!menu || !touch) return
+    const onDown = (e: PointerEvent) => {
+      if (dockRef.current && !dockRef.current.contains(e.target as Node)) closeMenu()
     }
-    setDockUi('hiding')
-    dockCloseTimer.current = setTimeout(() => {
-      setOpen(false)
-      setDockUi('off')
-      dockCloseTimer.current = null
-    }, HISTORY_ANIM_MS)
-  }, [clear3DDice, beginHistoryHide])
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [menu, touch, closeMenu])
 
-  const closeReveal = useCallback(() => {
-    if (rollResults.length > 0) {
-      const el = historyRef.current
-      const prev = new Map<number, DOMRect>()
-      el?.querySelectorAll<HTMLElement>('.dice-history-card').forEach((card) => {
-        prev.set(Number(card.dataset.entryId), card.getBoundingClientRect())
-      })
-      prevHistoryRects.current = prev
+  useEffect(() => {
+    if (!menu) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeMenu()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menu, closeMenu])
 
-      if (revealClash && rollResults.length === 2) {
-        const { kept, dropped } = clashOutcome(rollResults, revealClash)
-        setHistory((h) => [
-          ...h,
-          {
-            id: ++historyId.current,
-            formula: buildClashFormula(revealClash),
-            dice: [{ sides: 20, value: kept }],
-            clash: { mod: revealClash, kept, dropped },
-          },
-        ])
-      } else {
-        setHistory((h) => [
-          ...h,
-          { id: ++historyId.current, formula: buildRollFormula(pool), dice: rollResults },
-        ])
-      }
-    }
-    setPhase('idle')
-    setRollResults([])
-    setRevealClash(null)
+  /* ---------- броски из меню ---------- */
 
-    clearDiceTimer()
-    diceClearTimer.current = setTimeout(() => {
-      boxRef.current?.clear()
-      diceClearTimer.current = null
-    }, 5000)
-  }, [rollResults, pool, revealClash, clearDiceTimer])
-
-  // в комнате кости бросает сервер: лоток только отправляет бросок
+  // в комнате кости бросает сервер: меню только отправляет бросок
   const roomBusy = useRef(false)
-  const rollInRoom = async (expression: string, label: string, mode: 'adv' | 'dis' | null) => {
+  const rollInRoom = async (expression: string, label: string, m: Mode) => {
     const handler = getRoomRollHandler()
     if (!handler || roomBusy.current) return
     roomBusy.current = true
     setError(null)
     initDiceAudio()
     try {
-      await handler({ expression, label, mode })
+      await handler({ expression, label, mode: m })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -670,25 +430,21 @@ export default function DiceRoller() {
     }
   }
 
-  const rollD20Mod = async (mod: 'adv' | 'dis') => {
-    if (getRoomRollHandler()) return void rollInRoom('1d20', mod === 'adv' ? 'к20 с преимуществом' : 'к20 с помехой', mod)
+  const rollD20Mod = async (m: 'adv' | 'dis') => {
+    if (getRoomRollHandler()) return void rollInRoom('1d20', m === 'adv' ? 'к20 с преимуществом' : 'к20 с помехой', m)
+    await ensureBox()
     const box = boxRef.current
-    if (!box || phase === 'rolling' || !ready) return
-
+    if (!box || phase === 'rolling') return
     initDiceAudio()
     playDropsForRoll(2)
-
     clear3DDice()
     setPhase('rolling')
     setError(null)
     setRollResults([])
-    setRevealClash(mod)
-
-    const color = dieColors[20] || favorites[0]
-
+    setRevealClash(m)
     try {
       await box.updateConfig({ scale: DEFAULT_SCALE })
-      const dice = await box.roll('2d20', { themeColor: color }).then(mapRollResults)
+      const dice = await box.roll('2d20', { themeColor: colorRef.current }).then(mapRollResults)
       setRollResults(dice)
       setPhase('reveal')
     } catch (e) {
@@ -698,51 +454,27 @@ export default function DiceRoller() {
     }
   }
 
-  const roll = async () => {
-    const roomActive = DIE_TYPES.filter((t) => pool[t] > 0)
-    if (getRoomRollHandler() && roomActive.length > 0) {
-      return void rollInRoom(roomActive.map((t) => `${pool[t]}d${t}`).join('+'), 'Бросок из лотка', null)
-    }
+  const rollPool = async (pool: DicePool) => {
+    const active = DIE_TYPES.filter((t) => (pool[t] ?? 0) > 0)
+    if (active.length === 0) return
+    if (getRoomRollHandler()) return void rollInRoom(active.map((t) => `${pool[t]}d${t}`).join('+'), 'Бросок', null)
+    await ensureBox()
     const box = boxRef.current
-    const active = DIE_TYPES.filter((t) => pool[t] > 0)
-    if (!box || phase === 'rolling' || active.length === 0) return
-
-    const totalDice = active.reduce((n, t) => n + pool[t], 0)
+    if (!box || phase === 'rolling') return
+    const totalDice = active.reduce((n, t) => n + (pool[t] ?? 0), 0)
     initDiceAudio()
     playDropsForRoll(totalDice)
-
     clear3DDice()
+    lastPool.current = pool
     setPhase('rolling')
     setError(null)
     setRollResults([])
     setRevealClash(null)
-
-    // группируем кости по выбранному цвету
-    const groups = new Map<string, string[]>()
-
-    for (const t of active) {
-      const color = dieColors[t] || favorites[0]
-      const arr = groups.get(color) ?? []
-      arr.push(`${pool[t]}d${t}`)
-      groups.set(color, arr)
-    }
-
-    // размер: по умолчанию 6, при >10 костях уменьшаем
+    // при большом числе костей уменьшаем, чтобы влезли в кадр
     const scale = totalDice <= 10 ? DEFAULT_SCALE : Math.max(3, DEFAULT_SCALE * Math.sqrt(10 / totalDice))
-
     try {
       await box.updateConfig({ scale })
-      const entries = [...groups.entries()]
-      let throwIdx = 0
-      const throws: Promise<DieResult[]>[] = []
-
-      for (const [color, notation] of entries) {
-        const call = throwIdx === 0 ? box.roll.bind(box) : box.add.bind(box)
-        throws.push(call(notation, { themeColor: color }).then(mapRollResults))
-        throwIdx++
-      }
-
-      const dice = (await Promise.all(throws)).flat()
+      const dice = await box.roll(active.map((t) => `${pool[t]}d${t}`), { themeColor: colorRef.current }).then(mapRollResults)
       setRollResults(dice)
       setPhase('reveal')
     } catch (e) {
@@ -751,280 +483,114 @@ export default function DiceRoller() {
     }
   }
 
+  /** Нажали на кубик: бросаем, а меню прячется на время броска */
+  const rollDie = (type: DieType) => {
+    closeMenu()
+    if (type === 20 && mode) {
+      const m = mode
+      setMode(null)
+      void rollD20Mod(m)
+      return
+    }
+    void rollPool({ [type]: counts[type] })
+  }
+
+  const closeReveal = useCallback(() => {
+    if (rollResults.length > 0) {
+      if (revealClash && rollResults.length === 2) {
+        const { kept, dropped } = clashOutcome(rollResults, revealClash)
+        setHistory((h) => [...h, { id: ++historyId.current, formula: buildClashFormula(revealClash), dice: [{ sides: 20, value: kept }], clash: { mod: revealClash, kept, dropped } }])
+      } else {
+        setHistory((h) => [...h, { id: ++historyId.current, formula: buildRollFormula(lastPool.current), dice: rollResults }])
+      }
+    }
+    setPhase('idle')
+    setRollResults([])
+    setRevealClash(null)
+    clearDiceTimer()
+    diceClearTimer.current = setTimeout(() => {
+      boxRef.current?.clear()
+      diceClearTimer.current = null
+    }, 5000)
+  }, [rollResults, revealClash, clearDiceTimer])
+
+  const busy = phase !== 'idle'
+  const recent = history.slice(-HISTORY_KEEP).reverse()
+
   return (
     <>
+      <div id="dice-box-stage" className={`dice-stage${phase !== 'idle' || externalActive ? ' is-active' : ''}`} aria-hidden={phase === 'idle' && !externalActive} />
+
+      {phase === 'reveal' && rollResults.length > 0 && <DiceResultOverlay dice={rollResults} clash={revealClash} onClose={closeReveal} />}
+
       <div
-        id="dice-box-stage"
-        className={`dice-stage${phase !== 'idle' || externalActive ? ' is-active' : ''}`}
-        aria-hidden={phase === 'idle' && !externalActive}
-      />
-
-      {phase === 'reveal' && rollResults.length > 0 && (
-        <DiceResultOverlay dice={rollResults} clash={revealClash} onClose={closeReveal} />
-      )}
-
-      <div className={`dice-dock${open ? ' is-open' : ''}${dockUi === 'hiding' ? ' is-hiding' : ''}`}>
-        {showHistoryPanel && (
-          <div
-            className={`dice-history-panel${historyPanelShown ? ' is-visible' : ''}${historyUi === 'hiding' ? ' is-hiding' : ''}`}
-          >
-            <div className="dice-history-scroll" ref={historyRef} role="log" aria-label="История бросков">
-              <div className="dice-history-spacer" aria-hidden="true" />
-              {history.map((entry) => {
-                const total = entry.dice.reduce((s, d) => s + d.value, 0)
-                const isLatest = entry.id === history[history.length - 1].id
-                return (
-                  <article
-                    key={entry.id}
-                    data-entry-id={entry.id}
-                    className={`dice-history-card${isLatest ? ' is-entering' : ''}`}
-                  >
-                    <div className="dice-history-card-inner">
-                      <p className="dice-history-formula">{entry.formula}</p>
-                      <p className="dice-history-result">
-                        {entry.clash ? (
-                          <>
-                            <span className={critClass({ sides: 20, value: entry.clash.kept })}>
-                              {entry.clash.kept}
-                            </span>
-                            <span className="dice-hist-clash-drop">{entry.clash.dropped}</span>
-                          </>
-                        ) : (
-                          <>
-                            {entry.dice.map((d, i) => (
-                              <span key={i}>
-                                {i > 0 && <span className="dice-hist-op"> + </span>}
-                                <span className={critClass(d)}>{d.value}</span>
-                              </span>
-                            ))}
-                            {entry.dice.length > 1 && (
-                              <>
-                                <span className="dice-hist-op"> = </span>
-                                <b className="dice-hist-total">{total}</b>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {showDockTray && (
-          <div
-            className={`dice-tray-cluster${hideTrayOnMobile ? ' dice-tray-cluster--hidden-mobile' : ''}`}
-            ref={trayClusterRef}
-          >
-            <div
-              className={`dice-tray-wrap${hideTrayOnMobile ? ' dice-tray-wrap--hidden-mobile' : ''}${dockTrayShown ? ' is-visible' : ''}${dockUi === 'hiding' ? ' is-hiding' : ''}`}
-            >
-            <div className="dice-tray-head">
-                <span className="dice-tray-title">Кубики</span>
-                <div className="dice-tray-head-actions">
-                  <button
-                    type="button"
-                    className="dice-icon-btn dice-hex-btn dice-hex-btn--sm"
-                    onClick={resetPool}
-                    disabled={!hasDice}
-                    title="Сбросить"
-                    aria-label="Сбросить количество кубиков"
-                  >
-                    <RotateCcw size={15} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className={`dice-icon-btn dice-hex-btn dice-hex-btn--sm${paletteOpen ? ' is-active' : ''}`}
-                    onClick={() => setPaletteOpen((v) => !v)}
-                    title="Настройки"
-                    aria-label="Настройки звука и цветов"
-                    aria-expanded={paletteOpen}
-                  >
-                    <SlidersHorizontal size={15} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-
-              {paletteOpen && (
-                <div className="dice-tray-settings">
-                  <label className="dice-volume-field">
-                    <span className="dice-settings-label">Громкость</span>
-                    <input
-                      type="range"
-                      className="dice-volume-slider"
-                      min={0}
-                      max={100}
-                      value={soundVolume}
-                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                      aria-label="Громкость анимации"
-                      style={{ '--vol-pct': `${soundVolume}%` } as CSSProperties}
-                    />
-                  </label>
-
-                  <div className="dice-settings-divider" aria-hidden="true" />
-
-                  <div className="dice-colors-block">
-                    <div className="dice-colors-head">
-                      <span className="dice-settings-label">
-                        <Palette size={12} aria-hidden="true" />
-                        Цвета
-                      </span>
-                      <span className="dice-colors-count">{favorites.length}/{MAX_FAVORITES}</span>
-                    </div>
-
-                    <div className="dice-palette-favs">
-                      {favorites.map((c) => (
-                        <span key={c} className="dice-fav-slot" style={{ background: c }} title={c}>
-                          {favorites.length > 1 && (
-                            <button
-                              type="button"
-                              className="dice-fav-remove"
-                              onClick={() => removeFavorite(c)}
-                              title="Убрать"
-                              aria-label={`Убрать ${c}`}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </span>
-                      ))}
-                      {favorites.length < MAX_FAVORITES && (
-                        <>
-                          <input
-                            type="color"
-                            className="dice-color-input"
-                            value={draftColor}
-                            onChange={(e) => setDraftColor(e.target.value)}
-                            aria-label="Выбрать цвет"
-                          />
-                          <button
-                            type="button"
-                            className="dice-fav-add dice-hex-btn dice-hex-btn--xs"
-                            onClick={() => addFavorite(draftColor)}
-                            title="Добавить в избранное"
-                            aria-label="Добавить цвет"
-                          >
-                            +
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="dice-palette-presets">
-                      {PRESET_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          className="dice-preset"
-                          style={{ background: c }}
-                          title={c}
-                          aria-label={`Добавить ${c}`}
-                          onClick={() => addFavorite(c)}
-                          disabled={favorites.includes(c) || favorites.length >= MAX_FAVORITES}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="dice-tray" role="group" aria-label="Выбор кубиков">
-                {DIE_TYPES.map((type) => (
-                  <div
-                    key={type}
-                    ref={type === 20 ? d20RowRef : undefined}
-                    className={`dice-tray-row${type === 20 ? ' dice-tray-row--d20' : ''}`}
-                  >
-                    <div className="dice-shape-icon-wrap" title={`к${type}`}>
-                      <DiceShapeIcon type={type} size={40} />
-                    </div>
-                    <button
-                      type="button"
-                      className="dice-row-color"
-                      style={{ background: dieColors[type] }}
-                      onClick={() => cycleDieColor(type)}
-                      title="Расцветка кости — клик для смены"
-                      aria-label={`Расцветка к${type}`}
-                    />
-                    <div className="dice-pool-counter">
-                      <button
-                        type="button"
-                        className="dice-qty-btn dice-hex-btn dice-hex-btn--md"
-                        onClick={() => adjustQty(type, -1)}
-                        disabled={pool[type] === 0}
-                        aria-label={`Уменьшить к${type}`}
-                      >
-                        −
-                      </button>
-                      <span className="dice-qty-value">{pool[type]}</span>
-                      <button
-                        type="button"
-                        className="dice-qty-btn dice-hex-btn dice-hex-btn--md"
-                        onClick={() => adjustQty(type, 1)}
-                        disabled={pool[type] >= MAX_QTY}
-                        aria-label={`Увеличить к${type}`}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            </div>
-
-            <div
-              ref={d20ModOuterRef}
-              className={`dice-d20-mod-outer${dockTrayShown ? ' is-visible' : ''}${dockUi === 'hiding' ? ' is-hiding' : ''}${hideTrayOnMobile ? ' dice-d20-mod-outer--hidden-mobile' : ''}`}
-              style={{ paddingTop: d20ModTop }}
-            >
-              <DiceD20Mod
-                open={d20ModOpen}
-                rolling={phase === 'rolling'}
-                onToggleOpen={() => setD20ModOpen((v) => !v)}
-                onRoll={rollD20Mod}
+        ref={dockRef}
+        className={`dice-dock dq${menu && !busy ? ' is-open' : ''}${menu && !ready ? ' is-loading' : ''}`}
+        onPointerOver={touch ? undefined : (e) => !busy && !menu && !(e.target as Element).closest('.dq-journal') && openMenu()}
+        onPointerLeave={
+          touch
+            ? undefined
+            : () => {
+                if (hoverTimer.current) clearTimeout(hoverTimer.current)
+                hoverTimer.current = setTimeout(closeMenu, HOVER_CLOSE_MS)
+              }
+        }
+      >
+        <div className="dq-menu" aria-hidden={!menu || busy} onPointerLeave={touch ? undefined : () => setActiveDie(null)}>
+          <ul className="dq-list" role="menu" aria-label="Бросить кубик">
+            {MENU_ORDER.map((type, i) => (
+              <DieRow
+                key={type}
+                type={type}
+                index={i}
+                count={counts[type]}
+                mode={type === 20 ? mode : null}
+                active={activeDie === type}
+                touch={touch}
+                disabled={busy}
+                onActive={(on) => setActiveDie(on ? type : null)}
+                onRoll={() => rollDie(type)}
+                onCount={(n) => setCounts((c) => ({ ...c, [type]: n }))}
+                onMode={setMode}
               />
-            </div>
-          </div>
-        )}
-
-        {error && showDockTray && <p className="dice-formula-error">{error}</p>}
+            ))}
+          </ul>
+          {error && <p className="dq-error">{error}</p>}
+        </div>
 
         <div className="dice-action-bar">
-          {!showOpenControls ? (
-            <StashableFab
-              shown={fabShown}
-              onOpen={() => {
-                initDiceAudio()
-                setOpen(true)
-              }}
-              title="Бросить кубик"
-              aria-label="Бросить кубик"
-            >
-              <DieImage type={20} size={30} className="die-fab-icon" />
-            </StashableFab>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="dice-roll-morph"
-                onClick={roll}
-                disabled={phase === 'rolling' || !ready || !hasDice}
-              >
-                {!ready ? 'Загрузка…' : phase === 'rolling' ? 'Бросаем…' : 'Бросить'}
+          <StashableFab open={menu && !busy} busy={busy} onToggle={() => (menu ? closeMenu() : openMenu())}>
+            <DieImage type={20} size={30} className="die-fab-icon" />
+          </StashableFab>
+          {history.length > 0 && (
+            <div className="dq-journal">
+              <button type="button" className={`dq-journal-btn${journal ? ' is-on' : ''}`} onClick={() => setJournal((v) => !v)} aria-expanded={journal} aria-label="Журнал бросков" title="Журнал бросков">
+                <ScrollText aria-hidden="true" />
+                <em>{history.length}</em>
               </button>
-              <button
-                type="button"
-                className="dice-close-btn"
-                onClick={close}
-                aria-label="Закрыть"
-                title="Закрыть"
-              >
-                <span className="dice-close-glyph" aria-hidden="true">✕</span>
-              </button>
-            </>
+              {journal && (
+                <ol className="dq-history" aria-label="Журнал бросков">
+                  {recent.map((entry) => {
+                    const total = entry.dice.reduce((sum, d) => sum + d.value, 0)
+                    const many = !entry.clash && entry.dice.length > 1
+                    const calc = many || !!entry.clash
+                    return (
+                      <li key={entry.id} tabIndex={calc ? 0 : undefined} className={calc ? 'has-calc' : ''}>
+                        <i>{entry.formula}</i>
+                        <b className={entry.dice.length === 1 ? critClass(entry.dice[0]) : ''}>{entry.clash ? entry.clash.kept : total}</b>
+                        {calc && (
+                          <span className="dq-calc" role="tooltip">
+                            {entry.clash
+                              ? `${entry.clash.kept} и ${entry.clash.dropped}: берём ${entry.clash.mod === 'adv' ? 'больший' : 'меньший'}`
+                              : `${entry.dice.map((d) => d.value).join(' + ')} = ${total}`}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
           )}
         </div>
       </div>

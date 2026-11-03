@@ -54,6 +54,7 @@ import { ArmorShield, WhyArea, type StageEngine } from './HeroStage'
 import { FaceAvatar } from './FacePortrait'
 import { DEFAULT_FACE, type FaceCrop } from './portrait'
 import type { SheetRoller } from './sheetPlay'
+import { Img, bgUrl } from '../media'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
@@ -274,7 +275,7 @@ function HeroFigure({ src, face, onOpen }: { src: string | null; face: FaceCrop 
   return (
     <button type="button" className="ghud-figure" onClick={onOpen} aria-label="Открыть окно героя">
       {src && !broken ? (
-        <img src={src} alt="" draggable={false} onError={() => setBroken(true)} />
+        <Img src={src} alt="" draggable={false} onError={() => setBroken(true)} />
       ) : (
         <FaceAvatar src={null} crop={face ?? DEFAULT_FACE} className="ghud-figure-face" />
       )}
@@ -525,7 +526,7 @@ export function GameHud({
 
   return (
     <div className={`ghud${windows.magic ? '' : ' no-magic'}`}>
-      {controls?.background && <span className="ghud-world" style={{ backgroundImage: `url("${controls.background}")` }} aria-hidden="true" />}
+      {controls?.background && <span className="ghud-world" style={{ backgroundImage: `url("${bgUrl(controls.background)}")` }} aria-hidden="true" />}
       <span className="ghud-vignette" aria-hidden="true" />
 
       {/* ---------- шапка: меню, герой и круглые кнопки ---------- */}

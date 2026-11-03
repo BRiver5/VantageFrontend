@@ -23,6 +23,7 @@ import {
 import { useBookMap, useCatalogList } from '../useCatalog'
 import { abilitiesFromSkills, skillKeysFromNames } from '../../skills'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
+import { Img } from '../../media'
 
 const bgName = (b: Background) => b.background_name
 
@@ -61,7 +62,7 @@ function BackgroundCard({
         <span className="bg-card-hex">
           <span className="bg-card-hex-inner">
             {src && !broken ? (
-              <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+              <Img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
             ) : (
               <Landmark className="bg-card-hex-fallback" aria-hidden="true" />
             )}

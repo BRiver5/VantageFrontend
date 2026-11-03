@@ -8,6 +8,7 @@ import logoUrl from './assets/Logo_vantage.svg'
 import { useId, useState, type ReactNode } from 'react'
 import { BookOpen } from 'lucide-react'
 import { D20LogoImage } from './dice/diceAssets'
+import { Img } from './media'
 
 /**
  * Обложка книги с фолбэком: если картинки нет или она не загрузилась (битая
@@ -18,7 +19,7 @@ import { D20LogoImage } from './dice/diceAssets'
 export function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
   const [broken, setBroken] = useState(false)
   return src && !broken ? (
-    <img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
+    <Img src={src} alt={alt} loading="lazy" onError={() => setBroken(true)} />
   ) : (
     <BookOpen className="cover-fallback" aria-hidden="true" />
   )
@@ -170,7 +171,7 @@ export function Divider() {
 /** Логотип Vantage в шапке */
 export function VantageLogo({ size = 42 }: { size?: number }) {
   return (
-    <img
+    <Img
       src={logoUrl}
       alt=""
       className="brand-logo"

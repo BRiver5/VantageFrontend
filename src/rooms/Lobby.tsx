@@ -6,13 +6,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Copy, Crown, Heart, KeyRound, LogOut, RefreshCw, Shield, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
-import { ApiError, uploadMedia, imageVariant } from '../api'
+import { ApiError, uploadMedia } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { useRoom } from './RoomProvider'
 import { approveMember, deleteRoom, kickMember, leaveRoom, patchRoom, rejectMember, rotateInvite, setRoomStatus } from './roomsApi'
 import { Field, MEMBER_STATUS_RU, ROLE_RU, RoomAvatar, copyText, inviteLink } from './ui'
 import { statusRu } from './applyEvent'
 import type { CharacterCard, RoomMemberView, RoomStatus } from '../types/rooms'
+import { Img } from '../media'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Ошибка сервера')
 
@@ -291,7 +292,7 @@ export function RoomSettingsPanel() {
         <div className="rm-field">
           <span>Обложка</span>
           <div className="rm-cover-pick">
-            <span className="rm-cover-prev">{room.cover_url && <img src={imageVariant(room.cover_url, 'medium')} alt="" />}</span>
+            <span className="rm-cover-prev">{room.cover_url && <Img src={room.cover_url} alt="" />}</span>
             <label className="cw-mini-btn">
               Заменить
               <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={(e) => void uploadCover(e.target.files?.[0])} />

@@ -88,6 +88,10 @@ export const kickMember = (id: string, userId: string) => post<{ status: string 
 
 /* ---------- персонажи (краткие карточки; лист — через roomCharacterRef) ---------- */
 
+/** Картинка героя в комнате: копия героя её не обновляет сама */
+export const setRoomCharacterAvatar = (id: string, cid: string, avatar_url: string) => patch<unknown>(r(id, `/characters/${cid}`), { avatar_url })
+
+
 export async function listRoomCharacters(id: string): Promise<CharacterCard[]> {
   return (await get<{ items: CharacterCard[] }>(r(id, '/characters')))?.items ?? []
 }
