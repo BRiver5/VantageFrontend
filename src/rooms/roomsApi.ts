@@ -88,6 +88,9 @@ export const kickMember = (id: string, userId: string) => post<{ status: string 
 
 /* ---------- персонажи (краткие карточки; лист — через roomCharacterRef) ---------- */
 
+/** Правка комнатной копии героя (поля, которые игроку можно менять сам) */
+export const patchRoomCharacter = (id: string, cid: string, body: Record<string, unknown>) => patch<unknown>(r(id, `/characters/${cid}`), body)
+
 /** Картинка героя в комнате: копия героя её не обновляет сама */
 export const setRoomCharacterAvatar = (id: string, cid: string, avatar_url: string) => patch<unknown>(r(id, `/characters/${cid}`), { avatar_url })
 

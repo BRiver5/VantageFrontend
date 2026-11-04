@@ -1228,9 +1228,64 @@ textarea.bt-in { resize: vertical; }
 .bt-pair label, .bt-moreform label:not(.bt-check) { display: flex; flex-direction: column; gap: 1px; }
 .bt-pair span, .bt-moreform label > span { color: var(--text-dim); font-size: max(10px, calc(var(--t) * 11.5)); }
 .bt-presets { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.bt-scene .bt-presets button { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; padding: calc(var(--t) * 6) calc(var(--t) * 4); border-bottom: 1px solid rgba(196, 154, 60, 0.18); text-align: left; transition: background 0.15s ease, padding 0.15s ease; }
-.bt-scene .bt-presets button:hover { padding-left: calc(var(--t) * 10); background: rgba(196, 154, 60, 0.12); }
-.bt-scene .bt-presets button.is-on { background: rgba(196, 154, 60, 0.24); }
+.bt-presets li { position: relative; }
+.bt-scene .bt-presets li > button:first-child { display: flex; align-items: center; gap: calc(var(--t) * 9); width: 100%; padding: calc(var(--t) * 5) calc(var(--t) * 4); border-bottom: 1px solid rgba(196, 154, 60, 0.18); text-align: left; transition: background 0.15s ease, padding 0.15s ease; }
+.bt-scene .bt-presets li:has(.bt-preset-x) > button:first-child { padding-right: calc(var(--t) * 30); }
+.bt-preset-art { flex: none; display: grid; place-items: center; width: max(30px, calc(var(--t) * 38)); height: max(30px, calc(var(--t) * 38)); border-radius: calc(var(--t) * 6); background: radial-gradient(circle at 50% 40%, rgba(196, 154, 60, 0.22), rgba(0, 0, 0, 0.35)); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.3); color: var(--gold-3); overflow: hidden; }
+.bt-preset-art img { width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); }
+.bt-preset-art svg { width: 56%; height: 56%; }
+.bt-presets.is-spells .bt-preset-art { border-radius: 50%; }
+.bt-presets b { flex: 1; min-width: 0; }
+.bt-circle { display: inline-block; min-width: 2.1em; margin-right: 6px; padding: 0 4px; border-radius: 4px; background: rgba(150, 120, 255, 0.18); color: #cbb8ff; font-style: normal; font-weight: 700; text-align: center; }
+.bt-scene .bt-preset-x { position: absolute; top: 50%; right: calc(var(--t) * 2); display: grid; place-items: center; width: calc(var(--t) * 24); height: calc(var(--t) * 24); min-width: 22px; min-height: 22px; translate: 0 -50%; border-radius: 50%; color: var(--text-dim); opacity: 0.55; transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease; }
+.bt-scene .bt-preset-x:hover { opacity: 1; color: #ff9a84; background: rgba(255, 120, 100, 0.12); }
+.bt-preset-x svg { width: 60%; height: 60%; }
+.bt-empty { margin: 0; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 12.5)); font-style: italic; }
+/* название + «в приёмы» */
+.bt-name { display: flex; align-items: flex-end; gap: calc(var(--t) * 8); }
+.bt-name .bt-in { flex: 1; min-width: 0; }
+.bt-scene .bt-save { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: calc(var(--t) * 5) calc(var(--t) * 8); border-radius: 99px; box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45); color: var(--gold-3); font-size: max(10.5px, calc(var(--t) * 11.5)); font-weight: 600; transition: background 0.15s ease, opacity 0.15s ease; }
+.bt-scene .bt-save:hover:not(:disabled) { background: rgba(196, 154, 60, 0.16); }
+.bt-scene .bt-save:disabled { opacity: 0.35; cursor: default; }
+.bt-save svg { width: 1.2em; height: 1.2em; }
+.bt-spellnote { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; color: #cbb8ff; font-size: max(10.5px, calc(var(--t) * 12)); }
+/* быстрый выбор цели */
+.bt-aim { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(var(--t) * 5); }
+.bt-scene .bt-aim button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: calc(var(--t) * 5) 2px; border-radius: calc(var(--t) * 6); background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.3); color: var(--parchment); font-size: max(10.5px, calc(var(--t) * 12)); transition: background 0.15s ease, box-shadow 0.15s ease; }
+.bt-scene .bt-aim button:hover:not(:disabled) { background: rgba(196, 154, 60, 0.14); }
+.bt-scene .bt-aim button.is-on { background: rgba(196, 154, 60, 0.3); box-shadow: inset 0 0 0 1px var(--gold-3); color: var(--gold-4); }
+.bt-scene .bt-aim button:disabled { opacity: 0.35; cursor: default; }
+.bt-aim svg { width: 1.15em; height: 1.15em; flex: none; }
+.bt-slotline { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 12.5)); }
+.bt-slotline.is-set { color: #cbb8ff; }
+.bt-slotline svg { width: 1.1em; height: 1.1em; }
+.bt-slotline .tb-linkbtn { margin-left: auto; }
+
+/* ячейки — созвездия в правом нижнем углу */
+.bt-sky { position: absolute; right: calc(var(--t) * 10); bottom: calc(var(--t) * 10); z-index: 25; display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--t) * 3); padding: calc(var(--t) * 6) calc(var(--t) * 6) calc(var(--t) * 4); border-radius: calc(var(--t) * 12); background: radial-gradient(120% 120% at 100% 100%, rgba(26, 20, 54, 0.88), rgba(10, 10, 22, 0.6) 75%, rgba(10, 10, 22, 0)); transition: right 0.42s cubic-bezier(0.2, 1, 0.35, 1), box-shadow 0.3s ease; pointer-events: none; }
+.bt-scene.has-tray .bt-sky { right: calc(var(--tray) + var(--t) * 10); }
+/* с созвездиями внизу колонка команд встаёт чуть выше */
+.bt-scene:has(.bt-sky) .bt-cmds { translate: 0 -60%; }
+.bt-scene.is-dm .bt-sky { bottom: calc(var(--t) * 80); }
+.bt-sky.is-picking { box-shadow: 0 0 0 1px rgba(170, 140, 255, 0.45), 0 0 24px rgba(130, 100, 255, 0.32); pointer-events: auto; }
+.bt-sky-hint { align-self: center; margin: 0; color: #cbb8ff; font-size: max(10px, calc(var(--t) * 11)); animation: tb-fade 0.3s ease; }
+.bt-sky-grid { display: grid; grid-template-columns: repeat(3, auto); gap: 0 calc(var(--t) * 2); }
+.bt-scene .bt-sky-cell { display: flex; flex-direction: column; align-items: center; padding: calc(var(--t) * 1) calc(var(--t) * 3); border-radius: calc(var(--t) * 8); transition: background 0.2s ease, box-shadow 0.2s ease; }
+.bt-sky-cell .cw-sky { gap: 0; }
+.bt-sky-cell .cw-sky svg { width: max(44px, calc(var(--t) * 52)); height: auto; aspect-ratio: 100 / 60; }
+.bt-sky-cell .cw-sky-cap { gap: 3px; line-height: 1; }
+.bt-sky-cell .cw-sky-cap b { font-size: max(9px, calc(var(--t) * 10)); }
+.bt-sky-cell .cw-sky-cap i { font-size: max(8.5px, calc(var(--t) * 9)); }
+.bt-sky-cell > i { color: #cbb8ff; font-size: max(8px, calc(var(--t) * 8.5)); font-style: normal; }
+.bt-sky.is-picking .bt-sky-cell:not(:disabled) { cursor: pointer; }
+.bt-sky.is-picking .bt-sky-cell:not(:disabled):hover { background: rgba(150, 120, 255, 0.16); }
+.bt-scene .bt-sky-cell.is-on { background: rgba(150, 120, 255, 0.24); box-shadow: inset 0 0 0 1px rgba(190, 165, 255, 0.8), 0 0 14px rgba(150, 120, 255, 0.45); }
+.bt-sky-cell.is-empty { opacity: 0.45; }
+.bt-scene .bt-sky-cell:disabled { cursor: default; }
+/* значок школы магии в кружке заготовки */
+.bt-preset-art .spell-school-mark { position: static; inset: auto; width: 74%; height: 74%; margin: 0; opacity: 1; transform: none; object-fit: contain; object-position: center; max-width: none; max-height: none; }
+.bt-scene .bt-presets li > button:first-child:hover { padding-left: calc(var(--t) * 10); background: rgba(196, 154, 60, 0.12); }
+.bt-scene .bt-presets li > button.is-on { background: rgba(196, 154, 60, 0.24); }
 .bt-presets b { overflow: hidden; color: var(--parchment); font-size: max(12px, calc(var(--t) * 13.5)); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .bt-presets i { flex: none; color: var(--gold-3); font-size: max(10.5px, calc(var(--t) * 12)); font-style: normal; }
 .bt-scene .bt-more { align-self: flex-start; color: var(--gold-3); }

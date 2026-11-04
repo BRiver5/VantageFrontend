@@ -69,7 +69,18 @@ const heroArtCache = new Map<string, Promise<string | null>>()
  * оригинал позже, копия не знает: ищем оригинал среди своих героев (по имени
  * и расе) и заодно переносим картинку в копию, чтобы её увидела вся партия.
  */
-async function avatarFromOriginal(roomId: string, characterId: string, name: string, raceId: string | null | undefined): Promise<string | null> {
+const originalCache = new Map<string, Promise<string | null>>()
+
+function avatarFromOriginal(roomId: string, characterId: string, name: string, raceId: string | null | undefined): Promise<string | null> {
+  const key = `${roomId}/${characterId}`
+  const known = originalCache.get(key)
+  if (known) return known
+  const job = findOriginalAvatar(roomId, characterId, name, raceId)
+  originalCache.set(key, job)
+  return job
+}
+
+async function findOriginalAvatar(roomId: string, characterId: string, name: string, raceId: string | null | undefined): Promise<string | null> {
   const mine = await listMyCharacters().catch(() => [])
   const same = mine.filter((x) => x.avatar_url && x.character_name === name)
   const hit = same.find((x) => !raceId || x.race_id === raceId) ?? (same.length === 1 ? same[0] : undefined)
@@ -97,6 +108,27 @@ function loadHeroArt(roomId: string, characterId: string, own: boolean): Promise
     .catch(() => null)
   heroArtCache.set(key, job)
   return job
+}
+
+/**
+ * Картинка своего героя из оригинала, если в комнатной копии её нет: её
+ * подставляет подробный лист героя в комнате.
+ */
+export function useOriginalAvatar(roomId: string, characterId: string, copyAvatar: string | null | undefined): string | null {
+  const [art, setArt] = useState<string | null>(null)
+  const own = useRoom().data?.me.room_character_id === characterId
+  useEffect(() => {
+    if (copyAvatar || !own) return
+    let alive = true
+    void getCharacter(roomCharacterRef(roomId, characterId))
+      .then((c) => (c.avatar_url ? null : avatarFromOriginal(roomId, characterId, c.character_name, c.race_id)))
+      .catch(() => null)
+      .then((a) => alive && setArt(a))
+    return () => {
+      alive = false
+    }
+  }, [roomId, characterId, copyAvatar, own])
+  return copyAvatar ? null : art
 }
 
 /**

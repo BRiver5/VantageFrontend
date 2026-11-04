@@ -301,7 +301,7 @@ function SettingsCarousel({
                 className="setting-card-inner"
                 style={{ '--accent': ACCENTS[i % ACCENTS.length] } as React.CSSProperties}
               >
-                <span className="setting-art" style={{ backgroundImage: `url("${bgUrl(art, 320)}")` }} aria-hidden="true" />
+                <span className="setting-art" style={{ backgroundImage: `url("${bgUrl(art, 1000)}")` }} aria-hidden="true" />
                 <span className="setting-kicker">{realm.id === BASIC_ID ? 'Основа' : 'Сеттинг'}</span>
                 <span className="setting-name">
                   {ru}

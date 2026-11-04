@@ -7,15 +7,19 @@
  * Кости бросает сервер; экран меняют только события.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ChevronRight, ChevronsUp, Dices, Flag, Plus, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
-import { ApiError, getCharacter, getEngineDictionaries, getSheet, roomCharacterRef, type EngineDictionaries } from '../../api'
+import { BookmarkPlus, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
+import { ApiError, getCharacter, getEngineDictionaries, getSheet, roomCharacterRef, type Character, type EngineDictionaries, type Spell } from '../../api'
+import { Constellation } from '../../characters/SpellBook'
+import { useCatalogList } from '../../create/useCatalog'
+import { SpellSchoolMark, spellSchoolIcon } from '../../spellSchools'
 import { parsePortrait } from '../../characters/portrait'
 import { playForcedRoll, type ForcedDie } from '../../dice/diceControl'
-import type { AttackEntry } from '../../types/character'
+import type { AttackEntry, GrantedSpell, NaturalAttack, SheetSlot, SpellKnown } from '../../types/character'
 import type { CombatActionRequest, CombatActionResult, CombatantView, RolledDice, StatKey } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { useRoom, useRoomEvents } from '../RoomProvider'
-import { addCombatants, beginCombat, combatAction, endCombat, nextTurn, revertCombatAction, rollInitiative, setInitiative } from '../roomsApi'
+import { addCombatants, beginCombat, combatAction, endCombat, nextTurn, patchRoomCharacter, revertCombatAction, rollInitiative, setInitiative } from '../roomsApi'
+import { attackPresets, castable, loadBeastPresets, normDice, presetFromText, saveBeastPresets, spellLookup, spellPreset, type CasterHints, type Preset } from './actionPresets'
 import { CreatureCard, HeroCard } from './Cards'
 import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
@@ -39,7 +43,6 @@ const sizeK = (c: CombatantView) => (c.creature ? (SIZE_K[creatureSize(c.creatur
 
 const diceOf = (r: RolledDice | null | undefined): ForcedDie[] => (r ? r.dice.flatMap((d) => d.rolls.map((value) => ({ sides: d.sides, value }))) : [])
 
-const normDice = (s: string) => s.replace(/[кk]/gi, 'd').replace(/\s+/g, '')
 
 /** Как цель выглядела до удара: показываем это, пока не легли кости */
 type Held = Record<string, Pick<CombatantView, 'card' | 'creature' | 'defeated'>>
@@ -212,24 +215,141 @@ const ABILITIES: { key: StatKey; label: string }[] = [
   { key: 'cha', label: 'Харизма' },
 ]
 
-interface Preset {
-  name: string
-  bonus: number | null
-  dice: string
-  type: string
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
+/** Метка своего приёма в листе: по ней его можно убрать прямо из боя */
+const CUSTOM_TAG = 'свой приём'
+
+type SlotPick = { level: number; pool: 'spell' | 'pact' }
+
+/** Лист героя для боя: оружие, заклинания, ячейки и магические числа */
+interface HeroKit {
+  doc: Character | null
+  slots: SheetSlot[]
+  /** природные атаки и дарованные заклинания: их выдаёт вычисленный лист, как и в листе героя */
+  natural: AttackEntry[]
+  granted: SpellKnown[]
+  hints: CasterHints & { dc?: number }
+  setDoc: (c: Character) => void
 }
 
-/** Из текста действия существа: «+4 к попаданию… 4 (1к4+2) дробящего урона» */
-function presetFromText(name: string, text: string, dict: EngineDictionaries | null): Preset | null {
-  const bonus = /([+-]\s*\d+)\s*к\s*попаданию/i.exec(text)
-  const dmg = /\((\d+\s*[кd]\s*\d+(?:\s*[+-]\s*\d+)?)\)\s*([а-яё]+)?/i.exec(text)
-  if (!bonus && !dmg) return null
-  const stem = dmg?.[2]?.slice(0, 5).toLowerCase()
-  const type = stem ? (dict?.damage_types.find((t) => t.label.toLowerCase().startsWith(stem))?.value ?? '') : ''
-  return { name, bonus: bonus ? Number(bonus[1].replace(/\s/g, '')) : null, dice: dmg ? normDice(dmg[1]) : '', type }
+function useHeroKit(roomId: string, heroId: string | null | undefined, level: number): HeroKit {
+  const [doc, setDoc] = useState<Character | null>(null)
+  const [slots, setSlots] = useState<SheetSlot[]>([])
+  const [natural, setNatural] = useState<AttackEntry[]>([])
+  const [granted, setGranted] = useState<SpellKnown[]>([])
+  const [hints, setHints] = useState<CasterHints & { dc?: number }>({ level })
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    setDoc(null)
+    setSlots([])
+  }, [heroId])
+  useEffect(() => {
+    if (!heroId) return
+    let alive = true
+    const ref = roomCharacterRef(roomId, heroId)
+    Promise.all([getSheet(ref), getCharacter(ref)])
+      .then(([s, d]) => {
+        if (!alive) return
+        const val = (re: RegExp) => Object.entries(s.values).find(([k, v]) => re.test(k) && typeof v === 'number')?.[1] as number | undefined
+        const attack = val(/^char\.class\.[^.]+\.spell_attack$/)
+        const pb = val(/^char\.pb$/) ?? 2
+        setHints({ dc: val(/^char\.class\.[^.]+\.spell_dc$/), attack, mod: attack != null ? attack - pb : undefined, level })
+        setSlots(s.slots ?? [])
+        const mod = (ab?: string) => Number(s.values[`char.abilities.${ab ?? 'str'}.mod`] ?? 0) || 0
+        const nat = ((s.values['char.attacks.natural'] as NaturalAttack[] | undefined) ?? []).filter((a) => a?.name)
+        setNatural(
+          nat.map((a) => {
+            const m = mod(a.ability)
+            return { name: a.name, type: 'melee', attack_bonus: m + pb, damage: a.dice ? `${a.dice}${m ? (m > 0 ? `+${m}` : `${m}`) : ''}` : String(Math.max(1, 1 + m)), damage_type: a.type ?? '', range: '', properties: [] }
+          }),
+        )
+        const own = new Set((d.spells ?? []).map((sp) => sp.name.toLocaleLowerCase('ru')))
+        const gr = ((s.values['char.spells.granted'] as GrantedSpell[] | undefined) ?? []).filter((g) => g?.name && !own.has(g.name.toLocaleLowerCase('ru')))
+        setGranted(gr.map((g) => ({ name: g.name, level: typeof g.level === 'number' ? g.level : -1, prepared: true, spell_source: null, snapshot: { granted: 'engine', uses: g.uses ?? null } })))
+        setDoc(d)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [roomId, heroId, level, tick])
+  // ячейки тратит сервер: после действия и правки листа перечитываем
+  useRoomEvents((msg) => {
+    if (!heroId) return
+    const p = msg.payload as { character_id?: string; card?: { id?: string } }
+    if (msg.type === 'combat.action' || ((msg.type === 'character.sheet_changed' || msg.type === 'character.updated') && (p.character_id ?? p.card?.id) === heroId)) {
+      setTick((t) => t + 1)
+    }
+  })
+  return { doc, slots, natural, granted, hints, setDoc }
 }
 
-function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor: CombatantView; cmd: Cmd; targets: string[]; reaction: boolean; onClear: () => void; onClose: () => void }) {
+/** Ячейки героя — созвездия в правом нижнем углу; при заклинании по ним выбирают круг */
+function SlotSky({ slots, pick, onPick }: { slots: SheetSlot[]; pick: SlotPick | null; onPick?: (p: SlotPick | null) => void }) {
+  const list = slots.filter((s) => s.max > 0).sort((a, b) => Number(a.pool === 'pact') - Number(b.pool === 'pact') || a.level - b.level)
+  if (list.length === 0) return null
+  return (
+    <div className={`bt-sky${onPick ? ' is-picking' : ''}`} aria-label="Ячейки заклинаний">
+      {onPick && <p className="bt-sky-hint">Выберите круг ячейки</p>}
+      <div className="bt-sky-grid">
+        {list.map((s) => {
+          const on = pick?.level === s.level && pick.pool === s.pool
+          const empty = s.current <= 0
+          return (
+            <button
+              key={`${s.pool}-${s.level}`}
+              type="button"
+              className={`bt-sky-cell${on ? ' is-on' : ''}${empty ? ' is-empty' : ''}`}
+              disabled={!onPick || empty}
+              aria-pressed={on}
+              onClick={() => onPick?.(on ? null : { level: s.level, pool: s.pool })}
+              title={`${s.pool === 'pact' ? 'Договор' : `${s.level} круг`}: ${s.current} из ${s.max}`}
+            >
+              <Constellation circle={s.level} max={s.max} used={s.max - s.current} locked />
+              {s.pool === 'pact' && <i>договор</i>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Подходящая ячейка для круга заклинания: наименьшая свободная не ниже него */
+function slotFor(level: number, slots: SheetSlot[]): SlotPick | null {
+  const free = slots.filter((s) => s.current > 0 && s.level >= level).sort((a, b) => a.level - b.level || Number(a.pool === 'spell') - Number(b.pool === 'spell'))
+  return free[0] ? { level: free[0].level, pool: free[0].pool } : null
+}
+
+function PresetArt({ p }: { p: Preset }) {
+  const [broken, setBroken] = useState(false)
+  if (p.image && !broken) return <Img src={p.image} alt="" draggable={false} onError={() => setBroken(true)} />
+  if (p.look === 'spell') return spellSchoolIcon(p.school) ? <SpellSchoolMark school={p.school} /> : <Sparkles aria-hidden="true" />
+  const Icon = p.look === 'ranged' ? Crosshair : p.look === 'beast' ? PawPrint : Swords
+  return <Icon aria-hidden="true" />
+}
+
+function ActionTray({
+  actor,
+  cmd,
+  targets,
+  reaction,
+  kit,
+  slot,
+  onSlot,
+  onTargets,
+  onClose,
+}: {
+  actor: CombatantView
+  cmd: Cmd
+  targets: string[]
+  reaction: boolean
+  kit: HeroKit
+  slot: SlotPick | null
+  onSlot: (p: SlotPick | null) => void
+  onTargets: (ids: string[]) => void
+  onClose: () => void
+}) {
   const { data, roomId, isDm } = useRoom()
   const combat = data?.combat
   const [label, setLabel] = useState('')
@@ -243,65 +363,116 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
   const [saveAbility, setSaveAbility] = useState<StatKey>('dex')
   const [saveDc, setSaveDc] = useState('13')
   const [half, setHalf] = useState(true)
-  const [slotLevel, setSlotLevel] = useState<number | null>(cmd === 'spell' ? 1 : null)
-  const [pool, setPool] = useState<'spell' | 'pact'>('spell')
   const [secret, setSecret] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dict, setDict] = useState<EngineDictionaries | null>(null)
-  const [attacks, setAttacks] = useState<AttackEntry[]>([])
-  const [hints, setHints] = useState<{ dc?: number; attack?: number }>({})
+  const [picked, setPicked] = useState<string | null>(null)
+  const [beastOwn, setBeastOwn] = useState<Preset[]>(() => (actor.creature ? loadBeastPresets(actor.creature.id) : []))
+  const [saving, setSaving] = useState(false)
+  const hero = !!actor.card
+  const { doc, slots, hints } = kit
+  const { items: catalog } = useCatalogList<Spell>('spells', cmd === 'spell' && hero)
 
   useEffect(() => {
     void getEngineDictionaries().then(setDict)
   }, [])
-  const heroId = actor.card?.id
+  // заклинание по умолчанию бьёт с бонусом и Сл героя
   useEffect(() => {
-    if (!heroId) return
-    let alive = true
-    const ref = roomCharacterRef(roomId, heroId)
-    Promise.all([getSheet(ref), getCharacter(ref)])
-      .then(([s, doc]) => {
-        if (!alive) return
-        const val = (re: RegExp) => Object.entries(s.values).find(([k, v]) => re.test(k) && typeof v === 'number')?.[1] as number | undefined
-        const dc = val(/^char\.class\.[^.]+\.spell_dc$/)
-        const attack = val(/^char\.class\.[^.]+\.spell_attack$/)
-        setHints({ dc, attack })
-        setAttacks(doc.attacks ?? [])
-        if (cmd === 'spell' && dc != null) setSaveDc(String(dc))
-        if (cmd === 'spell' && attack != null) setBonus(String(attack))
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [roomId, heroId, cmd])
+    if (cmd !== 'spell') return
+    if (hints.dc != null) setSaveDc(String(hints.dc))
+  }, [cmd, hints.dc])
 
   const presets = useMemo<Preset[]>(() => {
-    if (cmd !== 'attack') return []
-    if (actor.card) {
-      return attacks.map((a) => ({
-        name: a.name,
-        bonus: a.attack_bonus,
-        dice: normDice(a.damage ?? ''),
-        type: dict?.damage_types.find((t) => t.value === a.damage_type || t.label.toLowerCase() === (a.damage_type ?? '').toLowerCase())?.value ?? '',
-      }))
+    if (cmd === 'attack') {
+      if (hero) {
+        const atk = [...(doc?.attacks ?? []), ...kit.natural.filter((n) => !(doc?.attacks ?? []).some((a) => a.name === n.name))]
+        return attackPresets(atk, doc?.inventory, dict, new Set(atk.filter((a) => a.properties?.includes(CUSTOM_TAG)).map((a) => a.name)))
+      }
+      const c = actor.creature
+      const own = c && isFullCreature(c)
+        ? (c.snapshot.actions ?? []).map((a) => presetFromText(String(a.name ?? a.title ?? 'Действие'), String(a.description ?? a.text ?? ''), dict)).filter((p): p is Preset => !!p)
+        : []
+      return [...own, ...beastOwn]
     }
-    const c = actor.creature
-    if (c && isFullCreature(c)) {
-      return (c.snapshot.actions ?? [])
-        .map((a) => presetFromText(String(a.name ?? a.title ?? 'Действие'), String(a.description ?? a.text ?? ''), dict))
-        .filter((p): p is Preset => !!p)
+    if (cmd === 'spell' && hero && doc) {
+      const find = spellLookup(catalog)
+      return castable([...(doc.spells ?? []), ...kit.granted]).map((sp) => {
+        const known = sp.level >= 0 ? sp : { ...sp, level: find(sp)?.spell_level ?? 0 }
+        return spellPreset(known, find(known), hints, dict)
+      })
     }
     return []
-  }, [cmd, actor, attacks, dict])
+  }, [cmd, hero, doc, kit.natural, kit.granted, actor.creature, beastOwn, dict, catalog, hints])
 
   if (!combat) return null
+  const me = actor
+  const alive = combat.combatants.filter((c) => !c.defeated)
+  const allies = alive.filter((c) => c.side === me.side && c.id !== me.id).map((c) => c.id)
+  const foes = alive.filter((c) => c.side !== me.side).map((c) => c.id)
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+
   const applyPreset = (p: Preset) => {
+    setPicked(p.key)
     setLabel(p.name)
     setBonus(p.bonus != null ? String(p.bonus) : '')
     setDice(p.dice)
     setType(p.type)
+    if (p.look !== 'spell') return
+    setHeal(p.heal ?? '')
+    setSaveOn(!!p.save)
+    if (p.save) {
+      setSaveAbility(p.save.ability)
+      setHalf(p.save.half)
+      if (hints.dc != null) setSaveDc(String(hints.dc))
+    }
+    onSlot(p.level ? slotFor(p.level, slots) : null)
+    if (p.self) onTargets([me.id])
+    else if (p.heal && !p.dice) onTargets(targets.filter((t) => t === me.id || allies.includes(t)))
+  }
+
+  /** Записать то, что в форме, как свой приём: у героя — в лист, у существа — в браузер */
+  const saveOwn = async () => {
+    const name = label.trim()
+    if (!name) return
+    setSaving(true)
+    setError(null)
+    const typeLabel = dict?.damage_types.find((t) => t.value === type)?.label ?? type
+    try {
+      if (hero && actor.card && doc) {
+        const entry: AttackEntry = { name, type: 'melee', attack_bonus: Number(bonus) || 0, damage: normDice(dice), damage_type: typeLabel, range: '', properties: [CUSTOM_TAG] }
+        const next = [...(doc.attacks ?? []).filter((a) => a.name !== name), entry]
+        await patchRoomCharacter(roomId, actor.card.id, { attacks: next })
+        kit.setDoc({ ...doc, attacks: next })
+      } else if (actor.creature) {
+        const entry: Preset = { key: `own-${name}`, name, bonus: bonus.trim() === '' ? null : Number(bonus), dice: normDice(dice), type, look: 'beast', custom: true }
+        const next = [...beastOwn.filter((p) => p.name !== name), entry]
+        setBeastOwn(next)
+        saveBeastPresets(actor.creature.id, next)
+      }
+      setPicked(hero ? `atk-${(doc?.attacks ?? []).filter((a) => a.name !== name).length}-${name}` : `own-${name}`)
+    } catch (e) {
+      setError(errText(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const dropOwn = async (p: Preset) => {
+    setError(null)
+    try {
+      if (hero && actor.card && doc) {
+        const next = (doc.attacks ?? []).filter((a) => !(a.name === p.name && a.properties?.includes(CUSTOM_TAG)))
+        await patchRoomCharacter(roomId, actor.card.id, { attacks: next })
+        kit.setDoc({ ...doc, attacks: next })
+      } else if (actor.creature) {
+        const next = beastOwn.filter((x) => x.name !== p.name)
+        setBeastOwn(next)
+        saveBeastPresets(actor.creature.id, next)
+      }
+    } catch (e) {
+      setError(errText(e))
+    }
   }
 
   const submit = async () => {
@@ -318,7 +489,7 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
     if (bonus.trim() !== '' && !Number.isNaN(Number(bonus))) req.attack_bonus = Number(bonus)
     if (advantage) req.advantage = advantage
     if (saveOn) req.save = { ability: saveAbility, dc: Number(saveDc) || 10, half_on_success: half }
-    if (slotLevel) req.slot = { level: slotLevel, pool }
+    if (slot) req.slot = slot
     setBusy(true)
     setError(null)
     try {
@@ -331,6 +502,9 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
   }
 
   const needsTarget = cmd !== 'other'
+  const hasSky = hero && slots.some((s) => s.max > 0)
+  const canSave = cmd === 'attack' && !!label.trim() && (!!dice.trim() || bonus.trim() !== '') && !presets.some((p) => p.name === label.trim() && !p.custom && p.dice === normDice(dice) && String(p.bonus ?? '') === bonus)
+  const slotText = slot ? `${slot.pool === 'pact' ? 'договор, ' : ''}${slot.level} круг` : 'без ячейки'
   return (
     <aside className="bt-tray" aria-label="Действие">
       <header>
@@ -342,20 +516,39 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
       </header>
       <div className="bt-tray-scroll">
         {presets.length > 0 && (
-          <ul className="bt-presets">
-            {presets.map((p, i) => (
-              <li key={`${p.name}-${i}`}>
-                <button type="button" className={label === p.name ? 'is-on' : ''} onClick={() => applyPreset(p)}>
+          <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}`}>
+            {presets.map((p) => (
+              <li key={p.key}>
+                <button type="button" className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
+                  <span className="bt-preset-art">
+                    <PresetArt p={p} />
+                  </span>
                   <b>{p.name}</b>
                   <i>
-                    {p.bonus != null ? `${p.bonus >= 0 ? '+' : ''}${p.bonus}` : ''} {p.dice}
+                    {p.look === 'spell' && <em className="bt-circle">{p.level ? ROMAN[p.level] : 'заг.'}</em>}
+                    {p.bonus != null ? `${p.bonus >= 0 ? '+' : ''}${p.bonus} ` : ''}
+                    {p.dice || (p.heal ? `♥ ${p.heal}` : '')}
                   </i>
                 </button>
+                {p.custom && (
+                  <button type="button" className="bt-preset-x" onClick={() => void dropOwn(p)} aria-label={`Убрать приём: ${p.name}`} title="Убрать приём">
+                    <X aria-hidden="true" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <input className="bt-in" value={label} placeholder={cmd === 'spell' ? 'Название заклинания' : cmd === 'attack' ? 'Чем бьёт' : 'Что делает'} aria-label="Название" onChange={(e) => setLabel(e.target.value)} />
+        {cmd === 'spell' && hero && doc && presets.length === 0 && <p className="bt-empty">В листе нет заклинаний — опишите его ниже</p>}
+        <div className="bt-name">
+          <input className="bt-in" value={label} placeholder={cmd === 'spell' ? 'Название заклинания' : cmd === 'attack' ? 'Чем бьёт' : 'Что делает'} aria-label="Название" onChange={(e) => setLabel(e.target.value)} />
+          {cmd === 'attack' && (
+            <button type="button" className="bt-save" disabled={!canSave || saving} onClick={() => void saveOwn()} title={hero ? 'Сохранить приём в лист героя' : 'Запомнить приём существа'}>
+              <BookmarkPlus aria-hidden="true" />
+              <span>в приёмы</span>
+            </button>
+          )}
+        </div>
         <div className="bt-pair">
           <label>
             <span>Бонус</span>
@@ -382,8 +575,20 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
           ))}
         </div>
 
+        {cmd === 'spell' && (heal || saveOn) && !more && (
+          <p className="bt-spellnote">
+            {heal && <span>лечение {heal}</span>}
+            {saveOn && (
+              <span>
+                спасбросок: {ABILITIES.find((a) => a.key === saveAbility)?.label}, Сл {saveDc}
+                {half ? ', половина при успехе' : ''}
+              </span>
+            )}
+          </p>
+        )}
+
         <button type="button" className="tb-linkbtn bt-more" onClick={() => setMore((v) => !v)} aria-expanded={more}>
-          {more ? 'меньше' : 'ячейка, лечение, спасбросок…'}
+          {more ? 'меньше' : hasSky ? 'лечение, спасбросок…' : 'ячейка, лечение, спасбросок…'}
         </button>
         {more && (
           <div className="bt-moreform">
@@ -391,26 +596,28 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
               <span>Лечение</span>
               <input className="bt-in" value={heal} placeholder="2d4+2" onChange={(e) => setHeal(e.target.value)} />
             </label>
-            <div className="bt-pair">
-              <label>
-                <span>Ячейка</span>
-                <select className="bt-in" value={slotLevel ?? ''} onChange={(e) => setSlotLevel(e.target.value ? Number(e.target.value) : null)}>
-                  <option value="">не тратить</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                    <option key={n} value={n}>
-                      {n} круг
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Откуда</span>
-                <select className="bt-in" value={pool} disabled={!slotLevel} onChange={(e) => setPool(e.target.value as 'spell' | 'pact')}>
-                  <option value="spell">обычная</option>
-                  <option value="pact">договор</option>
-                </select>
-              </label>
-            </div>
+            {!hasSky && (
+              <div className="bt-pair">
+                <label>
+                  <span>Ячейка</span>
+                  <select className="bt-in" value={slot?.level ?? ''} onChange={(e) => onSlot(e.target.value ? { level: Number(e.target.value), pool: slot?.pool ?? 'spell' } : null)}>
+                    <option value="">не тратить</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                      <option key={n} value={n}>
+                        {n} круг
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Откуда</span>
+                  <select className="bt-in" value={slot?.pool ?? 'spell'} disabled={!slot} onChange={(e) => slot && onSlot({ ...slot, pool: e.target.value as 'spell' | 'pact' })}>
+                    <option value="spell">обычная</option>
+                    <option value="pact">договор</option>
+                  </select>
+                </label>
+              </div>
+            )}
             <label className="bt-check">
               <input type="checkbox" checked={saveOn} onChange={(e) => setSaveOn(e.target.checked)} />
               <span>Цели делают спасбросок{hints.dc != null ? ` (Сл ${hints.dc})` : ''}</span>
@@ -444,16 +651,37 @@ function ActionTray({ actor, cmd, targets, reaction, onClear, onClose }: { actor
       </div>
       <footer>
         {error && <p className="tb-err">{error}</p>}
+        {cmd === 'spell' && hasSky && (
+          <span className={`bt-slotline${slot ? ' is-set' : ''}`}>
+            <Sparkles aria-hidden="true" /> Ячейка: {slotText}
+            {slot && (
+              <button type="button" className="tb-linkbtn" onClick={() => onSlot(null)}>
+                без ячейки
+              </button>
+            )}
+          </span>
+        )}
+        <div className="bt-aim" role="group" aria-label="Быстрый выбор цели">
+          <button type="button" className={same(targets, [me.id]) ? 'is-on' : ''} onClick={() => onTargets(same(targets, [me.id]) ? [] : [me.id])}>
+            <UserRound aria-hidden="true" /> Себя
+          </button>
+          <button type="button" className={allies.length > 0 && same(targets, allies) ? 'is-on' : ''} disabled={allies.length === 0} onClick={() => onTargets(same(targets, allies) ? [] : allies)}>
+            <Shield aria-hidden="true" /> Союзники
+          </button>
+          <button type="button" className={foes.length > 0 && same(targets, foes) ? 'is-on' : ''} disabled={foes.length === 0} onClick={() => onTargets(same(targets, foes) ? [] : foes)}>
+            <Swords aria-hidden="true" /> Враги
+          </button>
+        </div>
         <span className={`bt-targets${targets.length ? ' is-set' : ''}`}>
-          {targets.length ? `Целей: ${targets.length}` : needsTarget ? 'Нажмите на цель на поле' : 'Можно без цели'}
+          {targets.length ? `Целей: ${targets.length}` : needsTarget ? 'Или нажмите на цель на поле' : 'Можно без цели'}
           {targets.length > 0 && (
-            <button type="button" className="tb-linkbtn" onClick={onClear}>
+            <button type="button" className="tb-linkbtn" onClick={() => onTargets([])}>
               сбросить
             </button>
           )}
         </span>
         <button type="button" className="tb-goldbtn" disabled={busy || (needsTarget && targets.length === 0)} onClick={() => void submit()}>
-          <Dices aria-hidden="true" /> Бросить кости
+          {cmd === 'spell' ? <Wand2 aria-hidden="true" /> : <Dices aria-hidden="true" />} {cmd === 'spell' ? 'Сотворить' : 'Бросить кости'}
         </button>
       </footer>
     </aside>
@@ -514,6 +742,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const mine = data?.me.room_character_id ?? null
   const [cmd, setCmd] = useState<Cmd | null>(null)
   const [targets, setTargets] = useState<string[]>([])
+  const [slot, setSlot] = useState<SlotPick | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [floaters, setFloaters] = useState<Record<string, Floater[]>>({})
@@ -600,6 +829,10 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     prevTurn.current = current
   }, [current, active, myUnitId])
 
+  // чей лист нужен панели: у игрока — свой герой, у мастера — тот, чей ход
+  const kitUnit = combat ? (isDm ? (combat.combatants.find((c) => c.id === current) ?? combat.combatants.find((c) => !c.defeated)) : combat.combatants.find((c) => c.id === myUnitId)) : undefined
+  const kit = useHeroKit(roomId, kitUnit?.card?.id, kitUnit?.card?.level ?? 1)
+
   if (!data || !combat || combat.status === 'ended') return null
 
   const units = combat.combatants.map((c) => (held[c.id] ? { ...c, ...held[c.id] } : c))
@@ -613,6 +846,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const closed = data.room.status === 'closed'
   const actor = isDm ? (currentUnit ?? combat.combatants.find((c) => !c.defeated)) : myUnit
   const targeting = !!cmd
+  const trayActor = !isDm && myUnit ? myUnit : actor
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true)
@@ -628,6 +862,11 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const closeTray = () => {
     setCmd(null)
     setTargets([])
+    setSlot(null)
+  }
+  const openCmd = (next: Cmd) => {
+    setSlot(null)
+    setCmd(next)
   }
   const onFigure = (c: CombatantView, origin: Origin) => {
     if (targeting) {
@@ -706,13 +945,13 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
         ) : (
           actor && (
             <>
-              <button type="button" className={`bt-cmd${cmd === 'attack' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'attack' ? closeTray() : setCmd('attack'))}>
+              <button type="button" className={`bt-cmd${cmd === 'attack' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'attack' ? closeTray() : openCmd('attack'))}>
                 <Swords aria-hidden="true" /> <span>{isDm || myTurn ? 'Атака' : 'Реакция'}</span>
               </button>
-              <button type="button" className={`bt-cmd${cmd === 'spell' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'spell' ? closeTray() : setCmd('spell'))}>
+              <button type="button" className={`bt-cmd${cmd === 'spell' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'spell' ? closeTray() : openCmd('spell'))}>
                 <Wand2 aria-hidden="true" /> <span>Магия</span>
               </button>
-              <button type="button" className={`bt-cmd${cmd === 'other' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'other' ? closeTray() : setCmd('other'))}>
+              <button type="button" className={`bt-cmd${cmd === 'other' ? ' is-on' : ''}`} disabled={closed} onClick={() => (cmd === 'other' ? closeTray() : openCmd('other'))}>
                 <Zap aria-hidden="true" /> <span>Другое</span>
               </button>
               {(isDm || myTurn) && (
@@ -750,14 +989,18 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
         </p>
       )}
 
-      {cmd && actor && (
+      {!setup && trayActor?.card && <SlotSky slots={kit.slots} pick={slot} onPick={cmd === 'spell' ? setSlot : undefined} />}
+      {cmd && trayActor && (
         <ActionTray
-          key={`${cmd}-${actor.id}`}
-          actor={!isDm && myUnit ? myUnit : actor}
+          key={`${cmd}-${trayActor.id}`}
+          actor={trayActor}
           cmd={cmd}
           targets={targets}
           reaction={!isDm && !myTurn}
-          onClear={() => setTargets([])}
+          kit={kit}
+          slot={slot}
+          onSlot={setSlot}
+          onTargets={setTargets}
           onClose={closeTray}
         />
       )}

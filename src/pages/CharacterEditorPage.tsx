@@ -68,6 +68,8 @@ export interface RoomLiveContext {
   isDm: boolean
   /** id персонажа-источника: по нему каталог движка подписывает способности */
   sourceCharacterId?: string | null
+  /** картинка героя, если в комнатной копии её нет (берётся из оригинала) */
+  avatarFallback?: string | null
   /** куда ведёт «назад» и как подписана ссылка */
   backTo: { to: string; label: string }
   /** окна и пункты меню экрана героя на телефоне (партия, стол) */
@@ -157,8 +159,8 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
   }, [roomRev, sheetRevision, reload])
 
   const view = useMemo(
-    () => (character && sheet ? buildSheetView(character, sheet, names, dict, labels) : null),
-    [character, sheet, names, dict, labels],
+    () => (character && sheet ? buildSheetView(character.avatar_url || !room?.avatarFallback ? character : { ...character, avatar_url: room.avatarFallback }, sheet, names, dict, labels) : null),
+    [character, sheet, names, dict, labels, room?.avatarFallback],
   )
 
   // дикий облик: зверь из листа — его картинка на аватаре, пока облик активен
@@ -261,7 +263,7 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
 
   const vis = VISIBILITY[character.visibility] ?? VISIBILITY.private
   const VisIcon = vis.icon
-  const pic = parsePortrait(character.avatar_url)
+  const pic = parsePortrait(character.avatar_url || room?.avatarFallback)
   const master = admin ? eng.master : undefined
 
   const play = sheetPlayFromServer(view, {

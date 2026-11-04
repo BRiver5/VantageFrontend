@@ -13,6 +13,7 @@ import type { HudExtra } from '../characters/GameHud'
 import { LiveCharacter } from '../pages/CharacterEditorPage'
 import { TransferCoinsDialog, TransferItemDialog, dropToTable } from './Items'
 import { useRoom } from './RoomProvider'
+import { useOriginalAvatar } from './table/parts'
 import { RoomLog } from './RoomLog'
 import type { InventoryItemInstance } from '../types/character'
 
@@ -48,8 +49,12 @@ function useHudExtra(): HudExtra {
 
 /** Лист одного героя комнаты: свой — игроку, любой — мастеру */
 export function RoomHero({ characterId }: { characterId: string }) {
-  const { roomId, isDm } = useRoom()
+  const { roomId, isDm, data } = useRoom()
   const [tab, setTab] = useState<SheetTab>('main')
+  const copyAvatar = data?.characters.find((c) => c.id === characterId)?.avatar_url
+  const original = useOriginalAvatar(roomId, characterId, copyAvatar)
+  // карточка обновляется раньше листа: пока лист не перечитан, картинка берётся из неё
+  const avatarFallback = copyAvatar || original
   const hudExtra = useHudExtra()
   const [transfer, setTransfer] = useState<InventoryItemInstance | null>(null)
   const [coins, setCoins] = useState(false)
@@ -59,6 +64,7 @@ export function RoomHero({ characterId }: { characterId: string }) {
       roomId,
       isDm,
       backTo: { to: `/rooms/${roomId}`, label: 'К столу' },
+      avatarFallback,
       hudExtra,
       items: {
         onTransfer: (item: InventoryItemInstance) => setTransfer(item),
@@ -69,7 +75,7 @@ export function RoomHero({ characterId }: { characterId: string }) {
         onTransferCoins: () => setCoins(true),
       },
     }),
-    [roomId, isDm, hudExtra, characterId],
+    [roomId, isDm, hudExtra, characterId, avatarFallback],
   )
   return (
     <>
