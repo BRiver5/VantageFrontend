@@ -7,7 +7,7 @@
  * Кости бросает сервер; экран меняют только события.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { BookmarkPlus, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
+import { BookmarkPlus, ChevronLeft, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, Hourglass, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
 import { ApiError, getCharacter, getEngineDictionaries, getSheet, roomCharacterRef, type Character, type EngineDictionaries, type Spell } from '../../api'
 import { Constellation } from '../../characters/SpellBook'
 import { useCatalogList } from '../../create/useCatalog'
@@ -15,14 +15,15 @@ import { SpellSchoolMark, spellSchoolIcon } from '../../spellSchools'
 import { parsePortrait } from '../../characters/portrait'
 import { playForcedRoll, type ForcedDie } from '../../dice/diceControl'
 import type { AttackEntry, GrantedSpell, NaturalAttack, SheetSlot, SpellKnown } from '../../types/character'
-import type { CombatActionRequest, CombatActionResult, CombatantView, RolledDice, StatKey } from '../../types/rooms'
+import type { CombatActionRequest, CombatActionResult, CombatantView, ConcentrationCheck, ConcentrationSave, EffectExpiry, RolledDice, SaveEndsResult, StatKey } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { useRoom, useRoomEvents } from '../RoomProvider'
-import { addCombatants, beginCombat, combatAction, endCombat, nextTurn, patchRoomCharacter, revertCombatAction, rollInitiative, setInitiative } from '../roomsApi'
+import { addCombatants, beginCombat, combatAction, concentrationSave, delayTurn, endCombat, nextTurn, patchCombatant, patchRoomCharacter, prevTurn as stepBack, revertCombatAction, rollInitiative, setInitiative, spendLegendary } from '../roomsApi'
 import { attackPresets, castable, loadBeastPresets, normDice, presetFromText, saveBeastPresets, spellLookup, spellPreset, type CasterHints, type Preset } from './actionPresets'
 import { CreatureCard, HeroCard } from './Cards'
 import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
+import { auraClass, describeEffect, EffectSigils, SURPRISED } from './effects'
 import { Img } from '../../media'
 
 const errText = (e: unknown) => {
@@ -92,6 +93,44 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 
 /* ---------- фигура ---------- */
 
+/** Эффекты на участнике: у героя — подписи карточки, у существа — состояния */
+function effectsOf(c: CombatantView): string[] {
+  if (c.card) return c.card.effects ?? []
+  const cr = c.creature
+  if (!cr) return []
+  return isFullCreature(cr) ? (cr.conditions ?? []).map((e) => e.label) : (cr.effects ?? [])
+}
+
+/** Легендарные счётчики: мастеру — из существа, игроку — если открыты действия */
+function legendaryOf(c: CombatantView): { actions: number; actionsLeft: number; resist: number; resistLeft: number } | null {
+  const cr = c.creature
+  if (!cr) return null
+  if (isFullCreature(cr)) {
+    const actions = cr.legendary_actions ?? 0
+    const resist = cr.legendary_resistances ?? 0
+    return actions || resist ? { actions, actionsLeft: cr.legendary_actions_left ?? actions, resist, resistLeft: cr.legendary_resistances_left ?? resist } : null
+  }
+  const l = cr.legendary
+  return l && (l.actions || l.resistances) ? { actions: l.actions, actionsLeft: l.actions_left, resist: l.resistances, resistLeft: l.resistances_left } : null
+}
+
+function Pips({ n, left, kind, onSpend }: { n: number; left: number; kind: 'action' | 'resistance'; onSpend?: (amount: number) => void }) {
+  if (n <= 0) return null
+  return (
+    <span className={`bt-pips is-${kind}`} title={`${kind === 'action' ? 'Легендарные действия' : 'Легендарные сопротивления'}: ${left} из ${n}`}>
+      <i>{kind === 'action' ? 'ЛД' : 'ЛС'}</i>
+      {Array.from({ length: n }, (_, i) => {
+        const on = i < left
+        return onSpend ? (
+          <button key={i} type="button" className={on ? 'is-on' : ''} onClick={() => onSpend(on ? 1 : -1)} aria-label={on ? 'Потратить' : 'Вернуть'} />
+        ) : (
+          <b key={i} className={on ? 'is-on' : ''} />
+        )
+      })}
+    </span>
+  )
+}
+
 function Figure({
   c,
   current,
@@ -104,6 +143,8 @@ function Figure({
   isDm,
   onClick,
   onInit,
+  onSurprise,
+  onLegendary,
 }: {
   c: CombatantView
   current: boolean
@@ -116,8 +157,14 @@ function Figure({
   isDm: boolean
   onClick: (o: Origin) => void
   onInit: (v: number) => void
+  /** мастер: отметить «застигнут врасплох» */
+  onSurprise?: () => void
+  /** мастер: потратить (1) или вернуть (−1) легендарное */
+  onLegendary?: (kind: 'action' | 'resistance', amount: number) => void
 }) {
-  const { roomId } = useRoom()
+  const { roomId, data } = useRoom()
+  // внезапность действует только в первом раунде
+  const surprised = !!c.surprised && (data?.combat?.round ?? 0) <= 1
   // герой без своей картинки — с картинкой расы, как в листе
   const heroArt = useHeroArt(roomId, c.card?.id, c.card?.avatar_url, isDm || mine)
   const art = c.card ? parsePortrait(heroArt).src : artOf(c)
@@ -125,6 +172,9 @@ function Figure({
   const [initVal, setInitVal] = useState<string | null>(null)
   const hp = c.card ? { ratio: cardRatio(c.card), current: c.card.hp.current, max: c.card.hp.max, temp: c.card.hp.temp } : c.creature ? creatureHp(c.creature) : { ratio: null }
   const k = sizeK(c)
+  const effects = effectsOf(c)
+  const shown = [...(surprised ? [SURPRISED] : []), ...effects.map((l) => describeEffect(l))]
+  const legend = legendaryOf(c)
   const cls = [
     'bt-fig',
     `is-${c.side}`,
@@ -134,6 +184,8 @@ function Figure({
     c.hidden && 'is-hidden',
     targeting && 'is-targetable',
     picked && 'is-picked',
+    surprised && 'is-surprised',
+    auraClass(shown),
     anim && `do-${anim}`,
   ]
     .filter(Boolean)
@@ -143,6 +195,7 @@ function Figure({
     <div className={cls} style={{ '--k': k, '--sway': `${sway}s` } as CSSProperties}>
       <button type="button" className="bt-fig-hit" onClick={(e) => onClick(originFromEvent(e))} aria-pressed={targeting ? picked : undefined} aria-label={`${nameOf(c)}${targeting ? (picked ? ': цель выбрана' : ': выбрать целью') : ': открыть карточку'}`}>
         <span className="bt-fig-ground" aria-hidden="true" />
+        <EffectSigils effects={shown} size="lg" />
         <span className="bt-fig-body">
           {art && !broken ? <Img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : <Silhouette enemy={c.side === 'enemies'} />}
         </span>
@@ -156,6 +209,17 @@ function Figure({
       {current && <ChevronsUp className="bt-fig-turn" aria-hidden="true" />}
       <HpArc ratio={hp.ratio} current={hp.current} max={hp.max} temp={hp.temp} band={'band' in hp ? hp.band : undefined} />
       <b className="bt-fig-name">{nameOf(c)}</b>
+      {legend && (
+        <span className="bt-legend">
+          <Pips n={legend.actions} left={legend.actionsLeft} kind="action" onSpend={onLegendary ? (a) => onLegendary('action', a) : undefined} />
+          <Pips n={legend.resist} left={legend.resistLeft} kind="resistance" onSpend={onLegendary ? (a) => onLegendary('resistance', a) : undefined} />
+        </span>
+      )}
+      {setup && isDm && onSurprise && (
+        <button type="button" className={`bt-fig-surprise${c.surprised ? ' is-on' : ''}`} onClick={onSurprise} title={c.surprised ? 'Застигнут врасплох — снять' : 'Застигнуть врасплох'} aria-pressed={!!c.surprised}>
+          !
+        </button>
+      )}
       {setup && (
         isDm ? (
           <input
@@ -368,6 +432,14 @@ function ActionTray({
   const [error, setError] = useState<string | null>(null)
   const [dict, setDict] = useState<EngineDictionaries | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
+  // эффект на целях: длительность, концентрация, «до успешного спасброска»
+  const [effOn, setEffOn] = useState(false)
+  const [effLabel, setEffLabel] = useState('')
+  const [effExpiry, setEffExpiry] = useState<EffectExpiry>('rounds')
+  const [effRounds, setEffRounds] = useState('10')
+  const [effConc, setEffConc] = useState(false)
+  const [effAbility, setEffAbility] = useState<StatKey>('wis')
+  const [effDc, setEffDc] = useState('')
   const [beastOwn, setBeastOwn] = useState<Preset[]>(() => (actor.creature ? loadBeastPresets(actor.creature.id) : []))
   const [saving, setSaving] = useState(false)
   const hero = !!actor.card
@@ -427,6 +499,17 @@ function ActionTray({
       if (hints.dc != null) setSaveDc(String(hints.dc))
     }
     onSlot(p.level ? slotFor(p.level, slots) : null)
+    // концентрация или «до спасброска»: эффект с именем заклинания
+    const effect = !!p.conc || !!p.saveEnds
+    setEffOn(effect)
+    if (effect) {
+      setEffLabel(p.name)
+      setEffConc(!!p.conc)
+      setEffExpiry(p.saveEnds ? 'save_ends' : p.conc ? 'never' : 'rounds')
+      if (p.saveEnds) setEffAbility(p.saveEnds)
+      setEffDc(hints.dc != null ? String(hints.dc) : '')
+      setMore(true)
+    }
     if (p.self) onTargets([me.id])
     else if (p.heal && !p.dice) onTargets(targets.filter((t) => t === me.id || allies.includes(t)))
   }
@@ -490,6 +573,16 @@ function ActionTray({
     if (advantage) req.advantage = advantage
     if (saveOn) req.save = { ability: saveAbility, dc: Number(saveDc) || 10, half_on_success: half }
     if (slot) req.slot = slot
+    if (effOn && effLabel.trim()) {
+      req.effect = {
+        label: effLabel.trim(),
+        modifiers: [],
+        expires: effExpiry,
+        rounds_left: effExpiry === 'rounds' ? Math.max(1, Number(effRounds) || 1) : null,
+        concentration: effConc,
+        ...(effExpiry === 'save_ends' ? { save_ability: effAbility, save_dc: Number(effDc) || hints.dc || 10 } : {}),
+      }
+    }
     setBusy(true)
     setError(null)
     try {
@@ -639,6 +732,43 @@ function ActionTray({
                   <span>половина урона при успехе</span>
                 </label>
               </>
+            )}
+            <label className="bt-check">
+              <input type="checkbox" checked={effOn} onChange={(e) => (setEffOn(e.target.checked), !effLabel && setEffLabel(label))} />
+              <span>Наложить эффект на цели</span>
+            </label>
+            {effOn && (
+              <div className="bt-effect">
+                <input className="bt-in" value={effLabel} maxLength={120} placeholder="Отравлен, Опутан, Благословение…" aria-label="Название эффекта" onChange={(e) => setEffLabel(e.target.value)} />
+                <div className="bt-pair">
+                  <select className="bt-in" value={effExpiry} aria-label="Сколько длится" onChange={(e) => setEffExpiry(e.target.value as EffectExpiry)}>
+                    <option value="rounds">раундов</option>
+                    <option value="save_ends">до успешного спасброска</option>
+                    <option value="turn_end">до конца хода</option>
+                    <option value="turn_start">до начала хода</option>
+                    <option value="never">пока не снимут</option>
+                    <option value="short_rest">до короткого отдыха</option>
+                    <option value="long_rest">до долгого отдыха</option>
+                  </select>
+                  {effExpiry === 'rounds' && <input className="bt-in" type="number" min={1} max={1000} inputMode="numeric" aria-label="Раундов" value={effRounds} onChange={(e) => setEffRounds(e.target.value)} />}
+                  {effExpiry === 'save_ends' && (
+                    <span className="bt-pair is-tight">
+                      <select className="bt-in" value={effAbility} aria-label="Спасбросок" onChange={(e) => setEffAbility(e.target.value as StatKey)}>
+                        {ABILITIES.map((a) => (
+                          <option key={a.key} value={a.key}>
+                            {a.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input className="bt-in" type="number" inputMode="numeric" aria-label="Сложность" placeholder={hints.dc != null ? String(hints.dc) : 'Сл'} value={effDc} onChange={(e) => setEffDc(e.target.value)} />
+                    </span>
+                  )}
+                </div>
+                <label className="bt-check">
+                  <input type="checkbox" checked={effConc} onChange={(e) => setEffConc(e.target.checked)} />
+                  <span>Требует концентрации</span>
+                </label>
+              </div>
             )}
             {isDm && (
               <label className="bt-check">
@@ -799,7 +929,34 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     }
   }
 
+  const [concChecks, setConcChecks] = useState<ConcentrationCheck[]>([])
+  const [groupInit, setGroupInit] = useState(true)
+
+  // концентрация и «до успешного спасброска»: просьба бросить и итог над фигурой
   useRoomEvents((msg) => {
+    const fresh = !msg.ts || Date.now() - Date.parse(msg.ts) < 20000
+    if (msg.type === 'combat.concentration_check') {
+      const p = msg.payload as ConcentrationCheck
+      if (fresh) setConcChecks((list) => [...list.filter((x) => x.combatant_id !== p.combatant_id), p])
+      return
+    }
+    if (msg.type === 'combat.concentration_save') {
+      const p = msg.payload as ConcentrationSave
+      setConcChecks((list) => list.filter((x) => x.combatant_id !== p.combatant_id))
+      if (!fresh) return
+      const show = () =>
+        showFloat(p.combatant_id, [{ id: `conc-${msg.seq}`, text: p.success ? 'Концентрация удержана' : 'Концентрация потеряна', tone: p.success ? 'save' : 'miss', delay: 0 }], p.success ? '' : 'hit')
+      const dice = diceOf(p.roll)
+      actionQueue.current = actionQueue.current
+        .then(() => (document.visibilityState === 'visible' && dice.length ? playForcedRoll({ dice }).then(show, show) : show()))
+        .catch(() => undefined)
+      return
+    }
+    if (msg.type === 'combat.save_ends') {
+      const p = msg.payload as SaveEndsResult
+      if (fresh) showFloat(p.combatant_id, [{ id: `se-${msg.seq}`, text: p.success ? `Стряхивает: ${p.effect}` : `Всё ещё: ${p.effect}`, tone: p.success ? 'save' : 'fx', delay: 0 }], '')
+      return
+    }
     if (msg.type !== 'combat.action') return
     const res = msg.payload as CombatActionResult
     setLastAction(res.action_id)
@@ -890,8 +1047,11 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
       isDm={isDm}
       onClick={(o) => onFigure(c, o)}
       onInit={(v) => void run(() => setInitiative(roomId, combat.id, { [c.id]: v }))}
+      onSurprise={isDm ? () => void run(() => patchCombatant(roomId, combat.id, c.id, { surprised: !c.surprised })) : undefined}
+      onLegendary={isDm && c.creature ? (kind, amount) => void run(() => spendLegendary(roomId, c.creature!.id, kind, amount)) : undefined}
     />
   )
+  const myChecks = concChecks.filter((x) => isDm || x.character_id === mine)
 
   const center = (
     <>
@@ -933,7 +1093,10 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
             )}
             {isDm && (
               <>
-                <button type="button" className="bt-cmd" disabled={busy || closed} onClick={() => void run(() => rollInitiative(roomId, combat.id, {}))}>
+                <button type="button" className={`bt-group${groupInit ? ' is-on' : ''}`} onClick={() => setGroupInit((v) => !v)} aria-pressed={groupInit} title="Одинаковые существа бросают инициативу один раз">
+                  группами
+                </button>
+                <button type="button" className="bt-cmd" disabled={busy || closed} onClick={() => void run(() => rollInitiative(roomId, combat.id, groupInit ? { group: true } : {}))}>
                   <Dices aria-hidden="true" /> <span>Бросить за всех</span>
                 </button>
                 <button type="button" className="bt-cmd is-main" disabled={busy || closed} onClick={() => void run(() => beginCombat(roomId, combat.id))}>
@@ -955,9 +1118,14 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
                 <Zap aria-hidden="true" /> <span>Другое</span>
               </button>
               {(isDm || myTurn) && (
-                <button type="button" className="bt-cmd is-main" disabled={busy || closed} onClick={() => void run(() => nextTurn(roomId, combat.id).then(closeTray))}>
-                  <ChevronRight aria-hidden="true" /> <span>{myTurn ? 'Конец хода' : 'Следующий'}</span>
-                </button>
+                <span className="bt-endturn">
+                  <button type="button" className="bt-cmd is-main" disabled={busy || closed} onClick={() => void run(() => nextTurn(roomId, combat.id).then(closeTray))}>
+                    <ChevronRight aria-hidden="true" /> <span>{myTurn ? 'Конец хода' : 'Следующий'}</span>
+                  </button>
+                  <button type="button" className="tb-round bt-delay" disabled={busy || closed || !current} onClick={() => void run(() => delayTurn(roomId, combat.id).then(closeTray))} title="Отложить ход: в конец очереди" aria-label="Отложить ход">
+                    <Hourglass aria-hidden="true" />
+                  </button>
+                </span>
               )}
             </>
           )
@@ -970,6 +1138,11 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
           <button type="button" className="tb-round" onClick={() => setAdding((v) => !v)} aria-label="Добавить участников" title="Добавить участников" aria-expanded={adding}>
             <Plus aria-hidden="true" />
           </button>
+          {!setup && (
+            <button type="button" className="tb-round" disabled={busy || closed} onClick={() => void run(() => stepBack(roomId, combat.id).then(closeTray))} aria-label="Вернуть ход назад" title="Вернуть ход назад">
+              <ChevronLeft aria-hidden="true" />
+            </button>
+          )}
           {lastAction && !setup && (
             <button type="button" className="tb-round" disabled={busy || closed} onClick={() => void run(() => revertCombatAction(roomId, combat.id, lastAction).then(() => setLastAction(null)))} aria-label="Отменить последнее действие" title="Отменить последнее действие">
               <Undo2 aria-hidden="true" />
@@ -978,6 +1151,27 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
           <button type="button" className="tb-round is-danger" disabled={busy || closed} onClick={() => confirm('Закончить бой?') && void run(() => endCombat(roomId, combat.id))} aria-label="Закончить бой" title="Закончить бой">
             <Flag aria-hidden="true" />
           </button>
+        </div>
+      )}
+
+      {myChecks.length > 0 && (
+        <div className="bt-concs" role="alert">
+          {myChecks.map((x) => {
+            const unit = byId.get(x.combatant_id)
+            return (
+              <div key={x.combatant_id} className="bt-conc">
+                <span>
+                  <b>{unit ? nameOf(unit) : 'Герой'}</b> получил {x.damage} урона: спасбросок концентрации, Сл {x.dc}
+                </span>
+                <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void run(() => concentrationSave(roomId, combat.id, x.combatant_id))}>
+                  <Dices aria-hidden="true" /> Бросить
+                </button>
+                <button type="button" className="tb-card-x" onClick={() => setConcChecks((l) => l.filter((y) => y.combatant_id !== x.combatant_id))} aria-label="Скрыть">
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 

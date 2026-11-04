@@ -10,12 +10,12 @@
  * Цвета и громкость настраиваются в профиле.
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, Minus, Plus, ScrollText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Ghost, Minus, Plus, ScrollText } from 'lucide-react'
 import type DiceBoxType from '@3d-dice/dice-box'
 import DiceResultOverlay from './DiceResultOverlay'
 import { critClass, DIE_TYPES, type DieResult, type DieType } from './DiceShapeIcons'
 import { initDiceAudio, playDropsForRoll } from './diceSounds'
-import { getRoomRollHandler, registerDiceRoller, registerForcedRoller } from './diceControl'
+import { getRoomRollHandler, registerDiceRoller, registerForcedRoller, useRoomRollVisibilities, type RoomRollVisibility } from './diceControl'
 import { FORCEABLE_SIDES, forcedRollId } from './forcedIds'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
@@ -40,6 +40,15 @@ const THEME_BODY = '#34302a'
 const HOVER_CLOSE_MS = 260
 /** сверху вниз: d20 ближе всех к кнопке, под рукой */
 const MENU_ORDER: DieType[] = [...DIE_TYPES].sort((a, b) => (a === 100 ? -1 : b === 100 ? 1 : a - b))
+/** Подписи видимости броска в комнате */
+const VIS_LABEL: Record<RoomRollVisibility, string> = {
+  public: 'Бросок видят все',
+  dm: 'Скрытый бросок: вы и мастер',
+  self: 'Скрытый бросок: вы и мастер',
+  blind: 'Вслепую: увидит только мастер',
+}
+const VIS_SHORT: Record<RoomRollVisibility, string> = { public: '', dm: 'скрыто', self: 'скрыто', blind: 'вслепую' }
+
 /** сколько бросков хранит журнал */
 const HISTORY_KEEP = 30
 
@@ -250,6 +259,12 @@ export default function DiceRoller() {
   const [rollResults, setRollResults] = useState<DieResult[]>([])
   const [history, setHistory] = useState<RollHistoryEntry[]>([])
   const [error, setError] = useState<string | null>(null)
+  // в комнате бросок можно сделать скрытым: «всем» → доступные скрытые режимы по кругу
+  const hiddenModes = useRoomRollVisibilities()
+  const [vis, setVis] = useState<RoomRollVisibility>('public')
+  const visNow: RoomRollVisibility = vis !== 'public' && !hiddenModes.includes(vis) ? 'public' : vis
+  const visCycle: RoomRollVisibility[] = ['public', ...hiddenModes]
+  const nextVis = () => setVis(visCycle[(visCycle.indexOf(visNow) + 1) % visCycle.length])
   const [revealClash, setRevealClash] = useState<'adv' | 'dis' | null>(null)
   // бросок из кода (лист, комната): сцена видна, но оверлей результата не нужен
   const [externalActive, setExternalActive] = useState(false)
@@ -422,7 +437,7 @@ export default function DiceRoller() {
     setError(null)
     initDiceAudio()
     try {
-      await handler({ expression, label, mode: m })
+      await handler({ expression, label, mode: m, visibility: visNow })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -558,10 +573,23 @@ export default function DiceRoller() {
           {error && <p className="dq-error">{error}</p>}
         </div>
 
-        <div className="dice-action-bar">
+        <div className={`dice-action-bar${visNow !== 'public' ? ' is-secret' : ''}`}>
           <StashableFab open={menu && !busy} busy={busy} onToggle={() => (menu ? closeMenu() : openMenu())}>
             <DieImage type={20} size={30} className="die-fab-icon" />
           </StashableFab>
+          {hiddenModes.length > 0 && (
+            <button
+              type="button"
+              className={`dq-vis${visNow !== 'public' ? ' is-on' : ''}`}
+              onClick={nextVis}
+              onPointerEnter={(e) => e.stopPropagation()}
+              aria-label={`Кто увидит бросок: ${VIS_LABEL[visNow]}. Нажмите, чтобы сменить`}
+              title={VIS_LABEL[visNow]}
+            >
+              {visNow === 'public' ? <Eye aria-hidden="true" /> : visNow === 'blind' ? <Ghost aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
+              {visNow !== 'public' && <span>{VIS_SHORT[visNow]}</span>}
+            </button>
+          )}
           {history.length > 0 && (
             <div className="dq-journal">
               <button type="button" className={`dq-journal-btn${journal ? ' is-on' : ''}`} onClick={() => setJournal((v) => !v)} aria-expanded={journal} aria-label="Журнал бросков" title="Журнал бросков">

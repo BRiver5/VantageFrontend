@@ -37,6 +37,11 @@ import type {
   ScreenItemTemplate,
   ScreenNote,
   AnyCreature,
+  ChatMessage,
+  CombatantPatch,
+  ConcentrationSave,
+  RoomClock,
+  SharedNote,
 } from '../types/rooms'
 
 const r = (id: string, path = '') => `/rooms/${id}${path}`
@@ -91,8 +96,6 @@ export const kickMember = (id: string, userId: string) => post<{ status: string 
 /** Правка комнатной копии героя (поля, которые игроку можно менять сам) */
 export const patchRoomCharacter = (id: string, cid: string, body: Record<string, unknown>) => patch<unknown>(r(id, `/characters/${cid}`), body)
 
-/** Картинка героя в комнате: копия героя её не обновляет сама */
-export const setRoomCharacterAvatar = (id: string, cid: string, avatar_url: string) => patch<unknown>(r(id, `/characters/${cid}`), { avatar_url })
 
 
 export async function listRoomCharacters(id: string): Promise<CharacterCard[]> {
@@ -164,7 +167,7 @@ export const addCombatants = (
   body: { character_ids?: string[]; creature_ids?: string[]; hidden?: boolean },
 ) => post<CombatView>(cb(id, combat, '/combatants'), body)
 /** Мастер за всех, игрок за себя; только до начала боя */
-export const rollInitiative = (id: string, combat: string, body: { combatant_ids?: string[]; advantage?: 'adv' | 'dis' | null } = {}) =>
+export const rollInitiative = (id: string, combat: string, body: { combatant_ids?: string[]; advantage?: 'adv' | 'dis' | null; group?: boolean } = {}) =>
   post<CombatView>(cb(id, combat, '/initiative/roll'), body)
 export const setInitiative = (id: string, combat: string, values: Record<string, number>) =>
   patch<CombatView>(cb(id, combat, '/initiative'), { values })
@@ -175,6 +178,57 @@ export const combatAction = (id: string, combat: string, body: CombatActionReque
 export const revertCombatAction = (id: string, combat: string, actionId: string) =>
   post<CombatView>(cb(id, combat, `/actions/${actionId}/revert`))
 export const endCombat = (id: string, combat: string) => post<CombatView>(cb(id, combat, '/end'))
+/** Мастер: вернуть ход назад (в первом ходу боя 409) */
+export const prevTurn = (id: string, combat: string) => post<CombatView>(cb(id, combat, '/prev-turn'))
+/** Отложить ход: встать после выбранного участника или в конец */
+export const delayTurn = (id: string, combat: string, afterCombatantId?: string | null) =>
+  post<CombatView>(cb(id, combat, '/delay'), afterCombatantId ? { after_combatant_id: afterCombatantId } : {})
+/** Отметить потраченное вручную: владелец и мастер; surprised, hidden и прочее — только мастер */
+export const patchCombatant = (id: string, combat: string, combatantId: string, body: CombatantPatch) =>
+  patch<CombatView>(cb(id, combat, `/combatants/${combatantId}`), body)
+/** Спасбросок концентрации: владелец и мастер */
+export const concentrationSave = (id: string, combat: string, combatantId: string) =>
+  post<ConcentrationSave>(cb(id, combat, '/concentration'), { combatant_id: combatantId })
+/** Легендарные действия и сопротивления; amount < 0 — вернуть. Только мастер */
+export const spendLegendary = (id: string, creatureId: string, kind: 'action' | 'resistance', amount = 1) =>
+  post<RoomCreature>(r(id, `/creatures/${creatureId}/legendary`), { kind, amount })
+
+/* ---------- броски: раскрыть скрытый ---------- */
+
+export const revealRoll = (id: string, seq: number) => post<unknown>(r(id, `/rolls/${seq}/reveal`))
+
+/* ---------- чат ---------- */
+
+/** Команды /r, /gmroll, /w ник, /me, /ooc разбирает сервер */
+export const sendChat = (id: string, body: { text: string; channel?: 'ic' | 'ooc'; character_id?: string | null }) =>
+  post<ChatMessage>(r(id, '/chat'), body)
+/** История событий одного типа: без noop, для листания назад before_seq */
+export async function listEventsOfType(id: string, types: string[], opts: { limit?: number; beforeSeq?: number } = {}): Promise<RoomEventMessage[]> {
+  const q = new URLSearchParams({ types: types.join(','), limit: String(opts.limit ?? 50) })
+  if (opts.beforeSeq != null) q.set('before_seq', String(opts.beforeSeq))
+  return (await get<{ items: RoomEventMessage[] }>(r(id, `/events?${q}`)))?.items ?? []
+}
+
+/* ---------- часы, общие заметки, привал ---------- */
+
+export async function listClocks(id: string): Promise<RoomClock[]> {
+  return (await get<{ items: RoomClock[] }>(r(id, '/clocks')))?.items ?? []
+}
+type ClockBody = Partial<Omit<RoomClock, 'id'>>
+export const createClock = (id: string, body: ClockBody) => post<RoomClock>(r(id, '/clocks'), body)
+export const patchClock = (id: string, clockId: string, body: ClockBody) => patch<RoomClock>(r(id, `/clocks/${clockId}`), body)
+/** от −24 до 24 */
+export const tickClock = (id: string, clockId: string, amount: number) => post<RoomClock>(r(id, `/clocks/${clockId}/tick`), { amount })
+export const deleteClock = (id: string, clockId: string) => del(r(id, `/clocks/${clockId}`))
+
+/** Заметки, которые мастер открыл партии */
+export async function listSharedNotes(id: string): Promise<SharedNote[]> {
+  return (await get<{ items: SharedNote[] }>(r(id, '/notes')))?.items ?? []
+}
+
+/** Привал для всей партии (мастер); кости хитов на коротком каждый тратит сам */
+export const partyRest = (id: string, kind: 'short' | 'long', characterIds?: string[]) =>
+  post<{ kind: string; character_ids: string[]; failed: string[] }>(r(id, '/rest'), characterIds ? { kind, character_ids: characterIds } : { kind })
 
 /* ---------- ширма (только мастер) ---------- */
 
@@ -218,3 +272,13 @@ export const preloadContent = (id: string, body: ContentPreloadBody) =>
   post<{ content_id: string; expected: number }>(r(id, '/content/preload'), body)
 export const revealContent = (id: string, contentId: string) =>
   post<{ content_id: string }>(r(id, `/content/${contentId}/reveal`))
+
+/* ---------- состояния вне боя (запрошено у бэкенда, см. docs/BACKEND_REQUESTS.md) ---------- */
+
+type EffectBody = { label: string; expires: string; rounds_left: number | null; concentration?: boolean; save_ability?: string | null; save_dc?: number | null; modifiers?: unknown[] }
+type EffectTarget = { kind: 'character' | 'creature'; id: string }
+const effPath = (id: string, t: EffectTarget) => r(id, `/${t.kind === 'character' ? 'characters' : 'creatures'}/${t.id}/effects`)
+/** Наложить эффект на героя или существо (мастер) */
+export const addEffect = (id: string, target: EffectTarget, body: EffectBody) => post<unknown>(effPath(id, target), { modifiers: [], ...body })
+/** Снять эффект по id (мастер) */
+export const removeEffect = (id: string, target: EffectTarget, effectId: string) => del(`${effPath(id, target)}/${effectId}`)

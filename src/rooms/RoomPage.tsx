@@ -4,6 +4,7 @@
  * сценой боя. Лист героя выезжает поверх (?hero=me или ?hero=<id> у мастера).
  * Мастер играет только с компьютера, игрок — с компьютера или телефона.
  */
+import { RoomClocks } from './Clocks'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, DoorOpen, Monitor } from 'lucide-react'
@@ -101,6 +102,7 @@ function Stage() {
   return (
     <>
       {inCombat ? <BattleScene onSheet={openSheet} /> : <TableScene onSheet={openSheet} />}
+      <RoomClocks />
       {isDm && <DmScreen />}
       {validHero && <SheetOver characterId={validHero} backTo={`/rooms/${roomId}`} />}
       {fx === 'intro' && <BattleIntro onDone={clearFx} />}

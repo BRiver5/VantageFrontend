@@ -11,8 +11,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { ApiError } from '../api'
 import { getAccessToken } from '../auth/token'
 import type { RoomEventMessage, RoomState } from '../types/rooms'
-import { applyEvent, describeEvent, fromSnapshot, pushLog, type RoomData } from './applyEvent'
-import { getRoomState } from './roomsApi'
+import { applyEvent, chatOf, describeEvent, fromSnapshot, mergeChat, pushLog, type RoomData, type RoomExtras } from './applyEvent'
+import { getRoomState, listClocks, listEventsOfType, listSharedNotes } from './roomsApi'
 import { RoomSocket, type FatalReason, type SocketStatus } from './roomSocket'
 
 type Action =
@@ -20,10 +20,16 @@ type Action =
   | { type: 'event'; msg: RoomEventMessage }
   /** код приглашения приходит только в ответе REST: в room.updated его нет */
   | { type: 'invite'; code: string }
+  /** то, что грузится отдельно от снимка: часы, общие заметки, история чата */
+  | { type: 'extras'; extras: Partial<RoomExtras> }
 
 function reduce(state: RoomData | null, action: Action): RoomData | null {
-  if (action.type === 'snapshot') return fromSnapshot(action.state, state?.log)
+  if (action.type === 'snapshot') return fromSnapshot(action.state, state?.log, state ?? undefined)
   if (!state) return state
+  if (action.type === 'extras') {
+    const { chat, ...rest } = action.extras
+    return { ...state, ...rest, chat: chat ? mergeChat(state.chat, chat) : state.chat }
+  }
   if (action.type === 'invite') return { ...state, room: { ...state.room, invite_code: action.code } }
   const next = applyEvent(state, action.msg)
   const entry = describeEvent(next, action.msg)
@@ -103,6 +109,16 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
     [emit],
   )
 
+  /** Часы, общие заметки и чат приходят не со снимком. На старом сервере маршрутов нет — тогда просто пусто */
+  const loadExtras = useCallback(() => {
+    void listClocks(roomId).then((clocks) => dispatch({ type: 'extras', extras: { clocks } }), () => undefined)
+    void listSharedNotes(roomId).then((sharedNotes) => dispatch({ type: 'extras', extras: { sharedNotes } }), () => undefined)
+    void listEventsOfType(roomId, ['chat.message'], { limit: 50 }).then(
+      (items) => dispatch({ type: 'extras', extras: { chat: items.map(chatOf).filter((m): m is NonNullable<typeof m> => !!m) } }),
+      () => undefined,
+    )
+  }, [roomId])
+
   useEffect(() => {
     let cancelled = false
     lastSeq.current = 0
@@ -115,6 +131,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
         if (cancelled) return
         lastSeq.current = state.seq
         dispatch({ type: 'snapshot', state })
+        loadExtras()
         const socket = new RoomSocket({
           roomId,
           getToken: getAccessToken,
@@ -149,7 +166,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
       socketRef.current?.stop()
       socketRef.current = null
     }
-  }, [roomId, handleEvent])
+  }, [roomId, handleEvent, loadExtras])
 
   const subscribe = useCallback((fn: (msg: RoomEventMessage) => void) => {
     listeners.current.add(fn)

@@ -19,6 +19,9 @@ import { claimItem } from '../roomsApi'
 import { CreatureCard, HeroCard, LootCard } from './Cards'
 import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, hpTone, itemArt, itemName, originFromEvent, originOf, relayArt, relayKey, seed, useEmergeClose, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
+import { auraClass, describeEffect, EffectSigils } from './effects'
+import { MarkdownBody } from '../kb/Markdown'
+import { parsePage } from '../kb/mdparse'
 import { Img } from '../../media'
 
 /* ---------- полёт предмета ---------- */
@@ -155,9 +158,36 @@ function NotesMapOpen({ characterId, origin, onClose }: { characterId: string; o
   )
 }
 
+/** Заметки, которые мастер открыл партии: только чтение */
+function SharedNotesList() {
+  const { data } = useRoom()
+  const notes = [...(data?.sharedNotes ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.order - b.order)
+  if (notes.length === 0) return <p className="tb-map-wait">Мастер пока ничего не открыл</p>
+  // ссылки ведут только на открытые партии страницы
+  const lookup = { has: (t: string) => notes.some((x) => x.title.toLowerCase() === t.toLowerCase()), body: (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null, titles: notes.map((x) => x.title) }
+  return (
+    <ul className="tb-shared">
+      {notes.map((n) => (
+        <li key={n.id} id={`shared-${n.id}`}>
+          <h3>
+            {parsePage(n.body).meta.icon ? `${parsePage(n.body).meta.icon} ` : ''}
+            {n.title || 'Без названия'}
+          </h3>
+          {n.folder && <i>{n.folder}</i>}
+          <div className="kb-doc is-paper">
+            <MarkdownBody src={n.body} pages={lookup} onOpen={(t) => document.getElementById(`shared-${notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.id}`)?.scrollIntoView({ behavior: 'smooth' })} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function NotesPaper({ characterId }: { characterId: string }) {
-  const { roomId } = useRoom()
+  const { roomId, data } = useRoom()
   const close = useEmergeClose()
+  const shared = data?.sharedNotes.length ?? 0
+  const [tab, setTab] = useState<'mine' | 'shared'>('mine')
   const [text, setText] = useState<string | null>(null)
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -207,8 +237,21 @@ function NotesPaper({ characterId }: { characterId: string }) {
         <X aria-hidden="true" />
       </button>
       <div className="tb-map-paper">
-        <h2>Мои заметки</h2>
-        {text == null ? (
+        {shared > 0 ? (
+          <div className="tb-map-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={tab === 'mine'} className={tab === 'mine' ? 'is-on' : ''} onClick={() => setTab('mine')}>
+              Мои заметки
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'shared'} className={tab === 'shared' ? 'is-on' : ''} onClick={() => setTab('shared')}>
+              От мастера <em>{shared}</em>
+            </button>
+          </div>
+        ) : (
+          <h2>Мои заметки</h2>
+        )}
+        {tab === 'shared' && shared > 0 ? (
+          <SharedNotesList />
+        ) : text == null ? (
           <p className="tb-map-wait">Разворачиваем карту…</p>
         ) : (
           <textarea
@@ -261,6 +304,7 @@ function Seat({ seat, bubble, nudge, onOpen }: { seat: SeatInfo; bubble?: Bubble
   const art = useHeroArt(roomId, card.id, card.avatar_url, isDm)
   const down = card.hp.current <= 0
   const tilt = (seed(card.id, 3) * 14 - 7).toFixed(1)
+  const fx = card.effects.map((l) => describeEffect(l))
   return (
     <button
       type="button"
@@ -273,10 +317,10 @@ function Seat({ seat, bubble, nudge, onOpen }: { seat: SeatInfo; bubble?: Bubble
       <span className="tb-seat-paper" aria-hidden="true">
         <i>{card.name}</i>
       </span>
-      <span className="tb-seat-token">
-        <Hex raw={art} name={card.name} ratio={cardRatio(card)} online={online} />
+      <span className={`tb-seat-token ${auraClass(fx)}`}>
+        <Hex raw={art} name={card.name} online={online} />
+        <EffectSigils effects={fx} size="sm" />
         <b>{card.name}</b>
-        {card.effects.length > 0 && <span className="tb-seat-fx" title={card.effects.join(', ')} />}
         {bubble && <RollBubble key={bubble.id} b={bubble} />}
       </span>
     </button>
@@ -315,15 +359,17 @@ function Token({ c, count, onOpen }: { c: AnyCreature; count: number; onOpen: (o
   const dy = (seed(c.id, 2) * 22 - 11).toFixed(0)
   const r = (seed(c.id, 4) * 16 - 8).toFixed(1)
   const hidden = isFullCreature(c) && c.on_screen_only
+  const fx = (isFullCreature(c) ? c.conditions.map((e) => e.label) : (c.effects ?? [])).map((l) => describeEffect(l))
   return (
     <button
       type="button"
-      className={`tb-token${hp.ratio === 0 ? ' is-down' : ''}${hidden ? ' is-hidden' : ''}${count > 8 ? ' is-small' : ''}`}
+      className={`tb-token${hp.ratio === 0 ? ' is-down' : ''}${hidden ? ' is-hidden' : ''}${count > 8 ? ' is-small' : ''} ${auraClass(fx)}`}
       style={{ '--dx': `${dx}`, '--dy': `${dy}`, '--r': `${r}deg` } as CSSProperties}
       onClick={(e) => onOpen(originFromEvent(e))}
       aria-label={`${creatureName(c)}: открыть карту`}
     >
-      <Hex plain={creatureArt(c)} name={creatureName(c)} ratio={hp.ratio} tone="enemy" />
+      <Hex plain={creatureArt(c)} name={creatureName(c)} tone="enemy" />
+      <EffectSigils effects={fx} size="sm" />
       <b>{creatureName(c)}</b>
     </button>
   )
@@ -640,8 +686,9 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
               <i>{me.name}</i>
               <u>{me.level} уровень</u>
             </span>
-            <span className="tb-mysheet-token">
-              <Hex raw={myArt} name={me.name} ratio={cardRatio(me)} tone={hpTone(cardRatio(me)) === 'down' ? 'down' : undefined} />
+            <span className={`tb-mysheet-token ${auraClass(me.effects.map((l) => describeEffect(l)))}`}>
+              <Hex raw={myArt} name={me.name} tone={hpTone(cardRatio(me)) === 'down' ? 'down' : undefined} />
+              <EffectSigils effects={me.effects.map((l) => describeEffect(l))} />
               <b>
                 {me.hp.current}
                 <i>/{me.hp.max}</i>
@@ -654,10 +701,11 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
             type="button"
             className="tb-mapcorner"
             onClick={(e) => setMapOrigin(originFromEvent(e))}
-            aria-label="Личные заметки"
-            title="Личные заметки"
+            aria-label={data.sharedNotes.length ? `Заметки: своя и ${data.sharedNotes.length} от мастера` : 'Личные заметки'}
+            title="Заметки"
           >
             <span aria-hidden="true" />
+            {data.sharedNotes.length > 0 && <em className="tb-mapcorner-seal">{data.sharedNotes.length}</em>}
           </button>
         </>
       )}

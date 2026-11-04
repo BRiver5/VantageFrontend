@@ -14,8 +14,9 @@ import { useRoomRoll } from './RoomDice'
 import { useRoom } from './RoomProvider'
 import { getDashboard, saveDashboard } from './roomsApi'
 import { CreatureCard, LootCard } from './table/Cards'
-import { LeafMaps, LeafNotes } from './table/DmScreen'
-import { creatureArt, creatureHp, creatureName, Hex, itemName, itemArt, originFromEvent, type Origin } from './table/parts'
+import { LeafMaps } from './table/DmScreen'
+import { PinnedPages } from './kb/KnowledgeBase'
+import { creatureArt, creatureName, Hex, itemName, itemArt, originFromEvent, type Origin } from './table/parts'
 import { Img } from '../media'
 
 const COLS = 12
@@ -101,7 +102,7 @@ function CreaturesWidget() {
     <div className="sc-tokens">
       {data.creatures.map((c) => (
         <button key={c.id} type="button" className="sc-token" onClick={(e) => setOpen({ id: c.id, origin: originFromEvent(e) })}>
-          <Hex plain={creatureArt(c)} name={creatureName(c)} ratio={creatureHp(c).ratio} tone="enemy" />
+          <Hex plain={creatureArt(c)} name={creatureName(c)} tone="enemy" />
           <b>{creatureName(c)}</b>
         </button>
       ))}
@@ -154,7 +155,7 @@ function WidgetBody({ type }: { type: WidgetType }): ReactNode {
   const { data } = useRoom()
   switch (type) {
     case 'notes':
-      return <LeafNotes />
+      return <PinnedPages />
     case 'party':
       return data && data.characters.length > 0 ? (
         <ul className="rm-dash-party">

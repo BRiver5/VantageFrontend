@@ -9,7 +9,6 @@ import { ImageOff, Skull } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getCharacter, getOne, listMyCharacters, realImage, roomCharacterRef, type GameClass, type Race } from '../../api'
 import { useRoom } from '../RoomProvider'
-import { setRoomCharacterAvatar } from '../roomsApi'
 import { FaceImage } from '../../characters/FacePortrait'
 import { parsePortrait } from '../../characters/portrait'
 import type { AnyCreature, CharacterCard, HpBand, RoomItem } from '../../types/rooms'
@@ -67,7 +66,7 @@ const heroArtCache = new Map<string, Promise<string | null>>()
 /**
  * В комнате лежит копия героя, снятая при входе. Картинку, загруженную в
  * оригинал позже, копия не знает: ищем оригинал среди своих героев (по имени
- * и расе) и заодно переносим картинку в копию, чтобы её увидела вся партия.
+ * и расе). Записать её в копию игрок не может: avatar_url меняет только мастер.
  */
 const originalCache = new Map<string, Promise<string | null>>()
 
@@ -75,17 +74,16 @@ function avatarFromOriginal(roomId: string, characterId: string, name: string, r
   const key = `${roomId}/${characterId}`
   const known = originalCache.get(key)
   if (known) return known
-  const job = findOriginalAvatar(roomId, characterId, name, raceId)
+  const job = findOriginalAvatar(name, raceId)
   originalCache.set(key, job)
   return job
 }
 
-async function findOriginalAvatar(roomId: string, characterId: string, name: string, raceId: string | null | undefined): Promise<string | null> {
+async function findOriginalAvatar(name: string, raceId: string | null | undefined): Promise<string | null> {
   const mine = await listMyCharacters().catch(() => [])
   const same = mine.filter((x) => x.avatar_url && x.character_name === name)
   const hit = same.find((x) => !raceId || x.race_id === raceId) ?? (same.length === 1 ? same[0] : undefined)
   if (!hit?.avatar_url) return null
-  void setRoomCharacterAvatar(roomId, characterId, hit.avatar_url).catch(() => undefined)
   return hit.avatar_url
 }
 
@@ -157,7 +155,6 @@ export function Hex({
   raw,
   plain,
   name,
-  ratio,
   online,
   tone,
   icon: Icon,
@@ -168,8 +165,6 @@ export function Hex({
   /** обычная картинка: существо, предмет */
   plain?: string | null
   name?: string
-  /** доля хитов: рисуется по ободу */
-  ratio?: number | null
   online?: boolean
   tone?: string
   icon?: LucideIcon
@@ -201,10 +196,55 @@ export function Hex({
       </span>
       <svg className="tb-hex-rim" viewBox="0 0 100 115.47" aria-hidden="true">
         <path className="tb-hex-base" d={HEX_PATH} />
-        {ratio != null && <path className={`tb-hex-hp is-${hpTone(ratio)}`} d={HEX_PATH} pathLength={100} style={{ strokeDasharray: `${ratio * 100} 100` }} />}
       </svg>
       {online != null && <i className={`tb-hex-dot${online ? ' is-on' : ''}`} title={online ? 'в сети' : 'не в сети'} />}
       {children}
+    </span>
+  )
+}
+
+/* ---------- сосуд хитов: для карточек вне боя ---------- */
+
+const BAND_WORD: Record<HpBand, string> = { healthy: 'бодр', bloodied: 'ранен', critical: 'при смерти', down: 'повержен' }
+const HEART = 'M12 21.3C5.2 15.6 1.5 12.2 1.5 7.9 1.5 4.6 4.1 2 7.3 2c1.9 0 3.6.9 4.7 2.3C13.1 2.9 14.8 2 16.7 2c3.2 0 5.8 2.6 5.8 5.9 0 4.3-3.7 7.7-10.5 13.4Z'
+
+/**
+ * Сердце-склянка: жидкость стоит на уровне хитов и чуть колышется, рядом —
+ * числа. Спидометр остаётся бою; здесь хиты читаются спокойно и сразу.
+ */
+export function HpVessel({ ratio, current, max, temp, band, size = 'md' }: { ratio: number | null; current?: number; max?: number; temp?: number; band?: HpBand; size?: 'sm' | 'md' }) {
+  const id = useRef(`hv${Math.random().toString(36).slice(2, 8)}`).current
+  const level = ratio == null ? 0 : clamp01(ratio)
+  const tone = hpTone(ratio)
+  const top = 21.5 - level * 20
+  return (
+    <span className={`hp-vessel is-${tone} is-${size}${ratio == null ? ' is-hidden' : ''}`} title={ratio == null ? 'Хиты скрыты' : max != null ? `Хиты: ${current} из ${max}` : band ? BAND_WORD[band] : ''}>
+      <svg viewBox="0 0 24 23" aria-hidden="true">
+        <defs>
+          <clipPath id={id}>
+            <path d={HEART} />
+          </clipPath>
+        </defs>
+        <path className="hp-vessel-glass" d={HEART} />
+        <g clipPath={`url(#${id})`}>
+          <path className="hp-vessel-liquid" d={`M-4 ${top} q3 -1.4 6 0 t6 0 t6 0 t6 0 t6 0 V30 H-4 Z`} />
+          <path className="hp-vessel-shine" d="M5 6.5c.8-1.6 2.2-2.4 3.6-2.4" />
+        </g>
+        <path className="hp-vessel-rim" d={HEART} />
+      </svg>
+      <span className="hp-vessel-num">
+        {max != null ? (
+          <>
+            <b>{current}</b>
+            <i>/{max}</i>
+            {temp ? <em title="Временные хиты">+{temp}</em> : null}
+          </>
+        ) : band ? (
+          <b className="is-word">{BAND_WORD[band]}</b>
+        ) : ratio == null ? (
+          <b className="is-word">скрыто</b>
+        ) : null}
+      </span>
     </span>
   )
 }

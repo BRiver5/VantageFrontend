@@ -97,24 +97,47 @@ export function playForcedRoll(roll: ForcedRoll): Promise<number[]> {
 
 /* ---------- режим комнаты: бросает сервер ---------- */
 
+/** Кто увидит бросок: всем; мне и мастеру; вслепую — только мастер */
+export type RoomRollVisibility = 'public' | 'dm' | 'self' | 'blind'
+
 export interface RoomRollRequest {
   expression: string
   label?: string
   mode?: 'adv' | 'dis' | null
+  visibility?: RoomRollVisibility
 }
 /** Пока комната открыта, лоток костей шлёт броски на сервер вместо локального броска */
 type RoomRollHandler = (req: RoomRollRequest) => Promise<void>
 
 let roomHandler: RoomRollHandler | null = null
+/** Скрытые режимы, доступные в этой комнате (кроме «всем») */
+let roomVisibilities: RoomRollVisibility[] = []
+const visListeners = new Set<() => void>()
 
 /** Вызывается мостом комнаты; возвращает отписку */
-export function setRoomRollHandler(fn: RoomRollHandler | null): () => void {
+export function setRoomRollHandler(fn: RoomRollHandler | null, visibilities: RoomRollVisibility[] = []): () => void {
   roomHandler = fn
+  roomVisibilities = fn ? visibilities : []
+  visListeners.forEach((l) => l())
   return () => {
-    if (roomHandler === fn) roomHandler = null
+    if (roomHandler !== fn) return
+    roomHandler = null
+    roomVisibilities = []
+    visListeners.forEach((l) => l())
   }
 }
 export const getRoomRollHandler = () => roomHandler
+
+/** Какие скрытые броски можно делать из лотка: пусто — только открытые */
+export function useRoomRollVisibilities(): RoomRollVisibility[] {
+  return useSyncExternalStore(
+    (l) => {
+      visListeners.add(l)
+      return () => visListeners.delete(l)
+    },
+    () => roomVisibilities,
+  )
+}
 
 export interface DiceApi {
   /** Бросок в процессе — кнопки должны блокироваться */

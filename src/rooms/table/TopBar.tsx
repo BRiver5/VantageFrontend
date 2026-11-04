@@ -6,21 +6,22 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { ChevronRight, DoorOpen, Expand, Home, Library, ScrollText, Settings, UserRound, Users, WifiOff, X } from 'lucide-react'
-import { InvitePanel, LeavePanel, PartyPanel, RoomSettingsPanel } from '../Lobby'
+import { ChevronRight, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, UserRound, Users, WifiOff, X } from 'lucide-react'
+import { ChatPanel, useChatUnread } from '../Chat'
+import { InvitePanel, LeavePanel, PartyPanel, PartyRestPanel, RoomSettingsPanel } from '../Lobby'
 import { RollingNow } from '../RoomDice'
 import { RoomLog } from '../RoomLog'
 import { useRoom } from '../RoomProvider'
 import { statusRu } from '../applyEvent'
 import { Round } from './parts'
 
-type Pop = 'party' | 'log' | 'settings' | null
+type Pop = 'party' | 'log' | 'settings' | 'chat' | null
 
 /** Боковая створка: кожаная для настроек */
-function Drawer({ title, icon: Icon, onClose, children }: { title: string; icon: typeof Users; onClose: () => void; children: ReactNode }) {
+function Drawer({ title, icon: Icon, onClose, children, className = '' }: { title: string; icon: typeof Users; onClose: () => void; children: ReactNode; className?: string }) {
   return createPortal(
     <div className="tb-drawer-layer" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <aside className="tb-drawer" role="dialog" aria-label={title}>
+      <aside className={`tb-drawer${className ? ` ${className}` : ''}`} role="dialog" aria-label={title}>
         <header>
           <Icon aria-hidden="true" />
           <h2>{title}</h2>
@@ -60,6 +61,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
   const [menu, setMenu] = useState(false)
   const [pop, setPop] = useState<Pop>(null)
   const toggle = (p: Exclude<Pop, null>) => setPop((cur) => (cur === p ? null : p))
+  const unread = useChatUnread(pop === 'chat')
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -99,6 +101,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
         </div>
         <div className="tb-rounds">
           {onSheet && <Round icon={UserRound} label="Лист героя" onClick={onSheet} />}
+          <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} />
           <Round icon={ScrollText} label="Журнал" on={pop === 'log'} onClick={() => toggle('log')} />
           <Round icon={Users} label="Участники" badge={pending || undefined} alert={pending > 0} on={pop === 'party'} onClick={() => toggle('party')} />
           <Round icon={Settings} label={isDm ? 'Настройки комнаты' : 'Комната'} on={pop === 'settings'} onClick={() => toggle('settings')} />
@@ -106,10 +109,16 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
       </header>
 
       {pop === 'log' && <LogScroll onClose={() => setPop(null)} />}
+      {pop === 'chat' && (
+        <Drawer title="Чат" icon={MessageCircle} onClose={() => setPop(null)} className="is-chat">
+          <ChatPanel />
+        </Drawer>
+      )}
       {pop === 'party' && (
         <Drawer title="Участники" icon={Users} onClose={() => setPop(null)}>
           {isDm && <InvitePanel />}
           <PartyPanel />
+          {isDm && <PartyRestPanel />}
         </Drawer>
       )}
       {pop === 'settings' && (

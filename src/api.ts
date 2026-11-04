@@ -101,6 +101,14 @@ export function isLegacySchemaError(e: unknown): boolean {
  * Универсальный fetch к API. Каталог по-прежнему может использовать fetchPage/getOne;
  * auth и characters — через request().
  */
+/** Ключ повтора: новый на каждое действие, тот же — только при повторе этого действия */
+function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
   const { method = 'GET', body, auth = false, signal, quality } = opts
   const headers: Record<string, string> = {}
@@ -119,12 +127,32 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
   let url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
   if (quality && quality !== 'high') url += `${url.includes('?') ? '&' : '?'}quality=${quality}`
 
-  const res = await fetch(url, {
+  // изменяющий запрос несёт ключ: если связь оборвалась, повторяем его с тем же
+  // ключом, и сервер не выполнит действие дважды (передача монет, броски, бой)
+  const mutating = method !== 'GET' && method !== 'HEAD'
+  if (mutating && !isForm) headers['Idempotency-Key'] = newIdempotencyKey()
+  const init: RequestInit = {
     method,
     headers,
     body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
     signal,
-  })
+  }
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch (e) {
+    if (!mutating || isForm || signal?.aborted) throw e
+    await wait(700)
+    res = await fetch(url, init)
+  }
+  // первый запрос с этим ключом ещё выполняется: подождать и спросить снова
+  if (res.status === 409 && headers['Idempotency-Key'] && res.headers.get('Idempotent-Replayed') == null) {
+    const peek = await res.clone().text()
+    if (/idempot|выполняется/i.test(peek)) {
+      await wait(800)
+      res = await fetch(url, init)
+    }
+  }
 
   if (res.status === 204) return undefined as T
 
@@ -186,7 +214,17 @@ export function uploadAvatar(file: File): Promise<UserMe> {
 export function uploadMedia(file: File): Promise<UploadResponse> {
   const form = new FormData()
   form.append('file', file)
-  return request<UploadResponse>('/media/upload', { method: 'POST', body: form, auth: true })
+  return request<UploadResponse>('/media/upload', { method: 'POST', body: form, auth: true }).catch((e: unknown) => {
+    throw uploadError(e)
+  })
+}
+
+/** Понятный текст ошибки загрузки: сервер проверяет содержимое и размер файла */
+export function uploadError(e: unknown): unknown {
+  if (!(e instanceof ApiError)) return e
+  if (e.status === 413) return new ApiError('Файл больше 20 МБ', 413, e.body)
+  if (e.status === 400) return new ApiError('Это не картинка: подойдут PNG, JPEG, GIF, WebP или SVG без скриптов', 400, e.body)
+  return e
 }
 
 /**

@@ -13,6 +13,11 @@
 import type {
   AnyCreature,
   CharacterCard,
+  ChatMessage,
+  ConcentrationSave,
+  RoomClock,
+  SaveEndsResult,
+  SharedNote,
   CombatActionResult,
   CombatView,
   DiceRollEvent,
@@ -45,9 +50,24 @@ export interface RoomData {
   /** ревизия листа каждого персонажа: меняется — лист надо перечитать */
   sheetRev: Record<string, number>
   log: RoomLogEntry[]
+  /** сообщения чата по порядку; история догружается из /events?types=chat.message */
+  chat: ChatMessage[]
+  /** часы прогресса; игроку — только видимые */
+  clocks: RoomClock[]
+  /** заметки, которые мастер открыл партии */
+  sharedNotes: SharedNote[]
+  /** номера скрытых бросков, которые мастер уже раскрыл */
+  revealed: number[]
 }
 
-export function fromSnapshot(s: RoomState, prevLog: RoomLogEntry[] = []): RoomData {
+/** То, чего нет в снимке /state: оно грузится отдельно и переживает пересъём снимка */
+export type RoomExtras = Pick<RoomData, 'chat' | 'clocks' | 'sharedNotes' | 'revealed'>
+const NO_EXTRAS: RoomExtras = { chat: [], clocks: [], sharedNotes: [], revealed: [] }
+
+/** Сколько сообщений чата держим */
+export const CHAT_LIMIT = 400
+
+export function fromSnapshot(s: RoomState, prevLog: RoomLogEntry[] = [], extras: RoomExtras = NO_EXTRAS): RoomData {
   return {
     seq: s.seq,
     room: s.room,
@@ -60,8 +80,30 @@ export function fromSnapshot(s: RoomState, prevLog: RoomLogEntry[] = []): RoomDa
     online: s.online,
     sheetRev: {},
     log: prevLog,
+    chat: extras.chat,
+    clocks: extras.clocks,
+    sharedNotes: extras.sharedNotes,
+    revealed: extras.revealed,
   }
 }
+
+/** Сообщение чата из события: кто написал, берём из actor */
+export function chatOf(msg: RoomEventMessage): ChatMessage | null {
+  const p = msg.payload as ChatMessage | undefined
+  if (!p?.id) return null
+  return { ...p, seq: msg.seq, ts: msg.ts, from_user_id: msg.actor?.user_id ?? null, from_label: msg.actor?.label ?? null }
+}
+
+/** Добавить сообщения без повторов, по порядку seq */
+export function mergeChat(list: ChatMessage[], add: ChatMessage[]): ChatMessage[] {
+  const known = new Set(list.map((m) => m.id))
+  const fresh = add.filter((m) => !known.has(m.id))
+  if (fresh.length === 0) return list
+  const all = [...list, ...fresh].sort((a, b) => (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER))
+  return all.length > CHAT_LIMIT ? all.slice(all.length - CHAT_LIMIT) : all
+}
+
+const byOrder = <T extends { order: number }>(list: T[]) => [...list].sort((a, b) => a.order - b.order)
 
 /* ---------- мелкие помощники ---------- */
 
@@ -215,6 +257,34 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       return { ...base, characters, creatures, combat }
     }
 
+    case 'chat.message': {
+      const m = chatOf(msg)
+      return m ? { ...base, chat: mergeChat(base.chat, [m]) } : base
+    }
+
+    case 'clock.updated': {
+      // скрытые часы игроку приходят как {clock_id, hidden: true}: убрать с экрана
+      if (p.hidden && p.clock_id) return { ...base, clocks: without(base.clocks, p.clock_id) }
+      const clock = p.clock as RoomClock | undefined
+      return clock ? { ...base, clocks: byOrder(upsert(base.clocks, clock)) } : base
+    }
+
+    case 'clock.removed':
+      return { ...base, clocks: without(base.clocks, p.clock_id) }
+
+    case 'note.shared': {
+      const note = p.note as SharedNote | undefined
+      return note ? { ...base, sharedNotes: byOrder(upsert(base.sharedNotes, note)) } : base
+    }
+
+    case 'note.unshared':
+      return { ...base, sharedNotes: without(base.sharedNotes, p.note_id) }
+
+    case 'dice.revealed': {
+      const at = Number(p.rolled_seq)
+      return Number.isFinite(at) && !base.revealed.includes(at) ? { ...base, revealed: [...base.revealed, at] } : base
+    }
+
     default:
       // dice.*, content.*, combat.action_reverted, item.transferred, currency.transferred,
       // noop: меняют только журнал и анимации (см. describeEvent / подписчиков)
@@ -232,10 +302,19 @@ const nameOf = (state: RoomData, id: string | null | undefined): string => {
   return m?.display_name || m?.nickname || ''
 }
 
+const unitName = (state: RoomData, combatantId: string): string => {
+  const c = state.combat?.combatants.find((x) => x.id === combatantId)
+  const cr = c?.creature
+  return c?.card?.name ?? (cr ? ('snapshot' in cr ? cr.display_name : cr.name) : '')
+}
+
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
+/** Грани кости для журнала: отброшенные (kh/kl/dh/dl) — в скобках */
+const facesOf = (d: DiceRollEvent['dice'][number]) => d.rolls.map((v, i) => (d.dropped?.includes(i) ? `(${v})` : String(v))).join(', ')
+
 export function rollSummary(r: DiceRollEvent): string {
-  const parts = r.dice.map((d) => `${d.sign < 0 ? '−' : ''}${d.rolls.length}к${d.sides} [${d.rolls.join(', ')}]`)
+  const parts = r.dice.map((d) => `${d.sign < 0 ? '−' : ''}${d.rolls.length}к${d.sides} [${facesOf(d)}]`)
   return `${parts.join(' + ')}${r.modifier ? ` ${signed(r.modifier)}` : ''} = ${r.total}`
 }
 
@@ -252,7 +331,26 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       if (isEngineRoll(roll)) {
         return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `${roll.label}: ${roll.engine.dice} [${roll.engine.rolls.join(', ')}] = ${roll.engine.total}` }
       }
-      return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `${roll.label || roll.expression}: ${rollSummary(roll)}`, roll }
+      const hidden = roll.visibility && roll.visibility !== 'public' ? (roll.visibility === 'blind' ? 'вслепую · ' : 'скрыто · ') : ''
+      return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `${hidden}${roll.label || roll.expression}: ${rollSummary(roll)}`, roll }
+    }
+    case 'dice.revealed': {
+      const roll = p as unknown as DiceRollEvent
+      if (!roll.dice) return null
+      return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `раскрыт бросок · ${roll.label || roll.expression}: ${rollSummary(roll)}`, roll: { ...roll, visibility: 'public' } }
+    }
+    case 'room.rest':
+      return { ...base, kind: 'room', who, text: p.kind === 'long' ? 'Партия отдыхает: продолжительный отдых' : 'Партия делает короткий привал' }
+    case 'note.shared':
+      return { ...base, kind: 'room', who, text: `Мастер открыл заметку «${(p.note as SharedNote | undefined)?.title ?? ''}»` }
+    case 'combat.concentration_save': {
+      const c = p as unknown as ConcentrationSave
+      const name = unitName(state, c.combatant_id)
+      return { ...base, kind: 'combat', who: name, text: c.success ? `держит концентрацию (${c.roll.total} против Сл ${c.dc})` : `теряет концентрацию (${c.roll.total} против Сл ${c.dc})${c.lost.length ? `: ${c.lost.join(', ')}` : ''}` }
+    }
+    case 'combat.save_ends': {
+      const c = p as unknown as SaveEndsResult
+      return { ...base, kind: 'combat', who: unitName(state, c.combatant_id), text: c.success ? `стряхивает «${c.effect}» (${c.roll.total} против Сл ${c.dc})` : `всё ещё под «${c.effect}» (${c.roll.total} против Сл ${c.dc})` }
     }
     case 'item.issued': {
       if (p.item) {

@@ -11,11 +11,40 @@ import type { AnyCreature, CharacterCard, CreatureVisibility, HpVisibility, Room
 import { isFullCreature } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
 import { creatureVitals, patchRoomCreature, removeRoomCreature, revealCreature, takeBackItem } from '../roomsApi'
-import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, HpArc, itemArt, itemName, itemSub, Silhouette, SIZE_RU, useEmergeClose, useHeroArt, type Origin } from './parts'
+import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex, HpVessel, itemArt, itemName, itemSub, Silhouette, SIZE_RU, useEmergeClose, useHeroArt, type Origin } from './parts'
+import { ConditionPicker, EffectList } from './effects'
+import { useEffectControl, useTargetEffects, type EffectTargetRef } from './useEffects'
 import { Img } from '../../media'
 
 const sizeRu = (s: string | null | undefined) => (s ? (SIZE_RU[s] ?? s) : null)
 export const stripTags = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** Состояния в карточке: печати с подсказкой правила; мастер накладывает и снимает */
+export function CardEffects({ target, title }: { target: EffectTargetRef; title: string }) {
+  const { isDm } = useRoom()
+  const effects = useTargetEffects(target)
+  const ctl = useEffectControl(target)
+  const [picking, setPicking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <>
+      <EffectList
+        effects={effects}
+        onAdd={isDm ? () => setPicking(true) : undefined}
+        onRemove={
+          isDm
+            ? (e) => {
+                setError(null)
+                ctl.remove(e).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Не получилось'))
+              }
+            : undefined
+        }
+      />
+      {error && <p className="tb-err">{error}</p>}
+      {picking && <ConditionPicker title={title} inCombat={ctl.inCombat} onApply={ctl.apply} onClose={() => setPicking(false)} />}
+    </>
+  )
+}
 
 function CloseMark() {
   const close = useEmergeClose()
@@ -36,7 +65,7 @@ export function HeroCard({ card, origin, online, player, rotate, onClose }: { ca
     <Emerge origin={origin} rotate={rotate} kind="paper" label={card.name} className="tb-herocard" onClose={onClose}>
       <CloseMark />
       <header>
-        <Hex raw={art} name={card.name} ratio={ratio} online={online} />
+        <Hex raw={art} name={card.name} online={online} />
         <div>
           <h2>{card.name}</h2>
           <p>
@@ -45,21 +74,13 @@ export function HeroCard({ card, origin, online, player, rotate, onClose }: { ca
         </div>
       </header>
       <div className="tb-herocard-vitals">
-        <HpArc ratio={ratio} current={card.hp.current} max={card.hp.max} temp={card.hp.temp} />
+        <HpVessel ratio={ratio} current={card.hp.current} max={card.hp.max} temp={card.hp.temp} />
         <span className="tb-ac" title="Класс доспеха">
           <Shield aria-hidden="true" />
           <b>{card.ac}</b>
         </span>
       </div>
-      {card.effects.length > 0 ? (
-        <ul className="tb-herocard-fx" aria-label="Состояния и эффекты">
-          {card.effects.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="tb-herocard-calm">Ни эффектов, ни состояний.</p>
-      )}
+      <CardEffects target={{ card }} title={card.name} />
       {isDm && (
         <Link className="tb-inkbtn" to={`/rooms/${roomId}?hero=${card.id}`} onClick={onClose}>
           Открыть лист целиком
@@ -180,11 +201,11 @@ export function CreatureFace({ c, onFlip }: { c: AnyCreature; onFlip?: () => voi
         )}
       </div>
       <div className="tb-face-hp">
-        <HpArc ratio={hp.ratio} current={hp.current} max={hp.max} temp={hp.temp} band={hp.band} />
+        <HpVessel ratio={hp.ratio} current={hp.current} max={hp.max} temp={hp.temp} band={hp.band} />
       </div>
       <div className="tb-face-text">
         {meta.filter(Boolean).length > 0 && <p className="tb-face-meta">{meta.filter(Boolean).join(' · ')}</p>}
-        {effects.length > 0 && <p className="tb-face-fx">{effects.join(' · ')}</p>}
+        {(effects.length > 0 || isDm) && <CardEffects target={{ creature: c }} title={creatureName(c)} />}
         {stats.length > 0 && (
           <dl className="tb-face-stats">
             {stats.map(([k, v]) => (

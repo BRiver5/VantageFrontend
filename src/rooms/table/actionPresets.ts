@@ -29,6 +29,12 @@ export interface Preset {
   /** «на себя»: цель — сам заклинатель */
   self?: boolean
   school?: string | null
+  /** заклинание на концентрации */
+  conc?: boolean
+  /** цель повторяет спасбросок в конце своих ходов: эффект «до успешного спасброска» */
+  saveEnds?: StatKey | null
+  /** бонусным действием */
+  bonusAction?: boolean
 }
 
 /** Тип урона в словаре движка по подписи («огненный», «огонь») или значению */
@@ -142,6 +148,8 @@ export function spellPreset(known: SpellKnown, spell: Spell | undefined, hints: 
   }
   const save = /спасброс[а-яё]*\s+(сил|лов|тел|инт|муд|хар)/i.exec(text)
   const attack = /атак[а-яё]*\s+(?:[а-яё]+\s+)?заклинани/i.test(text)
+  // «в конце каждого своего хода цель повторяет спасбросок» — эффект снимается успехом
+  const repeat = /в\s+конце\s+(?:каждого\s+)?(?:своего\s+|её\s+|его\s+)?хода[^.]{0,80}спасброс/i.test(text) || /повторн[а-яё]*\s+спасброс/i.test(text)
   return {
     ...base,
     dice: dmg ?? '',
@@ -150,6 +158,9 @@ export function spellPreset(known: SpellKnown, spell: Spell | undefined, hints: 
     bonus: attack && hints.attack != null ? hints.attack : null,
     save: save ? { ability: SAVE_OF[save[1].toLowerCase()], half: /половин/.test(low) } : null,
     self: /^\s*(на\s+)?себя|personal|self/i.test(spell?.range ?? ''),
+    conc: !!spell?.concentration,
+    saveEnds: repeat && save ? SAVE_OF[save[1].toLowerCase()] : null,
+    bonusAction: /бонусн/i.test(spell?.casting_time ?? ''),
   }
 }
 

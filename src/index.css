@@ -14,5 +14,8 @@
 @import './styles/hud.css';
 @import './styles/rooms.css';
 @import './styles/table.css';
+@import './styles/room-tools.css';
+@import './styles/effects.css';
+@import './styles/kb.css';
 @import './styles/profile.css';
 @import './styles/search.css';

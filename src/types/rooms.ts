@@ -98,7 +98,8 @@ export interface CharacterCard {
 
 /* ---------- броски ---------- */
 
-export type RollVisibility = 'public' | 'dm' | 'self'
+/** dm и self видят бросивший и мастер; blind — только мастер, даже бросивший получает noop */
+export type RollVisibility = 'public' | 'dm' | 'self' | 'blind'
 
 export interface RollRequest {
   /** «1d20+5», «2d6+1d4+3», можно русскую «к»; до 100 костей */
@@ -112,7 +113,12 @@ export interface RollRequest {
 export interface RolledDie {
   sides: number
   sign: 1 | -1
+  /** итоговые грани всех костей, и отброшенных тоже */
   rolls: number[]
+  /** kh/kl/dh/dl: индексы отброшенных костей */
+  dropped?: number[]
+  /** r/ro: что выпадало до переброса */
+  rerolled?: number[][]
 }
 
 export interface RolledDice {
@@ -140,6 +146,8 @@ export interface DiceRollEvent extends RolledDice {
   dice_style: DiceStyle
   /** номер события: приходит в ответе POST /rolls */
   seq?: number | null
+  /** у события dice.revealed: номер раскрытого броска */
+  rolled_seq?: number
 }
 
 /** Бросок способности движка: выглядит иначе, отличается полем engine */
@@ -206,7 +214,7 @@ export interface Modifier {
   note?: string | null
 }
 
-export type EffectExpiry = 'never' | 'short_rest' | 'long_rest' | 'turn_start' | 'turn_end' | 'rounds'
+export type EffectExpiry = 'never' | 'short_rest' | 'long_rest' | 'turn_start' | 'turn_end' | 'rounds' | 'save_ends'
 
 export interface ActiveEffect {
   id: string
@@ -215,6 +223,9 @@ export interface ActiveEffect {
   modifiers: Modifier[]
   expires: EffectExpiry
   rounds_left: number | null
+  /** «до успешного спасброска» */
+  save_ability?: StatKey | null
+  save_dc?: number | null
 }
 
 /** Только мастеру */
@@ -236,6 +247,18 @@ export interface RoomCreature {
   on_screen_only: boolean
   quick_access: boolean
   revision: number
+  legendary_actions?: number
+  legendary_actions_left?: number
+  legendary_resistances?: number
+  legendary_resistances_left?: number
+}
+
+/** Счётчики легендарных действий у игрока: только если открыт visibility.actions */
+export interface LegendaryView {
+  actions: number
+  actions_left: number
+  resistances: number
+  resistances_left: number
 }
 
 export type HpBand = 'healthy' | 'bloodied' | 'critical' | 'down'
@@ -258,6 +281,7 @@ export interface CreaturePlayerView {
   features?: Record<string, string>[] | null
   actions?: Record<string, string>[] | null
   description?: string | null
+  legendary?: LegendaryView | null
 }
 
 export type AnyCreature = RoomCreature | CreaturePlayerView
@@ -278,6 +302,25 @@ export interface Combatant {
   initiative_bonus: number
   defeated: boolean
   hidden: boolean
+  action_used?: boolean
+  bonus_used?: boolean
+  reaction_used?: boolean
+  /** в футах */
+  movement_used?: number
+  surprised?: boolean
+}
+
+export interface CombatantPatch {
+  action_used?: boolean
+  bonus_used?: boolean
+  reaction_used?: boolean
+  movement_used?: number
+  /** только мастер */
+  surprised?: boolean
+  hidden?: boolean
+  side?: 'party' | 'enemies'
+  slot?: number
+  defeated?: boolean
 }
 
 export type CombatantView = Combatant & {
@@ -322,6 +365,8 @@ export interface EffectSpec {
   expires: EffectExpiry
   rounds_left: number | null
   concentration: boolean
+  save_ability?: StatKey | null
+  save_dc?: number | null
 }
 
 export interface CombatActionRequest {
@@ -339,8 +384,34 @@ export interface CombatActionRequest {
   slot?: SlotSpec | null
   effect?: EffectSpec | null
   as_reaction?: boolean
+  /** что тратит действие; уже потрачено — у игрока 409 */
+  uses?: 'action' | 'bonus' | 'reaction'
   /** только мастер */
   secret?: boolean
+}
+
+export interface ConcentrationCheck {
+  combatant_id: string
+  character_id: string
+  dc: number
+  damage: number
+}
+
+export interface ConcentrationSave {
+  combatant_id: string
+  dc: number
+  roll: RolledDice
+  success: boolean
+  /** названия снятых эффектов */
+  lost: string[]
+}
+
+export interface SaveEndsResult {
+  combatant_id: string
+  effect: string
+  roll: RolledDice
+  dc: number
+  success: boolean
 }
 
 export interface CombatTargetResult {
@@ -375,6 +446,42 @@ export interface ScreenNote {
   body: string
   folder: string | null
   pinned: boolean
+  order: number
+  /** открыта игрокам */
+  shared?: boolean
+  updated_at?: string
+}
+
+/** Что игрок получает от общей заметки */
+export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'body' | 'folder' | 'pinned' | 'order'> & { updated_at?: string }
+
+/* ---------- чат и часы ---------- */
+
+export interface ChatMessage {
+  id: string
+  channel: 'ic' | 'ooc' | 'whisper' | 'emote'
+  /** показывать как текст, не как HTML */
+  text: string
+  /** от чьего имени */
+  character_id: string | null
+  /** у шёпота */
+  to_user_id: string | null
+  /** заполняем на клиенте из события */
+  seq?: number | null
+  ts?: string
+  from_user_id?: string | null
+  from_label?: string | null
+}
+
+export interface RoomClock {
+  id: string
+  name: string
+  kind: 'progress' | 'countdown'
+  segments: number
+  filled: number
+  /** у countdown: когда закончится */
+  ends_at: string | null
+  visible: boolean
   order: number
 }
 

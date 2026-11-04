@@ -5,11 +5,11 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Copy, Crown, Heart, KeyRound, LogOut, RefreshCw, Shield, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
+import { Check, Copy, Coffee, Crown, Heart, KeyRound, LogOut, Moon, RefreshCw, Shield, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
 import { ApiError, uploadMedia } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { useRoom } from './RoomProvider'
-import { approveMember, deleteRoom, kickMember, leaveRoom, patchRoom, rejectMember, rotateInvite, setRoomStatus } from './roomsApi'
+import { approveMember, deleteRoom, kickMember, leaveRoom, partyRest, patchRoom, rejectMember, rotateInvite, setRoomStatus } from './roomsApi'
 import { Field, MEMBER_STATUS_RU, ROLE_RU, RoomAvatar, copyText, inviteLink } from './ui'
 import { statusRu } from './applyEvent'
 import type { CharacterCard, RoomMemberView, RoomStatus } from '../types/rooms'
@@ -83,6 +83,46 @@ function MemberRow({ m, card, isDm, me, busy, onAct }: {
         </button>
       )}
     </li>
+  )
+}
+
+/** Мастер: привал для всей партии. Кости хитов на коротком отдыхе каждый тратит сам в листе */
+export function PartyRestPanel() {
+  const { data, roomId } = useRoom()
+  const [busy, setBusy] = useState<'short' | 'long' | null>(null)
+  const [note, setNote] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  if (!data || data.characters.length === 0) return null
+  const closed = data.room.status === 'closed'
+  const rest = async (kind: 'short' | 'long') => {
+    if (!confirm(kind === 'long' ? 'Продолжительный отдых для всей партии?' : 'Короткий привал для всей партии?')) return
+    setBusy(kind)
+    setError(null)
+    setNote(null)
+    try {
+      const res = await partyRest(roomId, kind)
+      const failed = (res.failed ?? []).map((id) => data.characters.find((c) => c.id === id)?.name ?? id)
+      setNote(failed.length ? `Не получилось у: ${failed.join(', ')}` : kind === 'long' ? 'Партия отдохнула' : 'Привал сделан: кости хитов каждый тратит сам')
+    } catch (e) {
+      setError(errText(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="rm-panel rm-rest">
+      <h3 className="rm-panel-title">Привал для всех</h3>
+      <div className="rm-rest-btns">
+        <button type="button" className="tb-goldbtn is-quiet" disabled={!!busy || closed} onClick={() => void rest('short')}>
+          <Coffee aria-hidden="true" /> {busy === 'short' ? 'привал…' : 'Короткий'}
+        </button>
+        <button type="button" className="tb-goldbtn is-quiet" disabled={!!busy || closed} onClick={() => void rest('long')}>
+          <Moon aria-hidden="true" /> {busy === 'long' ? 'отдых…' : 'Продолжительный'}
+        </button>
+      </div>
+      {note && <p className="rm-hint">{note}</p>}
+      {error && <p className="tb-err">{error}</p>}
+    </section>
   )
 }
 

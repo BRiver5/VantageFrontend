@@ -13,7 +13,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Dices } from 'lucide-react'
-import { playForcedRoll, setRoomRollHandler, type ForcedDie } from '../dice/diceControl'
+import { playForcedRoll, setRoomRollHandler, type ForcedDie, type RoomRollVisibility } from '../dice/diceControl'
 import type { DiceRollEvent, RollPayload, RollRequest, RoomEventMessage } from '../types/rooms'
 import { isEngineRoll } from '../types/rooms'
 import { rollSummary } from './applyEvent'
@@ -103,7 +103,8 @@ export function RollToasts({ toasts }: { toasts: RollToast[] }) {
 /* ---------- мост ---------- */
 
 export function RoomDiceBridge({ children }: { children: ReactNode }) {
-  const { roomId, data, subscribe, sendRolling } = useRoom()
+  const { roomId, data, subscribe, sendRolling, isDm } = useRoom()
+  const allowHidden = !!data?.room.settings?.allow_player_rolls_hidden
   const [rolling, setRolling] = useState<RoomRollApi['rolling']>([])
   const [toasts, setToasts] = useState<RollToast[]>([])
   const played = useRef(new Map<number, Promise<void>>())
@@ -125,15 +126,18 @@ export function RoomDiceBridge({ children }: { children: ReactNode }) {
         setTimeout(() => setRolling((list) => list.filter((x) => x.user_id !== p.user_id)), ROLLING_MS)
         return
       }
-      if (msg.type !== 'dice.rolled') return
+      if (msg.type !== 'dice.rolled' && msg.type !== 'dice.revealed') return
+      const revealed = msg.type === 'dice.revealed'
 
       const p = msg.payload as RollPayload
       const actor = msg.actor?.user_id ?? null
-      if (actor) setRolling((list) => list.filter((x) => x.user_id !== actor))
+      if (actor && !revealed) setRolling((list) => list.filter((x) => x.user_id !== actor))
 
       const fresh = !msg.ts || Date.now() - Date.parse(msg.ts) < FRESH_MS
       const dice = forcedDiceOf(p)
-      const animate = fresh && dice.length > 0 && document.visibilityState === 'visible'
+      // раскрытый бросок мастер уже видел: катим кости только тем, кто его не видел
+      const sawIt = revealed && (isDm || (!isEngineRoll(p) && p.visibility !== 'blind' && !!p.character_id && p.character_id === characterId))
+      const animate = fresh && !sawIt && dice.length > 0 && document.visibilityState === 'visible'
       const style = isEngineRoll(p) ? null : p.dice_style
       const done: Promise<void> = animate
         ? playForcedRoll({ dice, themeColor: style?.body_color }).then(
@@ -143,9 +147,10 @@ export function RoomDiceBridge({ children }: { children: ReactNode }) {
         : Promise.resolve()
 
       // свой бросок лист покажет «театром» сам; чужой — коротким тостом, когда кости легли
-      const mine = !!actor && actor === meId
+      const mine = !!actor && actor === meId && !revealed
       const who = nameOf.current(actor) || msg.actor?.label || ''
-      const toast = !mine && fresh ? toastOf(msg, who) : null
+      const base = !mine && fresh ? toastOf(msg, who) : null
+      const toast = base && revealed ? { ...base, label: `раскрыто · ${base.label}` } : base
       void done.then(() => {
         if (toast) {
           setToasts((list) => [...list.slice(-3), toast])
@@ -162,11 +167,12 @@ export function RoomDiceBridge({ children }: { children: ReactNode }) {
         setTimeout(() => played.current.delete(msg.seq as number), 30000)
       }
     })
-  }, [subscribe, meId])
+  }, [subscribe, meId, isDm, characterId])
 
   const roll = useCallback<RoomRollApi['roll']>(
     async (req) => {
-      sendRolling(req.label || 'Бросок')
+      // скрытый бросок не анонсируем: «Анна бросает…» выдало бы его
+      if (!req.visibility || req.visibility === 'public') sendRolling(req.label || 'Бросок')
       return rollInRoom(roomId, { visibility: 'public', ...req, character_id: req.character_id ?? characterId })
     },
     [roomId, characterId, sendRolling],
@@ -184,13 +190,21 @@ export function RoomDiceBridge({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // лоток костей в комнате шлёт броски на сервер
+  // лоток костей в комнате шлёт броски на сервер. Скрытые режимы: мастеру — «скрыто»;
+  // игроку вслепую можно всегда, «себе и мастеру» — если мастер разрешил
+  const hiddenModes = useMemo<RoomRollVisibility[]>(() => (isDm ? ['dm'] : allowHidden ? ['dm', 'blind'] : ['blind']), [isDm, allowHidden])
   useEffect(
     () =>
       setRoomRollHandler(async (req) => {
-        await roll({ expression: req.expression, label: req.label, mode: req.mode ?? null })
-      }),
-    [roll],
+        await roll({ expression: req.expression, label: req.label, mode: req.mode ?? null, visibility: req.visibility ?? 'public' })
+        if (req.visibility === 'blind' && !isDm) {
+          // сам бросивший получит noop: скажем, что бросок ушёл
+          const t: RollToast = { id: `blind-${Date.now()}`, who: 'Вслепую', label: req.label || req.expression, text: 'итог увидит только мастер', tone: '' }
+          setToasts((list) => [...list.slice(-3), t])
+          setTimeout(() => setToasts((list) => list.filter((x) => x.id !== t.id)), TOAST_MS)
+        }
+      }, hiddenModes),
+    [roll, hiddenModes, isDm],
   )
 
   const value = useMemo<RoomRollApi>(() => ({ roll, whenPlayed, rolling, characterId }), [roll, whenPlayed, rolling, characterId])

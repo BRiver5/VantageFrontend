@@ -7,18 +7,19 @@
  * и картинки для всех, дашборд. Кнопка боя всегда под рукой.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as RPointerEvent } from 'react'
-import { Backpack, Check, ChevronDown, Crown, Eye, EyeOff, Gem, Heart, ImagePlus, LayoutGrid, Map as MapIcon, NotebookPen, Package, Pin, PinOff, Plus, Presentation, Search, Shield, Skull, Star, Swords, Trash2, Upload, X } from 'lucide-react'
+import { Backpack, BookOpen, Check, ChevronDown, Crown, FilePlus2, Eye, EyeOff, Gem, Heart, ImagePlus, LayoutGrid, Map as MapIcon, Package, Plus, Presentation, Search, Shield, Skull, Star, Swords, Trash2, Upload, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { fetchPage, realImage, uploadMedia, type Creature, type Equipment, type Item } from '../../api'
 import { useCatalogList } from '../../create/useCatalog'
-import type { AnyCreature, BattleMap, ItemKind, RoomCreature, RoomItem, ScreenItemTemplate, ScreenNote } from '../../types/rooms'
+import type { AnyCreature, BattleMap, ItemKind, RoomCreature, RoomItem, ScreenItemTemplate } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { ContentPanel, showToAll } from '../Content'
 import { DashboardGrid } from '../Dashboard'
+import { KnowledgeProvider, useKnowledge } from '../kb/KnowledgeBase'
 import { useRoom } from '../RoomProvider'
-import { addCombatants, addCreatures, claimItem, createMap, createNote, createTemplate, deleteMap, deleteNote, deleteTemplate, issueItem, issueTemplate, listMaps, listNotes, listTemplates, patchMap, patchNote, revealCreature, startCombat } from '../roomsApi'
-import { CreatureBack, HpControls, STAT_RU, statsOf } from './Cards'
-import { creatureArt, creatureHp, creatureName, errText, Hex, HpArc, itemArt, itemName, SIZE_RU } from './parts'
+import { addCombatants, addCreatures, claimItem, createMap, createTemplate, deleteMap, deleteTemplate, issueItem, issueTemplate, listMaps, listTemplates, patchMap, revealCreature, startCombat } from '../roomsApi'
+import { CardEffects, CreatureBack, HpControls, STAT_RU, statsOf } from './Cards'
+import { creatureArt, creatureHp, creatureName, errText, Hex, HpVessel, itemArt, itemName, SIZE_RU } from './parts'
 import { Img } from '../../media'
 
 /* ---------- общее ---------- */
@@ -45,6 +46,191 @@ function useList<T>(load: (roomId: string) => Promise<T[]>) {
 
 /* ---------- существа ---------- */
 
+const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'] as const
+const STAT_KEYS = [
+  ['strenght', 'Сил'],
+  ['dexterity', 'Лов'],
+  ['constitution', 'Тел'],
+  ['intelligence', 'Инт'],
+  ['wisdom', 'Мдр'],
+  ['charisma', 'Хар'],
+] as const
+
+/** «Укус. +4 к попаданию…» → { name: «Укус», description: «+4 к попаданию…» }; по строке на приём */
+const traitsOf = (text: string) =>
+  text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const m = /^([^.:]{1,60})[.:]\s*(.*)$/.exec(l)
+      return m ? { name: m[1].trim(), description: m[2].trim() } : { name: l, description: '' }
+    })
+
+const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `hb-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+
+/** Своё существо: статблок формой, без бестиария */
+function HomebrewCreature({ count, onDone }: { count: number; onDone: () => void }) {
+  const { roomId } = useRoom()
+  const [name, setName] = useState('')
+  const [type, setType] = useState('')
+  const [size, setSize] = useState<(typeof SIZES)[number]>('Medium')
+  const [ac, setAc] = useState(12)
+  const [hp, setHp] = useState(10)
+  const [speed, setSpeed] = useState(30)
+  const [cr, setCr] = useState('')
+  const [stats, setStats] = useState<Record<string, number>>({ strenght: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 })
+  const [features, setFeatures] = useState('')
+  const [actions, setActions] = useState('')
+  const [legendary, setLegendary] = useState('')
+  const [image, setImage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const save = async () => {
+    if (!name.trim()) return setError('Как зовут существо?')
+    setBusy(true)
+    setError(null)
+    try {
+      const snapshot = {
+        id: newId(),
+        name: name.trim(),
+        description: null,
+        creature_description: null,
+        image_gallery: image ? [image] : null,
+        image_url: null,
+        size,
+        creature_type: type.trim() || null,
+        alignment: null,
+        ac,
+        ac_source: null,
+        hp,
+        hp_formula: null,
+        speed,
+        flight_speed: null,
+        swim_speed: null,
+        burrow_speed: null,
+        climb_speed: null,
+        ...stats,
+        saving_throws: null,
+        skills: null,
+        damage_imunities: null,
+        damage_resistances: null,
+        damage_vulnerabilities: null,
+        condition_imunities: null,
+        night_vision: null,
+        blind_vision: null,
+        true_vision: null,
+        languages: null,
+        challenge_rating: cr.trim() === '' ? null : Number(cr.replace(',', '.')) || null,
+        proficiency_bonus: null,
+        area_of_living: null,
+        features: features.trim() ? traitsOf(features) : null,
+        actions: actions.trim() ? traitsOf(actions) : null,
+        actions_description: null,
+        legendary_actions: legendary.trim() ? traitsOf(legendary) : null,
+        legendary_description: null,
+        mythical_actions: null,
+        is_unique: false,
+        is_npc: false,
+        book_source_id: null,
+      } as unknown as Creature
+      await addCreatures(roomId, { snapshot, count, image_url: image, on_screen_only: true })
+      onDone()
+    } catch (e) {
+      setError(errText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="sc-homebrew">
+      <div className="sc-hb-top">
+        <button type="button" className="sc-hb-pic" onClick={() => fileRef.current?.click()} title="Картинка существа">
+          {image ? <Img src={image} alt="" /> : <ImagePlus aria-hidden="true" />}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          hidden
+          onChange={async (e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (!f) return
+            setBusy(true)
+            try {
+              setImage((await uploadMedia(f)).url)
+            } catch (err) {
+              setError(errText(err))
+            } finally {
+              setBusy(false)
+            }
+          }}
+        />
+        <div className="sc-hb-name">
+          <input className="bt-in" value={name} maxLength={80} placeholder="Имя: Болотная карга" onChange={(e) => setName(e.target.value)} autoFocus />
+          <div className="sc-hb-row">
+            <input className="bt-in" value={type} maxLength={40} placeholder="вид: фея, нежить…" onChange={(e) => setType(e.target.value)} />
+            <select className="bt-in" value={size} aria-label="Размер" onChange={(e) => setSize(e.target.value as (typeof SIZES)[number])}>
+              {SIZES.map((sz) => (
+                <option key={sz} value={sz}>
+                  {SIZE_RU[sz] ?? sz}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div className="sc-hb-nums">
+        <label>
+          <span>КД</span>
+          <input className="bt-in" type="number" min={1} max={40} value={ac} onChange={(e) => setAc(Number(e.target.value) || 1)} />
+        </label>
+        <label>
+          <span>Хиты</span>
+          <input className="bt-in" type="number" min={1} max={9999} value={hp} onChange={(e) => setHp(Number(e.target.value) || 1)} />
+        </label>
+        <label>
+          <span>Скорость</span>
+          <input className="bt-in" type="number" min={0} max={200} step={5} value={speed} onChange={(e) => setSpeed(Number(e.target.value) || 0)} />
+        </label>
+        <label>
+          <span>ПО</span>
+          <input className="bt-in" value={cr} maxLength={5} placeholder="1/2" onChange={(e) => setCr(e.target.value)} />
+        </label>
+      </div>
+      <div className="sc-hb-stats">
+        {STAT_KEYS.map(([key, label]) => (
+          <label key={key}>
+            <span>{label}</span>
+            <input className="bt-in" type="number" min={1} max={30} value={stats[key]} onChange={(e) => setStats((s) => ({ ...s, [key]: Math.max(1, Math.min(30, Number(e.target.value) || 1)) }))} />
+            <i>{(() => { const m = Math.floor((stats[key] - 10) / 2); return m >= 0 ? `+${m}` : `${m}` })()}</i>
+          </label>
+        ))}
+      </div>
+      <label className="sc-hb-text">
+        <span>Особенности — по строке: «Название. Описание»</span>
+        <textarea className="bt-in" rows={2} value={features} placeholder="Амфибия. Дышит воздухом и водой." onChange={(e) => setFeatures(e.target.value)} />
+      </label>
+      <label className="sc-hb-text">
+        <span>Действия</span>
+        <textarea className="bt-in" rows={3} value={actions} placeholder="Когти. Рукопашная атака оружием: +5 к попаданию, досягаемость 5 фт., одна цель. Попадание: 10 (2к6 + 3) рубящего урона." onChange={(e) => setActions(e.target.value)} />
+      </label>
+      <label className="sc-hb-text">
+        <span>Легендарные действия (если есть)</span>
+        <textarea className="bt-in" rows={2} value={legendary} placeholder="Удар хвостом. Совершает одну атаку хвостом." onChange={(e) => setLegendary(e.target.value)} />
+      </label>
+      {error && <p className="tb-err">{error}</p>}
+      <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void save()}>
+        <Plus aria-hidden="true" /> За ширму{count > 1 ? ` ×${count}` : ''}
+      </button>
+    </div>
+  )
+}
+
 function AddCreature({ onClose }: { onClose: () => void }) {
   const { roomId } = useRoom()
   const [q, setQ] = useState('')
@@ -54,6 +240,7 @@ function AddCreature({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [added, setAdded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [own, setOwn] = useState(false)
   useEffect(() => {
     let alive = true
     const t = setTimeout(() => {
@@ -71,11 +258,16 @@ function AddCreature({ onClose }: { onClose: () => void }) {
   return (
     <div className="sc-add">
       <header className="sc-add-head">
-        <h3 className="sc-subtitle">Бестиарий</h3>
-        <label className="sc-search">
-          <Search aria-hidden="true" />
-          <input type="search" value={q} placeholder="Имя существа…" onChange={(e) => setQ(e.target.value)} autoFocus />
-        </label>
+        <h3 className="sc-subtitle">{own ? 'Своё существо' : 'Бестиарий'}</h3>
+        {!own && (
+          <label className="sc-search">
+            <Search aria-hidden="true" />
+            <input type="search" value={q} placeholder="Имя существа…" onChange={(e) => setQ(e.target.value)} autoFocus />
+          </label>
+        )}
+        <button type="button" className={`tb-linkbtn sc-own${own ? ' is-on' : ''}`} onClick={() => setOwn((v) => !v)} aria-pressed={own}>
+          <FilePlus2 aria-hidden="true" /> {own ? 'из бестиария' : 'своё'}
+        </button>
         <span className="sc-count" aria-label="Сколько добавить">
           <button type="button" onClick={() => setCount((n) => Math.max(1, n - 1))} aria-label="Меньше">
             −
@@ -90,9 +282,10 @@ function AddCreature({ onClose }: { onClose: () => void }) {
         </button>
       </header>
       {error && <p className="tb-err">{error}</p>}
-      {loading && found.length === 0 && <p className="tb-hint">Листаем бестиарий…</p>}
-      {!loading && found.length === 0 && <p className="tb-hint">Никого не нашли.</p>}
-      <ul className="sc-beasts">
+      {own && <HomebrewCreature count={count} onDone={() => setOwn(false)} />}
+      {!own && loading && found.length === 0 && <p className="tb-hint">Листаем бестиарий…</p>}
+      {!own && !loading && found.length === 0 && <p className="tb-hint">Никого не нашли.</p>}
+      <ul className="sc-beasts" hidden={own}>
         {found.map((c) => (
           <li key={c.id}>
             <button
@@ -174,7 +367,7 @@ function ShelfToken({ c, selected, onSelect, onDropToTable }: { c: AnyCreature; 
         aria-pressed={selected}
         title={hidden ? 'За ширмой. Перетащите на стол, чтобы показать игрокам' : 'На столе'}
       >
-        <Hex plain={creatureArt(c)} name={creatureName(c)} ratio={hp.ratio} tone="enemy" />
+        <Hex plain={creatureArt(c)} name={creatureName(c)} tone="enemy" />
         <b>{creatureName(c)}</b>
       </button>
       {ghost && (
@@ -231,15 +424,16 @@ function BeastPage({ c, onFlip }: { c: RoomCreature; onFlip: () => void }) {
             </span>
           )}
         </header>
-        {c.conditions.length > 0 && <p className="sc-page-fx">{c.conditions.map((e) => e.label).join(' · ')}</p>}
+
         <div className="sc-page-vitals">
           <span className="tb-ac" title="Класс доспеха">
             <Shield aria-hidden="true" />
             <b>{s.ac}</b>
           </span>
-          <HpArc ratio={hp.ratio} current={hp.current} max={hp.max} temp={hp.temp} />
+          <HpVessel ratio={hp.ratio} current={hp.current} max={hp.max} temp={hp.temp} />
           <HpControls c={c} />
         </div>
+        <CardEffects target={{ creature: c }} title={c.display_name} />
         <dl className="sc-page-stats">
           {stats.map(([k, v]) => (
             <div key={k}>
@@ -614,129 +808,6 @@ function LeafLoot() {
   )
 }
 
-/* ---------- заметки ---------- */
-
-function NoteEditor({ note, onSaved, onDeleted }: { note: ScreenNote; onSaved: (n: ScreenNote) => void; onDeleted: () => void }) {
-  const { roomId } = useRoom()
-  const [title, setTitle] = useState(note.title)
-  const [body, setBody] = useState(note.body)
-  const [folder, setFolder] = useState(note.folder ?? '')
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const pending = useRef<Partial<ScreenNote> | null>(null)
-
-  const flush = useCallback(async () => {
-    const patch = pending.current
-    if (!patch) return
-    pending.current = null
-    setState('saving')
-    try {
-      onSaved(await patchNote(roomId, note.id, patch))
-      setState('saved')
-    } catch {
-      setState('error')
-    }
-  }, [roomId, note.id, onSaved])
-
-  useEffect(
-    () => () => {
-      clearTimeout(timer.current)
-      void flush()
-    },
-    [flush],
-  )
-
-  const change = (patch: Partial<ScreenNote>) => {
-    pending.current = { ...pending.current, ...patch }
-    setState('idle')
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => void flush(), 700)
-  }
-
-  return (
-    <div className="sc-note-paper">
-      <input className="sc-note-title" value={title} maxLength={120} aria-label="Название заметки" onChange={(e) => (setTitle(e.target.value), change({ title: e.target.value }))} />
-      <input className="sc-note-folder" value={folder} maxLength={60} placeholder="папка" aria-label="Папка" onChange={(e) => (setFolder(e.target.value), change({ folder: e.target.value.trim() || null }))} />
-      <textarea value={body} placeholder="Сюжет, имена, подсказки. Игроки этого не видят." aria-label="Текст заметки" onChange={(e) => (setBody(e.target.value), change({ body: e.target.value }))} />
-      <footer>
-        <small>{state === 'saving' ? 'записываем…' : state === 'saved' ? 'записано' : state === 'error' ? 'не удалось записать' : ''}</small>
-        <button type="button" className="tb-linkbtn is-danger" onClick={() => confirm(`Удалить «${note.title}»?`) && void deleteNote(roomId, note.id).then(onDeleted)}>
-          <Trash2 aria-hidden="true" /> удалить
-        </button>
-      </footer>
-    </div>
-  )
-}
-
-export function LeafNotes() {
-  const { roomId } = useRoom()
-  const { items, setItems, error, setError } = useList<ScreenNote>(listNotes)
-  const [sel, setSel] = useState<string | null>(null)
-  const sorted = useMemo(() => [...(items ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.folder ?? '').localeCompare(b.folder ?? '') || a.order - b.order), [items])
-  const current = sorted.find((n) => n.id === sel) ?? sorted[0] ?? null
-  const saved = useCallback((n: ScreenNote) => setItems((list) => (list ?? []).map((x) => (x.id === n.id ? n : x))), [setItems])
-  let last: string | null | undefined
-
-  return (
-    <div className="sc-two is-notes">
-      <div className="sc-pane sc-note-list">
-        <button
-          type="button"
-          className="tb-goldbtn is-quiet"
-          onClick={async () => {
-            try {
-              const n = await createNote(roomId, { title: 'Новая заметка', body: '' })
-              setItems((list) => [...(list ?? []), n])
-              setSel(n.id)
-            } catch (e) {
-              setError(errText(e))
-            }
-          }}
-        >
-          <Plus aria-hidden="true" /> Заметка
-        </button>
-        {sorted.map((n) => {
-          const head = n.pinned ? null : (n.folder ?? null)
-          const showHead = !n.pinned && head !== last && !!head
-          if (!n.pinned) last = head
-          return (
-            <div key={n.id} className="sc-note-row">
-              {showHead && <h4>{head}</h4>}
-              <button type="button" className={current?.id === n.id ? 'is-on' : ''} onClick={() => setSel(n.id)}>
-                {n.pinned && <Pin aria-label="закреплена" />} {n.title || 'Без названия'}
-              </button>
-              <button
-                type="button"
-                className="sc-note-pin"
-                aria-label={n.pinned ? 'Открепить' : 'Закрепить'}
-                onClick={() => void patchNote(roomId, n.id, { pinned: !n.pinned }).then(saved, (e) => setError(errText(e)))}
-              >
-                {n.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-              </button>
-            </div>
-          )
-        })}
-        {error && <p className="tb-err">{error}</p>}
-      </div>
-      <div className="sc-pane">
-        {current ? (
-          <NoteEditor
-            key={current.id}
-            note={current}
-            onSaved={saved}
-            onDeleted={() => {
-              setItems((list) => (list ?? []).filter((x) => x.id !== current.id))
-              setSel(null)
-            }}
-          />
-        ) : (
-          <p className="tb-hint">Создайте первую заметку.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
 /* ---------- карты и показ ---------- */
 
 export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
@@ -890,20 +961,29 @@ type Leaf = 'creatures' | 'loot' | 'notes' | 'maps' | 'dash'
 const LEAVES: { id: Leaf; label: string; icon: LucideIcon }[] = [
   { id: 'creatures', label: 'Существа', icon: Skull },
   { id: 'loot', label: 'Добыча', icon: Package },
-  { id: 'notes', label: 'Заметки', icon: NotebookPen },
+  { id: 'notes', label: 'Кодекс', icon: BookOpen },
   { id: 'maps', label: 'Карты', icon: MapIcon },
   { id: 'dash', label: 'Дашборд', icon: LayoutGrid },
 ]
 
 export function DmScreen() {
+  return (
+    <KnowledgeProvider>
+      <DmScreenIn />
+    </KnowledgeProvider>
+  )
+}
+
+function DmScreenIn() {
   const { data } = useRoom()
+  const kb = useKnowledge()
   const [leaf, setLeaf] = useState<Leaf | null>(null)
   const [battle, setBattle] = useState(false)
   const inCombat = !!data?.combat && data.combat.status !== 'ended'
   const body: Record<Leaf, ReactNode> = {
     creatures: <LeafCreatures />,
     loot: <LeafLoot />,
-    notes: <LeafNotes />,
+    notes: null,
     maps: <LeafMaps />,
     dash: <DashboardGrid />,
   }
@@ -920,7 +1000,7 @@ export function DmScreen() {
         </span>
         <div className="sc-tabs" role="tablist">
           {LEAVES.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" role="tab" aria-selected={leaf === id} className={leaf === id ? 'is-on' : ''} onClick={() => setLeaf((l) => (l === id ? null : id))}>
+            <button key={id} type="button" role="tab" aria-selected={leaf === id} className={leaf === id ? 'is-on' : ''} onClick={() => (id === 'notes' ? kb?.open() : setLeaf((l) => (l === id ? null : id)))}>
               <span className="sc-tab-hex">
                 <Icon aria-hidden="true" />
               </span>
