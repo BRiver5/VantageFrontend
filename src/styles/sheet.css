@@ -2309,6 +2309,11 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 .rt-card.is-prof svg { color: #9cc8f0; }
 .rt-card.is-feature svg { color: #f0b880; }
 .rt-card.is-item svg { color: #c8a8f0; }
+/* кость эффекта от сервера: зелёная прибавляет (Благословение), красная отнимает (Порча) */
+.rt-card.is-effect.is-up { --hex-edge: rgba(70, 190, 110, 0.75); }
+.rt-card.is-effect.is-up svg, .rt-card.is-effect.is-up .rt-card-num { color: #7fe3a0; }
+.rt-card.is-effect.is-down { --hex-edge: rgba(220, 70, 50, 0.8); }
+.rt-card.is-effect.is-down svg, .rt-card.is-effect.is-down .rt-card-num { color: #ff8a76; }
 .rt-card-num { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: #a9dcae; }
 .rt-card.is-flying .rt-card-num {
   display: inline-block;

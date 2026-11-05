@@ -52,6 +52,8 @@ export interface ForcedDie {
   sides: number
   /** значение, которое сервер уже выбросил */
   value: number
+  /** свой цвет корпуса: прибавочные кости эффектов (Благословение, Порча) */
+  color?: string
 }
 export interface ForcedRoll {
   dice: ForcedDie[]

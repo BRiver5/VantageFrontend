@@ -377,6 +377,7 @@ export default function DiceRoller() {
             qty: 1,
             sides: d.sides,
             ...(FORCEABLE_SIDES.has(d.sides) ? { rollId: forcedRollId(d.value, `${seed}x${i}`) } : {}),
+            ...(d.color ? { themeColor: d.color } : {}),
           }))
           // сколько тел создаст библиотека: d100 — это две кости
           const { armForcedReplay } = await import('./forcedFaces')

@@ -5,10 +5,8 @@
  * Три вида:
  *  - этапы (progress) — мастер продвигает сам;
  *  - время (countdown) — кольцо тает до ends_at;
- *  - раунды — делениями служат раунды боя: часы сами делают шаг, когда
- *    начинается новый раунд. Сервер таких часов не знает (это progress с
- *    невидимой меткой в названии), шаг делает браузер мастера — см.
- *    docs/BACKEND_REQUESTS.md, там просьба сделать это на сервере.
+ *  - раунды (rounds) — делениями служат раунды боя: шаг с каждым новым
+ *    раундом делает сервер. Повешенные в бою по умолчанию живут до его конца.
  */
 import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, Hourglass, Minus, Plus, Swords, Timer, Trash2 } from 'lucide-react'
@@ -17,10 +15,8 @@ import { useRoom } from './RoomProvider'
 import { createClock, deleteClock, patchClock, tickClock } from './roomsApi'
 import { errText } from './table/parts'
 
-/** Невидимая метка «раундовых» часов в конце названия */
-const ROUND_MARK = '⁣'
-const isRounds = (c: Pick<RoomClock, 'name'>) => c.name.endsWith(ROUND_MARK)
-const nameOf = (c: Pick<RoomClock, 'name'>) => c.name.replace(new RegExp(`${ROUND_MARK}+$`), '')
+/** Старые раундовые часы помечались невидимым U+2063 в конце названия: сервер снимает метку сам */
+const nameOf = (c: Pick<RoomClock, 'name'>) => c.name.replace(/\u2063+$/, '')
 
 type Kind = 'progress' | 'countdown' | 'rounds'
 
@@ -30,7 +26,7 @@ const roundsWord = (n: number) => {
   const h = n % 100
   return d === 1 && h !== 11 ? 'раунд' : d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'раунда' : 'раундов'
 }
-const kindOf = (c: RoomClock): Kind => (isRounds(c) ? 'rounds' : c.kind)
+const kindOf = (c: RoomClock): Kind => (c.kind === 'progress' && /\u2063$/.test(c.name) ? 'rounds' : c.kind)
 
 /** Остаток отсчёта: тикает раз в секунду */
 function useLeft(endsAt: string | null): number | null {
@@ -56,12 +52,11 @@ function Ring({ clock, left }: { clock: RoomClock; left: number | null }) {
   const kind = kindOf(clock)
   const r = 15
   const C = 2 * Math.PI * r
-  // сколько было в начале, сервер не хранит: берём длительность из делений (минуты)
-  // или самый большой остаток, который видели
+  // доля остатка: длительность хранит сервер (duration_sec); у старых часов — самый большой остаток, что видели
   const start = useRef(0)
   if (left != null && left > start.current) start.current = left
   if (kind === 'countdown') {
-    const total = Math.max(1, (clock.segments || 1) * 60000, start.current)
+    const total = clock.duration_sec ? clock.duration_sec * 1000 : Math.max(1, start.current)
     const frac = left == null ? 0 : Math.min(1, left / total)
     return (
       <svg className="ck-ring" viewBox="0 0 40 40" aria-hidden="true">
@@ -178,6 +173,10 @@ function NewClock({ inCombat, onClose }: { inCombat: boolean; onClose: () => voi
   const [kind, setKind] = useState<Kind>(inCombat ? 'rounds' : 'progress')
   const [count, setCount] = useState(inCombat ? 3 : 6)
   const [visible, setVisible] = useState(true)
+  // раунды в бою: только этот бой (снимутся с его концом) или любой бой комнаты
+  const [thisFight, setThisFight] = useState(true)
+  const { data } = useRoom()
+  const combatId = data?.combat && data.combat.status !== 'ended' ? data.combat.id : null
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLFormElement>(null)
@@ -196,13 +195,15 @@ function NewClock({ inCombat, onClose }: { inCombat: boolean; onClose: () => voi
     setError(null)
     try {
       const title = name.trim() || (kind === 'rounds' ? 'Эффект' : kind === 'countdown' ? 'Время' : 'Часы')
+      const now = Date.now()
       await createClock(roomId, {
-        name: kind === 'rounds' ? `${title}${ROUND_MARK}` : title,
-        kind: kind === 'countdown' ? 'countdown' : 'progress',
-        segments: kind === 'countdown' ? Math.min(24, Math.max(1, count)) : count,
+        name: title,
+        kind,
+        segments: kind === 'countdown' ? 12 : count,
         filled: 0,
         visible,
-        ends_at: kind === 'countdown' ? new Date(Date.now() + count * 60000).toISOString() : null,
+        ...(kind === 'countdown' ? { started_at: new Date(now).toISOString(), ends_at: new Date(now + count * 60000).toISOString(), duration_sec: count * 60 } : {}),
+        ...(kind === 'rounds' && combatId && thisFight ? { combat_id: combatId } : {}),
       })
       onClose()
     } catch (e) {
@@ -240,6 +241,11 @@ function NewClock({ inCombat, onClose }: { inCombat: boolean; onClose: () => voi
           <Plus aria-hidden="true" />
         </button>
       </div>
+      {kind === 'rounds' && combatId && (
+        <label className="ck-check">
+          <input type="checkbox" checked={thisFight} onChange={(e) => setThisFight(e.target.checked)} /> снять с концом боя
+        </label>
+      )}
       <div className="ck-acts">
         <button type="button" onClick={() => setVisible((v) => !v)}>
           {visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
@@ -254,28 +260,10 @@ function NewClock({ inCombat, onClose }: { inCombat: boolean; onClose: () => voi
   )
 }
 
-/**
- * Раундовые часы делают шаг с началом нового раунда. Шагает браузер мастера:
- * игроки и второй экран мастера только смотрят.
- */
-function useRoundTicks() {
-  const { data, roomId, isDm } = useRoom()
-  const round = data?.combat && data.combat.status === 'active' ? data.combat.round : null
-  const prev = useRef<number | null>(round)
-  const clocks = data?.clocks
-  useEffect(() => {
-    const was = prev.current
-    prev.current = round
-    if (!isDm || round == null || was == null || round <= was) return
-    for (const c of clocks ?? []) if (isRounds(c) && c.filled < c.segments) void tickClock(roomId, c.id, Math.min(round - was, c.segments - c.filled)).catch(() => undefined)
-  }, [round, isDm, roomId, clocks])
-}
-
 /** Часы на сцене: столбик тонких колец слева сверху */
 export function RoomClocks() {
   const { data, isDm } = useRoom()
   const [open, setOpen] = useState<string | null>(null)
-  useRoundTicks()
   const clocks = data?.clocks ?? []
   const inCombat = !!data?.combat && data.combat.status !== 'ended'
   if (!isDm && clocks.length === 0) return null

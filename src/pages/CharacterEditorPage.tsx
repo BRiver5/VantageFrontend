@@ -30,7 +30,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { createCharacter, getOne, realImage, type Creature } from '../api'
+import { castSpellFromSheet, createCharacter, getOne, realImage, type Creature } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
@@ -268,6 +268,24 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
 
   const play = sheetPlayFromServer(view, {
     master,
+    // сотворение с листа: сервер тратит ячейку, ставит концентрацию, лечит и вешает эффект на себя
+    cast: owner || admin
+      ? async (spell, how) => {
+          const m = spell.mechanics
+          const onSelf = !!(m?.heal || m?.temp_hp || m?.effect?.on === 'self' || m?.targets?.kind === 'self' || m?.range?.kind === 'self')
+          const res = await castSpellFromSheet(characterRef, {
+            spell_name: spell.name,
+            ...(typeof how === 'number' ? { slot_level: how } : {}),
+            ...(how === 'ritual' ? { ritual: true } : {}),
+            ...(m?.damage?.some((d) => d.type === 'choice') ? { damage_type: m.damage.find((d) => d.type === 'choice')?.choices?.[0] ?? null } : {}),
+            target: onSelf ? 'self' : 'other',
+          })
+          void reload()
+          const rolled = (res.rolls ?? []).map((r) => `${r.label ?? r.expression ?? ''} ${r.total ?? ''}`.trim()).filter(Boolean)
+          const line = res.log?.find((l) => l.message)?.message
+          return [line ?? `${spell.name}${typeof how === 'number' && how > spell.level ? ` · ${how} круг` : ''}`, ...rolled].join(' · ')
+        }
+      : undefined,
     setSpent: owner
       ? (next) =>
           patchDoc((c) => ({

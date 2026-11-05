@@ -318,3 +318,8 @@ h4.kb-h { font-size: 1.1em; font-variant: small-caps; letter-spacing: 0.03em; }
 @media (prefers-reduced-motion: reduce) {
   .kb-shell, .kb-pin, .kb-random li.is-hit { animation: none !important; }
 }
+
+/* конфликт правок между вкладками */
+.kb-conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(170, 90, 20, 0.14); box-shadow: inset 3px 0 0 rgba(170, 90, 20, 0.7); color: var(--ink); font-size: 13.5px; }
+.kb-conflict span { flex: 1; min-width: 220px; }
+.kb-save.is-conflict { color: #8a4a10; }

@@ -94,6 +94,15 @@ export interface CharacterCard {
   ac: number
   hp: { current: number; max: number; temp: number }
   effects: string[]
+  /** те же эффекты с id: для DELETE …/effects/{id} */
+  effects_detail?: EffectBrief[]
+}
+
+export interface EffectBrief {
+  id: string
+  label: string
+  expires: string
+  rounds_left: number | null
 }
 
 /* ---------- броски ---------- */
@@ -108,6 +117,8 @@ export interface RollRequest {
   mode?: 'adv' | 'dis' | null
   visibility?: RollVisibility
   character_id?: string | null
+  /** что бросается: сервер прибавит кости эффектов (Благословение к атаке и спасброску) */
+  kind?: 'attack' | 'save' | 'check'
 }
 
 export interface RolledDie {
@@ -119,6 +130,8 @@ export interface RolledDie {
   dropped?: number[]
   /** r/ro: что выпадало до переброса */
   rerolled?: number[][]
+  /** прибавочная кость эффекта: «Благословение», «Порча»; знак — в sign */
+  source?: string
 }
 
 export interface RolledDice {
@@ -251,6 +264,10 @@ export interface RoomCreature {
   legendary_actions_left?: number
   legendary_resistances?: number
   legendary_resistances_left?: number
+  /** призванное: кто призвал, каким заклинанием, кто им управляет */
+  summoned_by?: string | null
+  summon_spell?: string | null
+  controller_id?: string | null
 }
 
 /** Счётчики легендарных действий у игрока: только если открыт visibility.actions */
@@ -282,6 +299,8 @@ export interface CreaturePlayerView {
   actions?: Record<string, string>[] | null
   description?: string | null
   legendary?: LegendaryView | null
+  effects_detail?: EffectBrief[]
+  controller_id?: string | null
 }
 
 export type AnyCreature = RoomCreature | CreaturePlayerView
@@ -308,6 +327,9 @@ export interface Combatant {
   /** в футах */
   movement_used?: number
   surprised?: boolean
+  /** призванное существо: им управляет игрок заклинателя */
+  controller_id?: string | null
+  summoned_by?: string | null
 }
 
 export interface CombatantPatch {
@@ -386,8 +408,70 @@ export interface CombatActionRequest {
   as_reaction?: boolean
   /** что тратит действие; уже потрачено — у игрока 409 */
   uses?: 'action' | 'bonus' | 'reaction'
+  /** ручной режим: что выпало на живых кубиках, модификаторы прибавит сервер */
+  fixed?: FixedRolls | null
   /** только мастер */
   secret?: boolean
+}
+
+export interface FixedRolls {
+  /** {combatant_id: натуральный к20} */
+  attack?: Record<string, number>
+  save?: Record<string, number>
+  /** грани костей урона и лечения по порядку */
+  damage?: number[]
+}
+
+/** POST /combat/{c}/cast и /cast/preview */
+export interface CastRequest {
+  actor_combatant_id: string
+  spell_name: string
+  slot_level?: number | null
+  pool?: 'spell' | 'pact'
+  class_slug?: string | null
+  target_ids?: string[]
+  ritual?: boolean
+  repeat?: boolean
+  damage_type?: string | null
+  advantage?: 'adv' | 'dis' | null
+  projectiles?: Record<string, number>
+  mode?: 'auto' | 'manual'
+  fixed?: FixedRolls | null
+  dc?: number | null
+  attack_bonus?: number | null
+  secret?: boolean
+  summon_ref?: string | null
+  summon_count?: number | null
+}
+
+/** Что сервер собирается сделать: ответ spell у cast и cast/preview */
+export interface CastPlan {
+  status?: 'full' | 'narrative' | 'partial'
+  slot_level?: number | null
+  pool?: string | null
+  class_slug?: string | null
+  dc?: number | null
+  attack_bonus?: number | null
+  spell_mod?: number
+  steps?: number
+  damage?: { dice: string; type: string | null }[]
+  rider_damage?: { dice: string; type: string | null }[]
+  heal_dice?: string | null
+  temp_hp_dice?: string | null
+  projectiles?: { count: number; dice: string; type: string; attack: boolean; shared_roll: boolean } | null
+  attack?: string | null
+  save?: { ability: StatKey; dc: number; half_on_success: boolean; effect_only?: boolean } | null
+  effect?: { label: string } | null
+  self_effect?: { label: string } | null
+  concentration_label?: string | null
+  summons?: Record<string, unknown>[]
+  max_targets?: number | null
+  notes?: string | null
+}
+
+export interface CastPreview {
+  spell: CastPlan
+  targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number }[]
 }
 
 export interface ConcentrationCheck {
@@ -421,7 +505,7 @@ export interface CombatTargetResult {
   saved: boolean
   attack: RolledDice | null
   save: RolledDice | null
-  damage: { roll: RolledDice; type: string | null; amount?: number; taken?: number | null }[]
+  damage: { roll: RolledDice; type: string | null; amount?: number; taken?: number | null; source?: string }[]
   healed: number | null
   effect: string | null
   card?: CharacterCard
@@ -450,6 +534,8 @@ export interface ScreenNote {
   /** открыта игрокам */
   shared?: boolean
   updated_at?: string
+  /** растёт с каждой правкой; пришлите в PATCH — при чужой правке будет 409 */
+  revision?: number
 }
 
 /** Что игрок получает от общей заметки */
@@ -476,11 +562,16 @@ export interface ChatMessage {
 export interface RoomClock {
   id: string
   name: string
-  kind: 'progress' | 'countdown'
+  /** rounds — сервер сам делает шаг с каждым новым раундом боя */
+  kind: 'progress' | 'countdown' | 'rounds'
   segments: number
   filled: number
   /** у countdown: когда закончится */
   ends_at: string | null
+  started_at?: string | null
+  duration_sec?: number | null
+  /** часы только этого боя: снимутся с его окончанием */
+  combat_id?: string | null
   visible: boolean
   order: number
 }

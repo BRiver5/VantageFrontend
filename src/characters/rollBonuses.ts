@@ -13,8 +13,9 @@ import { ABILITY_LABELS, ABILITY_SHORT } from '../types/character'
 export interface RollBonusCard {
   label: string
   value: number
-  /** ability — характеристика, prof — мастерство, feature — умение, item — предмет, other */
-  kind: 'ability' | 'prof' | 'feature' | 'item' | 'other'
+  /** ability — характеристика, prof — мастерство, feature — умение, item — предмет,
+   *  effect — кость эффекта от сервера (Благословение, Порча), other */
+  kind: 'ability' | 'prof' | 'feature' | 'item' | 'effect' | 'other'
 }
 
 export type RollMode = 'normal' | 'adv' | 'dis'

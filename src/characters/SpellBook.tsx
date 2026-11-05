@@ -242,6 +242,18 @@ export function SpellBook({
   }
 
   const castWith = (sp: Known, how: 'free' | 'racial' | 'ritual' | number) => {
+    // настоящее сотворение: ячейку, концентрацию и эффект проводит сервер
+    if (play.cast && how !== 'racial') {
+      const spell = lookup(sp)
+      setOpen(null)
+      void play
+        .cast({ name: spell?.spell_name ?? sp.name, level: sp.level, mechanics: spell?.mechanics }, how)
+        .then(
+          (msg) => roller.note(how === 'free' ? '◈' : how === 'ritual' ? 'Р' : (ROMAN[how] ?? String(how)), msg ?? sp.name),
+          (e: unknown) => roller.note('!', e instanceof Error ? e.message : 'Не получилось сотворить'),
+        )
+      return
+    }
     if (how === 'free') roller.note('◈', `Заговор: ${sp.name}`)
     else if (how === 'racial') {
       setRacialUsed((prev) => new Set(prev).add(sp.name))
@@ -325,7 +337,7 @@ export function SpellBook({
           sc={sc}
           slotsLeft={left}
           racialSpent={racialUsed.has(open.name)}
-          slotsLocked={slotsLocked}
+          slotsLocked={slotsLocked && !play.cast}
           roller={roller}
           onCast={(how) => castWith(open, how)}
           onClose={() => setOpen(null)}

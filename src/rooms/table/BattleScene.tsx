@@ -7,19 +7,21 @@
  * Кости бросает сервер; экран меняют только события.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { BookmarkPlus, ChevronLeft, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, Hourglass, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
+import { BookmarkPlus, Hand, ChevronLeft, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, Hourglass, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
 import { ApiError, getCharacter, getEngineDictionaries, getSheet, roomCharacterRef, type Character, type EngineDictionaries, type Spell } from '../../api'
 import { Constellation } from '../../characters/SpellBook'
 import { useCatalogList } from '../../create/useCatalog'
 import { SpellSchoolMark, spellSchoolIcon } from '../../spellSchools'
 import { parsePortrait } from '../../characters/portrait'
 import { playForcedRoll, type ForcedDie } from '../../dice/diceControl'
+import { facesOf } from '../../dice/bonusDice'
 import type { AttackEntry, GrantedSpell, NaturalAttack, SheetSlot, SpellKnown } from '../../types/character'
-import type { CombatActionRequest, CombatActionResult, CombatantView, ConcentrationCheck, ConcentrationSave, EffectExpiry, RolledDice, SaveEndsResult, StatKey } from '../../types/rooms'
+import type { CombatActionRequest, CombatActionResult, CombatantView, FixedRolls, ConcentrationCheck, ConcentrationSave, EffectExpiry, RolledDice, SaveEndsResult, StatKey } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { useRoom, useRoomEvents } from '../RoomProvider'
 import { addCombatants, beginCombat, combatAction, concentrationSave, delayTurn, endCombat, nextTurn, patchCombatant, patchRoomCharacter, prevTurn as stepBack, revertCombatAction, rollInitiative, setInitiative, spendLegendary } from '../roomsApi'
 import { attackPresets, castable, loadBeastPresets, normDice, presetFromText, saveBeastPresets, spellLookup, spellPreset, type CasterHints, type Preset } from './actionPresets'
+import { facesFor, ManualRolls, manualReady, SpellCast, type ChanceMap } from './SpellCast'
 import { CreatureCard, HeroCard } from './Cards'
 import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
@@ -42,7 +44,8 @@ const artOf = (c: CombatantView): string | null => (c.card ? parsePortrait(c.car
 const SIZE_K: Record<string, number> = { Tiny: 0.55, Small: 0.78, Medium: 1, Large: 1.32, Huge: 1.68, Gargantuan: 2 }
 const sizeK = (c: CombatantView) => (c.creature ? (SIZE_K[creatureSize(c.creature) ?? 'Medium'] ?? 1) : 1)
 
-const diceOf = (r: RolledDice | null | undefined): ForcedDie[] => (r ? r.dice.flatMap((d) => d.rolls.map((value) => ({ sides: d.sides, value }))) : [])
+/** Грани броска для 3D; прибавочные кости эффектов — своим цветом */
+const diceOf = (r: RolledDice | null | undefined): ForcedDie[] => (r ? facesOf(r.dice) : [])
 
 
 /** Как цель выглядела до удара: показываем это, пока не легли кости */
@@ -145,6 +148,7 @@ function Figure({
   onInit,
   onSurprise,
   onLegendary,
+  chance,
 }: {
   c: CombatantView
   current: boolean
@@ -161,6 +165,8 @@ function Figure({
   onSurprise?: () => void
   /** мастер: потратить (1) или вернуть (−1) легендарное */
   onLegendary?: (kind: 'action' | 'resistance', amount: number) => void
+  /** предпросмотр заклинания: шанс попасть или провалить спасбросок */
+  chance?: { chance: number; kind: 'attack' | 'save' | 'auto' }
 }) {
   const { roomId, data } = useRoom()
   // внезапность действует только в первом раунде
@@ -199,6 +205,12 @@ function Figure({
         <span className="bt-fig-body">
           {art && !broken ? <Img src={art} alt="" draggable={false} onError={() => setBroken(true)} /> : <Silhouette enemy={c.side === 'enemies'} />}
         </span>
+        {targeting && picked && chance && chance.kind !== 'auto' && (
+          <span className={`bt-chance${chance.chance >= 0.65 ? ' is-good' : chance.chance <= 0.35 ? ' is-bad' : ''}`} style={{ '--p': chance.chance } as CSSProperties} title={chance.kind === 'save' ? 'шанс провала спасброска' : 'шанс попасть'}>
+            <b>{Math.round(chance.chance * 100)}%</b>
+            <i>{chance.kind === 'save' ? 'провал' : 'попадание'}</i>
+          </span>
+        )}
         {targeting && (
           <svg className="bt-reticle" viewBox="0 0 100 100" aria-hidden="true">
             <circle cx="50" cy="50" r="44" />
@@ -402,6 +414,7 @@ function ActionTray({
   slot,
   onSlot,
   onTargets,
+  onChances,
   onClose,
 }: {
   actor: CombatantView
@@ -412,6 +425,7 @@ function ActionTray({
   slot: SlotPick | null
   onSlot: (p: SlotPick | null) => void
   onTargets: (ids: string[]) => void
+  onChances: (c: ChanceMap) => void
   onClose: () => void
 }) {
   const { data, roomId, isDm } = useRoom()
@@ -441,6 +455,11 @@ function ActionTray({
   const [effAbility, setEffAbility] = useState<StatKey>('wis')
   const [effDc, setEffDc] = useState('')
   const [beastOwn, setBeastOwn] = useState<Preset[]>(() => (actor.creature ? loadBeastPresets(actor.creature.id) : []))
+  // заклинание с механикой творит сервер — для него своя карточка
+  const [castPick, setCastPick] = useState<Preset | null>(null)
+  // живые кубики: игрок вписывает выпавшее, модификаторы прибавит сервер
+  const [manual, setManual] = useState(false)
+  const [fixed, setFixed] = useState<FixedRolls>({})
   const [saving, setSaving] = useState(false)
   const hero = !!actor.card
   const { doc, slots, hints } = kit
@@ -462,9 +481,9 @@ function ActionTray({
         return attackPresets(atk, doc?.inventory, dict, new Set(atk.filter((a) => a.properties?.includes(CUSTOM_TAG)).map((a) => a.name)))
       }
       const c = actor.creature
-      const own = c && isFullCreature(c)
-        ? (c.snapshot.actions ?? []).map((a) => presetFromText(String(a.name ?? a.title ?? 'Действие'), String(a.description ?? a.text ?? ''), dict)).filter((p): p is Preset => !!p)
-        : []
+      // у призванного игроку статблок открыт: действия есть и в его виде
+      const acts = c ? (isFullCreature(c) ? c.snapshot.actions : c.actions) : null
+      const own = (acts ?? []).map((a) => presetFromText(String(a.name ?? a.title ?? 'Действие'), String(a.description ?? a.text ?? ''), dict)).filter((p): p is Preset => !!p)
       return [...own, ...beastOwn]
     }
     if (cmd === 'spell' && hero && doc) {
@@ -486,6 +505,16 @@ function ActionTray({
 
   const applyPreset = (p: Preset) => {
     setPicked(p.key)
+    if (p.look === 'spell' && p.mech && hero) {
+      setCastPick(p)
+      onSlot(p.level ? slotFor(p.level, slots) : null)
+      const m = p.mech
+      // на себя — сразу себя; лечение — без врагов в целях
+      if (m.range.kind === 'self' || m.targets?.kind === 'self') onTargets([me.id])
+      else if (m.heal && !m.damage.length) onTargets(targets.filter((t) => t === me.id || allies.includes(t)))
+      return
+    }
+    setCastPick(null)
     setLabel(p.name)
     setBonus(p.bonus != null ? String(p.bonus) : '')
     setDice(p.dice)
@@ -573,6 +602,7 @@ function ActionTray({
     if (advantage) req.advantage = advantage
     if (saveOn) req.save = { ability: saveAbility, dc: Number(saveDc) || 10, half_on_success: half }
     if (slot) req.slot = slot
+    if (manual) req.fixed = { attack: fixed.attack, damage: (fixed.damage ?? []).slice(0, manualFaces.length) }
     if (effOn && effLabel.trim()) {
       req.effect = {
         label: effLabel.trim(),
@@ -596,17 +626,66 @@ function ActionTray({
 
   const needsTarget = cmd !== 'other'
   const hasSky = hero && slots.some((s) => s.max > 0)
+  const unitName = (id: string) => {
+    const c = combat.combatants.find((u) => u.id === id)
+    return c ? nameOf(c) : 'цель'
+  }
+  const manualAttack = bonus.trim() !== '' ? targets.map((id) => ({ id, name: unitName(id) })) : []
+  const manualFaces = facesFor([dice, heal])
   const canSave = cmd === 'attack' && !!label.trim() && (!!dice.trim() || bonus.trim() !== '') && !presets.some((p) => p.name === label.trim() && !p.custom && p.dice === normDice(dice) && String(p.bonus ?? '') === bonus)
   const slotText = slot ? `${slot.pool === 'pact' ? 'договор, ' : ''}${slot.level} круг` : 'без ячейки'
+  const aimBlock = <AimBlock cmd={cmd} hasSky={hasSky} slot={slot} slotText={slotText} onSlot={onSlot} me={me} targets={targets} allies={allies} foes={foes} same={same} onTargets={onTargets} needsTarget={needsTarget} />
+  const presetList = presets.length > 0 && (
+    <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}${castPick ? ' is-compact' : ''}`}>
+      {presets.map((p) => (
+        <li key={p.key}>
+          <button type="button" className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
+            <span className="bt-preset-art">
+              <PresetArt p={p} />
+            </span>
+            <b>{p.name}</b>
+            <i>
+              {p.look === 'spell' && <em className="bt-circle">{p.level ? ROMAN[p.level] : 'заг.'}</em>}
+              {p.mech ? '' : `${p.bonus != null ? `${p.bonus >= 0 ? '+' : ''}${p.bonus} ` : ''}${p.dice || (p.heal ? `♥ ${p.heal}` : '')}`}
+            </i>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+  const head = (
+    <header>
+      <b>{reaction ? 'Реакция' : cmd === 'attack' ? 'Атака' : cmd === 'spell' ? 'Заклинание' : 'Действие'}</b>
+      <i>{castPick ? `${nameOf(actor)} · ${castPick.name}` : nameOf(actor)}</i>
+      <button type="button" className="tb-card-x" onClick={onClose} aria-label="Отменить">
+        <X aria-hidden="true" />
+      </button>
+    </header>
+  )
+  if (castPick?.mech) {
+    return (
+      <aside className="bt-tray" aria-label="Заклинание">
+        {head}
+        <SpellCast
+          key={castPick.key}
+          actor={actor}
+          spellName={castPick.spellName ?? castPick.name}
+          mech={castPick.mech}
+          slot={slot}
+          targets={targets}
+          units={combat.combatants}
+          reaction={reaction}
+          onChances={onChances}
+          onClose={onClose}
+          aim={aimBlock}
+          top={presetList}
+        />
+      </aside>
+    )
+  }
   return (
     <aside className="bt-tray" aria-label="Действие">
-      <header>
-        <b>{reaction ? 'Реакция' : cmd === 'attack' ? 'Атака' : cmd === 'spell' ? 'Заклинание' : 'Действие'}</b>
-        <i>{nameOf(actor)}</i>
-        <button type="button" className="tb-card-x" onClick={onClose} aria-label="Отменить">
-          <X aria-hidden="true" />
-        </button>
-      </header>
+      {head}
       <div className="bt-tray-scroll">
         {presets.length > 0 && (
           <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}`}>
@@ -667,6 +746,15 @@ function ActionTray({
             </button>
           ))}
         </div>
+        <div className="sp-mode" role="radiogroup" aria-label="Кто бросает">
+          <button type="button" role="radio" aria-checked={!manual} className={!manual ? 'is-on' : ''} onClick={() => setManual(false)}>
+            <Dices aria-hidden="true" /> бросает сервер
+          </button>
+          <button type="button" role="radio" aria-checked={manual} className={manual ? 'is-on' : ''} onClick={() => setManual(true)}>
+            <Hand aria-hidden="true" /> ввожу сам
+          </button>
+        </div>
+        {manual && <ManualRolls attackFor={manualAttack} saveFor={[]} faces={manualFaces} value={fixed} onChange={setFixed} />}
 
         {cmd === 'spell' && (heal || saveOn) && !more && (
           <p className="bt-spellnote">
@@ -781,6 +869,31 @@ function ActionTray({
       </div>
       <footer>
         {error && <p className="tb-err">{error}</p>}
+        {aimBlock}
+        <button type="button" className="tb-goldbtn" disabled={busy || (needsTarget && targets.length === 0) || (manual && !manualReady(fixed, manualAttack, manualFaces))} onClick={() => void submit()}>
+          {cmd === 'spell' ? <Wand2 aria-hidden="true" /> : <Dices aria-hidden="true" />} {cmd === 'spell' ? 'Сотворить' : 'Бросить кости'}
+        </button>
+      </footer>
+    </aside>
+  )
+}
+
+function AimBlock({ cmd, hasSky, slot, slotText, onSlot, me, targets, allies, foes, same, onTargets, needsTarget }: {
+  cmd: Cmd
+  hasSky: boolean
+  slot: SlotPick | null
+  slotText: string
+  onSlot: (p: SlotPick | null) => void
+  me: CombatantView
+  targets: string[]
+  allies: string[]
+  foes: string[]
+  same: (a: string[], b: string[]) => boolean
+  onTargets: (ids: string[]) => void
+  needsTarget: boolean
+}) {
+  return (
+    <>
         {cmd === 'spell' && hasSky && (
           <span className={`bt-slotline${slot ? ' is-set' : ''}`}>
             <Sparkles aria-hidden="true" /> Ячейка: {slotText}
@@ -810,11 +923,7 @@ function ActionTray({
             </button>
           )}
         </span>
-        <button type="button" className="tb-goldbtn" disabled={busy || (needsTarget && targets.length === 0)} onClick={() => void submit()}>
-          {cmd === 'spell' ? <Wand2 aria-hidden="true" /> : <Dices aria-hidden="true" />} {cmd === 'spell' ? 'Сотворить' : 'Бросить кости'}
-        </button>
-      </footer>
-    </aside>
+    </>
   )
 }
 
@@ -930,6 +1039,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   }
 
   const [concChecks, setConcChecks] = useState<ConcentrationCheck[]>([])
+  const [chances, setChances] = useState<ChanceMap>({})
   const [groupInit, setGroupInit] = useState(true)
 
   // концентрация и «до успешного спасброска»: просьба бросить и итог над фигурой
@@ -975,6 +1085,9 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   // «Ваш ход!» — коротко, когда очередь дошла
   const current = combat?.current_combatant_id ?? null
   const myUnitId = combat?.combatants.find((c) => c.kind === 'character' && c.ref_id === mine)?.id
+  // призванные игроком существа: ими он действует в их ход
+  const meUser = data?.me.user_id
+  const ruled = (c: CombatantView) => !!meUser && (c.controller_id === meUser || (!!c.creature && 'controller_id' in c.creature && c.creature.controller_id === meUser))
   const active = combat?.status === 'active'
   useEffect(() => {
     if (prevTurn.current !== undefined && current !== prevTurn.current && active && current && current === myUnitId) {
@@ -998,12 +1111,13 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const enemies = units.filter((c) => c.side === 'enemies').sort((a, b) => a.slot - b.slot)
   const currentUnit = current ? byId.get(current) : undefined
   const myUnit = myUnitId ? byId.get(myUnitId) : undefined
-  const myTurn = !!myUnit && myUnit.id === current
+  const ruledNow = currentUnit && ruled(currentUnit) ? currentUnit : undefined
+  const myTurn = (!!myUnit && myUnit.id === current) || !!ruledNow
   const setup = combat.status === 'setup'
   const closed = data.room.status === 'closed'
   const actor = isDm ? (currentUnit ?? combat.combatants.find((c) => !c.defeated)) : myUnit
   const targeting = !!cmd
-  const trayActor = !isDm && myUnit ? myUnit : actor
+  const trayActor = !isDm ? (ruledNow ?? myUnit) : actor
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true)
@@ -1017,6 +1131,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     }
   }
   const closeTray = () => {
+    setChances({})
     setCmd(null)
     setTargets([])
     setSlot(null)
@@ -1049,6 +1164,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
       onInit={(v) => void run(() => setInitiative(roomId, combat.id, { [c.id]: v }))}
       onSurprise={isDm ? () => void run(() => patchCombatant(roomId, combat.id, c.id, { surprised: !c.surprised })) : undefined}
       onLegendary={isDm && c.creature ? (kind, amount) => void run(() => spendLegendary(roomId, c.creature!.id, kind, amount)) : undefined}
+      chance={chances[c.id]}
     />
   )
   const myChecks = concChecks.filter((x) => isDm || x.character_id === mine)
@@ -1195,6 +1311,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
           slot={slot}
           onSlot={setSlot}
           onTargets={setTargets}
+          onChances={setChances}
           onClose={closeTray}
         />
       )}

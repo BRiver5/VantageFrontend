@@ -314,8 +314,9 @@ const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const facesOf = (d: DiceRollEvent['dice'][number]) => d.rolls.map((v, i) => (d.dropped?.includes(i) ? `(${v})` : String(v))).join(', ')
 
 export function rollSummary(r: DiceRollEvent): string {
-  const parts = r.dice.map((d) => `${d.sign < 0 ? '−' : ''}${d.rolls.length}к${d.sides} [${facesOf(d)}]`)
-  return `${parts.join(' + ')}${r.modifier ? ` ${signed(r.modifier)}` : ''} = ${r.total}`
+  // прибавочные кости эффектов подписаны: «+ Благословение 1к4 [3]»
+  const parts = r.dice.map((d, i) => `${i === 0 ? (d.sign < 0 ? '−' : '') : d.sign < 0 ? '− ' : '+ '}${d.source ? `${d.source} ` : ''}${d.rolls.length}к${d.sides} [${facesOf(d)}]`)
+  return `${parts.join(' ')}${r.modifier ? ` ${signed(r.modifier)}` : ''} = ${r.total}`
 }
 
 /** Что показать в общем журнале; null — событие в журнал не идёт */
@@ -338,6 +339,17 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       const roll = p as unknown as DiceRollEvent
       if (!roll.dice) return null
       return { ...base, kind: 'roll', who: nameOf(state, roll.character_id) || who, text: `раскрыт бросок · ${roll.label || roll.expression}: ${rollSummary(roll)}`, roll: { ...roll, visibility: 'public' } }
+    }
+    case 'combat.effect_applied': {
+      const label = (p.effect as { label?: string } | undefined)?.label ?? 'состояние'
+      const names = ((p.targets ?? []) as { combatant_id: string }[]).map((t) => unitName(state, t.combatant_id)).filter(Boolean)
+      return { ...base, kind: 'combat', who, text: `${label}: ${names.join(', ') || 'цели'}` }
+    }
+    case 'concentration.ended':
+    case 'effect.ended': {
+      const removed = ((p.removed ?? []) as { label?: string }[]).map((r) => r.label).filter(Boolean)
+      const what = String(p.label ?? '').replace(/^концентрация:\s*/i, '')
+      return { ...base, kind: 'combat', who, text: `${msg.type === 'concentration.ended' ? 'Концентрация прервана' : 'Действие закончилось'}${what ? `: ${what}` : ''}${removed.length ? ` — сняты ${removed.join(', ')}` : ''}` }
     }
     case 'room.rest':
       return { ...base, kind: 'room', who, text: p.kind === 'long' ? 'Партия отдыхает: продолжительный отдых' : 'Партия делает короткий привал' }

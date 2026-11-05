@@ -302,6 +302,18 @@ export type CharacterRef = string
 /** Признак готовой базы: id персонажа слэшей не содержит */
 const ch = (ref: CharacterRef, path = '') => (ref.startsWith('/') ? `${ref}${path}` : `/characters/${ref}${path}`)
 
+/**
+ * Сотворить заклинание с листа: сервер тратит ячейку, ставит концентрацию,
+ * лечит и накладывает эффект на себя (target: self). Урон вне боя не
+ * применяется — кости приходят в rolls для показа.
+ */
+export function castSpellFromSheet(
+  ref: CharacterRef,
+  body: { spell_name: string; slot_level?: number | null; pool?: 'spell' | 'pact'; ritual?: boolean; repeat?: boolean; damage_type?: string | null; target?: 'self' | 'other'; summon_count?: number | null },
+): Promise<{ log?: { kind?: string; message?: string }[]; spell?: Record<string, unknown>; rolls?: { label?: string; total?: number; expression?: string }[] }> {
+  return request(ch(ref, '/cast'), { method: 'POST', body, auth: true })
+}
+
 /** Ссылка на копию персонажа внутри комнаты */
 export const roomCharacterRef = (roomId: string, characterId: string): CharacterRef => `/rooms/${roomId}/characters/${characterId}`
 
@@ -618,6 +630,32 @@ export interface Spell {
   available_subclasses: string[] | null
   available_races: string[] | null
   spell_source: string | null
+  /** что заклинание делает: сервер творит его по этим данным */
+  mechanics?: SpellMechanics | null
+}
+
+export interface SpellMechanics {
+  /** full — сервер считает всё; narrative — тратит ячейку и ставит метку, остальное по notes */
+  status: 'full' | 'narrative' | 'partial'
+  level: number
+  casting: { unit: 'action' | 'bonus' | 'reaction' | 'minute' | 'hour'; amount: number; reaction_trigger?: string }
+  ritual: boolean
+  concentration: boolean
+  duration: { kind: string; amount?: number; up_to: boolean }
+  range: { kind: 'self' | 'touch' | 'ranged' | 'sight' | 'unlimited' | 'special'; feet?: number }
+  area?: { shape: string; size_ft: number; width_ft?: number; origin: 'self' | 'point' } | null
+  targets?: { count: number | 'any' | null; kind: 'creature' | 'object' | 'point' | 'self' | 'area'; allies?: boolean } | null
+  attack?: 'melee_spell' | 'ranged_spell' | null
+  save?: { ability: string; on_success: 'half' | 'none' | 'negate_effect' } | null
+  damage: { dice: string; type: string | null; choices?: string[]; add_mod: boolean; rider: boolean }[]
+  heal?: { dice: string; add_mod: boolean } | null
+  temp_hp?: { dice: string; add_mod: boolean } | null
+  upcast?: { per_level: { dice?: string; heal_dice?: string; targets?: number; projectiles?: number; size_ft?: number }; from_level: number; every: number; max_dice?: string; note?: string } | null
+  cantrip_scaling?: { dice: string; levels: number[]; projectiles: boolean } | null
+  projectiles?: { count: number; per_level: number; damage: { dice: string; type: string }; attack: boolean; shared_roll: boolean } | null
+  effect?: { label: string; condition?: string; save_each_turn?: 'start' | 'end'; on: 'target' | 'self'; expires: string; choices: string[] } | null
+  summons?: { name: string; count: string; choose_count: boolean; from_catalog: boolean; notes?: string | null }[]
+  notes?: string | null
 }
 
 /** Черта/действие существа: обычно { name, description }, но ключи бывают любыми */

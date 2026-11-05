@@ -40,11 +40,11 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { uploadMedia } from '../../api'
+import { ApiError, uploadMedia } from '../../api'
 import { Img } from '../../media'
 import type { ScreenNote } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
-import { createNote, deleteNote, listNotes, patchNote } from '../roomsApi'
+import { createNote, deleteNote, listNotes, patchNote, patchNotesBatch } from '../roomsApi'
 import { errText } from '../table/parts'
 import { KnowledgeGraph } from './Graph'
 import { MarkdownBody, type PageLookup } from './Markdown'
@@ -61,7 +61,10 @@ interface KnowledgeApi {
   open: (id?: string | null) => void
   close: () => void
   create: (body: Partial<ScreenNote>) => Promise<ScreenNote | null>
-  update: (id: string, patch: Partial<ScreenNote>) => Promise<void>
+  /** force — без проверки ревизии: «оставить мою» после конфликта */
+  update: (id: string, patch: Partial<ScreenNote>, force?: boolean) => Promise<void>
+  /** несколько заметок разом: всё или ничего */
+  updateMany: (items: (Partial<ScreenNote> & { id: string })[]) => Promise<void>
   remove: (id: string) => Promise<void>
   setCurrent: (id: string | null) => void
 }
@@ -70,6 +73,13 @@ const Ctx = createContext<KnowledgeApi | null>(null)
 export const useKnowledge = () => useContext(Ctx)
 
 const norm = (s: string) => s.trim().toLowerCase()
+
+/** Страницу поменяли в другой вкладке: сервер отказал по ревизии */
+export class NoteConflict extends Error {
+  constructor() {
+    super('Страницу изменили в другой вкладке')
+  }
+}
 
 export function KnowledgeProvider({ children }: { children: ReactNode }) {
   const { roomId } = useRoom()
@@ -102,18 +112,59 @@ export function KnowledgeProvider({ children }: { children: ReactNode }) {
     },
     [roomId],
   )
+  // ревизии на экране: с ними сервер не даст затереть правку из другой вкладки
+  const revs = useRef(new Map<string, number>())
+  useEffect(() => {
+    for (const n of notes ?? []) if (n.revision != null && !revs.current.has(n.id)) revs.current.set(n.id, n.revision)
+  }, [notes])
+  const reload = useCallback(async () => {
+    const fresh = await listNotes(roomId)
+    revs.current = new Map(fresh.filter((n) => n.revision != null).map((n) => [n.id, n.revision as number]))
+    setNotes(fresh)
+  }, [roomId])
+
   const update = useCallback(
-    async (id: string, patch: Partial<ScreenNote>) => {
+    async (id: string, patch: Partial<ScreenNote>, force = false) => {
       setNotes((l) => (l ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)))
+      const rev = revs.current.get(id)
       try {
-        const saved = await patchNote(roomId, id, patch)
+        const saved = await patchNote(roomId, id, force || rev == null ? patch : { ...patch, revision: rev })
+        if (saved?.revision != null) revs.current.set(id, saved.revision)
         setNotes((l) => (l ?? []).map((n) => (n.id === id ? { ...n, ...saved, ...patch } : n)))
       } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          await reload().catch(() => undefined)
+          throw new NoteConflict()
+        }
         setError(errText(e))
         throw e
       }
     },
-    [roomId],
+    [roomId, reload],
+  )
+  const updateMany = useCallback(
+    async (items: (Partial<ScreenNote> & { id: string })[]) => {
+      if (items.length === 0) return
+      setNotes((l) => (l ?? []).map((n) => ({ ...n, ...(items.find((x) => x.id === n.id) ?? {}) })))
+      try {
+        const res = await patchNotesBatch(roomId, items.map((x) => ({ ...x, ...(revs.current.has(x.id) ? { revision: revs.current.get(x.id) } : {}) })))
+        for (const n of res.items ?? []) if (n.revision != null) revs.current.set(n.id, n.revision)
+        setNotes((l) => (l ?? []).map((n) => res.items?.find((x) => x.id === n.id) ?? n))
+      } catch (e) {
+        // старый сервер без пакетной правки — по одной
+        if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+          for (const x of items) await update(x.id, x).catch(() => undefined)
+          return
+        }
+        if (e instanceof ApiError && e.status === 409) {
+          await reload().catch(() => undefined)
+          throw new NoteConflict()
+        }
+        setError(errText(e))
+        throw e
+      }
+    },
+    [roomId, reload, update],
   )
   const remove = useCallback(
     async (id: string) => {
@@ -136,10 +187,11 @@ export function KnowledgeProvider({ children }: { children: ReactNode }) {
       close: () => setOpen(false),
       create,
       update,
+      updateMany,
       remove,
       setCurrent,
     }),
-    [notes, error, isOpen, current, create, update, remove],
+    [notes, error, isOpen, current, create, update, updateMany, remove],
   )
   return (
     <Ctx.Provider value={value}>
@@ -420,8 +472,10 @@ function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks }: { no
   const [mode, setMode] = useState<'read' | 'edit'>(note.body.trim() ? 'read' : 'edit')
   const [draft, setDraft] = useState(note.body)
   const [title, setTitle] = useState(note.title)
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error' | 'conflict'>('idle')
   const [iconPick, setIconPick] = useState(false)
+  /** что не записалось из-за чужой правки: можно оставить своё */
+  const lost = useRef<Partial<ScreenNote> | null>(null)
   const [side, setSide] = useState(true)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const pending = useRef<Partial<ScreenNote> | null>(null)
@@ -436,8 +490,11 @@ function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks }: { no
     try {
       await kb.update(note.id, patch)
       setState('saved')
-    } catch {
-      setState('error')
+    } catch (e) {
+      if (e instanceof NoteConflict) {
+        lost.current = { ...lost.current, ...patch }
+        setState('conflict')
+      } else setState('error')
     }
   }, [kb, note.id])
   useEffect(
@@ -459,16 +516,34 @@ function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks }: { no
   }
   const setMeta = (patch: Partial<PageMeta>) => setBody(writePage({ ...parsePage(draft).meta, ...patch }, parsePage(draft).body))
 
-  /** Переименование: ссылки [[Старое]] в других страницах тоже переписываются */
+  /** Переименование: ссылки [[Старое]] в других страницах переписываются одним пакетом */
   const renameTo = async (next: string) => {
     const t = next.trim() || 'Без названия'
     if (t === note.title) return
     const old = note.title
-    await kb.update(note.id, { title: t })
-    for (const n of kb.notes ?? []) {
-      if (n.id === note.id || !linksOf(n.body).includes(norm(old))) continue
-      void kb.update(n.id, { body: renameLinks(n.body, old, t) }).catch(() => undefined)
+    const linked = (kb.notes ?? []).filter((n) => n.id !== note.id && linksOf(n.body).includes(norm(old)))
+    try {
+      await kb.updateMany([{ id: note.id, title: t }, ...linked.map((n) => ({ id: n.id, body: renameLinks(n.body, old, t) }))])
+    } catch (e) {
+      setState(e instanceof NoteConflict ? 'conflict' : 'error')
     }
+  }
+  const keepMine = async () => {
+    const patch = { ...lost.current, body: draft, title }
+    lost.current = null
+    setState('saving')
+    try {
+      await kb.update(note.id, patch, true)
+      setState('saved')
+    } catch {
+      setState('error')
+    }
+  }
+  const takeTheirs = () => {
+    lost.current = null
+    setDraft(note.body)
+    setTitle(note.title)
+    setState('idle')
   }
 
   const outline = parseBlocks(parsePage(draft).body).filter((b): b is Extract<typeof b, { t: 'h' }> => b.t === 'h')
@@ -564,7 +639,7 @@ function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks }: { no
             {meta.width === 'wide' ? 'узко' : 'широко'}
           </button>
           <span className="kb-spacer" />
-          <small className={`kb-save is-${state}`}>{state === 'saving' ? 'записываем…' : state === 'saved' ? 'записано' : state === 'error' ? 'не записалось' : ''}</small>
+          <small className={`kb-save is-${state}`}>{state === 'saving' ? 'записываем…' : state === 'saved' ? 'записано' : state === 'error' ? 'не записалось' : state === 'conflict' ? 'конфликт правок' : ''}</small>
           <button type="button" className={`kb-chip${note.pinned ? ' is-on' : ''}`} onClick={() => void kb.update(note.id, { pinned: !note.pinned })} title={note.pinned ? 'Убрать из закреплённых' : 'Закрепить: страница будет под рукой на дашборде'}>
             {note.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />} {note.pinned ? 'закреплено' : 'к себе'}
           </button>
@@ -578,6 +653,17 @@ function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks }: { no
             <Trash2 aria-hidden="true" />
           </button>
         </div>
+        {state === 'conflict' && (
+          <div className="kb-conflict" role="alert">
+            <span>Эту страницу только что изменили в другой вкладке. Ваши последние правки не записаны.</span>
+            <button type="button" className="kb-chip" onClick={takeTheirs}>
+              взять свежую
+            </button>
+            <button type="button" className="kb-chip is-on" onClick={() => void keepMine()}>
+              оставить мою
+            </button>
+          </div>
+        )}
         {meta.tags.length > 0 && (
           <div className="kb-tags">
             {meta.tags.map((t) => (

@@ -4,7 +4,7 @@
  * урон, лечение и спасбросок записаны только текстом, поэтому их достаём
  * из описания — это подсказка, поля после выбора можно поправить.
  */
-import { realImage, type EngineDictionaries, type Spell } from '../../api'
+import { realImage, type EngineDictionaries, type Spell, type SpellMechanics } from '../../api'
 import { normSpellName } from '../../spellIndex'
 import type { AttackEntry, CharacterInventory, SpellKnown } from '../../types/character'
 import type { StatKey } from '../../types/rooms'
@@ -35,6 +35,10 @@ export interface Preset {
   saveEnds?: StatKey | null
   /** бонусным действием */
   bonusAction?: boolean
+  /** механика с сервера: есть — заклинание творит сервер, а не формула клиента */
+  mech?: SpellMechanics | null
+  /** имя заклинания в каталоге: его ждёт POST /cast */
+  spellName?: string
 }
 
 /** Тип урона в словаре движка по подписи («огненный», «огонь») или значению */
@@ -120,7 +124,7 @@ export interface CasterHints {
 }
 
 export function spellPreset(known: SpellKnown, spell: Spell | undefined, hints: CasterHints, dict: EngineDictionaries | null): Preset {
-  const base: Preset = { key: `sp-${known.name}`, name: known.name, bonus: null, dice: '', type: '', look: 'spell', level: known.level, school: spell?.school ?? null }
+  const base: Preset = { key: `sp-${known.name}`, name: known.name, bonus: null, dice: '', type: '', look: 'spell', level: known.level, school: spell?.school ?? null, mech: spell?.mechanics ?? null, spellName: spell?.spell_name ?? known.name }
   const text = (spell?.description ?? '').replace(/\s+/g, ' ')
   if (!text) return base
   const low = text.toLowerCase()

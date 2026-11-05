@@ -77,6 +77,7 @@ import { WhyDot, WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
 import { Img } from '../media'
+import { bonusNotes } from '../dice/bonusDice'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -461,7 +462,7 @@ export default function CharacterSheet({
     try {
       const res = await roomRoll.roll({ expression: `${n}d${sides}`, label })
       await roomRoll.whenPlayed(res.seq)
-      return res.dice.flatMap((d) => d.rolls)
+      return res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
     } catch (e) {
       note('!', e instanceof Error ? e.message : 'Бросок не удался')
       return null
@@ -566,16 +567,21 @@ export default function CharacterSheet({
     const { mode, label: modeLabel } = rollMode(sheet, ctx)
     const tagForServer = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
     let values: number[] | null
+    // кости эффектов (Благословение +1к4, Порча −1к4): их прибавляет сервер, показываем отдельно
+    let effects: { source: string; value: number }[] = []
     if (viaServer && roomRoll) {
       // с модификатором и режимом: итог в журнале комнаты сходится с листом
       setRoomPending(true)
       try {
+        const k = ctx?.kind
         const res = await roomRoll.roll({
           expression: `1d20${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`,
           label: `${label}${tagForServer}`,
           mode: mode === 'normal' ? null : mode,
+          kind: k === 'attack' || k === 'spell' ? 'attack' : k === 'save' || k === 'death' ? 'save' : k === 'check' || k === 'skill' || k === 'init' ? 'check' : undefined,
         })
-        const rolls = res.dice.flatMap((d) => d.rolls)
+        effects = bonusNotes(res.dice)
+        const rolls = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
         // в dice остаётся только оставленная кость, вторую восстанавливаем из итога
         const other = res.discarded_total != null ? res.discarded_total - res.modifier : null
         values = rolls.length === 1 && mode !== 'normal' && other != null && other >= 1 && other <= 20 ? [rolls[0], other] : rolls
@@ -595,7 +601,8 @@ export default function CharacterSheet({
     // у атаки крит может начинаться раньше 20 (Улучшенные критические попадания)
     const crit = kept >= (attackKey ? critMin : 20)
     const tag = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
-    show({ label: `${label}${tag}`, dice: values, sides: 20, bonus, total: kept + bonus, crit, fumble: kept === 1 })
+    const effectSum = effects.reduce((s, e) => s + e.value, 0)
+    show({ label: `${label}${tag}`, dice: values, sides: 20, bonus: bonus + effectSum, total: kept + bonus + effectSum, crit, fumble: kept === 1 })
     if (attackKey) setCritFor(crit ? attackKey : null)
     enqueue({
       title: label,
@@ -603,7 +610,7 @@ export default function CharacterSheet({
       dice: values.map((value) => ({ sides: 20, value })),
       mode,
       modeLabel,
-      bonuses: d20Cards(sheet, ctx, bonus),
+      bonuses: [...d20Cards(sheet, ctx, bonus), ...effects.map((e) => ({ label: e.source, value: e.value, kind: 'effect' as const }))],
       critMin: attackKey ? critMin : 20,
       reactions: ctx?.kind === 'death' ? [] : d20Reactions(ctx?.kind),
     })
@@ -631,7 +638,7 @@ export default function CharacterSheet({
       setRoomPending(true)
       try {
         const res = await roomRoll.roll({ expression: `${n}d${parsed.sides}${mod ? (mod > 0 ? `+${mod}` : `${mod}`) : ''}`, label: crit ? `${label} · крит!` : label })
-        values = res.dice.flatMap((d) => d.rolls)
+        values = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
         await roomRoll.whenPlayed(res.seq)
       } catch (e) {
         note('!', e instanceof Error ? e.message : 'Бросок не удался')
@@ -656,7 +663,7 @@ export default function CharacterSheet({
       setRoomPending(true)
       try {
         const res = await roomRoll.roll({ expression: `${n}d${sides}${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`, label })
-        values = res.dice.flatMap((d) => d.rolls)
+        values = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
         await roomRoll.whenPlayed(res.seq)
       } catch (e) {
         note('!', e instanceof Error ? e.message : 'Бросок не удался')

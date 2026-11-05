@@ -8,7 +8,7 @@ import { ApiError, getSheet, roomCharacterRef } from '../../api'
 import type { AnyCreature, CharacterCard } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
-import { addEffect, combatAction, removeEffect } from '../roomsApi'
+import { addEffect, combatEffects, removeEffect } from '../roomsApi'
 import { describeEffect, type EffectDraft, type ShownEffect } from './effects'
 
 export interface EffectTargetRef {
@@ -24,8 +24,10 @@ export function useTargetEffects({ card, creature }: EffectTargetRef): ShownEffe
   const labels = card?.effects ?? []
   const key = labels.join('\u0001')
   const [ids, setIds] = useState<Record<string, { id: string; rounds: number | null }>>({})
+  // сервер шлёт id прямо в карточке; лист читаем, только если карточка старая
+  const detail = card?.effects_detail
   useEffect(() => {
-    if (!card || !isDm || labels.length === 0) return
+    if (!card || !isDm || labels.length === 0 || detail?.length) return
     let alive = true
     getSheet(roomCharacterRef(roomId, card.id))
       .then((s) => alive && setIds(Object.fromEntries((s.active_effects ?? []).map((e) => [e.label, { id: e.id, rounds: e.rounds_left }]))))
@@ -39,11 +41,13 @@ export function useTargetEffects({ card, creature }: EffectTargetRef): ShownEffe
   return useMemo(() => {
     if (creature) {
       if (isFullCreature(creature)) return (creature.conditions ?? []).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
+      if (creature.effects_detail?.length) return creature.effects_detail.map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
       return (creature.effects ?? []).map((l) => describeEffect(l))
     }
+    if (detail?.length) return detail.map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
     return labels.map((l) => describeEffect(l, ids[l]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [creature, key, ids])
+  }, [creature, key, ids, detail])
 }
 
 /** Наложить и снять: мастер */
@@ -56,14 +60,8 @@ export function useEffectControl({ card, creature }: EffectTargetRef) {
   const apply = async (d: EffectDraft) => {
     if (!target) return
     if (combat && unit) {
-      // действие «на себя» от самой цели: без броска, эффект ложится сразу
-      await combatAction(roomId, combat.id, {
-        actor_combatant_id: unit.id,
-        kind: 'other',
-        label: d.label,
-        target_ids: [unit.id],
-        effect: { label: d.label, modifiers: [], expires: d.expires, rounds_left: d.rounds_left, concentration: d.concentration, save_ability: d.save_ability ?? null, save_dc: d.save_dc ?? null },
-      })
+      // в бою — на участника без действующего: в журнале нет «Брина: Отравлен → Брина»
+      await combatEffects(roomId, combat.id, [unit.id], { label: d.label, expires: d.expires, rounds_left: d.rounds_left, save_ability: d.save_ability ?? null, save_dc: d.save_dc ?? null })
       return
     }
     try {

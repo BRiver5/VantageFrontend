@@ -9,6 +9,7 @@ import { ImageOff, Skull } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getCharacter, getOne, listMyCharacters, realImage, roomCharacterRef, type GameClass, type Race } from '../../api'
 import { useRoom } from '../RoomProvider'
+import { patchRoomCharacter } from '../roomsApi'
 import { FaceImage } from '../../characters/FacePortrait'
 import { parsePortrait } from '../../characters/portrait'
 import type { AnyCreature, CharacterCard, HpBand, RoomItem } from '../../types/rooms'
@@ -65,8 +66,9 @@ const heroArtCache = new Map<string, Promise<string | null>>()
 
 /**
  * В комнате лежит копия героя, снятая при входе. Картинку, загруженную в
- * оригинал позже, копия не знает: ищем оригинал среди своих героев (по имени
- * и расе). Записать её в копию игрок не может: avatar_url меняет только мастер.
+ * оригинал до обновления сервера, копия не знает: ищем оригинал среди своих
+ * героев (по имени и расе) и один раз записываем картинку в копию — владельцу
+ * это разрешено, и её увидит вся партия. Дальше сервер синхронизирует сам.
  */
 const originalCache = new Map<string, Promise<string | null>>()
 
@@ -74,7 +76,10 @@ function avatarFromOriginal(roomId: string, characterId: string, name: string, r
   const key = `${roomId}/${characterId}`
   const known = originalCache.get(key)
   if (known) return known
-  const job = findOriginalAvatar(name, raceId)
+  const job = findOriginalAvatar(name, raceId).then((url) => {
+    if (url) void patchRoomCharacter(roomId, characterId, { avatar_url: url }).catch(() => undefined)
+    return url
+  })
   originalCache.set(key, job)
   return job
 }

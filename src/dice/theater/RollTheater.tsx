@@ -63,6 +63,7 @@ const CARD_ICON: Record<RollBonusCard['kind'], LucideIcon> = {
   prof: Award,
   feature: Sparkles,
   item: Gem,
+  effect: Dices,
   other: Dices,
 }
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
@@ -256,7 +257,7 @@ export function RollTheater({ spec, onDone }: { spec: RollSpec; onDone: (o: Roll
                   ref={(el) => {
                     cardRefs.current[i] = el
                   }}
-                  className={`rt-card is-${c.kind}${state}`}
+                  className={`rt-card is-${c.kind}${c.kind === 'effect' ? (c.value < 0 ? ' is-down' : ' is-up') : ''}${state}`}
                   style={(flying === i && flight ? { '--dx': `${flight.dx}px`, '--dy': `${flight.dy}px` } : {}) as CSSProperties}
                 >
                   <Icon aria-hidden="true" />

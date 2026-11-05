@@ -17,6 +17,7 @@ import { playForcedRoll, setRoomRollHandler, type ForcedDie, type RoomRollVisibi
 import type { DiceRollEvent, RollPayload, RollRequest, RoomEventMessage } from '../types/rooms'
 import { isEngineRoll } from '../types/rooms'
 import { rollSummary } from './applyEvent'
+import { facesOf } from '../dice/bonusDice'
 import { useRoom } from './RoomProvider'
 import { rollInRoom } from './roomsApi'
 
@@ -53,7 +54,7 @@ export function forcedDiceOf(p: RollPayload): ForcedDie[] {
     const sides = sidesOf(p.engine.dice)
     list = p.engine.rolls.map((value) => ({ sides, value }))
   } else {
-    list = p.dice.flatMap((d) => d.rolls.map((value) => ({ sides: d.sides, value })))
+    list = facesOf(p.dice)
     // преимущество и помеха: в dice только оставленный к20, второй восстанавливаем из итога
     if (p.mode && p.discarded_total != null && p.dice.length === 1 && p.dice[0].sides === 20 && list.length === 1) {
       const other = p.discarded_total - p.modifier

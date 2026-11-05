@@ -42,6 +42,9 @@ import type {
   ConcentrationSave,
   RoomClock,
   SharedNote,
+  CastPlan,
+  CastPreview,
+  CastRequest,
 } from '../types/rooms'
 
 const r = (id: string, path = '') => `/rooms/${id}${path}`
@@ -282,3 +285,25 @@ const effPath = (id: string, t: EffectTarget) => r(id, `/${t.kind === 'character
 export const addEffect = (id: string, target: EffectTarget, body: EffectBody) => post<unknown>(effPath(id, target), { modifiers: [], ...body })
 /** Снять эффект по id (мастер) */
 export const removeEffect = (id: string, target: EffectTarget, effectId: string) => del(`${effPath(id, target)}/${effectId}`)
+
+/* ---------- заклинания по механике сервера ---------- */
+
+/** Сотворить в бою: сервер сам берёт урон, Сл, усиление и состояние из механики заклинания */
+export const castSpell = (id: string, combat: string, body: CastRequest) =>
+  post<{ spell: CastPlan; actions: CombatActionResult[] }>(cb(id, combat, '/cast'), body)
+/** Что будет: Сл, формулы и шанс по каждой цели. Ничего не тратит */
+export const castPreview = (id: string, combat: string, body: CastRequest) => post<CastPreview>(cb(id, combat, '/cast/preview'), body)
+/** Сотворить с листа в комнате, вне боя: ячейка, концентрация, лечение и эффекты на себя */
+export const castFromSheet = (
+  id: string,
+  cid: string,
+  body: { spell_name: string; slot_level?: number | null; pool?: 'spell' | 'pact'; ritual?: boolean; repeat?: boolean; damage_type?: string | null; target?: 'self' | 'other'; summon_count?: number | null },
+) => post<{ spell?: CastPlan; rolls?: unknown[]; log?: unknown[] }>(r(id, `/characters/${cid}/cast`), body)
+
+/** Состояние на участников боя без действующего (мастер) */
+export const combatEffects = (id: string, combat: string, targetIds: string[], effect: Record<string, unknown>) =>
+  post<unknown>(cb(id, combat, '/effects'), { target_ids: targetIds, effect: { modifiers: [], ...effect } })
+
+/** Пакетная правка заметок: всё или ничего; при расхождении revision — 409 */
+export const patchNotesBatch = (id: string, items: (Partial<ScreenNote> & { id: string })[]) =>
+  request<{ items: ScreenNote[] }>(r(id, '/screen/notes/batch'), { method: 'PATCH', body: items, auth: true })

@@ -16,6 +16,11 @@ export interface SheetPlay {
    * напрямую — лишь мастер. true — звёзды и сотворение ячейкой недоступны.
    */
   slotsLocked?: boolean
+  /**
+   * Сотворить по-настоящему: сервер тратит ячейку и применяет механику
+   * заклинания. Нет — книга только отмечает ячейку (черновик визарда).
+   */
+  cast?: (spell: { name: string; level: number; mechanics?: import('../api').SpellMechanics | null }, how: 'free' | 'ritual' | number) => Promise<string | null>
 }
 
 /** Расовые заклинания, отмеченные потраченными до отдыха (snapshot.spent в документе) */
@@ -32,6 +37,7 @@ export function sheetPlayFromServer(
   opts: {
     master?: (set: Record<string, unknown>) => void
     setSpent?: (next: Set<string>) => void
+    cast?: SheetPlay['cast']
   },
 ): SheetPlay {
   const slotsUsed = Object.fromEntries(Object.entries(view.spellcasting.spell_slots).map(([c, s]) => [c, s.used]))
@@ -52,6 +58,7 @@ export function sheetPlayFromServer(
       if (Object.keys(set).length) opts.master(set)
     },
     setRacialUsed: (fn) => opts.setSpent?.(fn(racialUsed)),
+    cast: opts.cast,
   }
 }
 
