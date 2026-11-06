@@ -1,5 +1,10 @@
 import { flushSync } from 'react-dom'
 
+/** Сразу в начало, без плавной прокрутки html (scroll-behavior: smooth) */
+export const jumpToTop = () => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+}
+
 type VTDocument = Document & {
   startViewTransition?: (cb: () => void | Promise<void>) => { finished: Promise<void> }
 }
@@ -15,16 +20,17 @@ export function runShellTransition(
   const doc = document as VTDocument
   if (!doc.startViewTransition) {
     apply()
-    if (opts.scrollTop) window.scrollTo(0, 0)
+    if (opts.scrollTop) jumpToTop()
     return
   }
   document.documentElement.dataset.nav = '1'
   const t = doc.startViewTransition(() => {
     flushSync(apply)
+    // старый кадр уже снят: прыгаем наверх до снимка нового — деталь сразу открыта с начала
+    if (opts.scrollTop) jumpToTop()
   })
   const done = () => {
     delete document.documentElement.dataset.nav
-    if (opts.scrollTop) window.scrollTo(0, 0)
   }
   t.finished.then(done, done)
 }

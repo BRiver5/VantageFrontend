@@ -873,7 +873,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 }
 .catalog-group-plate--link:hover {
   color: var(--gold-4);
-  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.55);
+  --hex-edge: rgba(228, 196, 110, 0.75);
   filter: drop-shadow(0 0 12px rgba(196, 154, 60, 0.22));
 }
 

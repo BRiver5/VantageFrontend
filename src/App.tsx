@@ -797,7 +797,7 @@ function ScrollToTop() {
     // примет его за cleanup-функцию. В браузерах, где расширение/плагин плавного
     // скролла заставляет scrollTo вернуть НЕ undefined, при следующей навигации
     // React зовёт этот «cleanup» → "destroy is not a function" → чёрный экран.
-    window.scrollTo(0, 0)
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
   }, [pathname])
   return null
 }

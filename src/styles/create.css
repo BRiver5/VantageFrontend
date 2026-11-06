@@ -1547,7 +1547,7 @@ button.cw-rollslot {
   transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 button.cw-rollslot:hover { transform: translateY(-3px); }
-button.cw-rollslot:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--gold-3); }
+button.cw-rollslot:focus-visible { outline: none; filter: brightness(1.25); }
 /* выбранная — ждёт, пока её положат в характеристику */
 .cw-rollslot.is-picked {
   transform: translateY(-4px);
@@ -2912,7 +2912,7 @@ button.cw-rollslot:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
   transition: box-shadow 0.16s ease, transform 0.16s ease;
 }
 button.cw-feat-card { cursor: pointer; }
-button.cw-feat-card:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.6); }
+button.cw-feat-card:hover { transform: translateY(-2px); filter: brightness(1.14); }
 .cw-feat-card.is-selected,
 .cw-feat-card.is-static {
   background:
@@ -3116,7 +3116,7 @@ body:has(.cw-foot) .dice-dock { bottom: 94px; }
 .cw-stat--hp svg { color: #e07070; }
 .cw-stat--hp b { font-size: 1.45rem; }
 .cw-stat--roll { cursor: pointer; transition: box-shadow 0.15s ease, translate 0.15s ease; }
-.cw-stat--roll:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.7); translate: 0 -1px; }
+.cw-stat--roll:hover:not(:disabled) { --hex-edge: rgba(228, 196, 110, 0.8); translate: 0 -1px; }
 
 /* сетка карточек: бой крупно слева, характеристики и навыки рядом */
 .cw-sheet-grid {
@@ -3245,7 +3245,7 @@ body:has(.cw-foot) .dice-dock { bottom: 94px; }
   cursor: pointer;
   transition: box-shadow 0.15s ease;
 }
-.cw-abil-check:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.7); }
+.cw-abil-check:hover:not(:disabled) { filter: brightness(1.18); }
 .cw-abil-check i { font-style: normal; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--gold-2); }
 .cw-abil-check b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; color: var(--parchment); }
 .cw-abil-check em { font-style: normal; font-size: 0.86rem; color: var(--gold-3); }
