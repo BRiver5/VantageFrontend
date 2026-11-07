@@ -13,6 +13,7 @@ import { getAccessToken } from '../auth/token'
 import type { RoomEventMessage, RoomState } from '../types/rooms'
 import { applyEvent, chatOf, describeEvent, fromSnapshot, mergeChat, pushLog, type RoomData, type RoomExtras } from './applyEvent'
 import { getRoomState, listClocks, listEventsOfType, listSharedNotes } from './roomsApi'
+import { getMap } from '../maps/api'
 import { RoomSocket, type FatalReason, type SocketStatus } from './roomSocket'
 
 type Action =
@@ -54,6 +55,8 @@ export interface RoomContextValue {
   subscribe: (fn: (msg: RoomEventMessage) => void) => () => void
   /** анимация броска у других; лишнее чаще 5 раз в секунду не отправляется */
   sendRolling: (label: string) => void
+  /** эфемерное сообщение карты: map.drag, map.aim, map.ping */
+  sendEphemeral: (obj: { type: string } & Record<string, unknown>) => void
   /** файлы контента загружены */
   sendClientReady: (contentId: string) => void
   /** перечитать снимок (после конфликта 409 и т.п.) и догнать события */
@@ -110,9 +113,11 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
   )
 
   /** Часы, общие заметки и чат приходят не со снимком. На старом сервере маршрутов нет — тогда просто пусто */
-  const loadExtras = useCallback(() => {
+  const loadExtras = useCallback((activeMapId?: string | null) => {
     void listClocks(roomId).then((clocks) => dispatch({ type: 'extras', extras: { clocks } }), () => undefined)
     void listSharedNotes(roomId).then((sharedNotes) => dispatch({ type: 'extras', extras: { sharedNotes } }), () => undefined)
+    // карта на столе: снимок /state её не несёт
+    if (activeMapId) void getMap(roomId, activeMapId).then((activeMap) => dispatch({ type: 'extras', extras: { activeMap } }), () => undefined)
     void listEventsOfType(roomId, ['chat.message'], { limit: 50 }).then(
       (items) => dispatch({ type: 'extras', extras: { chat: items.map(chatOf).filter((m): m is NonNullable<typeof m> => !!m) } }),
       () => undefined,
@@ -131,7 +136,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
         if (cancelled) return
         lastSeq.current = state.seq
         dispatch({ type: 'snapshot', state })
-        loadExtras()
+        loadExtras(state.room.active_map_id)
         const socket = new RoomSocket({
           roomId,
           getToken: getAccessToken,
@@ -194,6 +199,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
       isDm: data?.me.role === 'dm',
       subscribe,
       sendRolling: (label) => socketRef.current?.sendRolling(label),
+      sendEphemeral: (obj) => socketRef.current?.sendEphemeral(obj),
       sendClientReady: (id) => socketRef.current?.sendClientReady(id),
       refresh,
       setInviteCode: (code) => dispatch({ type: 'invite', code }),

@@ -5,6 +5,7 @@
  * выставляет на стол существ (жетоны) и находки; предмет можно поднять и убрать
  * в мешок, который сам выдвигается из-за листа героя.
  */
+import { MapField } from '../../maps/MapField'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
@@ -647,8 +648,18 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
         />
       ))}
 
-      <div className="tb-field">
-        {tokens.length > 0 && (
+      <div className={`tb-field${data?.activeMap ? ' has-map' : ''}`}>
+        {data?.activeMap && (
+          <div className="tb-map">
+            <MapField
+              onOpen={(t) => {
+                if (t.creature_id) setCreatureOpen({ id: t.creature_id, origin: originOf(null) })
+                else if (t.character_id) setHeroOpen({ id: t.character_id, origin: originOf(null), rotate: 0 })
+              }}
+            />
+          </div>
+        )}
+        {!data?.activeMap && tokens.length > 0 && (
           <div className="tb-tokens" aria-label="Существа на столе">
             {tokens.map((c) => (
               <Token key={c.id} c={c} count={tokens.length} onOpen={(origin) => setCreatureOpen({ id: c.id, origin })} />
@@ -667,7 +678,7 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
             ))}
           </div>
         )}
-        {tokens.length === 0 && loot.length === 0 && (
+        {!data?.activeMap && tokens.length === 0 && loot.length === 0 && (
           <p className="tb-carved">{isDm ? 'Выставьте сюда существ и находки из ширмы' : 'Стол пуст. Мастер выложит сюда находки'}</p>
         )}
       </div>

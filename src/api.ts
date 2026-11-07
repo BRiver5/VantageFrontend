@@ -635,6 +635,8 @@ export interface Spell {
 }
 
 export interface SpellMechanics {
+  /** как наводить на карте (сервер карт) */
+  targeting?: import('./maps/types').SpellTargeting | null
   /** full — сервер считает всё; narrative — тратит ячейку и ставит метку, остальное по notes */
   status: 'full' | 'narrative' | 'partial'
   level: number

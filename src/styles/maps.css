@@ -1,0 +1,101 @@
+/* Боевые карты: холст, наведение, джойстик, конструктор мастера */
+
+.mp-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.mp-canvas:active { cursor: grabbing; }
+.mp-canvas.is-drawing { cursor: crosshair; }
+
+.mp-field { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: calc(var(--t, 1px) * 10); background: #0d0a07; box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.28), 0 14px 40px rgba(0, 0, 0, 0.55); }
+.mp-field.is-aiming .mp-canvas { cursor: crosshair; }
+
+/* в бою карта занимает поле фигур */
+.bt-map { position: absolute; inset: calc(var(--t) * 110) calc(var(--t) * 86) calc(var(--t) * 8); z-index: 10; transition: right 0.42s cubic-bezier(0.2, 1, 0.35, 1); }
+.bt-scene.has-tray .bt-map { right: calc(var(--tray) + var(--t) * 90); }
+.bt-scene.is-dm .bt-map { bottom: calc(var(--t) * 80); }
+
+/* на столе вне боя */
+.tb-field.has-map { justify-content: flex-start; }
+.tb-map { position: relative; flex: 1 1 auto; width: 100%; min-height: 0; }
+.tb-field.has-map .tb-loots { position: absolute; left: 50%; bottom: calc(var(--t) * 10); translate: -50% 0; z-index: 2; pointer-events: auto; }
+
+.mp-cost, .mp-aimbar, .mp-note {
+  position: absolute;
+  z-index: 3;
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(14, 10, 6, 0.82);
+  color: var(--parchment, #f1e4c8);
+  font-size: 12.5px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+.mp-cost { top: 10px; right: 10px; font-variant-numeric: tabular-nums; }
+.mp-note { left: 50%; bottom: 12px; translate: -50% 0; box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.5); animation: mp-rise 0.25s ease; }
+.mp-note.is-soft { box-shadow: none; opacity: 0.7; }
+.mp-aimbar { top: 10px; left: 50%; translate: -50% 0; display: flex; gap: 10px; align-items: baseline; border-radius: 10px; }
+.mp-aimbar b { color: var(--gold-2, #f5d06a); font-weight: 600; }
+.mp-aimbar i { opacity: 0.7; font-style: normal; }
+.mp-aimbar em { color: #ffb4a8; font-style: normal; }
+@keyframes mp-rise { from { opacity: 0; transform: translateY(6px); } }
+
+/* джойстик: только на сенсорных экранах */
+.mp-joy { position: absolute; left: 14px; bottom: 14px; z-index: 4; display: none; width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 208, 106, 0.08), rgba(14, 10, 6, 0.55) 70%); box-shadow: inset 0 0 0 1.5px rgba(245, 208, 106, 0.35); touch-action: none; }
+.mp-joy-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1c2, #c49a3c 70%); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); transition: transform 0.08s linear; pointer-events: none; }
+@media (pointer: coarse) { .mp-joy { display: block; } }
+@media (max-height: 520px) {
+  .mp-aimbar i { display: none; }
+  .mp-joy { width: 96px; height: 96px; }
+}
+
+/* полка карт в ширме */
+.ms-shelf h3, .ms-sub { margin: 4px 0 8px; color: var(--gold-2, #f5d06a); font: 600 12px/1.2 var(--font-body, inherit); letter-spacing: 0.12em; text-transform: uppercase; }
+.ms-sub { margin-top: 18px; }
+.sc-map.is-active { box-shadow: inset 0 0 0 2px #f5d06a, 0 0 18px rgba(245, 208, 106, 0.35); }
+.ms-live { position: absolute; top: 6px; left: 6px; z-index: 1; padding: 2px 8px; border-radius: 999px; background: #f5d06a; color: #1a1208; font: 600 10.5px/1.4 var(--font-body, inherit); font-style: normal; }
+button.sc-map { border: 0; font: inherit; }
+
+/* конструктор */
+.me-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  grid-template: 'head head head' auto 'tools canvas props' 1fr / 64px 1fr 280px;
+  background: #0b0906;
+  color: var(--parchment, #f1e4c8);
+  font-family: var(--font-body, inherit);
+}
+.me-head { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(196, 154, 60, 0.2); }
+.me-name { flex: 1; max-width: 420px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: 600 17px/1.2 var(--font-display, inherit); }
+.me-name:focus { outline: none; background: rgba(255, 255, 255, 0.05); }
+.me-state { margin-right: auto; font-size: 12px; opacity: 0.6; }
+.me-state.is-dirty, .me-state.is-saving { color: #f5d06a; opacity: 0.9; }
+.me-state.is-error { color: #ff8a80; opacity: 1; }
+
+.me-tools { grid-area: tools; display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-right: 1px solid rgba(196, 154, 60, 0.15); }
+.me-tools button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 10.5px; opacity: 0.65; cursor: pointer; transition: background 0.15s, opacity 0.15s; }
+.me-tools button svg { width: 20px; height: 20px; }
+.me-tools button:hover { opacity: 1; }
+.me-tools button.is-on { background: rgba(245, 208, 106, 0.14); color: #f5d06a; opacity: 1; }
+
+.me-canvas { grid-area: canvas; position: relative; min-width: 0; min-height: 0; }
+.me-tip { position: absolute; left: 50%; top: 10px; translate: -50% 0; margin: 0; padding: 4px 12px; border-radius: 999px; background: rgba(14, 10, 6, 0.8); font-size: 12px; opacity: 0.8; pointer-events: none; }
+
+.me-props { grid-area: props; overflow-y: auto; padding: 10px 14px 24px; border-left: 1px solid rgba(196, 154, 60, 0.15); }
+.me-props section { padding: 10px 0 14px; border-bottom: 1px solid rgba(196, 154, 60, 0.12); }
+.me-props h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: #f5d06a; font: 600 11.5px/1.2 var(--font-body, inherit); letter-spacing: 0.12em; text-transform: uppercase; }
+.me-props h3 svg { width: 14px; height: 14px; }
+.me-props label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; font-size: 13px; }
+.me-props input:not([type='checkbox']):not([type='color']), .me-props select { width: 112px; padding: 5px 8px; border: 0; border-radius: 7px; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; }
+.me-props > section > select { width: 100%; }
+.me-props label.me-check { justify-content: flex-start; }
+.me-props input[type='color'] { width: 40px; height: 26px; padding: 0; border: 0; background: none; }
+.me-grid label { margin: 4px 0; }
+.me-upload { justify-content: center !important; padding: 10px; border-radius: 10px; background: rgba(245, 208, 106, 0.08); color: #f5d06a; cursor: pointer; }
+.me-upload svg { width: 16px; height: 16px; }
+.me-del { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(229, 72, 77, 0.12); color: #ff9a92; font: inherit; font-size: 12.5px; cursor: pointer; }
+.me-del svg { width: 14px; height: 14px; }
+.me-stamps { display: flex; flex-wrap: wrap; gap: 5px; }
+.me-stamps button { padding: 4px 10px; border: 0; border-radius: 999px; background: rgba(217, 164, 65, 0.12); color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.me-stamps button.is-foe { background: rgba(200, 73, 60, 0.14); }
+.me-stamps button.is-on { background: #f5d06a; color: #1a1208; }

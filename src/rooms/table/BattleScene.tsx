@@ -6,7 +6,7 @@
  *
  * Кости бросает сервер; экран меняют только события.
  */
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { BookmarkPlus, Hand, ChevronLeft, ChevronRight, ChevronsUp, Crosshair, Dices, Flag, Hourglass, PawPrint, Plus, Shield, Sparkles, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
 import { ApiError, getCharacter, getEngineDictionaries, getSheet, roomCharacterRef, type Character, type EngineDictionaries, type Spell } from '../../api'
 import { Constellation } from '../../characters/SpellBook'
@@ -21,9 +21,11 @@ import { isFullCreature } from '../../types/rooms'
 import { useRoom, useRoomEvents } from '../RoomProvider'
 import { addCombatants, beginCombat, combatAction, concentrationSave, delayTurn, endCombat, nextTurn, patchCombatant, patchRoomCharacter, prevTurn as stepBack, revertCombatAction, rollInitiative, setInitiative, spendLegendary } from '../roomsApi'
 import { attackPresets, castable, loadBeastPresets, normDice, presetFromText, saveBeastPresets, spellLookup, spellPreset, type CasterHints, type Preset } from './actionPresets'
-import { facesFor, ManualRolls, manualReady, SpellCast, type ChanceMap } from './SpellCast'
+import { facesFor, ManualRolls, manualReady, SpellCast, type ChanceMap, type MapAimSpec } from './SpellCast'
+import { MapField } from '../../maps/MapField'
+import type { AimInfo, AimRequest } from '../../maps/types'
 import { CreatureCard, HeroCard } from './Cards'
-import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from './parts'
+import { cardRatio, creatureArt, creatureHp, creatureName, creatureSize, Hex, HpArc, originFromEvent, originOf, seed, Silhouette, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
 import { auraClass, describeEffect, EffectSigils, SURPRISED } from './effects'
 import { Img } from '../../media'
@@ -416,7 +418,13 @@ function ActionTray({
   onTargets,
   onChances,
   onClose,
+  mapAim,
+  onMapAim,
+  mapArea,
 }: {
+  mapAim?: AimRequest | null
+  onMapAim?: (spec: MapAimSpec | null, info: AimInfo | null) => void
+  mapArea?: boolean
   actor: CombatantView
   cmd: Cmd
   targets: string[]
@@ -634,7 +642,7 @@ function ActionTray({
   const manualFaces = facesFor([dice, heal])
   const canSave = cmd === 'attack' && !!label.trim() && (!!dice.trim() || bonus.trim() !== '') && !presets.some((p) => p.name === label.trim() && !p.custom && p.dice === normDice(dice) && String(p.bonus ?? '') === bonus)
   const slotText = slot ? `${slot.pool === 'pact' ? 'договор, ' : ''}${slot.level} круг` : 'без ячейки'
-  const aimBlock = <AimBlock cmd={cmd} hasSky={hasSky} slot={slot} slotText={slotText} onSlot={onSlot} me={me} targets={targets} allies={allies} foes={foes} same={same} onTargets={onTargets} needsTarget={needsTarget} />
+  const aimBlock = <AimBlock cmd={cmd} hasSky={hasSky} slot={slot} slotText={slotText} onSlot={onSlot} me={me} targets={targets} allies={allies} foes={foes} same={same} onTargets={onTargets} needsTarget={needsTarget} mapArea={mapArea} />
   const presetList = presets.length > 0 && (
     <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}${castPick ? ' is-compact' : ''}`}>
       {presets.map((p) => (
@@ -679,6 +687,8 @@ function ActionTray({
           onClose={onClose}
           aim={aimBlock}
           top={presetList}
+          mapAim={mapAim}
+          onMapAim={onMapAim}
         />
       </aside>
     )
@@ -878,7 +888,7 @@ function ActionTray({
   )
 }
 
-function AimBlock({ cmd, hasSky, slot, slotText, onSlot, me, targets, allies, foes, same, onTargets, needsTarget }: {
+function AimBlock({ cmd, hasSky, slot, slotText, onSlot, me, targets, allies, foes, same, onTargets, needsTarget, mapArea }: {
   cmd: Cmd
   hasSky: boolean
   slot: SlotPick | null
@@ -891,7 +901,26 @@ function AimBlock({ cmd, hasSky, slot, slotText, onSlot, me, targets, allies, fo
   same: (a: string[], b: string[]) => boolean
   onTargets: (ids: string[]) => void
   needsTarget: boolean
+  /** область наводится фигурой на карте: цели решает сервер */
+  mapArea?: boolean
 }) {
+  if (mapArea) {
+    return (
+      <>
+        {cmd === 'spell' && hasSky && (
+          <span className={`bt-slotline${slot ? ' is-set' : ''}`}>
+            <Sparkles aria-hidden="true" /> Ячейка: {slotText}
+            {slot && (
+              <button type="button" className="tb-linkbtn" onClick={() => onSlot(null)}>
+                без ячейки
+              </button>
+            )}
+          </span>
+        )}
+        <span className="bt-targets is-set">Цели — те, кого накроет фигура на карте</span>
+      </>
+    )
+  }
   return (
     <>
         {cmd === 'spell' && hasSky && (
@@ -1041,6 +1070,15 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const [concChecks, setConcChecks] = useState<ConcentrationCheck[]>([])
   const [chances, setChances] = useState<ChanceMap>({})
   const [groupInit, setGroupInit] = useState(true)
+  // наведение на карте: что наводим, куда, и что ответил сервер
+  const [aimSpec, setAimSpec] = useState<MapAimSpec | null>(null)
+  const [aimInfo, setAimInfo] = useState<AimInfo | null>(null)
+  const [mapAim, setMapAim] = useState<AimRequest | null>(null)
+  const onMapAim = useCallback((spec: MapAimSpec | null, info: AimInfo | null) => {
+    setAimSpec((cur) => (cur?.spell === spec?.spell && cur?.targeting === spec?.targeting ? cur : spec))
+    setAimInfo(info)
+    if (!spec) setMapAim(null)
+  }, [])
 
   // концентрация и «до успешного спасброска»: просьба бросить и итог над фигурой
   useRoomEvents((msg) => {
@@ -1189,14 +1227,35 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
 
       <TurnStrip list={units} current={current} />
 
-      <div className="bt-field">
-        <div className="bt-row is-enemies" style={{ '--n': enemies.length } as CSSProperties}>
-          {enemies.map(figure)}
+      {data.activeMap ? (
+        <div className="bt-map">
+          <MapField
+            targeting={targeting && !aimSpec}
+            picked={targets}
+            chances={Object.fromEntries(Object.entries(chances).map(([k, v]) => [k, v.chance]))}
+            onTarget={(cid) => {
+              const c = byId.get(cid)
+              if (c) onFigure(c, originOf(null))
+            }}
+            onOpen={(t) => {
+              const c = t.combatant_id ? byId.get(t.combatant_id) : undefined
+              if (c) setCardOpen({ c, origin: originOf(null) })
+            }}
+            aim={aimSpec && trayActor ? { ...aimSpec, casterCombatantId: trayActor.id } : null}
+            aimInfo={aimInfo}
+            onAim={setMapAim}
+          />
         </div>
-        <div className="bt-row is-party" style={{ '--n': party.length } as CSSProperties}>
-          {party.map(figure)}
+      ) : (
+        <div className="bt-field">
+          <div className="bt-row is-enemies" style={{ '--n': enemies.length } as CSSProperties}>
+            {enemies.map(figure)}
+          </div>
+          <div className="bt-row is-party" style={{ '--n': party.length } as CSSProperties}>
+            {party.map(figure)}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* команды хода */}
       <nav className="bt-cmds" aria-label="Команды">
@@ -1313,6 +1372,9 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
           onTargets={setTargets}
           onChances={setChances}
           onClose={closeTray}
+          mapAim={mapAim}
+          onMapAim={onMapAim}
+          mapArea={!!aimSpec}
         />
       )}
       {adding && <AddUnits onClose={() => setAdding(false)} />}

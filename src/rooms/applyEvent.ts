@@ -32,6 +32,7 @@ import type {
   RoomStatus,
 } from '../types/rooms'
 import { isEngineRoll, type RollPayload } from '../types/rooms'
+import type { BattleMap } from '../maps/types'
 
 /** Сколько записей журнала держим в памяти */
 export const LOG_LIMIT = 300
@@ -58,11 +59,13 @@ export interface RoomData {
   sharedNotes: SharedNote[]
   /** номера скрытых бросков, которые мастер уже раскрыл */
   revealed: number[]
+  /** боевая карта на столе: мастеру целиком, игроку — проекция */
+  activeMap: BattleMap | null
 }
 
 /** То, чего нет в снимке /state: оно грузится отдельно и переживает пересъём снимка */
-export type RoomExtras = Pick<RoomData, 'chat' | 'clocks' | 'sharedNotes' | 'revealed'>
-const NO_EXTRAS: RoomExtras = { chat: [], clocks: [], sharedNotes: [], revealed: [] }
+export type RoomExtras = Pick<RoomData, 'chat' | 'clocks' | 'sharedNotes' | 'revealed' | 'activeMap'>
+const NO_EXTRAS: RoomExtras = { chat: [], clocks: [], sharedNotes: [], revealed: [], activeMap: null }
 
 /** Сколько сообщений чата держим */
 export const CHAT_LIMIT = 400
@@ -84,6 +87,7 @@ export function fromSnapshot(s: RoomState, prevLog: RoomLogEntry[] = [], extras:
     clocks: extras.clocks,
     sharedNotes: extras.sharedNotes,
     revealed: extras.revealed,
+    activeMap: extras.activeMap,
   }
 }
 
@@ -279,6 +283,28 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
 
     case 'note.unshared':
       return { ...base, sharedNotes: without(base.sharedNotes, p.note_id) }
+
+    case 'map.activated': {
+      const m = p.map as BattleMap | undefined
+      return m ? { ...base, activeMap: m, room: { ...base.room, active_map_id: m.id } } : base
+    }
+    case 'map.updated': {
+      const m = p.map as BattleMap | undefined
+      if (!m) return base
+      // обновилась та, что на столе, — заменить; спрятали — убрать со стола
+      if (base.activeMap?.id === m.id || base.room.active_map_id === m.id) return { ...base, activeMap: m.revealed || base.me.role === 'dm' ? m : null }
+      return base
+    }
+    case 'map.token_moved': {
+      const am = base.activeMap
+      if (!am) return base
+      return { ...base, activeMap: { ...am, tokens: am.tokens.map((t) => (t.id === p.token_id ? { ...t, x: p.x, y: p.y, elevation_ft: p.elevation_ft ?? t.elevation_ft } : t)) } }
+    }
+    case 'map.door': {
+      const am = base.activeMap
+      if (!am) return base
+      return { ...base, activeMap: { ...am, walls: am.walls.map((w) => (w.id === p.wall_id ? { ...w, door: { ...(w.door ?? { open: false, locked: false }), open: !!p.open, locked: !!p.locked } } : w)) } }
+    }
 
     case 'dice.revealed': {
       const at = Number(p.rolled_seq)

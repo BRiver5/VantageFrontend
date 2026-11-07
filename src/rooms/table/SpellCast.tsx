@@ -5,6 +5,14 @@
  * игрок вписывает, что выпало на живых кубиках, — сервер проверит грани и
  * прибавит модификаторы, а 3D-кости упадут на те же значения.
  */
+import type { AimInfo, AimRequest, SpellTargeting } from '../../maps/types'
+import { aimColor, targetingOf } from '../../maps/aim'
+
+export interface MapAimSpec {
+  targeting: SpellTargeting
+  spell: string
+  color: string
+}
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Clock3, Crosshair, Dices, Hand, Info, Minus, Plus, Shield, Sparkles, Sun, Wand2 } from 'lucide-react'
 import type { SpellMechanics } from '../../api'
@@ -139,6 +147,8 @@ export function SpellCast({
   onClose,
   aim,
   top,
+  mapAim,
+  onMapAim,
 }: {
   actor: CombatantView
   spellName: string
@@ -153,6 +163,10 @@ export function SpellCast({
   aim: ReactNode
   /** список заклинаний над карточкой: можно передумать */
   top?: ReactNode
+  /** наведение на карте: запрос от MapField */
+  mapAim?: AimRequest | null
+  /** что наводить (null — убрать) и ответ сервера */
+  onMapAim?: (spec: MapAimSpec | null, info: AimInfo | null) => void
 }) {
   const { roomId, data, isDm } = useRoom()
   const combat = data?.combat
@@ -188,6 +202,15 @@ export function SpellCast({
     })
   }, [targets, total])
 
+  // на карте область наводится фигурой; одиночные цели — кликом по жетонам
+  const onMap = !!data?.activeMap
+  const aimTg = useMemo(() => (onMap ? targetingOf(mech) : null), [onMap, mech])
+  useEffect(() => {
+    onMapAim?.(aimTg ? { targeting: aimTg, spell: spellName, color: aimColor(mech) } : null, null)
+    return () => onMapAim?.(null, null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aimTg, spellName])
+
   const body = useMemo<CastRequest | null>(() => {
     if (!combat) return null
     return {
@@ -201,8 +224,9 @@ export function SpellCast({
       ...(advantage ? { advantage } : {}),
       ...(total && Object.keys(shots).length ? { projectiles: shots } : {}),
       ...(mech.summons?.some((s) => s.choose_count) ? { summon_count: summonCount } : {}),
+      ...(aimTg && mapAim ? { aim: mapAim } : {}),
     }
-  }, [combat, actor.id, spellName, slot, mech, ritual, repeat, targets, damageType, advantage, total, shots, summonCount])
+  }, [combat, actor.id, spellName, slot, mech, ritual, repeat, targets, damageType, advantage, total, shots, summonCount, aimTg, mapAim])
 
   // предпросмотр: Сл, формулы и шансы — не чаще раза в 250 мс
   const seq = useRef(0)
@@ -214,6 +238,7 @@ export function SpellCast({
         (p) => {
           if (my !== seq.current) return
           setPreview(p)
+          if (aimTg) onMapAim?.({ targeting: aimTg, spell: spellName, color: aimColor(mech) }, p.aim ?? null)
           onChances(Object.fromEntries((p.targets ?? []).map((x) => [x.combatant_id, { chance: x.chance, kind: x.kind }])))
         },
         () => undefined,

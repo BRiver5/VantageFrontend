@@ -114,6 +114,11 @@ export class RoomSocket {
   }
 
   /** Файлы контента загружены */
+  /** Эфемерное сообщение (map.drag, map.aim, map.ping): без seq, лишнее сервер отбрасывает */
+  sendEphemeral(obj: { type: string } & Record<string, unknown>) {
+    this.send(obj)
+  }
+
   sendClientReady(contentId: string) {
     this.send({ type: 'client.ready', content_id: contentId })
   }

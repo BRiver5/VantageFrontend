@@ -21,6 +21,7 @@ import { addCombatants, addCreatures, claimItem, createMap, createTemplate, dele
 import { CardEffects, CreatureBack, HpControls, STAT_RU, statsOf } from './Cards'
 import { creatureArt, creatureHp, creatureName, errText, Hex, HpVessel, itemArt, itemName, SIZE_RU } from './parts'
 import { Img } from '../../media'
+import { MapsShelf } from '../../maps/MapsShelf'
 
 /* ---------- общее ---------- */
 
@@ -823,6 +824,8 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
   return (
     <div className={onlyQuick ? '' : 'sc-two is-maps'}>
       <div className="sc-pane">
+        {!onlyQuick && <MapsShelf />}
+        {!onlyQuick && <h3 className="ms-sub">Картинки для показа</h3>}
         <ul className="sc-maps">
           {!onlyQuick && (
             <li>

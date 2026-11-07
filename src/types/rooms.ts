@@ -1,3 +1,4 @@
+import type { AimInfo, AimRequest } from '../maps/types'
 /**
  * Типы комнат — по контракту бэкенда (ROOMS_FRONTEND.md).
  * Даты и UUID приходят строками. Схемы Equipment, MagicItem, Creature,
@@ -54,6 +55,8 @@ export interface Room {
   settings: RoomSettings
   seq: number
   active_combat_id: string | null
+  /** карта на столе */
+  active_map_id?: string | null
   audio: RoomAudioState
   created_at?: string
   updated_at?: string
@@ -442,6 +445,8 @@ export interface CastRequest {
   secret?: boolean
   summon_ref?: string | null
   summon_count?: number | null
+  /** наведение на карте: точка или направление; цели тогда выбирает сервер */
+  aim?: AimRequest | null
 }
 
 /** Что сервер собирается сделать: ответ spell у cast и cast/preview */
@@ -471,6 +476,8 @@ export interface CastPlan {
 
 export interface CastPreview {
   spell: CastPlan
+  /** фигура на карте и кто под ней */
+  aim?: AimInfo | null
   targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number }[]
 }
 
