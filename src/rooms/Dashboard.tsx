@@ -4,6 +4,7 @@
  * и выход за край проверяются на клиенте (сервер на такое отвечает 422).
  * Раскладка сохраняется через PUT /screen/dashboard с задержкой.
  */
+import { SoundboardPanel } from './RoomAudio'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import { Dices, GripHorizontal, LayoutGrid, Lock, Pencil, Plus, ScrollText, Swords, Trash2, Users, Volume2, Package, Map as MapIcon, NotebookPen, Skull } from 'lucide-react'
 import { ApiError } from '../api'
@@ -181,7 +182,7 @@ function WidgetBody({ type }: { type: WidgetType }): ReactNode {
     case 'log':
       return <RoomLog bare limit={60} />
     case 'soundboard':
-      return <p className="tb-hint">Звуки и музыка появятся позже: место под них уже готово.</p>
+      return <SoundboardPanel />
   }
 }
 

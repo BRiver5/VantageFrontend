@@ -10,7 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { parsePortrait } from '../characters/portrait'
 import { useRoom, useRoomEvents } from '../rooms/RoomProvider'
 import { creatureArt } from '../rooms/table/parts'
-import { doorAction, movePreview, moveToken } from './api'
+import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, moveToken, myUnits, patchMap, pickUp, type MyUnit } from './api'
+import { getAttribution, sfxFor, type AssetCredit } from './assets'
+import type { BattleMap, MapObject } from './types'
+import { MapUnits } from './MapUnits'
 import { angleTo, areaPolygon, cellCenter, cellOf, dist, pxPerFt } from './geometry'
 import { MapCanvas, pathPoints, type MapCanvasHandle } from './MapCanvas'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
@@ -59,6 +62,9 @@ export function MapField({
   const [aimPt, setAimPt] = useState<Pt | null>(null)
   const [locked, setLocked] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  const [objMenu, setObjMenu] = useState<MapObject | null>(null)
+  const [moveMode, setMoveMode] = useState<'walk' | 'fly'>('walk')
+  const [flyHeight, setFlyHeight] = useState(10)
   const dragging = useRef<{ id: string; from: Pt } | null>(null)
   const lastDrag = useRef(0)
   const lastAim = useRef(0)
@@ -67,12 +73,45 @@ export function MapField({
   const mine = data?.me.room_character_id ?? null
   const combat = data?.combat
 
+  // мои существа по серверу: герой и призванные; обновляем после событий карты и боя
+  const [units, setUnits] = useState<MyUnit[]>([])
+  const [unitsTick, setUnitsTick] = useState(0)
+  const [messages, setMessages] = useState<{ id: number; text: string }[]>([])
+  const [fired, setFired] = useState<{ id: number; text: string }[]>([])
+  const mapId = map?.id
+  useEffect(() => {
+    if (!mapId || isDm) return
+    const t = setTimeout(() => {
+      myUnits(roomId).then(
+        (r) => setUnits(r.map_id === mapId ? r.units : []),
+        () => setUnits([]),
+      )
+    }, 150)
+    return () => clearTimeout(t)
+  }, [roomId, mapId, isDm, unitsTick, combat?.revision])
+
+  // Сервер ставит жетоны участникам боя только при «На стол». Начали бой или
+  // добавили врагов после этого — мастер повторяет activate: недостающие жетоны
+  // появятся, уже стоящие на карте свяжутся с участниками
+  const relinked = useRef('')
+  useEffect(() => {
+    if (!isDm || !map || !combat || combat.status === 'ended') return
+    const linked = new Set(map.tokens.map((t) => t.combatant_id).filter(Boolean))
+    const missing = combat.combatants.filter((c) => !c.defeated && !linked.has(c.id)).map((c) => c.id)
+    if (!missing.length) return
+    const key = `${map.id}:${combat.id}:${missing.sort().join(',')}`
+    if (relinked.current === key) return
+    relinked.current = key
+    void activateMap(roomId, map.id).catch(() => undefined)
+  }, [isDm, map, combat, roomId])
+
   /** мои жетоны: свой герой и призванные, которыми я управляю */
   const myTokens = useMemo(() => {
     if (!map) return [] as MapToken[]
+    if (units.length) return map.tokens.filter((t) => units.some((u) => u.token_id === t.id))
     const ruled = new Set((combat?.combatants ?? []).filter((c) => c.controller_id && c.controller_id === meUser).map((c) => c.id))
     return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
-  }, [map, combat, meUser, mine])
+  }, [map, combat, meUser, mine, units])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
 
   const flash = (text: string) => {
@@ -105,6 +144,34 @@ export function MapField({
       const path = (p.path as [number, number][] | undefined) ?? []
       if (path.length > 1) canvas.current?.walk(String(p.token_id), pathPoints(map.grid, path))
       setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== p.token_id)))
+      setUnitsTick((n) => n + 1)
+      return
+    }
+    if (msg.type === 'map.updated' || msg.type === 'map.door') {
+      setUnitsTick((n) => n + 1)
+      return
+    }
+    const live = !msg.ts || Date.now() - Date.parse(msg.ts) < 15000
+    if (msg.type === 'map.item') {
+      setUnitsTick((n) => n + 1)
+      if (!live) return
+      const tk = map.tokens.find((t) => t.id === (p.token_id ?? p.to_token_id))
+      const at = p.x != null ? { x: Number(p.x), y: Number(p.y) } : tk ? { x: tk.x, y: tk.y } : null
+      if (at) canvas.current?.effect(p.action === 'dropped' ? 'impact.bludgeoning' : 'buff.arcane', at, map.grid.cell_px * 0.4)
+      if (p.action === 'handed' && p.name) flash(`Передано: ${p.name}`)
+      return
+    }
+    if (msg.type === 'map.message' && live) {
+      const id = msg.seq ?? Date.now()
+      setMessages((l) => [...l.slice(-2), { id, text: String(p.text ?? '') }])
+      setTimeout(() => setMessages((l) => l.filter((x) => x.id !== id)), 7000)
+      return
+    }
+    if (msg.type === 'map.trigger_fired' && live) {
+      const id = msg.seq ?? Date.now()
+      const n = Array.isArray(p.log) ? p.log.length : 0
+      setFired((l) => [...l.slice(-3), { id, text: `⚡ ${String(p.name ?? 'Триггер')}${n ? ` · ${n} шаг.` : ''}` }])
+      setTimeout(() => setFired((l) => l.filter((x) => x.id !== id)), 6000)
       return
     }
     const fromOther = (p.user_id as string | undefined) !== meUser
@@ -130,6 +197,19 @@ export function MapField({
     }
     if (msg.type === 'map.vfx') {
       const v = p as unknown as MapVfx
+      // звуки этапов: первый ассет по тегам, если он есть в библиотеке
+      const pr = v.presentation
+      ;[pr?.cast, pr?.area ?? pr?.impact].forEach((st, i) => {
+        if (!st?.sfx_tags?.length) return
+        void sfxFor(st.sfx_tags).then((a) => {
+          if (!a) return
+          setTimeout(() => {
+            const au = new Audio(a.urls.ogg || a.urls.original)
+            au.volume = 0.7
+            void au.play().catch(() => undefined)
+          }, i ? 450 + (st.delay_ms ?? 0) : 0)
+        })
+      })
       canvas.current?.vfx(v, (cid) => {
         const t = map.tokens.find((x) => x.combatant_id === cid)
         return t ? { x: t.x, y: t.y } : null
@@ -195,7 +275,7 @@ export function MapField({
     setSelected(t.id)
     setReach(null)
     try {
-      const pv = await movePreview(roomId, map.id, t.id)
+      const pv = await movePreview(roomId, map.id, t.id, moveMode)
       setReach(new Map(pv.cells.map((c) => [`${c.cell[0]},${c.cell[1]}`, c.cost])))
     } catch (e) {
       flash(errText(e))
@@ -204,7 +284,7 @@ export function MapField({
   const go = async (t: MapToken, to: Pt) => {
     if (!map) return
     try {
-      await moveToken(roomId, map.id, t.id, { to })
+      await moveToken(roomId, map.id, t.id, { to, mode: moveMode, ...(moveMode === 'fly' ? { elevation_ft: flyHeight } : {}) })
       setReach(null)
       setSelected(null)
     } catch (e) {
@@ -280,6 +360,26 @@ export function MapField({
       void go(t, cellCenter(map.grid, c, r))
       return
     }
+    // объект с действиями: «Обыскать», «Открыть»… — если не идём на эту клетку
+    const [oc, orr] = cellOf(map.grid, p)
+    const obj = [...map.objects].reverse().find((o) => (o.interactions?.length ?? 0) > 0 && Math.abs(p.x - o.x) <= o.w / 2 && Math.abs(p.y - o.y) <= o.h / 2)
+    if (obj && (obj.blocks_move || !(selected && reach?.has(`${oc},${orr}`)))) {
+      setObjMenu(obj)
+      return
+    }
+    // клик по предмету рядом со своим юнитом — поднять
+    const item = map.items.find((i) => !i.carried_by && !i.container_object_id && Math.hypot(i.x - p.x, i.y - p.y) < map.grid.cell_px * 0.35)
+    if (item) {
+      const who = units.find((u) => u.token_id === selected && u.reach_items.includes(item.id)) ?? units.find((u) => u.reach_items.includes(item.id))
+      if (who) {
+        void pickUp(roomId, map.id, item.id, who.token_id).then(() => setUnitsTick((n) => n + 1), (e) => flash(errText(e)))
+        return
+      }
+      if (units.length) {
+        flash('Слишком далеко: подойдите на 5 футов')
+        return
+      }
+    }
     if (selected && reach) {
       const t = map.tokens.find((x) => x.id === selected)
       const [c, r] = cellOf(map.grid, p)
@@ -316,6 +416,7 @@ export function MapField({
         artOf={artOf}
         overlays={{
           reach,
+          reachItems: (selected ? units.filter((u) => u.token_id === selected) : units).flatMap((u) => u.reach_items),
           path: pathLine,
           selected,
           drags,
@@ -358,6 +459,78 @@ export function MapField({
         <p className="mp-note" role="alert">
           {note}
         </p>
+      )}
+      {!aim && !isDm && units.length > 0 && (
+        <MapUnits
+          roomId={roomId}
+          map={map}
+          units={units}
+          selected={units.some((u) => u.token_id === selected) ? selected : null}
+          onSelect={(id) => {
+            const t = id ? map.tokens.find((x) => x.id === id) : null
+            if (t) {
+              void select(t)
+              canvas.current?.ping({ x: t.x, y: t.y }, '#78c8ff')
+            } else {
+              setSelected(null)
+              setReach(null)
+            }
+          }}
+          onDone={() => setUnitsTick((n) => n + 1)}
+          onError={flash}
+          moveMode={moveMode}
+          flyHeight={flyHeight}
+          onMoveMode={(mode, h) => {
+            setMoveMode(mode)
+            setFlyHeight(h)
+            const t = selected ? map.tokens.find((x) => x.id === selected) : null
+            if (t) {
+              setReach(null)
+              void movePreview(roomId, map.id, t.id, mode).then((pv) => setReach(new Map(pv.cells.map((c) => [`${c.cell[0]},${c.cell[1]}`, c.cost]))), (e) => flash(errText(e)))
+            }
+          }}
+        />
+      )}
+      {messages.length > 0 && (
+        <div className="mp-messages" role="status">
+          {messages.map((m) => (
+            <p key={m.id}>{m.text}</p>
+          ))}
+        </div>
+      )}
+      <Credits map={map} />
+      {objMenu && (
+        <div className="mp-objmenu" role="dialog" aria-label={objMenu.name}>
+          <b>{objMenu.name}</b>
+          {(objMenu.interactions ?? []).map((ia) => (
+            <button
+              key={ia.id}
+              type="button"
+              onClick={() => {
+                const who = units.find((u) => u.token_id === selected) ?? units[0]
+                void interactObject(roomId, map.id, objMenu.id, ia.id, who?.token_id).then(
+                  (r) => flash(r.dc != null ? (r.success ? `${ia.label}: успех (Сл ${r.dc})` : `${ia.label}: провал (Сл ${r.dc})`) : `${ia.label}: готово`),
+                  (e) => flash(errText(e)),
+                )
+                setObjMenu(null)
+              }}
+            >
+              {ia.label}
+              {ia.economy === 'action' ? ' · действие' : ia.economy === 'bonus' ? ' · бонусное' : ''}
+            </button>
+          ))}
+          <button type="button" className="mp-objmenu-x" onClick={() => setObjMenu(null)} aria-label="Закрыть">
+            ×
+          </button>
+        </div>
+      )}
+      {isDm && !aim && <DmMapTools map={map} roomId={roomId} onError={flash} onDone={flash} />}
+      {isDm && fired.length > 0 && (
+        <ul className="mp-fired" aria-label="Сработавшие триггеры">
+          {fired.map((f) => (
+            <li key={f.id}>{f.text}</li>
+          ))}
+        </ul>
       )}
       {!isDm && map.fog?.mode !== 'off' && !map.fog?.honest && myTokens.length === 0 && <p className="mp-note is-soft">Вашего героя нет на карте</p>}
     </div>
@@ -402,6 +575,103 @@ function Joystick({ onAim }: { onAim: (angle: number, magnitude: number) => void
       aria-valuetext="направление"
     >
       <span className="mp-joy-knob" style={{ transform: `translate(${knob.x}px, ${knob.y}px)` }} />
+    </div>
+  )
+}
+
+/** Мастер на столе: разбудить группу, запустить триггер, туман */
+function DmMapTools({ map, roomId, onError, onDone }: { map: BattleMap; roomId: string; onError: (t: string) => void; onDone: (t: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const groups = [...new Set(map.tokens.filter((t) => t.group && (t.dormant || t.hidden)).map((t) => t.group!))]
+  const triggers = (map.triggers ?? []).filter((t) => t.enabled)
+  const run = (fn: () => Promise<unknown>, ok: string) => fn().then(() => onDone(ok), (e) => onError(errText(e)))
+  if (!groups.length && !triggers.length && map.fog.mode === 'off') return null
+  return (
+    <div className={`mp-dmtools${open ? ' is-open' : ''}`}>
+      <button type="button" className="mp-dmtools-btn" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        Сценарий
+      </button>
+      {open && (
+        <div className="mp-dmtools-pop">
+          {groups.length > 0 && (
+            <section>
+              <b>Разбудить</b>
+              {groups.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() =>
+                    run(
+                      () => editMap(roomId, map.id, { revision: map.revision, tokens: { update: map.tokens.filter((t) => t.group === g).map((t) => ({ id: t.id, dormant: false, hidden: false })) } }),
+                      `Группа «${g}» проснулась`,
+                    )
+                  }
+                >
+                  {g}
+                </button>
+              ))}
+            </section>
+          )}
+          {triggers.length > 0 && (
+            <section>
+              <b>Запустить</b>
+              {triggers.map((t) => (
+                <button key={t.id} type="button" onClick={() => run(() => fireTrigger(roomId, map.id, t.id), `«${t.name}» запущен`)}>
+                  {t.name}
+                </button>
+              ))}
+            </section>
+          )}
+          {map.fog.mode !== 'off' && (
+            <section>
+              <b>Туман</b>
+              <button type="button" onClick={() => run(() => patchMap(roomId, map.id, { fog: { ...map.fog, mode: 'off' }, revision: map.revision } as Partial<BattleMap>), 'Туман снят')}>
+                снять
+              </button>
+            </section>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** «Авторы»: ассеты карты под CC-BY требуют подписи */
+function Credits({ map }: { map: BattleMap }) {
+  const ids = useMemo(() => [...new Set([...map.layers, ...map.objects, ...map.tokens, ...map.items].map((x) => x.asset_id).filter((x): x is string => !!x))].sort(), [map.layers, map.objects, map.tokens, map.items])
+  const [open, setOpen] = useState(false)
+  const [list, setList] = useState<AssetCredit[] | null>(null)
+  const key = ids.join(',')
+  useEffect(() => setList(null), [key])
+  if (ids.length === 0) return null
+  const named = (list ?? []).filter((c) => c.attribution || c.license.attribution)
+  return (
+    <div className={`mp-credits${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v)
+          if (!list) void getAttribution(ids.slice(0, 200)).then(setList, () => setList([]))
+        }}
+        aria-expanded={open}
+        aria-label="Авторы ассетов карты"
+        title="Авторы ассетов"
+      >
+        ©
+      </button>
+      {open && (
+        <div className="mp-credits-pop">
+          {!list && <p>Загружаем…</p>}
+          {list && named.length === 0 && <p>Все ассеты карты — общественное достояние (CC0) или ваши.</p>}
+          {named.length > 0 && (
+            <ul>
+              {[...new Set(named.map((c) => c.attribution || c.license.attribution))].map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }

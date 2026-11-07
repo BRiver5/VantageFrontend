@@ -9,6 +9,7 @@
  * темнота; в радиусе тёмного зрения темнота становится серо-синей. Без
  * честного тумана (fog.honest) это только вид: данные приходят все.
  */
+import { loadPresets, presetOf, VfxEngine } from './vfx'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type PointerEvent as RPointerEvent } from 'react'
 import { blockingSegments, cellCenter, circle, pxPerFt, visibility } from './geometry'
 import type { BattleMap, MapToken, MapVfx, Pt } from './types'
@@ -32,6 +33,12 @@ export interface MapOverlays {
   editor?: boolean
   /** черновик стены в конструкторе */
   draft?: Pt[] | null
+  /** конструктор: высоты пола числами и цветом */
+  heights?: boolean
+  /** черновик — замкнутый контур (зона) */
+  closeDraft?: boolean
+  /** предметы, до которых можно дотянуться: пульсируют */
+  reachItems?: string[]
   /** чужие шаблоны наведения: бледно */
   ghosts?: { polygon: Pt[]; color: string }[]
 }
@@ -50,6 +57,8 @@ export interface MapCanvasHandle {
   centerOn: (p: Pt) => void
   ping: (p: Pt, color?: string) => void
   vfx: (v: MapVfx, at: (combatantId: string) => Pt | null) => void
+  /** разовый пресет в точке (зона легла, предмет упал) */
+  effect: (presetId: string, p: Pt, size?: number) => void
   /** анимировать ход по клеткам */
   walk: (tokenId: string, path: Pt[]) => void
 }
@@ -71,16 +80,6 @@ const ELEMENT: Record<string, string[]> = {
   arcane: ['#ffffff', '#e6d6ff', '#a78bfa', '#5b3fb5'],
 }
 
-interface Particle {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  life: number
-  max: number
-  size: number
-  color: string
-}
 interface FloatText {
   x: number
   y: number
@@ -110,7 +109,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const dirty = useRef(true)
   const anim = useRef(new Map<string, { path: Pt[]; t0: number }>())
   const pings = useRef<{ p: Pt; t0: number; color: string }[]>([])
-  const parts = useRef<Particle[]>([])
+  const fx = useRef<VfxEngine>(null as unknown as VfxEngine)
+  fx.current ??= new VfxEngine()
+  useEffect(() => () => fx.current.dispose(), [])
   const floats = useRef<FloatText[]>([])
   const props = useRef({ map, viewer, overlays, artOf })
   props.current = { map, viewer, overlays, artOf }
@@ -175,13 +176,30 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (path.length > 1) anim.current.set(tokenId, { path, t0: performance.now() })
       dirty.current = true
     },
+    effect: (presetId, p, size) => {
+      void loadPresets([presetId]).then(() => {
+        fx.current.play(presetOf(presetId), { at: p, size: size ?? 30 })
+        dirty.current = true
+      })
+    },
     vfx: (v, at) => {
+      const m = props.current.map
+      const tk = v.caster_token_id ? m.tokens.find((t) => t.id === v.caster_token_id) : null
+      const caster = tk ? { x: tk.x, y: tk.y } : at(v.actor_combatant_id)
       const pal = v.presentation?.palette?.length ? v.presentation.palette : (ELEMENT[v.presentation?.element ?? v.damage_type ?? 'arcane'] ?? ELEMENT.arcane)
+      const pr = v.presentation
+      if (pr?.cast || pr?.area || pr?.impact || pr?.travel) {
+        void fx.current.run({ ...v, presentation: { ...pr, palette: pal } }, at, caster, (p, text, color) => {
+          floats.current.push({ x: p.x, y: p.y - 30, text, color, life: 0 })
+        })
+        dirty.current = true
+        return
+      }
       const burst = (p: Pt, n: number, spread: number) => {
         for (let i = 0; i < n; i++) {
           const a = Math.random() * Math.PI * 2
           const s = Math.random() * spread
-          parts.current.push({ x: p.x, y: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: 500 + Math.random() * 600, size: 2 + Math.random() * 4, color: pal[Math.floor(Math.random() * pal.length)] })
+          fx.current.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: 500 + Math.random() * 600, size: 2 + Math.random() * 4, rot: 0, spin: 0, gravity: 0, ramp: [pal[Math.floor(Math.random() * pal.length)]], alpha: [1, 0], blend: 'lighter', sprite: 'spark' })
         }
       }
       // путь снаряда или луча
@@ -222,7 +240,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       last = now
       const c = canvas.current
       if (!c) return
-      const busy = anim.current.size > 0 || pings.current.length > 0 || parts.current.length > 0 || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
+      const zoneFx = props.current.map.zones.some((z) => z.enabled && z.vfx_preset)
+      const busy = zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
       const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
       if (!dirty.current && !busy && !flick) return
       dirty.current = false
@@ -248,8 +267,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       ctx.fillStyle = '#0d0a07'
       ctx.fillRect(0, 0, W, H)
       const v = cam.current
+      fx.current.unit = g.cell_px / 70
+      fx.current.ppf = pxPerFt(g)
+      fx.current.update(dt)
+      const sh = fx.current.shake()
       ctx.save()
-      ctx.translate(v.x, v.y)
+      ctx.translate(v.x + sh.x, v.y + sh.y)
       ctx.scale(v.k, v.k)
 
       // слои
@@ -262,6 +285,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         ctx.globalAlpha = l.opacity ?? 1
         ctx.translate(l.x + l.w / 2, l.y + l.h / 2)
         ctx.rotate(((l.rotation ?? 0) * Math.PI) / 180)
+        ctx.imageSmoothingEnabled = im.naturalWidth > 64
         ctx.drawImage(im, -l.w / 2, -l.h / 2, l.w, l.h)
         ctx.restore()
       }
@@ -275,10 +299,29 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         ctx.save()
         ctx.translate(o.x, o.y)
         ctx.rotate(((o.rotation ?? 0) * Math.PI) / 180)
-        if (im) ctx.drawImage(im, -o.w / 2, -o.h / 2, o.w, o.h)
-        else {
+        ctx.globalAlpha = o.hidden ? 0.5 : 1
+        if (im) {
+          ctx.imageSmoothingEnabled = im.naturalWidth > 64
+          ctx.drawImage(im, -o.w / 2, -o.h / 2, o.w, o.h)
+        } else {
           ctx.fillStyle = 'rgba(120, 90, 60, 0.6)'
           ctx.fillRect(-o.w / 2, -o.h / 2, o.w, o.h)
+        }
+        if (ov.editor && ov.selected === o.id) {
+          ctx.strokeStyle = '#78c8ff'
+          ctx.lineWidth = 2.5 / v.k
+          ctx.setLineDash([6 / v.k, 4 / v.k])
+          ctx.strokeRect(-o.w / 2, -o.h / 2, o.w, o.h)
+        }
+        if (ov.heights && o.height_ft) {
+          ctx.rotate((-(o.rotation ?? 0) * Math.PI) / 180)
+          ctx.font = `700 ${Math.max(10, g.cell_px * 0.2)}px system-ui, sans-serif`
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#fff'
+          ctx.strokeStyle = 'rgba(0,0,0,0.8)'
+          ctx.lineWidth = 3 / v.k
+          ctx.strokeText(`${o.height_ft} фт`, 0, 4)
+          ctx.fillText(`${o.height_ft} фт`, 0, 4)
         }
         ctx.restore()
       }
@@ -288,6 +331,29 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         const [cc, rr] = key.split(',').map(Number)
         ctx.fillStyle = 'rgba(160, 120, 60, 0.18)'
         ctx.fillRect(g.offset_x + cc * g.cell_px, g.offset_y + rr * g.cell_px, g.cell_px, g.cell_px)
+      }
+      if (ov.heights) {
+        ctx.font = `700 ${Math.max(10, g.cell_px * 0.24)}px system-ui, sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        for (const [key, h] of Object.entries(m.terrain?.elevation ?? {})) {
+          if (!h) continue
+          const [cc, rr] = key.split(',').map(Number)
+          const x = g.offset_x + cc * g.cell_px
+          const y = g.offset_y + rr * g.cell_px
+          const a = Math.min(0.55, 0.12 + Math.abs(h) / 60)
+          ctx.fillStyle = h > 0 ? `rgba(255, 170, 60, ${a})` : `rgba(70, 120, 255, ${a})`
+          ctx.fillRect(x, y, g.cell_px, g.cell_px)
+          ctx.fillStyle = '#fff'
+          ctx.fillText(String(h), x + g.cell_px / 2, y + g.cell_px / 2)
+        }
+        for (const key of m.terrain?.climbable ?? []) {
+          const [cc, rr] = key.split(',').map(Number)
+          ctx.strokeStyle = 'rgba(140, 255, 160, 0.7)'
+          ctx.lineWidth = 2 / v.k
+          ctx.strokeRect(g.offset_x + cc * g.cell_px + 3, g.offset_y + rr * g.cell_px + 3, g.cell_px - 6, g.cell_px - 6)
+        }
+        ctx.textBaseline = 'alphabetic'
       }
       for (const key of m.terrain?.water ?? []) {
         const [cc, rr] = key.split(',').map(Number)
@@ -316,8 +382,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         ctx.save()
         ctx.fillStyle = z.source?.kind === 'spell' ? 'rgba(170, 120, 255, 0.18)' : 'rgba(255, 200, 90, 0.12)'
         ctx.strokeStyle = z.source?.kind === 'spell' ? 'rgba(190, 150, 255, 0.7)' : 'rgba(255, 210, 120, 0.5)'
-        ctx.setLineDash([6 / v.k, 4 / v.k])
-        ctx.lineWidth = 1.5 / v.k
+        ctx.setLineDash(ov.editor && ov.selected === z.id ? [] : [6 / v.k, 4 / v.k])
+        ctx.lineWidth = (ov.editor && ov.selected === z.id ? 3 : 1.5) / v.k
+        if (ov.editor && ov.selected === z.id) ctx.strokeStyle = '#78c8ff'
         if (z.shape.kind === 'cells') {
           for (const key of z.shape.cells ?? []) {
             const [cc, rr] = key.split(',').map(Number)
@@ -331,7 +398,21 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
           ctx.stroke()
         }
         ctx.restore()
+        // постоянный эффект зоны
+        if (z.vfx_preset) {
+          const pre = presetOf(z.vfx_preset)
+          if (!pre) void loadPresets([z.vfx_preset])
+          const cellsPts = z.shape.kind === 'cells' ? (z.shape.cells ?? []).map((key) => { const [cc, rr] = key.split(',').map(Number); return { x: g.offset_x + (cc + 0.5) * g.cell_px, y: g.offset_y + (rr + 0.5) * g.cell_px } }) : []
+          const all = pts.length ? pts : cellsPts
+          if (all.length) {
+            const cx = all.reduce((s, p) => s + p.x, 0) / all.length
+            const cy = all.reduce((s, p) => s + p.y, 0) / all.length
+            const size = Math.max(g.cell_px / 2, ...all.map((p) => Math.hypot(p.x - cx, p.y - cy)))
+            fx.current.zone(z.id, pre, pts.length > 2 ? { at: { x: cx, y: cy }, size, polygon: pts } : { at: { x: cx, y: cy }, size }, dt)
+          }
+        }
       }
+      fx.current.drawDecals(ctx)
 
       // досягаемые клетки
       if (ov.reach) {
@@ -353,14 +434,53 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }
 
       // предметы на полу
-      for (const it of m.items.filter((i) => !i.carried_by && (vw.isDm || !i.hidden))) {
+      for (const it of m.items.filter((i) => !i.carried_by && !i.container_object_id && (vw.isDm || !i.hidden))) {
         ctx.save()
         ctx.translate(it.x, it.y)
-        ctx.fillStyle = 'rgba(241, 217, 162, 0.9)'
-        ctx.strokeStyle = '#5a3608'
-        ctx.lineWidth = 1.5 / v.k
-        ctx.rotate(Math.PI / 4)
+        ctx.globalAlpha = it.hidden ? 0.5 : 1
         const s = g.cell_px * 0.18
+        if (ov.reachItems?.includes(it.id)) {
+          const ph = (now % 1400) / 1400
+          ctx.strokeStyle = `rgba(245, 208, 106, ${0.9 - ph * 0.9})`
+          ctx.lineWidth = 2 / v.k
+          ctx.beginPath()
+          ctx.arc(0, 0, s * (1.4 + ph * 1.6), 0, Math.PI * 2)
+          ctx.stroke()
+        }
+        const im = img(it.image_url)
+        if (im) {
+          ctx.imageSmoothingEnabled = im.naturalWidth > 64
+          ctx.drawImage(im, -s * 1.6, -s * 1.6, s * 3.2, s * 3.2)
+        } else {
+          ctx.fillStyle = 'rgba(241, 217, 162, 0.9)'
+          ctx.strokeStyle = '#5a3608'
+          ctx.lineWidth = 1.5 / v.k
+          ctx.rotate(Math.PI / 4)
+          ctx.fillRect(-s, -s, s * 2, s * 2)
+          ctx.strokeRect(-s, -s, s * 2, s * 2)
+          ctx.rotate(-Math.PI / 4)
+        }
+        if (ov.editor && ov.selected === it.id) {
+          ctx.strokeStyle = '#78c8ff'
+          ctx.lineWidth = 2.5 / v.k
+          ctx.beginPath()
+          ctx.arc(0, 0, s * 1.9, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+      // предметы в руках призванных — у их жетонов
+      for (const it of m.items.filter((i) => i.carried_by)) {
+        const t = m.tokens.find((x) => x.id === it.carried_by)
+        if (!t || (!vw.isDm && t.hidden)) continue
+        const p = posOf(t, now)
+        ctx.save()
+        ctx.fillStyle = 'rgba(241, 217, 162, 0.95)'
+        ctx.strokeStyle = '#5a3608'
+        ctx.lineWidth = 1.2 / v.k
+        const s = g.cell_px * 0.12
+        ctx.translate(p.x + g.cell_px * 0.3, p.y + g.cell_px * 0.42)
+        ctx.rotate(Math.PI / 4 + Math.sin(now / 300) * 0.2)
         ctx.fillRect(-s, -s, s * 2, s * 2)
         ctx.strokeRect(-s, -s, s * 2, s * 2)
         ctx.restore()
@@ -443,6 +563,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         ctx.setLineDash([6 / v.k, 4 / v.k])
         ctx.beginPath()
         ov.draft.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
+        if (ov.closeDraft) {
+          ctx.closePath()
+          ctx.fillStyle = 'rgba(255, 210, 120, 0.12)'
+          ctx.fill()
+        }
         ctx.stroke()
         ctx.restore()
       }
@@ -698,22 +823,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         }
         ctx.restore()
       }
-      // частицы
-      parts.current = parts.current.filter((q) => (q.life += dt) < q.max)
-      ctx.save()
-      ctx.globalCompositeOperation = 'lighter'
-      for (const q of parts.current) {
-        q.x += (q.vx * dt) / 1000
-        q.y += (q.vy * dt) / 1000
-        q.vx *= 0.97
-        q.vy *= 0.97
-        ctx.globalAlpha = 1 - q.life / q.max
-        ctx.fillStyle = q.color
-        ctx.beginPath()
-        ctx.arc(q.x, q.y, q.size, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      ctx.restore()
+      // частицы и свет эффектов
+      fx.current.draw(ctx)
       floats.current = floats.current.filter((f) => (f.life += dt) < 1600)
       for (const f of floats.current) {
         const k = f.life / 1600
@@ -729,6 +840,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         ctx.restore()
       }
       ctx.restore()
+      fx.current.drawFlash(ctx, W, H)
     }
     raf = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(raf)

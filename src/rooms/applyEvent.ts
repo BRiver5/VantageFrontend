@@ -154,6 +154,17 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
     case 'room.updated':
       return { ...base, room: mergeRoom(base.room, p as Partial<Room>) }
 
+    case 'audio.play':
+    case 'audio.pause':
+    case 'audio.resume':
+    case 'audio.stop':
+    case 'audio.seek':
+    case 'audio.volume':
+    case 'audio.pads': {
+      const audio = p.audio as Room['audio'] | undefined
+      return audio ? { ...base, room: { ...base.room, audio } } : base
+    }
+
     case 'room.status':
       return { ...base, room: { ...base.room, status: p.status as RoomStatus } }
 

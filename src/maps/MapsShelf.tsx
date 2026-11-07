@@ -4,11 +4,11 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Map as MapIcon, PenLine, Play, Square, Trash2, Upload } from 'lucide-react'
+import { BookMarked, Library, Map as MapIcon, PenLine, Play, Square, Trash2, Upload, X } from 'lucide-react'
 import { ApiError, uploadMedia } from '../api'
 import { Img } from '../media'
 import { useRoom } from '../rooms/RoomProvider'
-import { activateMap, createMap, deleteMap, listMaps, patchMap } from './api'
+import { activateMap, createMap, deleteMap, deleteScene, listMaps, listScenes, loadScene, patchMap, saveAsScene, type ScenePresetSummary } from './api'
 import { MapEditor } from './MapEditor'
 import type { BattleMap } from './types'
 
@@ -55,6 +55,7 @@ export function MapsShelf() {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [off, setOff] = useState(false)
+  const [scenes, setScenes] = useState(false)
   const active = data?.room.active_map_id ?? data?.activeMap?.id ?? null
 
   const reload = useCallback(
@@ -133,6 +134,12 @@ export function MapsShelf() {
             <b>Пустая</b>
           </button>
         </li>
+        <li>
+          <button type="button" className="sc-map is-add" disabled={busy} onClick={() => setScenes(true)}>
+            <Library aria-hidden="true" />
+            <b>Из сцен</b>
+          </button>
+        </li>
         {(items ?? []).map((m) => {
           const bg = m.layers?.find((l) => l.kind === 'background')?.image_url
           const on = m.id === active
@@ -155,6 +162,19 @@ export function MapsShelf() {
                   <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" onClick={() => setEditing(m.id)}>
                     <PenLine aria-hidden="true" />
                   </button>
+                  <button
+                    type="button"
+                    className="sc-iconbtn"
+                    aria-label="Сохранить как сцену"
+                    title="Сохранить как сцену: карта, враги и сценарий без героев"
+                    disabled={busy}
+                    onClick={() => {
+                      const title = prompt('Название сцены', m.name)
+                      if (title) void act(() => saveAsScene(roomId, m.id, title))
+                    }}
+                  >
+                    <BookMarked aria-hidden="true" />
+                  </button>
                   <button type="button" className="sc-iconbtn is-danger" aria-label="Удалить" title="Удалить" disabled={busy} onClick={() => confirm(`Удалить «${m.name}»?`) && void act(() => deleteMap(roomId, m.id))}>
                     <Trash2 aria-hidden="true" />
                   </button>
@@ -165,6 +185,15 @@ export function MapsShelf() {
         })}
       </ul>
       {error && <p className="tb-err">{error}</p>}
+      {scenes && (
+        <ScenesPicker
+          onClose={() => setScenes(false)}
+          onLoad={(id) => {
+            setScenes(false)
+            void act(() => loadScene(roomId, id, true))
+          }}
+        />
+      )}
       {editing &&
         createPortal(
           <MapEditor
@@ -177,5 +206,57 @@ export function MapsShelf() {
           document.body,
         )}
     </section>
+  )
+}
+
+/** Библиотека сцен: официальные, публичные и свои */
+function ScenesPicker({ onClose, onLoad }: { onClose: () => void; onLoad: (id: string) => void }) {
+  const [q, setQ] = useState('')
+  const [list, setList] = useState<ScenePresetSummary[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    let on = true
+    const t = setTimeout(() => listScenes(q.trim()).then((x) => on && setList(x), (e) => on && setErr(errText(e))), 250)
+    return () => {
+      on = false
+      clearTimeout(t)
+    }
+  }, [q])
+  return (
+    <div className="ms-scenes" role="dialog" aria-label="Сцены">
+      <header>
+        <b>Сцены</b>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: склеп, таверна" aria-label="Поиск сцен" />
+        <button type="button" className="tb-card-x" onClick={onClose} aria-label="Закрыть">
+          <X aria-hidden="true" />
+        </button>
+      </header>
+      <ul>
+        {(list ?? []).map((s) => (
+          <li key={s.id}>
+            <div>
+              <b>{s.title}</b>
+              <i>
+                {[s.visibility === 'official' ? 'официальная' : s.visibility === 'private' ? 'моя' : 'общая', s.encounters ? `групп врагов: ${s.encounters}` : '', s.loot ? `находок: ${s.loot}` : '', s.level_range ? `ур. ${s.level_range[0]}–${s.level_range[1]}` : ''].filter(Boolean).join(' · ')}
+              </i>
+              {s.description && <p>{s.description}</p>}
+            </div>
+            <span>
+              <button type="button" className="tb-goldbtn" onClick={() => onLoad(s.id)}>
+                <Play aria-hidden="true" /> На стол
+              </button>
+              {s.visibility === 'private' && (
+                <button type="button" className="sc-iconbtn is-danger" aria-label="Удалить сцену" onClick={() => confirm(`Удалить сцену «${s.title}»?`) && void deleteScene(s.id).then(() => setList((l) => (l ?? []).filter((x) => x.id !== s.id)), (e) => setErr(errText(e)))}>
+                  <Trash2 aria-hidden="true" />
+                </button>
+              )}
+            </span>
+          </li>
+        ))}
+        {list && list.length === 0 && <li className="tb-hint">Сцен пока нет. Сохраните свою карту кнопкой с закладкой.</li>}
+        {!list && !err && <li className="tb-hint">Загружаем…</li>}
+      </ul>
+      {err && <p className="tb-err">{err}</p>}
+    </div>
   )
 }

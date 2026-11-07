@@ -54,8 +54,22 @@ export interface MapObject {
   blocks_light: boolean
   walkable_top: boolean
   container: boolean
-  interactions?: { id: string; label: string; economy: string; reach_ft: number }[]
+  interactions?: MapInteraction[]
+  state?: Record<string, unknown>
   hidden?: boolean
+}
+
+/** Действие на объекте: «Открыть», «Обыскать», «Потянуть рычаг». Игроку — без check и сценария */
+export interface MapInteraction {
+  id: string
+  label: string
+  economy: 'free' | 'object' | 'action' | 'bonus' | 'reaction'
+  reach_ft: number
+  check?: { skill?: string; ability?: string; dc: number } | null
+  on_success?: SceneAction[]
+  on_fail?: SceneAction[]
+  once?: boolean
+  dm_only?: boolean
 }
 
 export interface MapWall {
@@ -106,18 +120,23 @@ export interface MapToken {
   flying: boolean
   hidden: boolean
   dormant?: boolean
+  group?: string | null
   side?: 'party' | 'enemies' | 'neutral' | null
   light_id?: string | null
 }
 
 export interface MapItem {
   id: string
+  room_item_id?: string | null
   name: string
   x: number
   y: number
+  elevation_ft?: number
   hidden?: boolean
   carried_by?: string | null
+  container_object_id?: string | null
   asset_id?: string | null
+  image_url?: string | null
 }
 
 export interface MapZone {
@@ -129,6 +148,84 @@ export interface MapZone {
   source?: { kind?: 'dm' | 'spell'; spell?: string }
   difficult_terrain?: boolean
   enabled: boolean
+  on_enter?: SceneAction[]
+  on_start_turn?: SceneAction[]
+  on_end_turn?: SceneAction[]
+  on_leave?: SceneAction[]
+  frequency?: 'every_time' | 'once_per_turn' | 'once_per_creature' | 'once'
+  affects?: 'all' | 'party' | 'enemies'
+  obscured?: 'none' | 'lightly' | 'heavily'
+  duration_rounds?: number | null
+  asset_id?: string | null
+}
+
+/** Блок сценария: op и поля по /scene-blocks */
+export type SceneAction = { op: string } & Record<string, unknown>
+
+export type TriggerEvent =
+  | 'token_enters_zone'
+  | 'token_leaves_zone'
+  | 'turn_start_in_zone'
+  | 'turn_end_in_zone'
+  | 'turn_start'
+  | 'turn_end'
+  | 'round_start'
+  | 'combat_started'
+  | 'combat_ended'
+  | 'door_opened'
+  | 'door_closed'
+  | 'object_interacted'
+  | 'item_picked'
+  | 'creature_died'
+  | 'hp_below'
+  | 'variable_changed'
+  | 'group_activated'
+  | 'manual'
+
+export interface MapTrigger {
+  id: string
+  name: string
+  enabled: boolean
+  event: TriggerEvent
+  match: Record<string, unknown>
+  condition?: string | null
+  actions: SceneAction[]
+  once: boolean
+  cooldown_rounds: number
+}
+
+export interface SpawnCycle {
+  id: string
+  name: string
+  enabled: boolean
+  start_round: number
+  every_rounds: number
+  max_total: number
+  count: number
+  creature: { catalog_ref?: string | null; name?: string | null; asset_id?: string | null }
+  at: { zone_id?: string | null; x?: number; y?: number }
+  side: 'party' | 'enemies' | 'neutral'
+  group?: string | null
+  condition?: string | null
+}
+
+export interface SceneBlockField {
+  name: string
+  kind: 'enum' | 'expr' | 'blocks' | 'str' | 'bool' | 'modifiers' | 'json' | 'text' | string
+  label: string
+  required: boolean
+  default?: unknown
+  options?: string[]
+  help?: string
+}
+export interface SceneBlockDef {
+  op: string
+  label: string
+  category: string
+  sentence: string
+  fields: SceneBlockField[]
+  child_lists: string[]
+  doc?: string
 }
 
 export interface BattleMap {
@@ -149,11 +246,16 @@ export interface BattleMap {
   items: MapItem[]
   zones: MapZone[]
   fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean }
+  /** только мастеру */
+  triggers?: MapTrigger[]
+  spawns?: SpawnCycle[]
+  variables?: Record<string, unknown>
+  audio?: { music: string[]; ambience: string[]; soundboard: string[]; volume: number }
   rules?: { high_ground_advantage: boolean; pickup_costs: string }
 }
 
 /** Пакет конструктора: add / update / remove по видам */
-export type EditKind = 'walls' | 'objects' | 'lights' | 'layers' | 'tokens' | 'items' | 'zones'
+export type EditKind = 'walls' | 'objects' | 'lights' | 'layers' | 'tokens' | 'items' | 'zones' | 'triggers' | 'spawns'
 export type EditBatch = { revision?: number } & Partial<Record<EditKind, { add?: unknown[]; update?: unknown[]; remove?: string[] }>>
 
 export interface MovePreview {
@@ -207,9 +309,27 @@ export interface SpellTargeting {
 }
 
 /** Эфемерный map.vfx: анимация заклинания для всех */
+export interface VfxStage {
+  vfx: string
+  sfx_tags?: string[]
+  at?: 'caster' | 'target' | 'area' | 'path' | 'point'
+  delay_ms?: number
+}
+
 export interface MapVfx {
   spell: string
-  presentation?: { element?: string; palette?: string[]; damage_number?: { color: string; style: string }; shake?: number; flash?: string }
+  presentation?: {
+    element?: string
+    palette?: string[]
+    damage_number?: { color: string; style: string }
+    shake?: number
+    flash?: string
+    cast?: VfxStage
+    travel?: VfxStage
+    area?: VfxStage
+    impact?: VfxStage
+    persistent?: VfxStage
+  }
   actor_combatant_id: string
   damage_type?: string | null
   map_id: string

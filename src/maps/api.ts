@@ -36,3 +36,68 @@ export const areaProbe = (roomId: string, mapId: string, q: { shape: string; x: 
 }
 
 export type { AimRequest }
+
+/** Мастер: запустить триггер вручную (token_id — субъект) */
+export const fireTrigger = (roomId: string, mapId: string, triggerId: string, tokenId?: string) =>
+  post<{ log?: unknown[] }>(r(roomId, `/${mapId}/triggers/${triggerId}/fire${tokenId ? `?token_id=${tokenId}` : ''}`))
+
+/* ---------- предметы на карте ---------- */
+
+export const pickUp = (roomId: string, mapId: string, mapItemId: string, tokenId: string) =>
+  post<{ map_item_id: string; carried_by?: string; character_id?: string; name?: string }>(r(roomId, `/${mapId}/items/${mapItemId}/pick-up`), { token_id: tokenId })
+export const dropItem = (roomId: string, mapId: string, body: { token_id: string; instance_id?: string; map_item_id?: string; quantity?: number; x?: number; y?: number }) =>
+  post<unknown>(r(roomId, `/${mapId}/items/drop`), body)
+export const handTo = (roomId: string, mapId: string, body: { token_id: string; to_token_id: string; instance_id?: string; map_item_id?: string; quantity?: number }) =>
+  post<{ name: string }>(r(roomId, `/${mapId}/items/hand-to`), body)
+export const reachableItems = (roomId: string, mapId: string, tokenId: string) =>
+  request<{ items: { map_item_id: string; name: string; x: number; y: number; distance_ft: number }[]; carried: { map_item_id: string; name: string }[] }>(r(roomId, `/${mapId}/tokens/${tokenId}/reachable-items`), { auth: true })
+
+/* ---------- мои существа ---------- */
+
+export interface MyUnit {
+  token_id: string
+  label: string
+  x: number
+  y: number
+  elevation_ft: number
+  vision_mode: string
+  combatant_id?: string | null
+  kind?: 'character' | 'summon' | 'creature'
+  spell?: string | null
+  speed: { walk: number; fly: number }
+  economy?: { action_used: boolean; bonus_used: boolean; reaction_used: boolean; movement_used: number }
+  my_turn?: boolean
+  hp?: { current: number; max: number }
+  ac?: number
+  actions?: { name: string; desc?: string; description?: string }[]
+  senses?: Record<string, number>
+  reach_items: string[]
+  carried: string[]
+}
+export const myUnits = (roomId: string) => request<{ map_id: string | null; units: MyUnit[] }>(`/rooms/${roomId}/my-units`, { auth: true })
+
+/* ---------- сцены ---------- */
+
+export interface ScenePresetSummary {
+  id: string
+  title: string
+  description: string
+  tags: string[]
+  cover_asset_id?: string | null
+  level_range?: [number, number] | null
+  visibility: 'official' | 'public' | 'private'
+  encounters: number
+  loot: number
+  author?: string | null
+}
+export async function listScenes(q?: string): Promise<ScenePresetSummary[]> {
+  const res = await request<{ items: ScenePresetSummary[] }>(`/scene-presets${q ? `?q=${encodeURIComponent(q)}` : ''}`, { auth: true })
+  return res?.items ?? []
+}
+export const loadScene = (roomId: string, presetId: string, activate = true) => post<BattleMap>(`/rooms/${roomId}/scenes/load`, { preset_id: presetId, activate })
+export const saveAsScene = (roomId: string, mapId: string, title: string) => post<ScenePresetSummary>(r(roomId, `/${mapId}/save-as-preset?title=${encodeURIComponent(title)}`))
+export const deleteScene = (id: string) => request<void>(`/scene-presets/${id}`, { method: 'DELETE', auth: true })
+
+/** Действие на объекте карты: проверка и сценарий объекта */
+export const interactObject = (roomId: string, mapId: string, objectId: string, interactionId: string, tokenId?: string) =>
+  post<{ object_id: string; interaction_id: string; success: boolean; dc?: number; roll?: unknown; log?: unknown[] }>(r(roomId, `/${mapId}/objects/${objectId}/interact`), { interaction_id: interactionId, ...(tokenId ? { token_id: tokenId } : {}) })

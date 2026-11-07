@@ -307,3 +307,15 @@ export const combatEffects = (id: string, combat: string, targetIds: string[], e
 /** Пакетная правка заметок: всё или ничего; при расхождении revision — 409 */
 export const patchNotesBatch = (id: string, items: (Partial<ScreenNote> & { id: string })[]) =>
   request<{ items: ScreenNote[] }>(r(id, '/screen/notes/batch'), { method: 'PATCH', body: items, auth: true })
+
+/* ---------- звук комнаты ---------- */
+
+export type AudioView = import('../types/rooms').RoomAudioState & { position_now?: number; server_time?: string }
+export const getAudio = (id: string) => get<AudioView>(r(id, '/audio'))
+export const playAudio = (id: string, body: { asset_id?: string; url?: string; loop?: boolean; position_sec?: number; crossfade_sec?: number; volume?: number }) =>
+  post<AudioView>(r(id, '/audio/play'), body)
+export const audioControl = (id: string, body: { action: 'pause' | 'resume' | 'stop' | 'seek' | 'volume'; position_sec?: number; volume?: number }) =>
+  post<AudioView>(r(id, '/audio/control'), body)
+export const putPads = (id: string, pads: { id?: string; label?: string; asset_id?: string; url?: string; icon?: string | null }[]) =>
+  request<AudioView>(r(id, '/audio/pads'), { method: 'PUT', body: { pads }, auth: true })
+export const playSfx = (id: string, body: { asset_id?: string; url?: string; pad_id?: string; volume?: number }) => post<unknown>(r(id, '/audio/sfx'), body)
