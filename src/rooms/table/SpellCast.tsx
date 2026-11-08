@@ -15,7 +15,7 @@ export interface MapAimSpec {
 }
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Clock3, Crosshair, Dices, Hand, Info, Minus, Plus, Shield, Sparkles, Sun, Wand2 } from 'lucide-react'
-import type { SpellMechanics } from '../../api'
+import { fetchPage, type SpellMechanics } from '../../api'
 import type { CastPlan, CastPreview, CastRequest, CombatantView, FixedRolls, StatKey } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
 import { castPreview, castSpell } from '../roomsApi'
@@ -176,6 +176,9 @@ export function SpellCast({
   const [ritual, setRitual] = useState(false)
   const [repeat, setRepeat] = useState(false)
   const [summonCount, setSummonCount] = useState(1)
+  // форма призыва из бестиария: «Призыв феи», фамильяр, скакун
+  const wantsForm = !!mech.ui?.some((g) => g.inputs.some((i) => i.type === 'creature' || i.key === 'summon_ref'))
+  const [summonRef, setSummonRef] = useState<{ id: string; name: string } | null>(null)
   const [shots, setShots] = useState<Record<string, number>>({})
   const [mode, setMode] = useState<'auto' | 'manual'>('auto')
   const [fixed, setFixed] = useState<FixedRolls>({})
@@ -224,9 +227,10 @@ export function SpellCast({
       ...(advantage ? { advantage } : {}),
       ...(total && Object.keys(shots).length ? { projectiles: shots } : {}),
       ...(mech.summons?.some((s) => s.choose_count) ? { summon_count: summonCount } : {}),
+      ...(wantsForm && summonRef ? { summon_ref: summonRef.id } : {}),
       ...(aimTg && mapAim ? { aim: mapAim } : {}),
     }
-  }, [combat, actor.id, spellName, slot, mech, ritual, repeat, targets, damageType, advantage, total, shots, summonCount, aimTg, mapAim])
+  }, [combat, actor.id, spellName, slot, mech, ritual, repeat, targets, damageType, advantage, total, shots, summonCount, aimTg, mapAim, wantsForm, summonRef])
 
   // предпросмотр: Сл, формулы и шансы — не чаще раза в 250 мс
   const seq = useRef(0)
@@ -407,6 +411,7 @@ export function SpellCast({
               <input className="bt-in" type="number" min={1} max={30} value={summonCount} onChange={(e) => setSummonCount(Math.max(1, Math.min(30, Number(e.target.value) || 1)))} />
             </label>
           )}
+          {wantsForm && <SummonForm hint={mech.summons?.[0]?.name} value={summonRef} onChange={setSummonRef} />}
           {isDm && (
             <label className="bt-check">
               <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} />
@@ -447,5 +452,54 @@ export function SpellCast({
         </button>
       </footer>
     </>
+  )
+}
+
+/** Форма призыва: существо из бестиария. Без выбора сервер возьмёт простой статблок из механики */
+function SummonForm({ hint, value, onChange }: { hint?: string; value: { id: string; name: string } | null; onChange: (v: { id: string; name: string } | null) => void }) {
+  const [q, setQ] = useState('')
+  const [found, setFound] = useState<{ id: string; name: string; challenge_rating?: string | number | null }[]>([])
+  useEffect(() => {
+    const query = q.trim()
+    if (!query) return setFound([])
+    let on = true
+    const t = setTimeout(() => {
+      fetchPage<{ id: string; name: string; challenge_rating?: string | number | null }>('creatures', { q: query, limit: 8 }).then(
+        (r) => on && setFound(r.items),
+        () => on && setFound([]),
+      )
+    }, 250)
+    return () => {
+      on = false
+      clearTimeout(t)
+    }
+  }, [q])
+  if (value) {
+    return (
+      <div className="sp-form is-set">
+        <span>Форма: <b>{value.name}</b></span>
+        <button type="button" className="tb-linkbtn" onClick={() => onChange(null)}>
+          сменить
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="sp-form">
+      <span>Форма призыва{hint ? ` (${hint})` : ''}</span>
+      <input className="bt-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Существо из бестиария…" aria-label="Форма призыва" />
+      {found.length > 0 && (
+        <ul>
+          {found.map((c) => (
+            <li key={c.id}>
+              <button type="button" onClick={() => onChange({ id: c.id, name: c.name })}>
+                {c.name}
+                {c.challenge_rating != null && <i> · ПО {c.challenge_rating}</i>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

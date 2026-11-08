@@ -275,3 +275,13 @@ button.ck-mark:hover .ck-cap, .ck-mark.is-open .ck-cap { opacity: 1; }
 .bt-chance.is-bad { background: radial-gradient(circle, rgba(12, 8, 5, 0.85) 58%, transparent 60%), conic-gradient(#ff7d63 calc(var(--p) * 360deg), rgba(255, 255, 255, 0.12) 0); color: #ffb3a3; }
 .bt-chance b { margin-top: 4px; font-family: var(--font-display); font-size: max(15px, calc(var(--t) * 18)); line-height: 1; }
 .bt-chance i { margin-top: -10px; font-size: max(8px, calc(var(--t) * 9)); font-style: normal; opacity: 0.8; }
+
+/* форма призыва в карточке заклинания */
+.sp-form { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.sp-form > span { font-size: 0.82rem; opacity: 0.85; }
+.sp-form.is-set { flex-direction: row; align-items: center; justify-content: space-between; }
+.sp-form b { color: var(--gold-3); font-weight: 600; }
+.sp-form ul { display: flex; flex-direction: column; gap: 2px; max-height: 170px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.sp-form li button { width: 100%; padding: 5px 9px; border: 0; border-radius: 7px; background: rgba(255, 255, 255, 0.05); color: inherit; font: inherit; font-size: 0.84rem; text-align: left; cursor: pointer; }
+.sp-form li button:hover { background: rgba(196, 154, 60, 0.2); }
+.sp-form li i { font-style: normal; opacity: 0.6; }

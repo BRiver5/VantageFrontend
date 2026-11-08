@@ -303,3 +303,14 @@ POST /rooms/{id}/combat {map_id}                бой на карте (поле
 - при призыве.
 
 После этого обходной путь на фронте можно убрать.
+
+## Медиа: CORS для /media (2026-11-08)
+
+`/media/...` отдаёт `access-control-allow-credentials`, но не отдаёт `access-control-allow-origin`. Из-за этого с другого домена нельзя:
+- использовать картинку как CSS-маску (`mask-image`);
+- читать её в canvas;
+- тянуть `fetch`'ем.
+
+Иконки терминов (game-icons) сейчас красим обходным путём, наложением `mix-blend-mode: screen`.
+
+**Просьба:** `Access-Control-Allow-Origin: *` на `/media` и `/media/assets`. Картинки публичные, ничего не раскрываем.

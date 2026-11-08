@@ -85,3 +85,13 @@ export interface AssetCredit {
 /** Авторы ассетов на карте: CC-BY требует их показать */
 export const getAttribution = (ids: string[]) =>
   request<{ items: AssetCredit[] }>(`/assets/attribution?${ids.map((i) => `ids=${encodeURIComponent(i)}`).join('&')}`).then((r) => r?.items ?? [])
+
+/** Свой ассет: звук, музыка, видео и анимация идут сюда (на /media/upload только картинки) */
+export function uploadAsset(file: File, kind: AssetKind, title?: string): Promise<Asset> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('kind', kind)
+  fd.append('title', title ?? file.name.replace(/\.[^.]+$/, ''))
+  fd.append('license_id', 'OWNER')
+  return request<Asset>('/assets/upload', { method: 'POST', body: fd, auth: true })
+}

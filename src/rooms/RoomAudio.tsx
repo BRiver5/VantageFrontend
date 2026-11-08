@@ -8,8 +8,8 @@
  * громкость, кнопки саундборда.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Music2, Pause, Play, Plus, Search, Square, Trash2, Volume2, VolumeX, Zap } from 'lucide-react'
-import { searchAssets, assetTitle, type Asset } from '../maps/assets'
+import { Music2, Pause, Play, Plus, Search, Square, Trash2, Upload, Volume2, VolumeX, Zap } from 'lucide-react'
+import { searchAssets, assetTitle, uploadAsset, type Asset } from '../maps/assets'
 import type { RoomAudioState } from '../types/rooms'
 import { useRoom, useRoomEvents } from './RoomProvider'
 import { audioControl, getAudio, playAudio, playSfx, putPads } from './roomsApi'
@@ -184,6 +184,7 @@ export function SoundboardPanel() {
   const [url, setUrl] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [editPads, setEditPads] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     let on = true
@@ -312,6 +313,32 @@ export function SoundboardPanel() {
           <button type="submit" className="sc-iconbtn" aria-label={kind === 'sfx' ? 'Добавить кнопку' : 'Включить'}>
             {kind === 'sfx' ? <Plus aria-hidden="true" /> : <Play aria-hidden="true" />}
           </button>
+          {/* свой файл: в библиотеку ассетов, затем сразу в дело */}
+          <label className={`sc-iconbtn ra-upload${uploading ? ' is-busy' : ''}`} title={kind === 'sfx' ? 'Загрузить звук в саундборд' : 'Загрузить и включить'} aria-label="Загрузить файл">
+            <Upload aria-hidden="true" />
+            <input
+              type="file"
+              accept="audio/*"
+              hidden
+              disabled={uploading}
+              onChange={async (e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (!f) return
+                setUploading(true)
+                setErr(null)
+                try {
+                  const asset = await uploadAsset(f, kind)
+                  if (kind === 'sfx') addPad({ asset_id: asset.id, label: assetTitle(asset) })
+                  else await playAudio(roomId, { asset_id: asset.id, loop: true, crossfade_sec: 2 })
+                } catch (er) {
+                  setErr(er instanceof Error ? er.message : 'Не загрузилось')
+                } finally {
+                  setUploading(false)
+                }
+              }}
+            />
+          </label>
         </form>
       </div>
       {err && <p className="tb-err">{err}</p>}

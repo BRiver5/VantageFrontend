@@ -2328,6 +2328,7 @@ export function EquipmentPage() {
         card: equipmentCard,
         sorts: equipmentSorts,
         filters,
+        wide: true,
       }}
     />
   )

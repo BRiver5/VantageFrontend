@@ -10,6 +10,7 @@
  * (`.class-article …` в styles/class-pages.css). Спойлеры и свёрнутые блоки подклассов
  * превращаем в нативные <details>.
  */
+import { useTermIndex, type TermIndex } from './terms/terms'
 import { createContext, useContext, useMemo, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cutProficiencySection } from './classProficiencies'
@@ -655,9 +656,10 @@ export function ClassArticle({
   /** подпись для кнопки «назад» на странице заклинания (напр. имя класса/подкласса) */
   backLabel?: string
 }) {
+  const terms = useTermIndex()
   const safe = useMemo(
-    () => transformClassHtml(html, { cutSubclasses, subclassSectionHtml: subclassSectionHtml ?? undefined, subclassFeatures }),
-    [html, cutSubclasses, subclassSectionHtml, subclassFeatures],
+    () => withTermTips(transformClassHtml(html, { cutSubclasses, subclassSectionHtml: subclassSectionHtml ?? undefined, subclassFeatures }), terms),
+    [html, cutSubclasses, subclassSectionHtml, subclassFeatures, terms],
   )
 
   const articleClass = `class-article${isCaster ? ' class-article--caster' : ' class-article--martial'}`
@@ -673,6 +675,15 @@ export function ClassArticle({
   // (.ca-link) → прокрутка к способности со вспышкой. На страницу заклинания
   // передаём, откуда пришли, чтобы там была кнопка «назад» именно сюда.
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
+    // термин D&D → его страница
+    const term = (e.target as HTMLElement).closest<HTMLElement>('[data-term]')
+    if (term?.dataset.term) {
+      e.preventDefault()
+      const to = `/terms/${term.dataset.term}`
+      if (newTab) window.open(to, '_blank', 'noopener')
+      else navigate(to)
+      return
+    }
     const spell = (e.target as HTMLElement).closest<HTMLElement>('.ca-spell')
     if (spell) {
       const id = spellIndex.get(normSpellName(spell.dataset.spell ?? ''))
@@ -700,4 +711,20 @@ export function ClassArticle({
   return (
     <div className={articleClass} onClick={handleClick} dangerouslySetInnerHTML={{ __html: safe }} />
   )
+}
+
+/**
+ * Ссылки на термины, вшитые при загрузке (registry.injectTermSpans): частые
+ * слова оставляем ссылкой только при первом упоминании, остальным добавляем
+ * карточку-подсказку и доступность с клавиатуры.
+ */
+function withTermTips(html: string, index: TermIndex): string {
+  if (!html.includes('data-term=')) return html
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  return html.replace(/<span class="term-link" data-term="([^"]+)" data-first="([01])">([\s\S]*?)<\/span>/g, (_, slug: string, first: string, text: string) => {
+    const t = index.bySlug.get(slug)
+    if (t?.link === 'first' && first === '0') return text
+    const tip = t ? `<span class="term-tip" role="tooltip"><b>${esc(t.title)}</b>${esc(t.short)}</span>` : ''
+    return `<span class="term-link is-html" data-term="${slug}" role="link" tabindex="0">${text}${tip}</span>`
+  })
 }

@@ -19,6 +19,7 @@ import {
   Swords,
   UserRound,
   VenetianMask,
+  BookMarked,
 } from 'lucide-react'
 import { RequireAuth, useAuth } from './auth/AuthContext'
 import { getBookContents, getBooks, getSettings, settingArt, splitTitle, totalsOf } from './api'
@@ -65,6 +66,7 @@ import { useAppShell } from './shell'
 import { DieImage } from './dice/diceAssets'
 import { SearchBar, SearchProvider, useOpenSearch } from './search/GlobalSearch'
 import { ContinueRoom } from './rooms/ContinueRoom'
+import { TermDetailPage, TermsIndexPage } from './terms/TermPages'
 import { Img, bgUrl } from './media'
 
 /* ---------- Разделы каталога ---------- */
@@ -78,6 +80,7 @@ const CATEGORIES = [
   { path: '/equipment', label: 'Снаряжение', icon: Backpack },
   { path: '/items', label: 'Предметы', icon: Gem },
   { path: '/bestiary', label: 'Бестиарий', icon: Skull },
+  { path: '/terms', label: 'Термины', icon: BookMarked },
   { path: '/characters', label: 'Персонажи', icon: ScrollText },
 ] as const
 
@@ -832,6 +835,8 @@ export default function App() {
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/bestiary" element={<BestiaryPage />} />
             <Route path="/bestiary/:id" element={<CreatureDetailPage />} />
+            <Route path="/terms" element={<TermsIndexPage />} />
+            <Route path="/terms/:slug" element={<TermDetailPage />} />
             <Route path="/termins" element={<TerminsPage />} />
             <Route path="/termins/:id" element={<TerminDetailPage />} />
             <Route path="/character" element={<Navigate to="/characters" replace />} />

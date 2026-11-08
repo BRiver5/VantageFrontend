@@ -27,6 +27,7 @@ import {
   VenetianMask,
   X,
   Zap,
+  BookMarked,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { searchCatalog, type SearchHit, type SearchResult } from '../api'
@@ -44,6 +45,7 @@ const ENTITY: Record<string, { path: string | null; icon: LucideIcon; label: str
   items: { path: '/items', icon: Gem, label: 'Предметы' },
   creatures: { path: '/bestiary', icon: Skull, label: 'Бестиарий' },
   abilities: { path: null, icon: Zap, label: 'Способности' },
+  terms: { path: '/terms', icon: BookMarked, label: 'Термины D&D' },
   termins: { path: '/termins', icon: ScrollText, label: 'Термины' },
   books: { path: '/books', icon: BookOpen, label: 'Книги' },
   settings: { path: '/settings', icon: Globe2, label: 'Миры' },

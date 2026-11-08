@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, Globe, Lock, Plus, Trash2, UserRound } from 'lucide-react'
+import { Eye, FileUp, Globe, Lock, Plus, Trash2, UserRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   createCharacter,
@@ -18,6 +18,8 @@ import {
   sheetDataToCharacter,
 } from '../characters/sheetMigration'
 import { parsePortrait } from '../characters/portrait'
+import { parseLss, type LssHero } from '../characters/lssImport'
+import { LssImportDialog } from '../characters/LssImportDialog'
 import { useCatalogList } from '../create/useCatalog'
 import type { CharacterVisibility } from '../types/auth'
 import { Img } from '../media'
@@ -183,6 +185,7 @@ export default function CharactersPage() {
   }
 
   const isEmpty = !loading && !error && items.length === 0
+  const [lss, setLss] = useState<LssHero[] | null>(null)
 
   // свободные слоты — поровну слева и справа, хотя бы по одному с каждой стороны;
   // без героев центр занимает главный слот «Новый герой»
@@ -255,6 +258,29 @@ export default function CharactersPage() {
         </Link>
         <span className="lobby-actions-line" aria-hidden="true" />
       </footer>
+      <div className="lobby-import">
+        <label className="lobby-import-btn" title="Файл из «Мои персонажи» → экспорт в Long Story Short">
+          <FileUp aria-hidden="true" /> Импорт из Long Story Short
+          <input
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={async (e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (!f) return
+              try {
+                const heroes = parseLss(await f.text())
+                if (heroes.length === 0) throw new Error('В файле нет персонажей')
+                setLss(heroes)
+              } catch (err) {
+                alert(`Не похоже на экспорт Long Story Short: ${err instanceof Error ? err.message : 'файл не читается'}`)
+              }
+            }}
+          />
+        </label>
+      </div>
+      {lss && <LssImportDialog heroes={lss} onClose={() => setLss(null)} onDone={() => void reload()} />}
     </section>
   )
 }

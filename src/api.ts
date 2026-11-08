@@ -1,4 +1,5 @@
 import type { AbilityRef } from './abilities/abilityData'
+import { registerTermLinks } from './terms/registry'
 import { clearAccessToken, getAccessToken, TOKEN_EXPIRED_EVENT } from './auth/token'
 import type {
   LoginBody,
@@ -657,6 +658,8 @@ export interface SpellMechanics {
   projectiles?: { count: number; per_level: number; damage: { dice: string; type: string }; attack: boolean; shared_roll: boolean } | null
   effect?: { label: string; condition?: string; save_each_turn?: 'start' | 'end'; on: 'target' | 'self'; expires: string; choices: string[] } | null
   summons?: { name: string; count: string; choose_count: boolean; from_catalog: boolean; notes?: string | null }[]
+  /** вопросы перед сотворением: вид урона, форма призыва, ячейка */
+  ui?: { title: string; inputs: { key: string; label: string; type: string; min?: string | number; options?: { value: string; label: string }[] }[] }[] | null
   notes?: string | null
 }
 
@@ -970,6 +973,8 @@ export async function getOne<T>(resource: string, id: string): Promise<T> {
   const res = await fetch(`${API_BASE}/${resource}/${id}`)
   if (!res.ok) throw new Error(`${resource}: ${res.status}`)
   const data = (await res.json()) as T
+  // ссылки на термины в текстах детали — до того, как текст отрисуется
+  registerTermLinks(data)
   cacheEntity(resource, id, data)
   return data
 }
