@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
+    "@3d-dice/theme-blue-green-metal": "^0.2.0",
     "@3d-dice/theme-gemstone": "^0.2.0",
+    "@3d-dice/theme-rock": "^0.2.0",
     "@3d-dice/theme-rust": "^0.2.0",
     "@3d-dice/theme-wooden": "^0.2.0",
     "lucide-react": "^1.24.0",

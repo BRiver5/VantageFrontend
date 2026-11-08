@@ -167,3 +167,52 @@
 .pf-volume input { flex: 1; height: 4px; appearance: none; border-radius: 99px; cursor: pointer; background: linear-gradient(90deg, var(--gold-3) var(--vol), rgba(168, 175, 186, 0.22) var(--vol)); }
 .pf-volume input::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-4); box-shadow: 0 0 0 3px rgba(13, 14, 18, 0.9), 0 0 10px rgba(228, 196, 110, 0.6); }
 .pf-volume input::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--gold-4); }
+
+/* ---------- материал кубиков ---------- */
+.pf-materials { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; margin: 4px 0 6px; }
+.pf-materials-title { color: var(--gold-2); font: 600 0.72rem var(--font-body); letter-spacing: 0.2em; text-transform: uppercase; }
+.pf-materials ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.pf-materials button { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 4px; border: 0; background: none; color: var(--text-dim); font: inherit; cursor: pointer; transition: color 0.15s; }
+.pf-materials button i { font-size: 0.78rem; font-style: normal; }
+.pf-materials button:hover, .pf-materials button.is-on { color: var(--text); }
+.pf-materials button.is-on i { color: var(--gold-3); }
+.pf-mat-swatch {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 48px;
+  clip-path: var(--hex-point);
+  background-color: #2a2620;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  filter: drop-shadow(0 0 0 transparent);
+}
+/* объём: блик сверху и тень снизу поверх текстуры */
+.pf-mat-swatch::after { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), transparent 42%, rgba(0, 0, 0, 0.45)); }
+.pf-materials button:hover .pf-mat-swatch { transform: translateY(-2px); }
+.pf-materials button.is-on .pf-mat-swatch { transform: scale(1.08); }
+.pf-materials li { position: relative; }
+.pf-materials button.is-on::before { content: ''; position: absolute; left: 50%; top: 2px; width: 50px; height: 56px; translate: -50% 0; clip-path: var(--hex-point); background: var(--gold-grad); z-index: -1; }
+.pf-materials li { isolation: isolate; }
+.pf-mat-swatch.is-rock, .pf-mat-swatch.is-rust { background-blend-mode: multiply; }
+.pf-mat-swatch.is-vantage { background-image: radial-gradient(circle at 35% 30%, #5a5246, #2b2722 60%, #191612); }
+.pf-materials-hint { margin: 0; min-height: 1.2em; color: var(--text-dim); font-size: 0.82rem; font-style: italic; text-align: center; }
+
+/* группы материалов: в вашем цвете | готовые */
+.pf-mat-groups { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 12px 28px; }
+.pf-mat-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pf-mat-group-title { display: flex; flex-direction: column; align-items: center; color: var(--text); font-size: 0.8rem; font-weight: 600; }
+.pf-mat-group-title i { color: var(--text-dim); font-size: 0.72rem; font-weight: 400; }
+
+/* цвет: выключается, если материал его не меняет */
+.pf-paint { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); transition: opacity 0.2s ease; }
+.pf-color.is-off { cursor: not-allowed; opacity: 0.45; }
+.pf-color.is-off input { pointer-events: none; }
+.pf-color.is-off .pf-color-swatch { display: grid; place-items: center; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0 6px, transparent 6px 12px), #1b1d22; }
+.pf-color.is-off .pf-color-swatch svg { width: 18px; height: 18px; color: var(--text-dim); }
+.pf-paint-note { display: flex; align-items: center; gap: 6px; max-width: 380px; margin: 0; color: var(--text-dim); font-size: 0.82rem; line-height: 1.4; text-align: left; }
+.pf-paint-note svg { flex: none; width: 14px; height: 14px; color: var(--gold-2); }
+.pf-paint.is-off .pf-presets { opacity: 0.35; pointer-events: none; filter: grayscale(0.6); }
+.pf-presets button:disabled { cursor: not-allowed; }

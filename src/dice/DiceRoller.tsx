@@ -9,6 +9,7 @@
  *
  * Цвета и громкость настраиваются в профиле.
  */
+import { isMaterial, materialColor, ownColor, useDiceMaterial, type DiceMaterial } from './diceMaterial'
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Ghost, Minus, Plus, ScrollText } from 'lucide-react'
 import type DiceBoxType from '@3d-dice/dice-box'
@@ -270,9 +271,15 @@ export default function DiceRoller() {
   const [externalActive, setExternalActive] = useState(false)
 
   const prefDice = user?.preferences?.dice
-  const bodyColor = bodyColorOf(prefDice)
+  // материал: из профиля, если сервер его хранит, иначе выбор в этом браузере
+  const localMaterial = useDiceMaterial()
+  const prefMaterial = (prefDice as { material?: unknown } | undefined)?.material
+  const material: DiceMaterial = isMaterial(prefMaterial) ? prefMaterial : localMaterial
+  const bodyColor = materialColor(material, bodyColorOf(prefDice))
   const colorRef = useRef(bodyColor)
   colorRef.current = bodyColor
+  const materialRef = useRef(material)
+  materialRef.current = material
 
   // цвета профиля: цифры и отблеск — у материалов, корпус — цвет каждого броска
   useEffect(() => {
@@ -343,7 +350,8 @@ export default function DiceRoller() {
         setExternalActive(true)
         try {
           await box.updateConfig({ scale: DEFAULT_SCALE })
-          const results = await box.roll(notation, { themeColor: colorRef.current })
+          await box.loadTheme(materialRef.current).catch(() => undefined)
+          const results = await box.roll(notation, { theme: materialRef.current, themeColor: colorRef.current })
           return results.map((r) => r.value)
         } finally {
           // кости задерживаются на сцене, чтобы игрок увидел грани
@@ -377,12 +385,14 @@ export default function DiceRoller() {
             qty: 1,
             sides: d.sides,
             ...(FORCEABLE_SIDES.has(d.sides) ? { rollId: forcedRollId(d.value, `${seed}x${i}`) } : {}),
-            ...(d.color ? { themeColor: d.color } : {}),
+            // бонусная кость (Благословение, Порча) — цветная на любом материале: у готовых текстур цвет не меняется
+            ...(d.color ? { themeColor: d.color, theme: 'vantage' } : {}),
           }))
           // сколько тел создаст библиотека: d100 — это две кости
           const { armForcedReplay } = await import('./forcedFaces')
           armForcedReplay(dice.reduce((n, d) => n + (d.sides === 100 ? 2 : 1), 0))
-          const results = await box.roll(notation, { themeColor: themeColor || colorRef.current })
+          await box.loadTheme(materialRef.current).catch(() => undefined)
+          const results = await box.roll(notation, { theme: materialRef.current, themeColor: ownColor(materialRef.current) ? colorRef.current : themeColor || colorRef.current })
           return results.map((r) => r.value)
         } finally {
           diceClearTimer.current = setTimeout(() => {
@@ -460,7 +470,8 @@ export default function DiceRoller() {
     setRevealClash(m)
     try {
       await box.updateConfig({ scale: DEFAULT_SCALE })
-      const dice = await box.roll('2d20', { themeColor: colorRef.current }).then(mapRollResults)
+      await box.loadTheme(materialRef.current).catch(() => undefined)
+      const dice = await box.roll('2d20', { theme: materialRef.current, themeColor: colorRef.current }).then(mapRollResults)
       setRollResults(dice)
       setPhase('reveal')
     } catch (e) {
@@ -490,7 +501,8 @@ export default function DiceRoller() {
     const scale = totalDice <= 10 ? DEFAULT_SCALE : Math.max(3, DEFAULT_SCALE * Math.sqrt(10 / totalDice))
     try {
       await box.updateConfig({ scale })
-      const dice = await box.roll(active.map((t) => `${pool[t]}d${t}`), { themeColor: colorRef.current }).then(mapRollResults)
+      await box.loadTheme(materialRef.current).catch(() => undefined)
+      const dice = await box.roll(active.map((t) => `${pool[t]}d${t}`), { theme: materialRef.current, themeColor: colorRef.current }).then(mapRollResults)
       setRollResults(dice)
       setPhase('reveal')
     } catch (e) {

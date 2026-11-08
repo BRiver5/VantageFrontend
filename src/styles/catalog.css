@@ -1298,6 +1298,25 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   --rarity-glow: rgba(176, 182, 191, 0.5);
   --rarity-text: #c5c9d0;
 }
+/* Колонка сетки может сжиматься уже самого длинного слова: иначе на средних
+   ширинах «Адамантиновый» распирает карточку и она налезает на соседнюю.
+   Длинные слова переносятся по слогам, редкость — отдельной строкой. */
+.card-grid:has(.card--item) .card-slot,
+.card-grid:has(.card--equipment) .card-slot { min-width: 0; }
+.card--item, .card--equipment { min-width: 0; }
+.card--item .item-card-info { min-width: 0; }
+.card--item .card-name,
+.card--equipment .card-name {
+  overflow-wrap: break-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.card--item .card-kicker { overflow-wrap: break-word; hyphens: auto; }
+/* заголовок подстраивается под ширину карточки: длинное слово влезает целиком,
+   а не рвётся посередине («Адамантинови-й») */
+.card--item { container-type: inline-size; }
+.card--item .card-name { font-size: clamp(0.95rem, 9.4cqi, 1.24rem); }
+.card--item .card-name .item-rarity { display: block; margin: 0 0 2px; font-size: 0.82em; letter-spacing: 0.04em; }
 .card--item[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.5); --rarity-text: #c5c9d0; }
 .card--item[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.6); --rarity-text: #6ecf86; }
 .card--item[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.6); --rarity-text: #7eb0ff; }

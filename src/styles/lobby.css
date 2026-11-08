@@ -566,3 +566,97 @@
   .inv-row .cs-input:nth-child(4) { grid-column: 1 / -1; }
 }
 
+
+/* ---------- Поиск, фильтры и порядок героев ---------- */
+
+.lobby-tools { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 20px auto 0; width: min(1040px, 100%); }
+
+/* поиск — та же шестигранная рамка, что у кнопок */
+.lobby-search { position: relative; isolation: isolate; display: flex; align-items: center; gap: 9px; flex: 1 1 230px; max-width: 300px; padding: 8px 22px; --edge: rgba(168, 175, 186, 0.35); transition: --edge 0.2s; }
+.lobby-search::before, .lobby-search::after { content: ''; position: absolute; clip-path: var(--hex-chip); pointer-events: none; }
+.lobby-search::before { inset: 0; z-index: -2; background: var(--edge); transition: background 0.2s; }
+.lobby-search::after { inset: 1px; z-index: -1; background: linear-gradient(180deg, var(--bg-1), #0f1013); }
+.lobby-search:hover { --edge: rgba(168, 175, 186, 0.55); }
+.lobby-search:focus-within { --edge: linear-gradient(90deg, var(--gold-1), var(--gold-3), var(--gold-1)); }
+.lobby-search:focus-within::before { box-shadow: 0 0 18px rgba(228, 196, 110, 0.25); }
+.lobby-search svg { width: 16px; height: 16px; color: var(--gold-2); flex: none; }
+.lobby-search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.92rem; outline: none; }
+.lobby-search input::placeholder { color: var(--text-dim); font-style: italic; }
+.lobby-search button { display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--text-dim); cursor: pointer; }
+.lobby-search button:hover { color: var(--gold-3); }
+
+.lobby-arrange-btn { cursor: pointer; border: 0; font-family: inherit; }
+.lobby-arrange-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- Выпадающий список-шестигранник (HexSelect) ---------- */
+
+.hex-select { position: relative; }
+.hex-select-btn { border: 0; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.hex-select-cur { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+.hex-select .hex-select-chev { width: 14px; height: 14px; margin-left: 2px; color: var(--text-dim); transition: transform 0.2s ease, color 0.2s; }
+.hex-select.is-open .hex-select-chev { transform: rotate(180deg); color: var(--gold-3); }
+.hex-select.is-open .hex-select-btn { color: var(--gold-4); --hex-edge: rgba(205, 211, 219, 0.6); }
+.hex-select-menu {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  z-index: 60;
+  min-width: max(100%, 200px);
+  max-height: 300px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  translate: -50% 0;
+  background: linear-gradient(180deg, rgba(36, 40, 47, 0.98), rgba(17, 19, 23, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.28), 0 18px 40px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  animation: hex-menu-in 0.16s ease;
+}
+/* золотая риска сверху — как у панелей сайта */
+.hex-select-menu::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-2), transparent); }
+@keyframes hex-menu-in { from { opacity: 0; translate: -50% -4px; } }
+.hex-select-menu li { display: flex; align-items: center; gap: 9px; padding: 8px 12px; color: var(--text-dim); font-size: 0.9rem; white-space: nowrap; cursor: pointer; transition: color 0.12s, background 0.12s; }
+.hex-select-menu li svg { width: 14px; height: 14px; color: var(--gold-3); opacity: 0; flex: none; }
+.hex-select-menu li.is-hi { color: var(--text); background: linear-gradient(90deg, rgba(196, 154, 60, 0.16), transparent); }
+.hex-select-menu li.is-on { color: var(--gold-4); }
+.hex-select-menu li.is-on svg { opacity: 1; }
+.hex-select-menu::-webkit-scrollbar { width: 6px; }
+.hex-select-menu::-webkit-scrollbar-thumb { background: rgba(196, 154, 60, 0.35); }
+.lobby-hint { margin: 10px 0 0; color: var(--text-dim); font-size: 0.86rem; font-style: italic; text-align: center; }
+.lobby-none { position: absolute; left: 50%; top: 50%; translate: -50% -50%; margin: 0; color: var(--text-dim); font-style: italic; }
+
+/* стрелки прокрутки по краям ряда */
+.lobby-scroll { position: absolute; top: 50%; z-index: 5; display: grid; place-items: center; width: 44px; height: 52px; padding: 0; border: 0; clip-path: var(--hex-point); background: linear-gradient(180deg, rgba(40, 44, 52, 0.95), rgba(18, 20, 24, 0.95)); color: var(--gold-3); cursor: pointer; translate: 0 -60%; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)); transition: transform 0.18s ease, color 0.15s; animation: lobby-in 0.3s ease; }
+.lobby-scroll svg { width: 22px; height: 22px; }
+.lobby-scroll:hover { color: var(--gold-4); transform: scale(1.08); }
+.lobby-scroll.is-left { left: 4px; }
+.lobby-scroll.is-right { right: 4px; }
+/* края ряда растворяются, когда за ними есть герои */
+.lobby-stage:has(.lobby-scroll.is-right) .lobby-row { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.lobby-stage:has(.lobby-scroll.is-left) .lobby-row { -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%); mask-image: linear-gradient(90deg, transparent, #000 15%); }
+.lobby-stage:has(.lobby-scroll.is-left):has(.lobby-scroll.is-right) .lobby-row { -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.lobby-row { scrollbar-width: none; }
+.lobby-row::-webkit-scrollbar { display: none; }
+
+/* режим «расставить»: героя можно тащить или двигать стрелками */
+.lobby-hero.is-arrange { cursor: grab; }
+/* покачивается только портрет: кнопки со стрелками стоят на месте */
+.lobby-hero.is-arrange .lobby-hero-link { animation: lobby-wiggle 2.4s ease-in-out infinite; }
+.lobby-hero.is-arrange:nth-child(even) .lobby-hero-link { animation-delay: -1.2s; }
+.lobby-hero.is-arrange:active { cursor: grabbing; }
+.lobby-hero.is-arrange .lobby-hero-link { cursor: inherit; }
+.lobby-hero.is-arrange .lobby-hero-del { display: none; }
+@keyframes lobby-wiggle { 0%, 100% { rotate: -0.6deg; } 50% { rotate: 0.6deg; } }
+.lobby-arrange { position: absolute; left: 50%; top: -14px; z-index: 6; display: flex; align-items: center; gap: 4px; padding: 3px 6px; translate: -50% 0; background: rgba(18, 20, 24, 0.95); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45), 0 6px 14px rgba(0, 0, 0, 0.5); }
+.lobby-arrange button { display: grid; place-items: center; width: 26px; height: 24px; padding: 0; border: 0; background: none; color: var(--gold-3); cursor: pointer; }
+.lobby-arrange button:disabled { opacity: 0.3; cursor: default; }
+.lobby-arrange button svg { width: 16px; height: 16px; }
+.lobby-grip { width: 16px; height: 16px; color: var(--text-dim); }
+
+@media (max-width: 640px) {
+  .lobby-search { max-width: none; flex-basis: 100%; }
+  .hex-select-menu { left: 0; translate: 0 0; }
+  .lobby-scroll { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .lobby-hero.is-arrange .lobby-hero-link { animation: none; } }

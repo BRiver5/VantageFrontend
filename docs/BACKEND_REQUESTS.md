@@ -314,3 +314,88 @@ POST /rooms/{id}/combat {map_id}                бой на карте (поле
 Иконки терминов (game-icons) сейчас красим обходным путём, наложением `mix-blend-mode: screen`.
 
 **Просьба:** `Access-Control-Allow-Origin: *` на `/media` и `/media/assets`. Картинки публичные, ничего не раскрываем.
+
+## Материал кубиков в профиле (2026-11-09)
+
+**Сейчас:** игрок выбирает материал 3D-кубиков в профиле. Варианты: обычные, дерево, камень, металл, ржавчина, самоцвет, мрамор. `DicePreferences` знает только три цвета и лишнее поле отбрасывает, поэтому материал хранится в браузере — на другом устройстве его нужно выбрать заново.
+
+**Просьба:**
+- `schemas/user.py` → `DicePreferences`: добавить `material: str = "vantage"`. Допустимые значения: `vantage | wooden | rock | blueGreenMetal | rust | gemstone | gemstoneMarble`.
+- Отдавать `material` в `dice_style` броска комнаты, чтобы другие видели кубики игрока его материалом.
+
+Фронт уже читает `preferences.dice.material`: как только поле появится, выбор начнёт синхронизироваться сам.
+
+## Оценки и комментарии в каталоге (2026-11-09)
+
+**Зачем.** У каждой записи каталога — звёзды от 1 до 5 и обсуждение под ней: «предмет имба», «на 5 уровне слабовато», «как это работает с Волшебной рукой». Сейчас на сервере для этого нет ни моделей, ни маршрутов.
+
+**Для каких разделов:** `items`, `equipment`, `spells`, `creatures`, `feats`, `backgrounds`, `races`, `subraces`, `classes`, `subclasses`. Начать можно с `items`, но лучше общий механизм: `entity` + `entity_id`.
+
+### Модель
+
+```ts
+interface Rating { entity: string; entity_id: string; user_id: string; value: 1 | 2 | 3 | 4 | 5; updated_at: string }
+// одна оценка от пользователя на запись: повторная заменяет старую
+
+interface Comment {
+  id: string; entity: string; entity_id: string
+  user_id: string
+  text: string                 // простой текст, до 2000 символов; переносы строк сохраняются
+  reply_to: string | null      // ответ на комментарий: один уровень вложенности
+  created_at: string; edited_at: string | null
+  likes: number
+  hidden: boolean              // скрыт модерацией: автору виден с пометкой, остальным — нет
+  deleted: boolean             // удалённый с ответами показываем как «Комментарий удалён», без текста
+}
+```
+
+### Маршруты
+
+| Маршрут | Кто | Что |
+|---|---|---|
+| `GET /{entity}/{id}/reviews?sort=new\|top&skip&limit` | все | итог оценок и комментарии (ответ ниже) |
+| `PUT /{entity}/{id}/rating` `{value}` | вошедший | поставить или сменить оценку |
+| `DELETE /{entity}/{id}/rating` | вошедший | убрать свою оценку |
+| `POST /{entity}/{id}/comments` `{text, reply_to?}` | вошедший | написать комментарий или ответ |
+| `PATCH /comments/{cid}` `{text}` | автор | править; ставит `edited_at` |
+| `DELETE /comments/{cid}` | автор, админ | удалить |
+| `POST /comments/{cid}/like` | вошедший | поставить или снять «нравится» (переключатель) |
+| `POST /comments/{cid}/report` `{reason}` | вошедший | пожаловаться |
+| `GET /admin/reports`, `POST /comments/{cid}/hide` `{hidden}` | админ | модерация |
+
+**Ответ `GET …/reviews`:**
+
+```ts
+{
+  summary: { average: number | null; count: number; histogram: Record<'1'|'2'|'3'|'4'|'5', number>; mine: number | null }
+  total: number
+  items: {
+    id: string; text: string; created_at: string; edited_at: string | null
+    user: { id: string; display_name: string; avatar_url: string | null }
+    rating: number | null        // оценка автора этой записи, чтобы рисовать звёзды у комментария
+    likes: number; liked_by_me: boolean; is_mine: boolean
+    replies: { /* те же поля, без вложенных replies */ }[]   // первые 3; остальные — ?reply_to=cid
+    replies_total: number
+    hidden?: boolean             // только автору и админу
+  }[]
+}
+```
+
+### В списках каталога
+
+- У каждой записи в `GET /items` (и в остальных разделах) — поле `rating: { average: number | null; count: number }`: звёзды на карточке без отдельного запроса.
+- Сортировка `?sort=rating` — по средней оценке с поправкой на малое число голосов, например байесовское среднее.
+
+### Правила
+
+- Читать могут все, писать — только вошедшие.
+- Ограничения:
+  - не больше 5 комментариев в минуту на пользователя (429);
+  - текст 1–2000 символов (422).
+- Свою оценку пользователь ставит один раз и может менять. Лайк своего комментария не считается.
+- Удаление автором: если ответов нет — удалить совсем; если есть — `deleted: true`, текст пустой.
+- Для ссылок на термины в комментариях хватит существующего `POST /terms/link`, ничего нового не нужно.
+
+### События
+
+Пока не нужны: страница перечитывает обсуждение после своего действия. Живое обновление можно добавить потом.

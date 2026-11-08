@@ -70,6 +70,8 @@ declare module '@3d-dice/dice-box' {
     reroll(notation: unknown, options?: { remove?: boolean; newStartPoint?: boolean }): Promise<RollResult[]>
     remove(notation: unknown): Promise<RollResult[]>
     clear(): void
+    /** загрузить тему (материал) заранее: roll() читает её синхронно */
+    loadTheme(theme: string): Promise<unknown>
     hide(transitionClass?: string): void
     show(): void
     getRollResults(): RollGroupResult[]
