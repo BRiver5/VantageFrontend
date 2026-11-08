@@ -63,7 +63,7 @@ export default function BookPage() {
   return (
     <section className="book-page">
       <Link to={book.settings_id ? `/settings/${book.settings_id}` : '/'} className="back-link">
-        <ArrowLeft aria-hidden="true" /> {book.settings_id ? 'к миру' : 'к сотам архива'}
+        <ArrowLeft aria-hidden="true" /> {book.settings_id ? 'к миру' : 'назад к сеттингам'}
       </Link>
 
       <div className={`world-hero${bleedArt ? '' : ' world-hero--plain'}`}>

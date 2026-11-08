@@ -2198,6 +2198,10 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   background-position: center 30%;
   filter: blur(26px) saturate(0.85) brightness(0.62);
   transform: scale(1.14);
+  /* размытое полотно само растворяется к низу: без резкой кромки на стыке со страницей.
+     Элемент увеличен на 14% — прозрачность наступает раньше, чтобы попасть в видимую часть */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, 0.55) 64%, transparent 86%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, 0.55) 64%, transparent 86%);
 }
 /* обои плавно растворяются в фоне страницы — к низу (до --bg-0) и слегка по краям */
 .world-hero-bg::after {
@@ -2312,3 +2316,14 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
 .te-text b { overflow: hidden; color: var(--parchment); font-size: 0.92rem; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .te-text i { overflow: hidden; color: var(--text-dim); font-size: 0.78rem; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 560px) { .te-cards { grid-template-columns: minmax(0, 1fr); padding: 4px 8px 12px; } }
+
+/* Страницы с обоями (мир, книга): фон шапки начинается с самого верха,
+   ссылка «назад» лежит поверх него, а не на пустой полосе */
+.book-page:has(> .world-hero:not(.world-hero--plain)) { position: relative; padding-top: 0; }
+.book-page:has(> .world-hero:not(.world-hero--plain)) > .back-link {
+  position: absolute;
+  top: 26px;
+  z-index: 2;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.6);
+}

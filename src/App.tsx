@@ -64,6 +64,7 @@ import { bookSectionEntries, contentEntryLink, HEX_EXPAND_ROWS, LOOT_CHIP_ROWS }
 import { useAppShell } from './shell'
 import { DieImage } from './dice/diceAssets'
 import { SearchBar, SearchProvider, useOpenSearch } from './search/GlobalSearch'
+import { ContinueRoom } from './rooms/ContinueRoom'
 import { Img, bgUrl } from './media'
 
 /* ---------- Разделы каталога ---------- */
@@ -668,6 +669,7 @@ function HomePage() {
             <DieImage type={20} size={26} className="die-play-icon die-play-icon--flip" />
           </span>
         </Link>
+        <ContinueRoom />
       </section>
 
       <section className="home-section" aria-label="Миры">
@@ -680,10 +682,7 @@ function HomePage() {
       </section>
 
       <section className="home-section" aria-label="Книги мира">
-        <h2 className="home-h2">
-          Книги
-          <span>{splitTitle(realm.title).ru}</span>
-        </h2>
+        <h2 className="home-h2">Книги</h2>
         {!loading && !error && <LootBar realm={realm} />}
         {!error && <BookHive books={realm.books} loading={loading} />}
       </section>

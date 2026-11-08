@@ -992,3 +992,71 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
 
 /* список в соте стал короче и уголки рамки ложились поверх строк */
 .hex-expand-inner .corner { display: none; }
+
+/* ============================================================
+   «ПРОДОЛЖИТЬ»: активная комната под кнопкой «Играть»
+   ============================================================ */
+
+.cr-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(560px, 100%); margin-top: 4px; animation: cr-in 0.6s cubic-bezier(0.2, 1, 0.35, 1) both; }
+@keyframes cr-in { from { opacity: 0; transform: translateY(10px); } }
+
+.cr-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 22px 12px 28px;
+  overflow: hidden;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(180deg, rgba(38, 42, 50, 0.92), rgba(19, 21, 25, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35);
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  transition: transform 0.25s cubic-bezier(0.2, 1, 0.35, 1), filter 0.25s ease;
+}
+/* тонкая золотая кромка по форме гексагона */
+.cr-card::before { content: ''; position: absolute; inset: 0; clip-path: var(--hex-wide-blunt); background: var(--gold-grad); opacity: 0.55; z-index: -1; }
+.cr-card::after { content: ''; position: absolute; inset: 1px; clip-path: var(--hex-wide-blunt); background: linear-gradient(180deg, #23262d, #131519); z-index: -1; }
+.cr-card { isolation: isolate; }
+.cr-card:hover { transform: translateY(-2px); filter: brightness(1.1) drop-shadow(0 0 18px rgba(228, 196, 110, 0.25)); }
+.cr-card:focus-visible { outline: none; filter: brightness(1.15) drop-shadow(0 0 0 1px var(--gold-3)); }
+
+/* обложка комнаты — тихо, справа, растворяется к тексту */
+.cr-cover { position: absolute; inset: 0 0 0 40%; width: 60%; height: 100%; object-fit: cover; opacity: 0.32; -webkit-mask-image: linear-gradient(90deg, transparent, #000 70%); mask-image: linear-gradient(90deg, transparent, #000 70%); pointer-events: none; z-index: 0; }
+
+.cr-face { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 52px; height: 60px; clip-path: var(--hex-point); background: var(--gold-grad); }
+.cr-face > img, .cr-face > b, .cr-face > svg { width: calc(100% - 4px); height: calc(100% - 4px); clip-path: var(--hex-point); }
+.cr-face > img { object-fit: cover; object-position: top; }
+.cr-face > b { display: grid; place-items: center; background: #1b1e24; color: var(--gold-3); font: 700 1.4rem var(--font-display); }
+.cr-face > svg { padding: 14px; box-sizing: border-box; background: #1b1e24; color: var(--gold-3); }
+
+.cr-text { position: relative; z-index: 1; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cr-kicker { color: var(--gold-2); font: 600 0.68rem/1 var(--font-body); font-style: normal; letter-spacing: 0.22em; text-transform: uppercase; }
+.cr-name { overflow: hidden; color: var(--parchment); font: 700 1.2rem/1.25 var(--font-display); letter-spacing: 0.04em; text-overflow: ellipsis; white-space: nowrap; }
+.cr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--text-dim); font-size: 0.8rem; }
+.cr-meta em { font-style: normal; }
+.cr-status { color: var(--gold-3); }
+.cr-status.is-paused, .cr-status.is-lobby { color: var(--text-dim); }
+.cr-fight { display: inline-flex; align-items: center; gap: 4px; color: #e98a7e; animation: cr-pulse 1.8s ease-in-out infinite; }
+.cr-fight svg { width: 13px; height: 13px; }
+@keyframes cr-pulse { 50% { opacity: 0.65; } }
+.cr-online { display: inline-flex; align-items: center; gap: 5px; }
+.cr-online i { width: 7px; height: 7px; border-radius: 50%; background: #6fd08e; box-shadow: 0 0 8px rgba(111, 208, 142, 0.8); }
+.cr-req { color: var(--gold-3); }
+
+.cr-go { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 2px; color: var(--gold-3); font: 600 0.78rem var(--font-body); letter-spacing: 0.14em; text-transform: uppercase; transition: gap 0.2s ease; }
+.cr-go svg { width: 16px; height: 16px; }
+.cr-card:hover .cr-go { gap: 6px; }
+
+.cr-more, .cr-wait { color: var(--text-dim); font-size: 0.8rem; letter-spacing: 0.06em; text-decoration: none; }
+.cr-more:hover, .cr-wait:hover { color: var(--gold-3); }
+.cr-wait { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; }
+.cr-wait svg { width: 14px; height: 14px; }
+
+@media (max-width: 560px) {
+  .cr-card { gap: 12px; padding: 10px 16px 10px 20px; }
+  .cr-go { display: none; }
+  .cr-face { width: 44px; height: 51px; }
+}
