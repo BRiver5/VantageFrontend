@@ -432,7 +432,11 @@ export default function ProfilePage() {
           <input className="pf-name" value={displayName} maxLength={80} onChange={(e) => setDisplayName(e.target.value)} aria-label="Имя" placeholder="Ваше имя" />
           <p className="pf-handle">
             @{user.nickname}
-            {user.role === 'admin' && <span className="pf-badge">админ</span>}
+            {user.role === 'admin' && (
+              <Link to="/moderation" className="pf-badge" title="Жалобы на комментарии">
+                админ · модерация
+              </Link>
+            )}
             <i>{user.email}</i>
           </p>
           <textarea className="pf-bio" value={bio} rows={4} placeholder="Пара слов о себе…" aria-label="О себе" onChange={(e) => setBio(e.target.value)} />

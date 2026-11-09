@@ -1,4 +1,7 @@
 import { isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { RatingMark } from '../reviews/Reviews'
+import { bayes, type ShortRating } from '../reviews/api'
+import { ReviewsPanel } from '../reviews/Reviews'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -13,7 +16,6 @@ import {
   Backpack,
   BookMarked,
   BookOpen,
-  Bookmark,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -784,31 +786,8 @@ function ItemSplitView({
           </ParchmentScroll>
         ) : null}
 
-        {/* оценка (5 звёзд) и избранное — под описанием */}
-        <div className="tube-actions">
-          <div className="tube-rate" aria-label="Оценка предмета">
-            <span className="tube-stars" aria-hidden="true">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star key={i} />
-              ))}
-            </span>
-            <span className="tube-rate-label">Оцените</span>
-            <span className="soon-badge">скоро</span>
-          </div>
-          <button type="button" className="tube-act-btn" disabled>
-            <Bookmark aria-hidden="true" /> В коллекцию
-          </button>
-        </div>
-
-        {/* заглушка обсуждения */}
-        <div className="tube-comments">
-          <h2 className="detail-subtitle gold-text">Обсуждение</h2>
-          <div className="tube-comment-input">
-            <span className="tube-avatar" aria-hidden="true">GG</span>
-            <input type="text" placeholder="Оставить комментарий…" readOnly />
-            <span className="soon-badge">скоро</span>
-          </div>
-        </div>
+        {/* оценки и обсуждение предмета */}
+        <ReviewsPanel key={selected.id} entity="items" id={selected.id} />
       </div>
 
       {/* длинная лента рекомендаций справа + поиск и фильтры */}
@@ -1170,6 +1149,7 @@ function spellCard(s: Spell, bookMap: BookMap) {
         <div>
           <h3 className="card-name">{s.spell_name}</h3>
           {s.school && <span className="card-kicker">{s.school}</span>}
+          <RatingMark rating={(s as { rating?: ShortRating }).rating} />
         </div>
       </div>
       <div className="card-chips">
@@ -1395,6 +1375,7 @@ function equipmentCard(eq: Equipment, bookMap: BookMap) {
       <div className="eq-card-info">
         <h3 className="card-name">{eq.equipment_name}</h3>
         <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
+        <RatingMark rating={(eq as { rating?: ShortRating }).rating} />
         <div className="card-chips">
           <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
           {weight && <Chip icon={Scale}>{weight}</Chip>}
@@ -1497,6 +1478,7 @@ function itemCard(it: Item, bookMap: BookMap, role?: RecRole) {
           {it.item_name}
         </h3>
         {it.item_type && <span className="card-kicker">{it.item_type}</span>}
+        <RatingMark rating={(it as { rating?: ShortRating }).rating} />
         {it.attunement_required && (
           <div className="card-chips">
             <Chip icon={Sparkles}>настройка</Chip>
@@ -1509,13 +1491,18 @@ function itemCard(it: Item, bookMap: BookMap, role?: RecRole) {
 
 /* ---------- Наборы сортировок ---------- */
 
+/** По оценкам игроков: байесовское среднее, лучшие сверху (как ?sort=rating на сервере) */
+const byRating = (a: unknown, b: unknown) => bayes((b as { rating?: ShortRating }).rating) - bayes((a as { rating?: ShortRating }).rating)
+
 const itemSorts: SortOption<Item>[] = [
+  { key: 'rating', label: 'Рейтинг', icon: Star, cmp: (a, b) => byRating(a, b) },
   { key: 'name', label: 'А — Я', icon: ArrowDownAZ, cmp: (a, b) => a.item_name.localeCompare(b.item_name, 'ru') },
   { key: 'rarity', label: 'Редкость', icon: Gem, cmp: (a, b) => rarityRank(a.rarity) - rarityRank(b.rarity) },
   { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.item_source, b.item_source, bm) },
 ]
 
 const creatureSorts: SortOption<Creature>[] = [
+  { key: 'rating', label: 'Рейтинг', icon: Star, cmp: (a, b) => byRating(a, b) },
   { key: 'name', label: 'А — Я', icon: ArrowDownAZ, cmp: (a, b) => a.name.localeCompare(b.name, 'ru') },
   { key: 'cr', label: 'Опасность', icon: Flame, cmp: (a, b) => (a.challenge_rating ?? -1) - (b.challenge_rating ?? -1) },
   { key: 'ac', label: 'КД', icon: Shield, cmp: (a, b) => a.ac - b.ac },
@@ -1529,6 +1516,7 @@ function numCmp(a: number | null, b: number | null): number {
 }
 
 const equipmentSorts: SortOption<Equipment>[] = [
+  { key: 'rating', label: 'Рейтинг', icon: Star, cmp: (a, b) => byRating(a, b) },
   {
     key: 'name',
     label: 'А — Я',
@@ -1605,6 +1593,7 @@ function equipmentFilters(enums: MetaEnums | null): FilterGroup<Equipment>[] {
 }
 
 const spellSorts: SortOption<Spell>[] = [
+  { key: 'rating', label: 'Рейтинг', icon: Star, cmp: (a, b) => byRating(a, b) },
   { key: 'name', label: 'А — Я', icon: ArrowDownAZ, cmp: (a, b) => a.spell_name.localeCompare(b.spell_name, 'ru') },
   { key: 'level', label: 'Круг', icon: Sparkles, cmp: (a, b) => a.spell_level - b.spell_level },
   { key: 'book', label: 'Книга', icon: BookMarked, cmp: (a, b, bm) => bookCmp(a.spell_source, b.spell_source, bm) },

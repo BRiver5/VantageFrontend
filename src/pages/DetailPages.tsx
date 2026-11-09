@@ -1,4 +1,6 @@
 import { isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ReviewsPanel } from '../reviews/Reviews'
+import type { ReviewEntity } from '../reviews/api'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -197,6 +199,7 @@ function DetailShell({
   bareCover,
   omitCover,
   heroNames,
+  reviews,
   children,
 }: {
   backTo: string
@@ -229,6 +232,8 @@ function DetailShell({
   omitCover?: boolean
   /** общие view-transition-name для морфа из карточки каталога (арт + заголовок) */
   heroNames?: { img?: string; title?: string }
+  /** оценки и обсуждение под записью */
+  reviews?: { entity: ReviewEntity; id: string }
   children: ReactNode
 }) {
   const [broken, setBroken] = useState(false)
@@ -298,6 +303,7 @@ function DetailShell({
       </div>
       <Divider />
       {children}
+      {reviews && <ReviewsPanel entity={reviews.entity} id={reviews.id} />}
     </section>
   )
 }
@@ -375,6 +381,7 @@ export function SpellDetailPage() {
 
   return (
     <DetailShell
+      reviews={{ entity: 'spells', id: s.id }}
       backTo={backTo}
       backLabel={backLabel}
       kicker={s.school ? `школа: ${s.school}` : 'заклинание'}
@@ -501,6 +508,7 @@ export function CreatureDetailPage() {
       {c.mythical_actions?.length ? (
         <DetailSection title="Мифические действия"><Traits list={c.mythical_actions} /></DetailSection>
       ) : null}
+      <ReviewsPanel entity="creatures" id={c.id} />
     </section>
   )
 }
@@ -1160,6 +1168,7 @@ export function ClassDetailView({
             </DetailSection>
           </div>
         )}
+        {!embedded && <ReviewsPanel entity="classes" id={c.id} />}
       </section>
     </OpenLinksInNewTab.Provider>
   )
@@ -1361,6 +1370,7 @@ export function RaceDetailPage() {
         <ArrowLeft aria-hidden="true" /> к расам
       </Link>
       <RaceDetailBody race={r} world={world} />
+      <ReviewsPanel entity="races" id={r.id} />
     </section>
   )
 }
@@ -1413,6 +1423,7 @@ export function SubclassDetailPage() {
 
   return (
     <DetailShell
+      reviews={{ entity: 'subclasses', id: sc.id }}
       backTo={`/classes/${sc.parent_class_id}`}
       backLabel={parent ? `к классу «${parent.class_name}»` : 'к классу'}
       onBackClick={backToClass}
@@ -1520,6 +1531,7 @@ export function SubraceDetailPage() {
 
   return (
     <DetailShell
+      reviews={{ entity: 'subraces', id: sr.id }}
       backTo={`/races/${sr.parent_race_id}`}
       backLabel={parent ? `к расе «${parent.race_name}»` : 'к расе'}
       kicker="подраса"
@@ -1647,6 +1659,7 @@ export function BackgroundDetailPage() {
         <ArrowLeft aria-hidden="true" /> к предысториям
       </Link>
       <BackgroundDetailBody bg={bg} />
+      <ReviewsPanel entity="backgrounds" id={bg.id} />
     </section>
   )
 }
@@ -1772,6 +1785,7 @@ export function FeatDetailPage() {
         <ArrowLeft aria-hidden="true" /> к чертам
       </Link>
       <FeatDetailBody f={f} />
+      <ReviewsPanel entity="feats" id={f.id} />
     </section>
   )
 }
@@ -1912,6 +1926,7 @@ export function ItemDetailPage() {
           <Rich text={it.description} />
         </DetailSection>
       </div>
+      <ReviewsPanel entity="items" id={it.id} />
     </section>
   )
 }
@@ -2044,6 +2059,7 @@ export function EquipmentDetailPage() {
           </DetailSection>
         )}
       </div>
+      <ReviewsPanel entity="equipment" id={eq.id} />
     </section>
   )
 }
