@@ -11,6 +11,7 @@ import { ApiError } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { RichText, useLinkedText } from '../terms/terms'
 import { deleteComment, editComment, getReviews, likeComment, postComment, rate, reportComment, unrate, type RatingSummary, type ReviewComment, type ReviewEntity, type Reviews } from './api'
+import { matches } from '../input/keybindings'
 
 const MAX = 2000
 const PAGE = 20
@@ -126,11 +127,11 @@ function Composer({ initial = '', placeholder, busy, onSubmit, onCancel, autoFoc
         placeholder={placeholder}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          if (matches(e, 'review.send')) {
             e.preventDefault()
             void send()
           }
-          if (e.key === 'Escape' && onCancel) onCancel()
+          if (matches(e, 'dialog.close') && onCancel) onCancel()
         }}
         aria-label={placeholder}
       />

@@ -3,7 +3,7 @@
  * клетками, выбор предмета (количество, удалить, открыть в панели) и добавление
  * новых из каталога снаряжения или магических предметов — с поиском и фильтрами.
  */
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, Gem, Minus, Plus, Shield, Sparkles, Trash2, X } from 'lucide-react'
 import { realImage } from '../../api'
@@ -17,6 +17,7 @@ import { useCatalogList } from '../useCatalog'
 import { inventoryItem, magicInventoryItem } from '../startingGear'
 import { PickToolbar, usePicker, type PickFilterGroup } from './ui'
 import { Img } from '../../media'
+import { useKeybinding } from '../../input/useKeybinding'
 
 const COLS = 7
 const cellKey = (col: number, row: number) => `${col}:${row}`
@@ -72,13 +73,9 @@ export function InventoryManager({
   const drawer = useEquipmentDrawer()
   const { items: magicCatalog, loading: magicLoading, error: magicError } = useCatalogList<Item>('items')
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.querySelector('.eq-drawer-layer')) onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useKeybinding('dialog.close', () => {
+    if (!document.querySelector('.eq-drawer-layer')) onClose()
+  })
 
   /* ---------- сетка ---------- */
 

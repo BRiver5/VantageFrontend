@@ -17,6 +17,7 @@ import { formatPortrait, parsePortrait, type FaceCrop } from '../characters/port
 import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from '../dice/diceSounds'
 import { useCatalogList } from '../create/useCatalog'
 import { Img } from '../media'
+import { useKeybinding } from '../input/useKeybinding'
 
 const errText = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback)
 
@@ -240,11 +241,7 @@ function Avatar({ name }: { name: string }) {
 /** Кадр аватара: водите рамкой по картинке, колесом или ползунком — размер */
 function CropDialog({ src, crop, onSave, onClose }: { src: string; crop: FaceCrop | null; onSave: (c: FaceCrop) => void; onClose: () => void }) {
   const [face, setFace] = useState<FaceCrop>(crop ?? { cx: 0.5, cy: 0.35, r: 0.6, shape: 'hex' })
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useKeybinding('dialog.close', () => onClose())
   return (
     <div className="pf-crop-layer" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="pf-crop" role="dialog" aria-label="Кадр аватара">

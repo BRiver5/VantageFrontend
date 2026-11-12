@@ -12,6 +12,7 @@ import type { Character, CharacterEvent, PendingDecision, Sheet } from '../types
 import { Stepper } from './editorFields'
 import { SheetModal } from './SheetModal'
 import { classSlugs, valuesOf, type Names } from './sheetView'
+import { useKeybinding } from '../input/useKeybinding'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Ошибка сервера')
 
@@ -213,11 +214,7 @@ export function JournalModal(props: JournalProps) {
 /** Журнал действий — панель справа: всё, что делал герой, с отменой последнего */
 export function JournalDrawer(props: JournalProps) {
   const { onClose } = props
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useKeybinding('dialog.close', () => onClose())
   return createPortal(
     <div className="jr-layer" onClick={onClose}>
       <aside className="jr-drawer" role="dialog" aria-label="Журнал действий" onClick={(e) => e.stopPropagation()}>

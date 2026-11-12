@@ -21,6 +21,7 @@ import { FORCEABLE_SIDES, forcedRollId } from './forcedIds'
 import { DieImage } from './diceAssets'
 import { useAuth } from '../auth/AuthContext'
 import { useAppShell } from '../shell'
+import { useKeybinding } from '../input/useKeybinding'
 
 type DicePool = Partial<Record<DieType, number>>
 type Phase = 'idle' | 'rolling' | 'reveal'
@@ -430,12 +431,7 @@ export default function DiceRoller() {
     return () => document.removeEventListener('pointerdown', onDown)
   }, [menu, touch, closeMenu])
 
-  useEffect(() => {
-    if (!menu) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeMenu()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [menu, closeMenu])
+  useKeybinding('dialog.close', () => closeMenu(), !!menu)
 
   /* ---------- броски из меню ---------- */
 

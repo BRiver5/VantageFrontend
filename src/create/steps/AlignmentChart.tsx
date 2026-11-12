@@ -3,9 +3,10 @@
  * «лепестка» по углам, полосы нейтральности между ними и восьмиугольник
  * истинной нейтральности в центре. Открывается попапом с кнопки.
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useKeybinding } from '../../input/useKeybinding'
 
 export interface AlignmentInfo {
   name: string
@@ -87,13 +88,7 @@ export function AlignmentChart({
   const current = BY_NAME.get(value) ?? null
   const shown = hover ? ALIGNMENTS[hover] : current
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useKeybinding('dialog.close', () => onClose())
 
   return createPortal(
     <div className="cw-modal-layer" onClick={onClose}>

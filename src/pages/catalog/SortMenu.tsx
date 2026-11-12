@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   ArrowUpDown,
   Check,
   X,
 } from 'lucide-react'
 import { type SortOption } from './config'
+import { useKeybinding } from '../../input/useKeybinding'
 
 /** Телефон: кнопка с текущей сортировкой и нижняя шторка выбора */
 export function SortMenu<T>({
@@ -19,14 +20,7 @@ export function SortMenu<T>({
   const [open, setOpen] = useState(false)
   const current = sorts.find((s) => s.key === value)
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open])
+  useKeybinding('dialog.close', () => setOpen(false), open)
 
   const choose = (key: string) => {
     onChange(key)
