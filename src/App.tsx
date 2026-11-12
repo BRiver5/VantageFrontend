@@ -69,6 +69,7 @@ import { SearchBar, SearchProvider, useOpenSearch } from './search/GlobalSearch'
 import { ContinueRoom } from './rooms/ContinueRoom'
 import { TermDetailPage, TermsIndexPage } from './terms/TermPages'
 import { Img, bgUrl } from './media'
+import { HEX_DWELL_MS, layoutHive } from './ui/hive'
 
 /* ---------- Разделы каталога ---------- */
 
@@ -459,9 +460,6 @@ function HexLootExpand({ book, contents }: { book: Book; contents: BookContents 
   )
 }
 
-// сколько курсор должен «задержаться» на соте, прежде чем она раскроется
-const HEX_DWELL_MS = 700
-
 function BookHex({ book, index }: { book: Book; index: number }) {
   const navigate = useNavigate()
   const { ru } = splitTitle(book.title)
@@ -534,37 +532,6 @@ function BookHex({ book, index }: { book: Book; index: number }) {
       </div>
     </div>
   )
-}
-
-/**
- * Раскладывает произвольное число ячеек по рядам гексагонального улья с шахматным
- * чередованием ширины (полный ряд / на одну соту короче). Каждый ряд после первого
- * стыкуется внахлёст с предыдущим (гексагоны входят в вырезы). Чтобы стыковка
- * работала при ЛЮБОМ числе книг (в т.ч. на «хвосте», где остаток не заполняет ряд
- * целиком), короткие ряды добиваются НЕВИДИМЫМИ ячейками-распорками (`pad`) до
- * своей целевой ширины. Тогда центрирование всегда сдвигает ряд ровно на полсоты
- * относительно соседа, и вырезы совпадают — без «висящих» ровно снизу рядов, как
- * было раньше, когда стыковку отключали при равной/чётно-отличной ширине.
- */
-function layoutHive<T>(
-  items: T[],
-  cols: number,
-): { items: T[]; pad: number; nested: boolean }[] {
-  const c = Math.max(1, cols)
-  const target = (r: number) => (c <= 1 ? 1 : r % 2 === 0 ? c : c - 1)
-  const rows: T[][] = []
-  for (let i = 0, r = 0; i < items.length; r++) {
-    const n = target(r)
-    rows.push(items.slice(i, i + n))
-    i += n
-  }
-  return rows.map((row, i) => ({
-    items: row,
-    // первый ряд не добиваем (стыковать сверху нечего); остальные добиваем
-    // распорками до целевой ширины — так центрирование даёт верный полусотовый сдвиг
-    pad: i === 0 ? 0 : Math.max(0, target(i) - row.length),
-    nested: i > 0 && c > 1,
-  }))
 }
 
 function BookHive({ books, loading }: { books: Book[]; loading: boolean }) {

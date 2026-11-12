@@ -95,6 +95,7 @@ import { useBookWorld, type BookWorld } from '../worldArt'
 import { splitRaceArticle } from '../raceArticle'
 import { useAppShell } from '../shell'
 import { Img, bgUrl } from '../media'
+import { HEX_DWELL_MS, layoutHive } from '../ui/hive'
 
 /* ---------- Общие детали ---------- */
 
@@ -620,26 +621,7 @@ function ClassProgressionTable({ table, onOpenSubclasses }: { table: ClassTable;
   )
 }
 
-/* ---------- Соты подклассов (как соты книг) ---------- */
-
-const HEX_DWELL_MS = 700
-
-/** Раскладка ячеек по рядам гексагонального улья (копия из BookHive). */
-function layoutHive<T>(items: T[], cols: number): { items: T[]; pad: number; nested: boolean }[] {
-  const c = Math.max(1, cols)
-  const target = (r: number) => (c <= 1 ? 1 : r % 2 === 0 ? c : c - 1)
-  const rows: T[][] = []
-  for (let i = 0, r = 0; i < items.length; r++) {
-    const n = target(r)
-    rows.push(items.slice(i, i + n))
-    i += n
-  }
-  return rows.map((row, i) => ({
-    items: row,
-    pad: i === 0 ? 0 : Math.max(0, target(i) - row.length),
-    nested: i > 0 && c > 1,
-  }))
-}
+/* ---------- Соты подклассов (как соты книг; раскладка — src/ui/hive.ts) ---------- */
 
 /** Короткая выжимка описания подкласса для меню соты (первый осмысленный абзац). */
 function subclassPreview(text: string | null | undefined): string {
