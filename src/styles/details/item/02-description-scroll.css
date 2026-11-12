@@ -1,0 +1,289 @@
+/* ---------- Свиток описания (сворачиваемый текст) ---------- */
+
+.parchment-scroll {
+  margin-top: 18px;
+  /* место под застёжку, свисающую с нижнего валика */
+  padding-bottom: 18px;
+  max-width: 100%;
+}
+
+/* золотая надпись — внутри самого пергамента, в несворачиваемой шапке листа */
+.parchment-scroll-head {
+  position: relative;
+  z-index: 1;
+  padding: 16px 24px 14px;
+}
+
+.parchment-scroll-title {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0;
+}
+
+.parchment-scroll-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--gold-2);
+  box-shadow: 0 0 8px rgb(var(--gold-2-rgb) / 0.55);
+}
+
+.parchment-scroll-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.5), rgb(var(--gold-2-rgb) / 0.05));
+}
+
+.parchment-scroll-title-text {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 1.3vw, 1.18rem);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* тиснёное золото */
+  background: linear-gradient(180deg, var(--gold-4) 0%, var(--gold-3) 42%, var(--gold-2) 72%, #96702a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+}
+
+.parchment-scroll-assembly {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.42));
+}
+
+.parchment-scroll-rod {
+  position: relative;
+  z-index: 2;
+  display: block;
+  height: 8px;
+  margin: 0 14px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--silver-1), var(--silver-0) 52%, var(--silver-1));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 0.72s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* свёрнутый свиток толще — бумага намоталась на валики */
+.parchment-scroll:not(.is-open) .parchment-scroll-rod {
+  transform: scaleY(1.55);
+}
+
+.parchment-scroll-rod::before,
+.parchment-scroll-rod::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 12px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--silver-2), var(--silver-0));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    0 2px 5px rgba(0, 0, 0, 0.38);
+}
+
+.parchment-scroll-rod::before { left: -7px; }
+.parchment-scroll-rod::after { right: -7px; }
+
+.parchment-scroll-rod--top { margin-bottom: -2px; }
+
+.parchment-scroll-rod--bottom {
+  margin-top: -2px;
+}
+
+/* Бумага сворачивается ПОЛНОСТЬЮ. Анимируем настоящую высоту через grid-строку
+   (minmax(0, 0fr) ⇄ minmax(0, 1fr)): max-height так не годится — от 4200px до
+   реальной высоты текста ничего не происходит, и свиток «схлопывается» рывком
+   в самом конце. Здесь же скорость роллинга ровная от начала до конца. */
+/* лист пергамента — общий для шапки и тела, поэтому это один кусок бумаги */
+.parchment-scroll-sheet {
+  position: relative;
+  z-index: 1;
+  margin: 0 12px;
+  background:
+    radial-gradient(120% 65% at 50% 0%, rgb(var(--gold-2-rgb) / 0.06), transparent 58%),
+    linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 52%, var(--bg-1) 100%);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.24);
+}
+
+.parchment-scroll-sheet .corner {
+  opacity: 0.85;
+}
+
+.parchment-scroll-paper {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  overflow: hidden;
+  transition: grid-template-rows 0.72s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.parchment-scroll.is-open .parchment-scroll-paper {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.parchment-scroll-paper-inner {
+  position: relative;
+  min-height: 0;
+  padding: 0 24px 18px;
+}
+
+/* тень скрутки: едет по нижнему краю бумаги, пока та наматывается на валик */
+.parchment-scroll-paper::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.6em;
+  background: linear-gradient(180deg, transparent, rgba(6, 7, 9, 0.72) 80%, rgba(6, 7, 9, 0.94) 100%);
+  box-shadow: inset 0 -1px 0 rgb(var(--parchment-rgb) / 0.16);
+  pointer-events: none;
+  transition: opacity 0.32s ease;
+}
+
+.parchment-scroll.is-open .parchment-scroll-paper::after {
+  opacity: 0;
+}
+
+.parchment-scroll-text {
+  position: relative;
+  z-index: 1;
+  color: var(--text);
+}
+
+.parchment-scroll-text .rich p {
+  margin-bottom: 0.85em;
+  line-height: 1.62;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.parchment-scroll-text .rich b {
+  color: var(--parchment);
+  font-weight: 600;
+}
+
+.parchment-scroll-text a.term-link {
+  color: var(--gold-2);
+  text-decoration-color: color-mix(in srgb, var(--gold-2) 45%, transparent);
+}
+
+.parchment-scroll-text a.term-link:hover {
+  color: var(--gold-3);
+}
+
+/* застёжка свитка: сидит НА нижнем валике, из того же металла, что и валики */
+.parchment-scroll-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  z-index: 3;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 18px;
+  clip-path: var(--hex-chip);
+  border: none;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, var(--silver-1), var(--silver-0) 52%, var(--silver-1));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    0 3px 9px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+.parchment-scroll-toggle::after {
+  content: '▾';
+  font-size: 0.82em;
+  transition: transform 0.32s ease;
+}
+
+.parchment-scroll.is-open .parchment-scroll-toggle::after {
+  transform: rotate(180deg);
+}
+
+.parchment-scroll-toggle:hover {
+  filter: brightness(1.14);
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.item-tube-scroll {
+  max-width: min(640px, 100%);
+}
+
+/* заглушка обсуждения */
+.tube-comments { margin-top: 28px; }
+.tube-comment-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tube-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  --hex-edge: var(--gold-1);
+  background: var(--hex-edge);
+  color: var(--bg-0);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+.tube-comment-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 2px;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.3);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+.tube-comment-input input::placeholder { color: var(--text-dim); }
+
+.soon-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  clip-path: var(--hex-chip);
+  --hex-in: rgb(var(--gold-2-rgb) / 0.16);
+  --hex-edge: rgb(var(--gold-2-rgb) / 0.4);
+  background: var(--hex-edge);
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+

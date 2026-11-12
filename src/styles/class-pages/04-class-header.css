@@ -1,0 +1,182 @@
+/* ---------- Шапка детальной страницы класса ---------- */
+/* слои: кость → портрет → свечение → чипы → имя */
+.class-detail-hero {
+  position: relative;
+  margin: 0 calc(-1 * clamp(12px, 3vw, 28px));
+  padding: 0;
+  background: none;
+  border: none;
+  overflow: visible;
+}
+
+.class-detail-stage {
+  position: relative;
+  width: 100%;
+  min-height: clamp(480px, 68vh, 720px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  overflow: visible;
+}
+
+/* Шестиугольная обложка (как сота): на странице подкласса и бейджем на классе */
+.detail-hex {
+  position: relative;
+  width: clamp(140px, 24vw, 196px);
+  aspect-ratio: 0.87;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 3px;
+  display: block;
+  text-decoration: none;
+}
+.detail-hex-cover,
+.detail-hex-fallback {
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  object-fit: cover;
+  object-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.detail-hex-fallback svg { width: 34%; height: 34%; color: rgb(var(--gold-3-rgb) / 0.35); stroke-width: 1; }
+.detail-hex--sm { width: clamp(116px, 17vw, 156px); }
+a.detail-hex { transition: filter 0.16s ease; }
+a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgb(var(--silver-3-rgb) / 0.4)); }
+
+/* Бейдж выбранного подкласса — справа сверху сцены класса */
+.class-detail-subhex {
+  position: absolute;
+  z-index: 5;
+  top: 6px;
+  right: clamp(6px, 4vw, 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  max-width: clamp(116px, 17vw, 156px);
+}
+.class-detail-subhex-art { position: relative; display: flex; }
+.class-detail-subhex-name {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+/* Золотой гексагон-действие, вписанный в гекс обложки подкласса:
+   на бейдже класса — снять подкласс, в сотах — выбрать/снять. */
+.hex-pick {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  right: 8%;
+  transform: translateY(-50%);
+  width: 30%;
+  aspect-ratio: 0.87;
+  padding: 0;
+  border: none;
+  background: var(--gold-grad);
+  clip-path: var(--hex-point);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.6));
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.hex-pick::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgba(28, 24, 15, 0.97), rgba(11, 10, 8, 0.98));
+  transition: background 0.18s ease;
+}
+.hex-pick svg {
+  position: relative;
+  width: 46%;
+  height: 46%;
+  color: var(--gold-3);
+  stroke-width: 2.4;
+  transition: color 0.18s ease;
+}
+.hex-pick:hover {
+  transform: translateY(-50%) scale(1.09);
+  filter: drop-shadow(0 0 12px rgb(var(--gold-3-rgb) / 0.55));
+}
+.hex-pick:hover svg { color: var(--gold-4); }
+.hex-pick.is-on::before { background: linear-gradient(180deg, var(--gold-3), var(--gold-1)); }
+.hex-pick.is-on svg { color: var(--bg-0); }
+
+/* вариант у нижнего острия гекса (бейдж подкласса в шапке класса) */
+.hex-pick--bottom {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+}
+.hex-pick--bottom:hover { transform: translateX(-50%) scale(1.09); }
+
+/* в сотах гекс — только верхняя часть ячейки, поэтому центрируем по его высоте */
+.hex-pick--hive {
+  top: calc(var(--hex-h) * 0.5);
+  width: 28%;
+  opacity: 0;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+.hex-cell-wrap:hover .hex-pick--hive,
+.hex-cell-wrap:focus-within .hex-pick--hive,
+.hex-pick--hive.is-on,
+.hex-pick--hive:focus-visible { opacity: 1; }
+
+/* выбранная сота — золотой оклад вместо серебряного */
+.hex-cell-wrap.is-picked:not(.is-expanded) .hex-cell {
+  background: var(--gold-grad);
+  padding: 3px;
+  filter: drop-shadow(0 0 12px rgb(var(--gold-2-rgb) / 0.4));
+}
+.hex-cell-wrap.is-picked .hex-title { color: var(--gold-4); }
+
+/* Панель действий класса — сразу под шапкой: «Заклинания класса» + «к архетипам» */
+.class-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+.class-cta-row .spell-cta { margin: 0; }
+
+/* Кнопка «к архетипам» — ведёт к сотам подклассов; стрелка чуть «дышит» на hover */
+.subclass-jump { gap: 8px; }
+.subclass-jump svg:last-child {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  transition: transform 0.18s ease;
+}
+.subclass-jump:hover svg:last-child { transform: translateY(2px); }
+
+/* Кнопки на странице подкласса */
+.subclass-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+/* призрачный вариант: тёмная заливка, золотая обводка по форме соты */
+.spell-cta--ghost {
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: var(--gold-1);
+  background: transparent;
+  box-shadow: none;
+  color: var(--gold-3);
+}
+.spell-cta--ghost:hover {
+  --hex-in: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.22), var(--bg-1));
+  filter: none;
+}
+

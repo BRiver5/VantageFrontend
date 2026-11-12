@@ -1,0 +1,336 @@
+/* ---------- Карточка с портретом (классы и расы): арт, наслаивающаяся плашка ---------- */
+.card-grid:has(.card--portrait) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px 20px;
+  /* внутренний запас, чтобы scale портретов не упирался в край колонки */
+  padding-inline: 22px;
+  box-sizing: border-box;
+}
+.card-grid:has(.card--portrait) .card-slot {
+  overflow: visible;
+  min-width: 0;
+}
+
+.card-grid:has(.card--item),
+.card-grid:has(.card--equipment) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.card-grid:has(.card--equipment) .card-slot { min-width: 0; }
+
+.card.card--portrait {
+  position: relative;
+  min-width: 0;
+  --class-card-inset: 10px;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+.card.card--portrait::before,
+.card.card--portrait::after { display: none; }
+.card.card--portrait:hover {
+  transform: translateY(-5px);
+  box-shadow: none;
+}
+
+/* слои (снизу вверх): кость → портрет → свечение → описание → имя */
+.class-card-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: visible;
+}
+
+.class-card-die {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 82%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.class-card-portrait {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 8px 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.class-card-portrait > img {
+  position: relative;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  max-width: 94%;
+  max-height: 90%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: scale(1.42);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.52));
+  transition: transform 0.28s ease;
+}
+
+.class-card-fallback {
+  position: relative;
+  z-index: 2;
+  width: 38%;
+  height: 38%;
+  color: rgb(var(--gold-2-rgb) / 0.45);
+  stroke-width: 0.85;
+  transform: scale(1.42);
+  transform-origin: center bottom;
+}
+
+.class-card-glow {
+  position: absolute;
+  z-index: 2;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 150px;
+  transform: translateY(-100%);
+  background: linear-gradient(
+    to top,
+    rgb(var(--gold-2-rgb) / 0.38) 0%,
+    rgb(var(--gold-2-rgb) / 0.2) 38%,
+    rgba(228, 196, 120, 0.08) 68%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.class-card-lower {
+  position: relative;
+  margin-top: -52px;
+  padding: 0 var(--class-card-inset);
+}
+
+.class-card-panel {
+  position: relative;
+  z-index: 4;
+  margin: 0;
+  padding: 34px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background:
+    linear-gradient(168deg, rgba(28, 32, 42, 0.97), rgba(14, 16, 22, 0.98)) padding-box,
+    linear-gradient(155deg, rgb(var(--silver-2-rgb) / 0.45), rgb(var(--silver-2-rgb) / 0.12) 45%, rgb(var(--silver-2-rgb) / 0.35)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
+  transition: box-shadow 0.22s ease;
+}
+
+.class-card-name-plate {
+  position: absolute;
+  z-index: 5;
+  /* якорим НИЖНИЙ край плашки: длинное имя переносится на вторую строку и
+     плашка растёт вверх, на портрет, а не вниз на содержимое панели */
+  bottom: calc(100% - 26px);
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(calc(100% - 4px), 268px);
+  padding: 12px 34px;
+  clip-path: var(--hex-wide-blunt);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.18rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--parchment);
+  line-height: 1.15;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+}
+.class-card-name-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(168deg, rgba(36, 40, 52, 0.98), rgba(18, 20, 28, 0.99));
+  z-index: -1;
+}
+
+.card.card--portrait:hover .class-card-panel {
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.55), 0 0 24px rgb(var(--gold-2-rgb) / 0.1);
+}
+
+.card.card--portrait:hover .class-card-portrait > img {
+  transform: scale(1.48) translateY(-3px);
+}
+
+.card.card--class:hover .class-card-die {
+  transform: translate(-50%, -50%) scale(1.03);
+  opacity: 0.55;
+}
+
+.card.card--portrait:hover .class-card-name-plate {
+  filter: brightness(1.06);
+}
+
+.class-card-desc {
+  -webkit-line-clamp: 3;
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+/* Класс-карточка: стат-плашки (кость хитов / характеристики / спасброски) */
+.class-card-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.class-card-stats .ccs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.class-card-stats dt,
+.class-card-stats .ccs-dt {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold-3);
+}
+.class-card-stats dd,
+.class-card-stats .ccs-dd {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+/* ---------- Карточка расы: тот же портрет, но вместо кости — стат-плашки ---------- */
+
+/* панели рас тянутся на всю высоту ряда, чтобы нижние рейки шли одной линией */
+.card--race .class-card-lower {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card--race .class-card-panel {
+  flex: 1;
+  gap: 12px;
+  padding: 32px 16px 14px;
+}
+
+/* имена рас длиннее классовых — жетон шире и мельче, чтобы реже переноситься */
+.card--race .class-card-name-plate {
+  width: min(calc(100% + 10px), 282px);
+  padding: 11px 24px;
+  font-size: 1.04rem;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+/* прибавки характеристик — золотые жетоны сразу под именем */
+.race-boosts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.race-boost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 26px;
+  line-height: 1;
+  clip-path: var(--hex-chip);
+  padding: 0 15px;
+  --hex-in: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.26), rgb(var(--gold-2-rgb) / 0.08));
+  --hex-edge: rgba(228, 196, 120, 0.4);
+  background: var(--hex-edge);
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-4);
+  white-space: nowrap;
+}
+.race-boost i {
+  font-style: normal;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--parchment);
+}
+
+.race-card-desc {
+  -webkit-line-clamp: 2;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* размер · скорость · тёмное зрение — рейка по низу панели */
+/* ячейки делят ширину по содержимому: «Маленький» шире, чем «30 фт.» */
+.race-rail {
+  display: flex;
+  margin-top: auto;
+  padding-top: 11px;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.16);
+}
+
+.race-rail-cell {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  text-align: center;
+  min-width: 0;
+}
+.race-rail-cell + .race-rail-cell {
+  border-left: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+}
+.race-rail-cell svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.5;
+  color: var(--gold-2);
+}
+.race-rail-cell b {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.race-rail-cell i {
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.race-rail-cell[data-off] b { color: var(--text-dim); }
+

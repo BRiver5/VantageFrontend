@@ -1,0 +1,213 @@
+/* ---------- страница класса на телефоне ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* кнопки действий: призрачный вариант должен быть тёмным, а обводка — по форме кнопки */
+  .class-cta-row { gap: 8px; }
+  .class-cta-row .spell-cta {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 42px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  .class-cta-row .spell-cta:not(.spell-cta--ghost) { flex-basis: 100%; }
+  .spell-cta--ghost,
+  .spell-cta--ghost:hover {
+    --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+    --hex-edge: var(--gold-1);
+    background: transparent;
+    box-shadow: none;
+    color: var(--gold-3);
+  }
+
+  .stat-row {
+    gap: 10px;
+    padding: 7px 2px;
+    font-size: 0.92rem;
+  }
+  .stat-row-label {
+    flex: 0 0 104px;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+  .stat-rows { margin-bottom: 8px; }
+
+  /* таблица развития: уровень закреплён, умения видны сразу, остальное — свайпом */
+  .class-article table.class_table {
+    width: auto;
+    min-width: 0;
+    font-size: 0.8rem;
+  }
+  .class-article table.class_table td {
+    padding: 5px 6px;
+    line-height: 1.25;
+  }
+  .class-article table.class_table td:has(.ca-ref),
+  .class-article table.class_table td.ca-feat-h { min-width: calc(100vw - 138px); }
+  .class-article table.class_table tr.table_header td { font-size: 0.66rem; }
+  .class-article table.class_table tr.table_header td:nth-child(-n + 2):not(.ca-feat-h) .long,
+  .class-article table.class_table tr.table_header td[colspan] .long { display: none; }
+  .class-article table.class_table tr.table_header td:nth-child(-n + 2):not(.ca-feat-h) .short,
+  .class-article table.class_table tr.table_header td[colspan] .short { display: inline; }
+  .class-article table.class_table tr:not(.spell-slots-row) td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg-1);
+  }
+
+  /* разделы статьи: единый ряд вместо смеси шрифтов; подпункт мельче родителя */
+  .class-article details.ca-collapse { margin: 0; }
+  .class-article summary.ca-summary,
+  .mobile-fold-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    padding: 11px 2px;
+    border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+    color: var(--gold-4);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+    list-style: none;
+  }
+  .class-article summary.ca-summary::before,
+  .mobile-fold-head::before {
+    content: '▸';
+    flex-shrink: 0;
+    margin: 0;
+    color: var(--gold-2);
+    transition: transform 0.15s ease;
+  }
+  .class-article details[open] > summary.ca-summary::before,
+  .mobile-fold[open] > .mobile-fold-head::before { transform: rotate(90deg); }
+  .mobile-fold-head::-webkit-details-marker { display: none; }
+
+  .class-article summary.ca-summary.bigSectionTitle {
+    margin-top: 16px;
+    border-bottom-color: rgb(var(--gold-2-rgb) / 0.28);
+    color: var(--gold-3);
+    font-size: 1.2rem;
+  }
+  .class-article .ca-collapse--sub { margin-left: 14px; }
+  .class-article .ca-collapse--sub > summary.ca-summary {
+    padding-block: 9px;
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+  .class-article details.ca-collapse[open] > .ca-collapse-body,
+  .class-article details.ca-collapse[open] > span,
+  .class-article details.ca-collapse[open] > div:not(.ca-collapse-body) {
+    padding-block: 8px 12px;
+    font-size: 0.94rem;
+  }
+
+  .mobile-fold { margin: 0 0 4px; }
+  .mobile-fold[open] > .mobile-fold-head { margin-bottom: 10px; }
+}
+
+/* ---------- расы на телефоне ---------- */
+
+.race-card-go { display: none; }
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* карточка каталога: картинка, имя, характеристики, переход */
+  .catalog .card--race:not(.card--creature) .class-card-visual { aspect-ratio: 1 / 1; }
+  .catalog .card--race:not(.card--creature) .race-rail { display: none; }
+  /* арт в пределах карточки: иначе наезжает на шапку и верхний ряд */
+  .catalog .card--race:not(.card--creature) .class-card-portrait > img { transform: scale(1.1); }
+  .catalog .card-grid:has(.card--race:not(.card--creature)) { gap: 16px 10px; }
+  .catalog .card--race:not(.card--creature) .race-card-panel {
+    gap: 8px;
+    padding: 30px 8px 8px;
+  }
+  .catalog .race-card-go {
+    display: inline-flex;
+    align-self: center;
+    margin-top: auto;
+    min-height: 24px;
+    font-size: 0.7rem;
+  }
+
+  /* характеристики идут в строку и переносятся рядами */
+  :is(.catalog, .cw-catalog-grid) .race-boosts { gap: 4px; }
+  :is(.catalog, .cw-catalog-grid) .race-boost {
+    gap: 3px;
+    min-height: 22px;
+    padding: 0 9px;
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* страница расы: портрет отдельно, подписи под ним, а не поверх фигуры */
+  .book-page { padding-top: 4px; }
+  .race-detail-stage {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 0;
+    padding-bottom: 10px;
+  }
+  .race-detail-aura,
+  .race-detail-ring { top: 130px; }
+  .race-detail-portrait,
+  .race-detail-portrait.is-framed {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: min(100%, 300px);
+    height: clamp(230px, 34dvh, 300px);
+    transform: none;
+  }
+  .race-detail-portrait > img {
+    max-width: 100%;
+    height: 100%;
+  }
+  .race-detail-meta {
+    gap: 8px;
+    width: calc(100% - 24px);
+    margin-top: -22px;
+  }
+  .race-detail-name-plate {
+    padding: 10px 28px;
+    font-size: 1.2rem;
+  }
+  .race-detail-tags {
+    gap: 6px;
+    row-gap: 6px;
+  }
+  .race-detail-kind {
+    padding: 3px 0;
+    color: var(--gold-3);
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+  .race-facts { margin-block: 4px 12px; }
+  .race-fact {
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 10px;
+  }
+  .race-fact-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .race-fact-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  .race-fact-body i {
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+  }
+  .race-fact-body b { font-size: 0.86rem; }
+}
+

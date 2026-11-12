@@ -1,0 +1,236 @@
+/* ---------- предыстории на телефоне ---------- */
+
+.bg-card-abilities { display: none; }
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* карточка: слева арт; справа имя и книга, характеристики, список навыков */
+  .catalog .card.card--bg {
+    align-items: center;
+    gap: 0 12px;
+    padding: 10px 12px;
+  }
+  .catalog .card--bg .bg-card-hex {
+    left: 0;
+    width: 76px;
+    height: calc(76px * var(--hex-aspect));
+  }
+  .catalog .card--bg .bg-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: auto;
+  }
+  .catalog .card--bg .bg-card-head {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .catalog .card--bg .bg-card-head .card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.98rem;
+    line-height: 1.2;
+    white-space: normal;
+    overflow: visible;
+  }
+  .catalog .card--bg .bg-card-head .source-chip { flex: none; }
+  .catalog .card--bg .bg-card-desc,
+  .catalog .card--bg .bg-card-foot { display: none; }
+
+  .catalog .bg-card-abilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .catalog .bg-card-abilities .bg-ability { padding: 2px 11px; }
+  .catalog .bg-card-abilities .bg-ability b { font-size: 0.66rem; }
+
+  .catalog .card--bg .bg-card-skills {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 2px;
+    margin: 0;
+  }
+  .catalog .card--bg .bg-card-skills .chip {
+    justify-content: flex-start;
+    min-height: 0;
+    padding: 0;
+    clip-path: none;
+    background: none;
+    color: var(--text);
+    font-size: 0.82rem;
+    line-height: 1.3;
+    white-space: normal;
+  }
+  .catalog .card--bg .bg-card-skills .chip::before,
+  .catalog .card--bg .bg-card-skills .chip::after { display: none; }
+  .catalog .card--bg .bg-card-skills .chip svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* страница: арт слева, сведения справа */
+  .bg-hero {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding: 12px;
+    text-align: left;
+  }
+  .bg-hero-art { width: 92px; }
+  .bg-hero-meta {
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+  .bg-hero-kicker,
+  .bg-hero-abilities { justify-content: flex-start; }
+  .bg-hero-title {
+    margin: 0;
+    font-size: 1.3rem;
+    line-height: 1.15;
+  }
+  .bg-hero-abilities { gap: 4px; }
+  .bg-hero-abilities .bg-ability { padding: 2px 11px; }
+  .bg-hero-abilities .bg-ability b { font-size: 0.66rem; }
+  .bg-hero-abilities .bg-ability i { display: none; }
+  .bg-hero-feature {
+    grid-column: 1 / -1;
+    gap: 2px 8px;
+    padding: 6px 8px;
+  }
+  .bg-hero-meta .bg-hero-feature { width: 100%; }
+  .bg-hero-feature span { font-size: 0.6rem; letter-spacing: 0.08em; }
+  .bg-hero-feature b { font-size: 0.9rem; }
+
+  /* владения: простые строки «подпись — значения» вместо рамок и плашек */
+  .bg-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 0;
+  }
+  .bg-fact {
+    display: grid;
+    grid-template-columns: 124px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    padding: 7px 2px;
+    border: none;
+    border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+    background: none;
+  }
+  .bg-fact-head {
+    gap: 6px;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+  .bg-fact-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .bg-fact-icon svg {
+    width: 11px;
+    height: 11px;
+  }
+  .bg-fact-values {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .bg-fact-value {
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--text);
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+}
+
+/* ---------- черты на телефоне ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* слева арт в шестиграннике, справа имя и книга, суть черты, бонусы */
+  .catalog .card.card--feat {
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    padding: 10px 12px;
+  }
+  .catalog .card--feat .feat-card-art {
+    width: 76px;
+    height: calc(76px * var(--hex-aspect));
+    min-height: 0;
+    padding: 2.2px;
+    clip-path: var(--hex-point);
+    background: var(--silver-grad);
+  }
+  .catalog .card--feat .feat-card-art img {
+    position: relative;
+    inset: auto;
+    clip-path: var(--hex-point);
+    object-position: center;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .catalog .card--feat .feat-card-art-fallback {
+    top: 50%;
+    width: 28px;
+    height: 28px;
+    transform: translateY(-50%);
+  }
+  .catalog .card--feat .feat-card-body {
+    gap: 5px;
+    padding: 0;
+  }
+  .catalog .card--feat .bg-card-head {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .catalog .card--feat .bg-card-head .card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.98rem;
+    line-height: 1.2;
+    white-space: normal;
+    overflow: visible;
+  }
+  .catalog .card--feat .bg-card-head .source-chip {
+    flex: none;
+    padding: 3px 12px;
+    font-size: 0.72rem;
+  }
+  .catalog .card--feat .bg-card-head .source-chip svg {
+    width: 12px;
+    height: 12px;
+  }
+  .catalog .card--feat .bg-card-desc {
+    -webkit-line-clamp: 2;
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+  .catalog .card--feat .bg-card-skills {
+    margin: 0;
+  }
+  .catalog .card--feat .bg-card-skills .chip {
+    white-space: normal;
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+  .catalog .card--feat .bg-card-foot { margin: 0; }
+  .catalog .card--feat .bg-card-foot:not(:has(.fa-row)) { display: none; }
+  .catalog .card--feat .bg-card-go { display: none; }
+  .catalog .card--feat .fa-tile {
+    padding: 2px 8px;
+    font-size: 0.66rem;
+  }
+  .catalog .card--feat .fa-tile b { font-size: 0.74rem; }
+}
+

@@ -1,0 +1,212 @@
+/* ============================================================
+   Способности: опрятный текст, механика, списки в каталоге
+   ============================================================ */
+
+.ab-text p { margin: 0 0 0.6em; line-height: 1.6; }
+.ab-text p:last-child { margin-bottom: 0; }
+.ab-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px !important; }
+.ab-meta span {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: rgb(var(--gold-2-rgb) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35);
+  color: var(--gold-3);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}
+.ab-lead { color: var(--gold-4); font-weight: 600; }
+.ab-list ul { margin: 0 0 0.6em; padding-left: 20px; }
+.ab-list li { margin: 0 0 4px; line-height: 1.55; }
+.ab-list li::marker { color: var(--gold-2); }
+.ab-spell-link { color: #cbb8f5; text-decoration-color: rgba(183, 156, 240, 0.5); }
+
+.ab-mech {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid #8fd194;
+  background: rgba(143, 209, 148, 0.07);
+}
+.ab-mech-title { display: block; margin-bottom: 6px; font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.08em; color: #a9dcae; }
+.ab-mech ul { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ab-mech li { display: grid; grid-template-columns: 14px 120px minmax(0, 1fr); align-items: baseline; gap: 8px; font-size: 0.84rem; }
+.ab-mech li svg { width: 13px; height: 13px; color: #8fd194; align-self: center; }
+.ab-mech li em { font-style: normal; font-size: 0.72rem; color: var(--text-dim); text-transform: lowercase; }
+.ab-mech li span { color: var(--text); }
+.ab-mech.is-compact li { grid-template-columns: 14px minmax(0, 1fr); }
+.ab-mech.is-compact li em { display: none; }
+
+.ab-list-rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ab-row { border: 1px solid rgb(var(--silver-2-rgb) / 0.18); background: rgb(var(--bg-0-rgb) / 0.4); }
+.ab-row.is-open { border-color: rgb(var(--gold-2-rgb) / 0.35); }
+.ab-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ab-row-head b { flex: 1; min-width: 0; font-weight: 600; color: var(--parchment); }
+.ab-row-lvl { flex: none; min-width: 44px; font-size: 0.72rem; color: var(--gold-3); }
+.ab-row-chev { flex: none; width: 16px; height: 16px; color: var(--text-dim); transition: transform 0.18s ease; }
+.ab-row.is-open .ab-row-chev { transform: rotate(180deg); }
+.ab-row-body { padding: 0 14px 12px; }
+.ab-loading { margin: 0; }
+
+@media (max-width: 640px) {
+  .ab-mech li { grid-template-columns: 14px minmax(0, 1fr); }
+  .ab-mech li em { display: none; }
+}
+
+/* ---------- дикий облик: карусель зверей на подиуме ---------- */
+
+.cpod { display: flex; flex-direction: column; align-items: center; gap: 10px; outline: none; }
+.cpod .act-search { align-self: stretch; }
+.cpod-stage {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.cpod-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 260px;
+  height: 46px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(var(--gold-3-rgb) / 0.35), rgb(var(--gold-3-rgb) / 0.06) 70%, transparent);
+  filter: blur(1px);
+}
+.cpod-sigil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 230px;
+  height: 230px;
+  translate: -50% -52%;
+  fill: none;
+  stroke: rgb(var(--gold-3-rgb) / 0.22);
+  stroke-width: 1.2;
+  animation: beast-sigil-spin 60s linear infinite;
+}
+.cpod-slot {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  width: 190px;
+  height: 200px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transform: translateX(calc(-50% + var(--off) * 150px)) scale(calc(1 - var(--abs) * 0.28));
+  transform-origin: 50% 100%;
+  opacity: calc(1 - var(--abs) * 0.38);
+  filter: brightness(calc(1 - var(--abs) * 0.35)) saturate(calc(1 - var(--abs) * 0.3));
+  z-index: calc(10 - var(--abs));
+  transition: transform 0.45s cubic-bezier(0.2, 1, 0.3, 1), opacity 0.45s ease, filter 0.45s ease;
+}
+.cpod-art { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; }
+.cpod-art img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.6));
+  -webkit-user-drag: none;
+}
+.cpod-art svg { width: 64px; height: 64px; color: var(--text-dim); }
+.cpod-slot.is-center .cpod-art img { animation: cpod-rise 0.5s cubic-bezier(0.2, 1.3, 0.4, 1); }
+@keyframes cpod-rise { from { transform: translateY(14px) scale(0.96); } }
+.cpod-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  translate: 0 -50%;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.45);
+  border-radius: 50%;
+  background: rgb(var(--bg-0-rgb) / 0.75);
+  color: var(--gold-3);
+  cursor: pointer;
+}
+.cpod-nav:hover { color: var(--gold-4); border-color: var(--gold-2); }
+.cpod-nav svg { width: 18px; height: 18px; }
+.cpod-nav.is-prev { left: 4px; }
+.cpod-nav.is-next { right: 4px; }
+.cpod-facts { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.cpod-facts > b { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: 0.05em; }
+.cpod-cr { font-size: 0.78rem; color: var(--gold-3); letter-spacing: 0.06em; }
+.cpod-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; font-size: 0.82rem; color: var(--text); }
+.cpod-stats span { display: inline-flex; align-items: center; gap: 4px; }
+.cpod-stats svg { width: 14px; height: 14px; color: var(--gold-3); }
+.cpod-count { font-size: 0.72rem; color: var(--text-dim); }
+
+@media (max-width: 640px) {
+  .cpod-slot { width: 150px; height: 170px; transform: translateX(calc(-50% + var(--off) * 110px)) scale(calc(1 - var(--abs) * 0.3)); }
+}
+
+/* ---------- мастер повышения уровня: итог ---------- */
+
+.lvw-review { max-width: 640px; margin: 0 auto; }
+.lvw-sum { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.lvw-sum li { padding: 8px 12px; border-left: 3px solid var(--gold-2); background: rgb(var(--bg-0-rgb) / 0.45); }
+
+/* ---------- бонусы расы на выбор игрока и от подрасы ---------- */
+
+.race-boost.is-any {
+  --hex-in: linear-gradient(180deg, rgba(127, 178, 232, 0.24), rgba(127, 178, 232, 0.07));
+  --hex-edge: rgba(156, 200, 240, 0.45);
+  color: #b9d6f2;
+}
+.race-boost.is-any svg { width: 12px; height: 12px; flex: none; }
+
+/* Клип и фон — только у псевдоэлементов, иначе заливка пропадает
+   и плашка красится цветом обводки. */
+.setting-open,
+.soon-badge,
+.loot-chip,
+.hex-code,
+.hex-expand-total,
+.hex-expand-link,
+.sort-btn,
+.race-boost,
+.catalog-group-plate,
+.chip,
+.tome-entry,
+.tube-act-btn,
+.tube-avatar,
+.rec-filter-btn,
+.rec-filter,
+.item-split-close,
+.beast-roll-btn,
+.beast-skill,
+.cs-btn--ghost,
+.spell-cta,
+.bg-ability,
+.cw-chip,
+.cw-seg-btn,
+.cw-pill,
+.cw-level-done,
+.cw-hp-token,
+.cw-stat,
+.cw-atk-btn,
+.cw-cast,
+.celebrate-chip,
+.cw-vis,
+.cw-tab,
+.rt-card {
+  clip-path: none;
+  background: none;
+}
+

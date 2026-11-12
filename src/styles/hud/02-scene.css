@@ -1,0 +1,488 @@
+/* ---------- сцена ---------- */
+
+.ghud-stage {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: calc(var(--u) * 206) minmax(0, 1fr) calc(var(--u) * 262);
+  min-height: 0;
+  padding: 0 calc(var(--u) * 8) calc(var(--u) * 6);
+}
+
+/* левая колонка: хиты, числа, характеристики */
+.ghud-left {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--u) * 8);
+  min-height: 0;
+}
+.ghud-vitals {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cw-hphex.ghud-hp {
+  width: calc(var(--u) * 92);
+  height: calc(var(--u) * 92 * var(--hex-aspect));
+  padding: 0;
+  background: none;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+}
+.ghud-hp .cw-hphex-value > svg { width: calc(var(--u) * 16); height: calc(var(--u) * 16); color: #ee8d82; }
+.ghud-hp .cw-hphex-value b { font-size: calc(var(--u) * 32); }
+.ghud-hp .cw-hphex-value i { font-size: calc(var(--u) * 11); font-style: normal; color: var(--parchment); }
+.ghud-hp .cw-hphex-temp { font-size: calc(var(--u) * 11); }
+.ghud-ac {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 56);
+  padding: 0;
+  background: none;
+}
+.ghud-ac .beast-shield { width: calc(var(--u) * 56); height: calc(var(--u) * 64); }
+.ghud-ac .beast-shield-value b { font-size: calc(var(--u) * 21); }
+.ghud-ac .beast-shield-value i { font-size: calc(var(--u) * 9); }
+.ghud-hd {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--u) * 50);
+  padding: 0;
+  background: none;
+}
+.ghud-hd img {
+  width: calc(var(--u) * 36) !important;
+  height: calc(var(--u) * 36) !important;
+  object-fit: contain;
+}
+.ghud-hd b { font-size: calc(var(--u) * 12); line-height: 1.1; color: var(--parchment); }
+.ghud-hd i { font-size: calc(var(--u) * 10); font-style: normal; line-height: 1; color: var(--text-dim); }
+.ghud-hd:disabled { opacity: 0.55; }
+
+.ghud-emblems {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.ghud-insp-wrap { position: relative; display: grid; }
+.ghud-emblem {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-items: center;
+  column-gap: calc(var(--u) * 3);
+  padding: calc(var(--u) * 3) 0;
+  background: none;
+  text-align: center;
+}
+.ghud-emblem + .ghud-emblem,
+.ghud-insp-wrap { box-shadow: -1px 0 0 rgb(var(--silver-2-rgb) / 0.18); }
+.ghud-emblem svg { width: calc(var(--u) * 13); height: calc(var(--u) * 13); color: var(--gold-3); }
+.ghud-emblem b {
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 16);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.ghud-emblem i {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  line-height: 1;
+}
+.ghud-emblem.is-lit svg { color: var(--gold-4); fill: var(--gold-3); filter: drop-shadow(0 0 5px rgb(var(--gold-3-rgb) / 0.8)); }
+.ghud-insp-pop {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 105%;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 8);
+  padding: calc(var(--u) * 4);
+  border-radius: 999px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--gold-2), 0 6px 16px rgba(0, 0, 0, 0.6);
+  transform: translateX(-50%);
+}
+.ghud-insp-pop button {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 32);
+  height: calc(var(--u) * 32);
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--gold-3);
+}
+.ghud-insp-pop svg { width: calc(var(--u) * 15); height: calc(var(--u) * 15); }
+
+.ghud-abils {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(var(--u) * 4);
+  justify-items: center;
+}
+.ghud-abil {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--u) * 58);
+  height: calc(var(--u) * 58);
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #2b2f38, #0f1115 74%);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.45),
+    inset 0 0 0 4px rgb(var(--bg-0-rgb) / 0.9),
+    inset 0 0 0 5px rgb(var(--silver-2-rgb) / 0.16),
+    0 3px 8px rgba(0, 0, 0, 0.55);
+  transition: transform 0.14s ease;
+}
+.ghud-abil i {
+  color: var(--gold-2);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+.ghud-abil b {
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 19);
+  font-weight: 700;
+  line-height: 1.05;
+}
+.ghud-abil em {
+  color: var(--text-dim);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  line-height: 1;
+}
+.ghud-abil.is-prof {
+  box-shadow:
+    inset 0 0 0 1.5px var(--gold-2),
+    inset 0 0 0 4px rgb(var(--bg-0-rgb) / 0.9),
+    inset 0 0 0 5px rgb(var(--gold-2-rgb) / 0.3),
+    0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.ghud-abil:active:not(:disabled) { transform: scale(0.93); }
+.ghud-abil:disabled { opacity: 0.7; }
+
+/* центр: герой на печати */
+.ghud-center {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.ghud-aura {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: calc(var(--u) * 360);
+  height: calc(var(--u) * 360);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--gold-2-rgb) / 0.2), transparent 66%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.ghud-sigil {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: calc(var(--u) * 330);
+  height: calc(var(--u) * 330);
+  fill: none;
+  stroke: rgb(var(--gold-2-rgb) / 0.26);
+  stroke-width: 0.7;
+  translate: -50% -50%;
+  animation: ghud-spin 90s linear infinite;
+  pointer-events: none;
+}
+@keyframes ghud-spin { to { rotate: 360deg; } }
+.ghud-floor {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--u) * 2);
+  width: calc(var(--u) * 220);
+  height: calc(var(--u) * 26);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.75), transparent 72%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ghud-figure {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: calc(100% + var(--u) * 24);
+  height: calc(100% + var(--u) * 26);
+  padding: 0;
+  background: none;
+  transform: translateX(-50%);
+}
+.ghud-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.65));
+  -webkit-mask-image: linear-gradient(180deg, #000 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 88%, transparent 100%);
+}
+.ghud-figure-face { width: calc(var(--u) * 150); margin-bottom: 10%; }
+
+.ghud-states {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--u) * 4);
+  pointer-events: none;
+}
+.ghud-states > * {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 3);
+  padding: calc(var(--u) * 2) calc(var(--u) * 9);
+  border-radius: 999px;
+  background: rgb(var(--bg-0-rgb) / 0.8);
+  box-shadow: inset 0 0 0 1px var(--gold-2), 0 0 12px rgb(var(--gold-3-rgb) / 0.35);
+  color: var(--gold-4);
+  font-size: calc(var(--u) * 11);
+  pointer-events: auto;
+}
+.ghud-states svg { width: calc(var(--u) * 12); height: calc(var(--u) * 12); }
+.ghud-states .is-bad { box-shadow: inset 0 0 0 1px #e0574b; color: #f3b0a9; }
+
+/* ресурсы — дугой справа от героя */
+.ghud-arc {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  top: 46%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  transform: translateY(-50%);
+}
+.ghud-orb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--u) * 64);
+  padding: 0;
+  background: none;
+  /* лёгкий изгиб по дуге печати */
+  transform: translateX(calc((var(--x) - 1) * var(--u) * 34));
+}
+.ghud-orb-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 40);
+  height: calc(var(--u) * 40);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #2a2e37, #0e1014 74%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+}
+.ghud-orb-dial svg {
+  position: absolute;
+  inset: 0;
+  rotate: -90deg;
+}
+.ghud-orb-track { fill: none; stroke: rgb(var(--silver-2-rgb) / 0.22); stroke-width: 5; }
+.ghud-orb-fill { fill: none; stroke: var(--gold-3); stroke-linecap: round; stroke-width: 5; transition: stroke-dashoffset 0.5s ease; }
+.ghud-orb-dial b {
+  color: var(--gold-4);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 17);
+  font-weight: 700;
+}
+.ghud-orb > i {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 calc(var(--u) * 3);
+  border-radius: 3px;
+  background: rgba(9, 10, 13, 0.72);
+  color: var(--parchment);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ghud-orb.is-empty .ghud-orb-dial b { color: var(--text-dim); }
+.ghud-orb.is-active .ghud-orb-dial { box-shadow: 0 0 14px rgba(240, 90, 79, 0.85); }
+.ghud-orb.is-active .ghud-orb-fill { stroke: #f0695a; }
+
+/* ячейки заклинаний — самоцветами под ногами героя */
+.ghud-slots {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--u) * 2) calc(var(--u) * 8);
+  width: max-content;
+  max-width: calc(100% - var(--u) * 12);
+  padding: calc(var(--u) * 3) calc(var(--u) * 10);
+  border-radius: 999px;
+  background: rgba(9, 10, 13, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(183, 156, 240, 0.32);
+  transform: translateX(-50%);
+}
+.ghud-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 2.5);
+}
+.ghud-slot i {
+  margin-right: calc(var(--u) * 1);
+  color: #d9cbff;
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 11);
+  font-style: normal;
+  font-weight: 700;
+}
+.ghud-slot u {
+  width: calc(var(--u) * 7);
+  height: calc(var(--u) * 7);
+  background: rgba(183, 156, 240, 0.2);
+  rotate: 45deg;
+}
+.ghud-slot u.is-on { background: #c9b6ff; box-shadow: 0 0 6px rgba(201, 182, 255, 0.85); }
+.ghud-slot b { color: #e9e0ff; font-size: calc(var(--u) * 11); font-weight: 600; }
+
+/* правая колонка: атаки */
+.ghud-right {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: calc(var(--u) * 4);
+  min-height: 0;
+  padding-top: calc(var(--u) * 6);
+}
+.ghud-hotbar {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 9);
+}
+.ghud-hotbar .cw-wpn {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 38) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--u) * 7);
+  padding: 0;
+  border: none;
+  background: none;
+}
+.ghud-hotbar .cw-wpn-art,
+.hud-win .cw-wpn-art {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 38);
+  height: calc(var(--u) * 38 * var(--hex-aspect));
+  margin: 0;
+  overflow: visible;
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  box-shadow: none;
+}
+.ghud-hotbar .cw-wpn-art::before,
+.hud-win .cw-wpn-art::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1.5px;
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 50% 40%, #2d313b, #101216 76%);
+}
+.ghud-hotbar .cw-wpn-art img,
+.hud-win .cw-wpn-art img { max-width: 76%; max-height: 76%; }
+.ghud-hotbar .cw-wpn-art svg,
+.hud-win .cw-wpn-art svg { width: calc(var(--u) * 18); height: calc(var(--u) * 18); }
+.ghud-hotbar .cw-wpn-body b {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: calc(var(--u) * 13);
+  line-height: 1.12;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ghud-hotbar .cw-wpn-body i { font-size: calc(var(--u) * 10); }
+.ghud-hotbar .cw-wpn-dice { gap: 0; }
+/* двуручный хват — в окне «Бой»: на экране важнее имя оружия */
+.ghud-hotbar .cw-wpn-dice .cw-die:nth-child(3) { display: none; }
+/* старое правило узких экранов уводило кости на отдельную строку */
+.ghud-hotbar .cw-wpn-dice,
+.hud-win .cw-wpn-dice {
+  grid-column: auto;
+  grid-row: auto;
+  justify-content: flex-end;
+  width: auto;
+}
+.ghud-hotbar .cw-die,
+.hud-win .cw-die {
+  width: calc(var(--u) * 58);
+  height: calc(var(--u) * 58);
+  padding: 0 0 calc(var(--u) * 13);
+}
+.ghud-hotbar .cw-die-shape,
+.hud-win .cw-die-shape {
+  inset: 0 calc(var(--u) * 8) calc(var(--u) * 13);
+  opacity: 0.26;
+}
+.ghud-hotbar .cw-die b,
+.hud-win .cw-die b { font-size: calc(var(--u) * 16); }
+.ghud-hotbar .cw-die--dmg b,
+.hud-win .cw-die--dmg b { font-size: calc(var(--u) * 14); }
+.ghud-hotbar .cw-die > i,
+.hud-win .cw-die > i {
+  left: 0;
+  right: 0;
+  font-size: calc(var(--u) * 10);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.ghud-more {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  min-height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 4);
+  background: none;
+  color: var(--gold-3);
+  font-size: calc(var(--u) * 12);
+}
+.ghud-more svg { width: calc(var(--u) * 14); height: calc(var(--u) * 14); }
+

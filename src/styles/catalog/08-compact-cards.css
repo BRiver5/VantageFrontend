@@ -1,0 +1,135 @@
+/* ---------- Компактные карточки списков (заклинания/бестиарий/предметы) ----------
+   В покое видно только название и теги; полное описание всплывает поверх карточки
+   при наведении/фокусе, не раздвигая сетку. Клик по-прежнему ведёт на полную страницу. */
+.card--compact { overflow: visible; }
+
+/* в списке описание НЕ показываем (в т.ч. по наведению) — оно на детальной странице */
+.card--compact .card-desc { display: none; }
+
+.card--compact .card-foot {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Водяной знак школы магии на карточке заклинания ---------- */
+.card--spell {
+  overflow: hidden;
+}
+.card--spell > :not(.spell-school-mark) {
+  position: relative;
+  z-index: 1;
+}
+
+.spell-school-mark {
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  width: auto;
+  height: 110%;
+  max-height: 170px;
+  max-width: 78%;
+  object-fit: contain;
+  object-position: right bottom;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.22;
+}
+
+.book-hero--deco {
+  overflow: hidden;
+}
+.book-hero--deco .book-cover,
+.book-hero--deco .detail-hex,
+.book-hero--deco .detail-school-cover,
+.book-hero--deco .book-meta {
+  position: relative;
+  z-index: 1;
+}
+.book-hero--deco .spell-school-mark {
+  height: min(135%, 380px);
+  max-height: none;
+  max-width: 58%;
+  right: 3%;
+  bottom: -4%;
+  opacity: 0.28;
+}
+
+/* иконка школы вместо бежевой пергаментной плашки — без book-cover */
+.detail-school-cover {
+  flex-shrink: 0;
+  width: clamp(130px, 16vw, 190px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.detail-school-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 0, 0, 0.4));
+}
+
+/* гекс-жетон (круг заклинания, показатель опасности) */
+.hex-badge {
+  display: block;
+  width: 54px;
+  height: 62px;
+  flex-shrink: 0;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.5px;
+}
+.hex-badge-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.hex-badge-inner b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--gold-3);
+  line-height: 1;
+}
+.hex-badge-inner i {
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* листание страниц */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin: 34px 0 10px;
+}
+.pager-arrow { position: static; transform: none; }
+.pager-arrow:disabled { opacity: 0.3; cursor: default; filter: none; }
+.pager-label {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pager-label b { font-size: 1.15rem; }
+

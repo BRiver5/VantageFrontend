@@ -1,0 +1,185 @@
+/* ---------- Выбор черты ---------- */
+
+.cw-feat-picker { display: flex; flex-direction: column; gap: 10px; }
+.cw-feat-current { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cw-feat-current .cw-feat-card { width: 100%; }
+
+/* заглушка до выбора — крупная пунктирная кнопка */
+.cw-feat-empty {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px dashed rgb(var(--gold-2-rgb) / 0.55);
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 0 50%, rgb(var(--gold-2-rgb) / 0.12), transparent 60%), rgb(var(--bg-0-rgb) / 0.4);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.cw-feat-empty:hover { border-color: var(--gold-3); background-color: rgb(var(--gold-2-rgb) / 0.08); }
+.cw-feat-empty svg { grid-row: span 2; width: 30px; height: 30px; color: var(--gold-3); }
+.cw-feat-empty b { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold-3); }
+.cw-feat-empty span { color: var(--text-dim); font-size: 0.86rem; }
+
+/* карточка черты: квадратная картинка слева, текст справа */
+.cw-feat-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background: linear-gradient(180deg, rgba(28, 32, 42, 0.92), rgba(14, 16, 22, 0.95));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+button.cw-feat-card { cursor: pointer; }
+button.cw-feat-card:hover { transform: translateY(-2px); filter: brightness(1.14); }
+.cw-feat-card.is-selected,
+.cw-feat-card.is-static {
+  background:
+    radial-gradient(ellipse at 0 0, rgb(var(--gold-2-rgb) / 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.92), rgba(14, 16, 22, 0.95));
+  box-shadow: inset 0 0 0 1.5px var(--gold-2);
+}
+.cw-feat-art {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-feat-art img { width: 100%; height: 100%; object-fit: cover; }
+.cw-feat-art svg { width: 30px; height: 30px; color: rgb(var(--gold-2-rgb) / 0.5); }
+.cw-feat-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cw-feat-name { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); }
+.cw-feat-card.is-selected .cw-feat-name { color: var(--gold-4); }
+.cw-feat-req {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #e3a07a;
+}
+.cw-feat-req svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* требование выполнено — черту можно взять */
+.cw-feat-req.is-met { color: #85c98f; }
+.cw-feat-desc { font-size: 0.84rem; line-height: 1.45; color: var(--text-dim); }
+
+/* черта, которую не взять: приглушена, причина — под требованием */
+.cw-feat-card.is-locked { opacity: 0.55; filter: grayscale(0.5); }
+.cw-feat-lock {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #e88e86;
+}
+.cw-feat-lock svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 2px; }
+.cw-feat-locked { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.cw-feat-locked-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cw-feat-locked-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--silver-2-rgb) / 0.3), transparent);
+}
+.cw-feat-locked-title svg { width: 16px; height: 16px; }
+
+/* «Подробнее» — в правом верхнем углу карточки, поверх неё */
+.cw-feat-slot { position: relative; display: flex; }
+.cw-feat-slot > .cw-feat-card { flex: 1; min-width: 0; padding-right: 110px; }
+.cw-feat-more {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.3);
+  background: rgb(var(--bg-0-rgb) / 0.75);
+  color: var(--silver-2);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.cw-feat-more svg { width: 13px; height: 13px; }
+.cw-feat-more:hover { color: var(--gold-4); border-color: var(--gold-2); }
+.cw-feat-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cw-feat-detail-foot { justify-content: center; }
+.cw-feat-modal .cw-sheet-bg .bg-hero { margin-top: 12px; }
+
+/* окно-каталог черт */
+.cw-feat-modal { width: min(1040px, 100%); }
+.cw-feat-modal .cw-modal-title { text-align: center; margin-bottom: 12px; }
+.cw-feat-count { margin: 8px 0; text-align: center; font-size: 0.8rem; color: var(--text-dim); }
+.cw-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 10px;
+}
+
+/* ---------- Ошибка создания и панель шагов ---------- */
+
+.cw-error { text-align: center; margin-top: 14px; }
+
+/* панель шагов закреплена внизу экрана (рендерится в body), справа от сайдбара;
+   выше карточек и портретов, но ниже попапов (200) и костей (150) */
+.cw-foot {
+  position: fixed;
+  z-index: 60;
+  left: var(--sidebar-w);
+  right: 0;
+  bottom: 0;
+  border-top: 1px solid transparent;
+  background:
+    linear-gradient(rgb(var(--bg-0-rgb) / 0.95), rgb(var(--bg-0-rgb) / 0.95)) padding-box,
+    var(--gold-grad-h) border-box;
+  backdrop-filter: blur(6px);
+  transition: left 0.28s ease;
+}
+.cw-foot-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px clamp(16px, 3vw, 40px);
+}
+.cw-foot-hint {
+  flex: 1;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+/* подвал сайта не прячется под закреплённой панелью шагов */
+body:has(.cw-foot) .footer { padding-bottom: 84px; }
+/* кнопка и лоток кубиков поднимаются над закреплённой панелью шагов */
+body:has(.cw-foot) .dice-dock { bottom: 94px; }
+.cw-next { margin-left: auto; }
+.cw-create { margin-top: 0; }
+

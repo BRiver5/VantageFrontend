@@ -1,0 +1,86 @@
+/* ---------- общие подписи каталога и статей ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  .catalog-group-plate {
+    flex-shrink: 1;
+    gap: 6px;
+    max-width: calc(100% - 28px);
+    min-width: 0;
+    padding: 5px 18px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .catalog-group-plate svg,
+  .catalog-group-plate i,
+  .catalog-group-plate b { flex: none; }
+
+  .catalog .card--bg .source-chip {
+    padding: 3px 12px;
+    font-size: 0.72rem;
+  }
+  .catalog .card--bg .source-chip svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .detail-subtitle {
+    margin-bottom: 8px;
+    font-size: 1.08rem;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 360px) {
+  .catalog .card--feat .bg-card-head { gap: 4px; }
+  .catalog .card--feat .bg-card-head .card-name {
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+  }
+  .catalog .card--feat .bg-card-head .source-chip {
+    padding: 2px 9px;
+    font-size: 0.66rem;
+  }
+  .catalog .card.card--feat {
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+  .catalog .card--feat .feat-card-art {
+    width: 64px;
+    height: calc(64px * var(--hex-aspect));
+  }
+  .catalog .card--bg .bg-card-head { gap: 4px; }
+  .catalog .card--bg .bg-card-head .card-name {
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+  }
+  .catalog .card--bg .source-chip {
+    padding: 2px 9px;
+    font-size: 0.66rem;
+  }
+  .catalog .card.card--bg {
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+  .catalog .card--bg .bg-card-hex {
+    width: 64px;
+    height: calc(64px * var(--hex-aspect));
+  }
+}
+
+@media (max-width: 360px) {
+  .loot-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --app-tabbar-h: calc(44px + env(safe-area-inset-bottom, 0px)); }
+  .app-tab { flex-direction: row; gap: 6px; }
+}
+
+@keyframes mobile-sheet-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}

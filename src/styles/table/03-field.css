@@ -1,0 +1,163 @@
+/* ---------- ширма напротив ---------- */
+
+.tb-dmprop {
+  position: absolute;
+  top: calc(var(--t) * 12);
+  left: 50%;
+  z-index: 6;
+  width: calc(var(--t) * 340);
+  height: calc(var(--t) * 92);
+  translate: -50% 0;
+  filter: drop-shadow(0 calc(var(--t) * 10) calc(var(--t) * 12) rgba(0, 0, 0, 0.7));
+}
+.tb-dmprop svg { width: 100%; height: 100%; }
+.tb-dmprop-face { position: absolute; left: 50%; bottom: calc(var(--t) * -26); translate: -50% 0; --hex: calc(var(--t) * 62); }
+.tb-dmprop > b { display: none; }
+.tb-dmprop.is-away .tb-hex { filter: saturate(0.4) brightness(0.7); }
+/* название комнаты лежит на самой ширме */
+.tb-scene:not(.is-dm):has(.tb-dmprop) .tb-title { padding-top: calc(var(--t) * 22); position: relative; z-index: 7; }
+.tb-scene:not(.is-dm):has(.tb-dmprop) .tb-title h1 { font-size: max(12px, calc(var(--t) * 17)); max-width: calc(var(--t) * 200); }
+
+/* ---------- поле ---------- */
+
+.tb-field {
+  position: absolute;
+  inset: calc(var(--t) * 132) 20% calc(var(--t) * 158);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--t) * 16);
+}
+.tb-scene.is-dm .tb-field { inset: calc(var(--t) * 74) 19% calc(var(--t) * 96); }
+.tb-tokens, .tb-loots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: calc(var(--t) * 10) calc(var(--t) * 18); }
+.tb-carved {
+  margin: 0;
+  color: rgba(20, 10, 3, 0.68);
+  font-family: var(--font-display);
+  font-size: max(13px, calc(var(--t) * 21));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 215, 160, 0.28), 0 -1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.tb-scene .tb-token {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--t) * 3);
+  --hex: calc(var(--t) * 84);
+  width: calc(var(--t) * 104);
+  transform: translate(calc(var(--dx) * var(--t)), calc(var(--dy) * var(--t))) rotate(var(--r));
+  transition: transform 0.28s var(--spring);
+  animation: tb-thunk 0.62s cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
+}
+.tb-scene .tb-token.is-small { --hex: calc(var(--t) * 60); width: calc(var(--t) * 76); }
+.tb-scene .tb-token:hover { transform: translate(calc(var(--dx) * var(--t)), calc((var(--dy) - 6) * var(--t))) rotate(0deg) scale(1.1); z-index: 2; }
+.tb-token b { overflow: hidden; max-width: 100%; color: var(--parchment); font-size: max(9px, calc(var(--t) * 12)); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
+.tb-token.is-down .tb-hex { filter: grayscale(1) brightness(0.55) drop-shadow(0 2px 3px #000); }
+/* удар жетона о стол: пыль разлетается кольцом */
+.tb-token::after {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  z-index: -1;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  translate: -50% 0;
+  background: radial-gradient(circle, transparent 52%, rgba(235, 208, 165, 0.55) 62%, transparent 76%);
+  opacity: 0;
+  pointer-events: none;
+  animation: tb-dust 0.62s ease-out 0.34s backwards;
+}
+@keyframes tb-thunk {
+  0% { opacity: 0; translate: 0 calc(var(--t) * -130); scale: 1.7; }
+  55% { opacity: 1; translate: 0 0; scale: 0.92; }
+  75% { scale: 1.05; }
+  100% { translate: 0 0; scale: 1; }
+}
+@keyframes tb-dust {
+  0% { opacity: 0.95; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+/* находка */
+.tb-scene .tb-loot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--t) * 118);
+  transform: translate(calc(var(--dx) * var(--t)), calc(var(--dy) * var(--t))) rotate(var(--r));
+  transition: transform 0.28s var(--spring);
+}
+.tb-scene .tb-loot:hover { transform: translate(calc(var(--dx) * var(--t)), calc((var(--dy) - 8) * var(--t))) rotate(0deg) scale(1.12); z-index: 2; }
+.tb-loot-art {
+  display: grid;
+  place-items: center;
+  width: calc(var(--t) * 86);
+  height: calc(var(--t) * 86);
+  color: var(--gold-3);
+  filter: drop-shadow(0 calc(var(--t) * 6) calc(var(--t) * 5) rgba(0, 0, 0, 0.75));
+}
+.tb-loot-art img { width: 100%; height: 100%; object-fit: contain; }
+.tb-loot-art svg { width: 70%; height: 70%; }
+.tb-loot.is-magic .tb-loot-art { animation: tb-magic 2.6s ease-in-out infinite; }
+@keyframes tb-magic {
+  0%, 100% { filter: drop-shadow(0 calc(var(--t) * 6) calc(var(--t) * 5) rgba(0, 0, 0, 0.75)) drop-shadow(0 0 calc(var(--t) * 6) rgba(170, 120, 255, 0.55)); }
+  50% { filter: drop-shadow(0 calc(var(--t) * 6) calc(var(--t) * 5) rgba(0, 0, 0, 0.75)) drop-shadow(0 0 calc(var(--t) * 16) rgba(190, 150, 255, 0.95)); }
+}
+/* бирка на верёвочке, а не плашка */
+.tb-loot-tag {
+  position: relative;
+  max-width: 100%;
+  margin-top: calc(var(--t) * -8);
+  padding: calc(var(--t) * 3) calc(var(--t) * 9) calc(var(--t) * 3) calc(var(--t) * 13);
+  overflow: hidden;
+  background: var(--paper);
+  clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 50%);
+  color: var(--ink);
+  font-size: max(9px, calc(var(--t) * 11.5));
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  rotate: -3deg;
+}
+.tb-loot-tag em { font-style: normal; font-weight: 800; }
+.tb-flying { display: grid; place-items: center; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.65)); }
+.tb-flying img { width: 100%; height: 100%; object-fit: contain; }
+.tb-flying svg { width: 70%; height: 70%; color: var(--gold-3); }
+/* передача из рук в руки: вещь с биркой на миг ложится на стол */
+.tb-relay { position: fixed; z-index: 130; display: flex; flex-direction: column; align-items: center; gap: calc(var(--t) * 4); width: calc(var(--t) * 118); pointer-events: none; }
+.tb-relay-art { display: grid; place-items: center; width: calc(var(--t) * 86); height: calc(var(--t) * 86); color: var(--gold-3); filter: drop-shadow(0 calc(var(--t) * 6) calc(var(--t) * 5) rgba(0, 0, 0, 0.75)); }
+.tb-relay-art img { width: 100%; height: 100%; object-fit: contain; }
+.tb-relay-art svg { width: 70%; height: 70%; }
+.tb-relay-coins { position: relative; }
+.tb-relay-coins img { position: absolute; width: 58% !important; height: 58% !important; }
+.tb-relay-coins .is-0 { left: 21%; top: 21%; z-index: 3; }
+.tb-relay-coins .is-1 { left: 4%; top: 34%; z-index: 2; transform: rotate(-14deg); }
+.tb-relay-coins .is-2 { left: 38%; top: 36%; z-index: 1; transform: rotate(12deg); }
+.tb-relay-tag { max-width: 100%; padding: calc(var(--t) * 2) calc(var(--t) * 8); border-radius: calc(var(--t) * 3); background: #e9d9b4; color: var(--ink); font-size: calc(var(--t) * 12); font-weight: 700; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(var(--t) * 3) calc(var(--t) * 6) rgba(0, 0, 0, 0.5); }
+.tb-relay-tag em { font-style: normal; font-weight: 800; }
+
+.tb-claimerr {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  z-index: 40;
+  margin: 0;
+  translate: -50% 0;
+  color: #ffd2c9;
+  font-family: var(--font-display);
+  font-size: max(15px, calc(var(--t) * 24));
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 2px 8px #000, 0 0 18px #000;
+  animation: tb-bubble 2.6s ease both;
+}
+

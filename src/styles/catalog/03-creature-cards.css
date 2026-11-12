@@ -1,0 +1,217 @@
+/* ---------- Карточка существа: портрет расы + ступень опасности ---------- */
+.card--creature { --danger: #9aa3ad; }
+
+/* свечение цвета опасности за портретом (вместо кости класса) */
+.creature-aura {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 14%;
+  width: 92%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--danger) 34%, transparent) 0%,
+    color-mix(in srgb, var(--danger) 12%, transparent) 45%,
+    transparent 70%
+  );
+  opacity: 0.75;
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.card--creature:hover .creature-aura {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.02);
+}
+
+/* существа шире гуманоидов (драконы, звери) — портрет мягче масштабируем,
+   а при наведении лишь чуть приподнимаем */
+.card.card--creature:hover { transform: translateY(-3px); }
+.card--creature .class-card-portrait > img { transform: scale(1); max-width: 100%; }
+/* растёт от нижнего края вверх — сдвигаем вниз, чтобы не лезть на карточку выше.
+   селектор специально длиннее .card.card--portrait:hover, иначе побеждает scale(1.48) */
+.card.card--portrait.card--creature:hover .class-card-portrait > img { transform: scale(1.1) translateY(8px); }
+.card--creature .class-card-fallback { transform: none; width: 34%; height: 34%; margin-bottom: 22%; }
+
+/* портрет держит пропорции 3:4 — иначе flex сжимает его и ряды пляшут;
+   min-width: 0 — длинная строка «размер · тип» не раздувает колонку */
+.card--creature .class-card-visual { flex: none; }
+.card-grid:has(.card--creature) .card-slot,
+.card.card--creature { min-width: 0; }
+
+/* арт dnd.su с фоном — в арочном окне, без «вырезки» в полный рост */
+.card--creature .creature-portrait--framed {
+  align-items: stretch;
+  padding: 30px 13% 50px;
+}
+.card--creature .creature-portrait--framed > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 30%;
+  border-radius: 999px 999px 4px 4px;
+  transform: none;
+  filter: saturate(0.85) brightness(0.88);
+  box-shadow:
+    0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
+    0 0 0 5px rgba(14, 16, 22, 0.9),
+    0 0 0 6px color-mix(in srgb, var(--danger) 45%, transparent),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  transition: transform 0.28s ease, filter 0.28s ease;
+}
+.card--creature:hover .creature-portrait--framed > img {
+  transform: none;
+  filter: saturate(1) brightness(1);
+}
+
+/* раса с артом dnd.su (белый фон, не вырезка) — то же окно, золотая окантовка */
+.card--race:not(.card--creature) .creature-portrait--framed {
+  align-items: stretch;
+  padding: 28px 14% 52px;
+}
+.card--race:not(.card--creature) .creature-portrait--framed > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 22%;
+  border-radius: 999px 999px 4px 4px;
+  transform: none;
+  filter: saturate(0.92) brightness(0.94);
+  box-shadow:
+    0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
+    0 0 0 5px rgba(14, 16, 22, 0.9),
+    0 0 0 6px rgb(var(--gold-2-rgb) / 0.45),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  transition: filter 0.28s ease;
+}
+.card--race:not(.card--creature):hover .creature-portrait--framed > img {
+  transform: none;
+  filter: saturate(1) brightness(1);
+}
+
+/* жетон ПО в углу портрета, окантовка — цвет опасности */
+.creature-cr {
+  position: absolute;
+  z-index: 6;
+  top: 6px;
+  left: 4px;
+  width: 50px;
+  height: 57px;
+  padding: 1.5px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(160deg, var(--danger), color-mix(in srgb, var(--danger) 35%, #111) 55%, var(--danger));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+}
+.creature-cr-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.creature-cr-inner b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.08rem;
+  line-height: 1;
+  color: var(--parchment);
+}
+.creature-cr-inner i {
+  margin-top: 2px;
+  font-style: normal;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--danger);
+}
+
+/* легендарное / уникальное — маленькие гербы в правом углу */
+.creature-flags {
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.creature-flag {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(228, 196, 120, 0.3), rgba(20, 22, 30, 0.92) 70%);
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 120, 0.5), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.creature-flag svg { width: 14px; height: 14px; color: var(--gold-3); stroke-width: 1.7; }
+
+/* размер · тип — одной строкой под именем */
+.creature-card-panel { gap: 10px; }
+.creature-kind {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.creature-kind span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* иконки видов передвижения над значением скорости */
+.creature-moves {
+  display: inline-flex;
+  gap: 4px;
+}
+.race-rail-cell .creature-moves svg { width: 14px; height: 14px; }
+
+@media (max-width: 1150px) {
+  .card-grid:has(.card--portrait) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .card-grid:has(.card--item),
+  .card-grid:has(.card--equipment) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .card-grid:has(.card--portrait) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .card-grid:has(.card--item),
+  .card-grid:has(.card--equipment) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .card-grid:has(.card--portrait) {
+    grid-template-columns: 1fr;
+  }
+  .card-grid:has(.card--item),
+  .card-grid:has(.card--equipment) {
+    grid-template-columns: 1fr;
+  }
+}
+

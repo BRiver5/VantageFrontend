@@ -1,0 +1,131 @@
+/* ---------- створки и свиток ---------- */
+
+.tb-drawer-layer, .tb-menu-layer { position: fixed; inset: 0; z-index: 110; background: rgba(8, 4, 1, 0.42); animation: tb-fade 0.2s ease; font-size: calc(var(--t) * 14); }
+.tb-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: clamp(300px, calc(var(--t) * 420), 86vw);
+  background: var(--leather);
+  box-shadow: inset 2px 0 0 var(--gold-1), -14px 0 40px rgba(0, 0, 0, 0.65);
+  animation: tb-drawer-in 0.42s cubic-bezier(0.2, 1.05, 0.35, 1);
+  color: var(--text);
+}
+@keyframes tb-drawer-in { from { transform: translateX(104%); } }
+.tb-drawer > header { position: relative; flex: none; display: flex; align-items: center; gap: 10px; padding: calc(var(--t) * 14) calc(var(--t) * 52) calc(var(--t) * 12) calc(var(--t) * 18); border-bottom: 1px dashed rgb(var(--gold-2-rgb) / 0.45); }
+.tb-drawer > header svg:first-child { width: max(18px, calc(var(--t) * 22)); height: max(18px, calc(var(--t) * 22)); color: var(--gold-2); }
+.tb-drawer > header h2 { margin: 0; overflow: hidden; color: var(--gold-3); font-family: var(--font-display); font-size: max(16px, calc(var(--t) * 21)); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.tb-drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: calc(var(--t) * 14) calc(var(--t) * 18) calc(var(--t) * 24); scrollbar-width: thin; }
+.tb-drawer-text { margin: 0 0 12px; color: var(--text); line-height: 1.45; }
+.tb-drawer .rm-panel { margin: 0 0 calc(var(--t) * 16); padding: 0; background: none; border: none; box-shadow: none; }
+.tb-drawer .rm-panel::before, .tb-drawer .rm-panel::after { display: none; }
+.tb-drawer .rm-panel-title { font-size: max(12px, calc(var(--t) * 14)); }
+
+.tb-scroll {
+  position: absolute;
+  top: calc(var(--t) * 10);
+  right: calc(var(--t) * 14);
+  bottom: calc(var(--t) * 10);
+  display: flex;
+  flex-direction: column;
+  width: clamp(290px, calc(var(--t) * 420), 86vw);
+  filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.75));
+  transform-origin: top;
+  animation: tb-unroll 0.6s cubic-bezier(0.25, 1, 0.4, 1) both;
+}
+@keyframes tb-unroll {
+  from { clip-path: inset(0 0 calc(100% - var(--t) * 22) 0); }
+  to { clip-path: inset(-20px); }
+}
+.tb-scroll-rod { flex: none; height: calc(var(--t) * 16); margin: 0 calc(var(--t) * -8); border-radius: 99px; background: linear-gradient(180deg, #8f6a3a, #4d3218 55%, #2c1a0b); box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6); }
+.tb-scroll-paper { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: calc(var(--t) * 14) calc(var(--t) * 18); background: var(--paper); color: var(--ink); box-shadow: inset 0 14px 16px -12px rgba(50, 30, 10, 0.55), inset 0 -14px 16px -12px rgba(50, 30, 10, 0.55); }
+.tb-scroll-paper h2 { flex: none; margin: 0 0 calc(var(--t) * 8); color: var(--ink); font-family: var(--font-display); font-size: max(17px, calc(var(--t) * 23)); font-weight: 700; text-align: center; }
+.tb-scroll-paper .tb-card-x { background: rgba(60, 38, 14, 0.22); color: var(--ink); }
+.tb-scroll-paper .rm-log { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; background: none; box-shadow: none; scrollbar-width: thin; }
+.tb-scroll-paper .rm-hint { color: var(--ink-soft); }
+.tb-scroll-paper .rm-log-row { color: var(--ink); border-color: rgba(70, 44, 16, 0.22); }
+.tb-scroll-paper .rm-log-row svg { color: var(--ink-soft); }
+.tb-scroll-paper .rm-log-row b { color: var(--ink); }
+.tb-scroll-paper .rm-log-row time { color: var(--ink-soft); }
+.tb-scroll-paper .rm-log-text { color: var(--ink); }
+
+.tb-menu {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: clamp(240px, calc(var(--t) * 300), 70vw);
+  padding: calc(var(--t) * 10);
+  background: var(--leather);
+  box-shadow: inset -2px 0 0 var(--gold-1), 14px 0 40px rgba(0, 0, 0, 0.65);
+  animation: tb-menu-in 0.38s cubic-bezier(0.2, 1.05, 0.35, 1);
+}
+@keyframes tb-menu-in { from { transform: translateX(-104%); } }
+.tb-menu header { position: relative; padding: calc(var(--t) * 10) calc(var(--t) * 8) calc(var(--t) * 12); }
+.tb-menu header b { color: var(--gold-3); font-family: var(--font-display); font-size: max(17px, calc(var(--t) * 22)); letter-spacing: 0.1em; }
+.tb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: max(38px, calc(var(--t) * 42));
+  padding: 0 calc(var(--t) * 10);
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  color: var(--parchment);
+  font: inherit;
+  font-size: max(13px, calc(var(--t) * 15));
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.18s ease, padding 0.2s ease;
+}
+.tb-menu-item svg { width: 18px; height: 18px; color: var(--gold-2); }
+.tb-menu-item:hover { padding-left: calc(var(--t) * 16); background: rgb(var(--gold-2-rgb) / 0.15); }
+
+/* ---------- лист поверх стола ---------- */
+
+.tb-sheetview {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(14, 15, 18, 0.97), rgba(14, 15, 18, 1));
+  animation: tb-sheet-up 0.5s cubic-bezier(0.2, 1, 0.35, 1);
+}
+.tb-sheetview-back {
+  position: sticky;
+  top: 10px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  margin: 10px 0 0 16px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 99px;
+  background: rgba(30, 20, 12, 0.92);
+  box-shadow: inset 0 0 0 1.5px var(--gold-1), 0 4px 12px rgba(0, 0, 0, 0.6);
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s var(--spring);
+}
+.tb-sheetview-back:hover { transform: translateY(2px); }
+.tb-sheetview-back svg { width: 18px; height: 18px; }
+.tb-sheetview-in { max-width: 1320px; margin: 0 auto; padding: 8px 24px 40px; }
+.tb-sheetview-in .back-link { display: none; }
+[data-room-view='sheet'] .sc-root { display: none; }
+@keyframes tb-sheet-up { from { transform: translateY(100%); } }
+[data-room-view='sheet'] .ghud { animation: tb-sheet-up 0.46s cubic-bezier(0.2, 1, 0.35, 1); }
+/* сцена остаётся смонтированной и ловит события, но под экраном героя её не должно быть */
+[data-room-view='sheet'][data-shell='app'] .tb-scene,
+[data-room-view='sheet'][data-shell='app'] .bt-scene { visibility: hidden; }
+

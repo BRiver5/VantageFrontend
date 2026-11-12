@@ -1,0 +1,131 @@
+/* ---------- Карточка черты: 3 в ряд, арт растворяется к середине ---------- */
+.card-grid:has(.card--feat) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.card.card--feat {
+  position: relative;
+  min-height: 300px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* арт лежит фоном ВСЕЙ карточки и растворяется в её панели к середине —
+   маска делает пиксели картинки прозрачными (а не кроет их поверх непрозрачным
+   градиентом), поэтому переход идёт до самого фона карточки без видимого шва */
+.feat-card-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.feat-card-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 28%,
+    rgba(0, 0, 0, 0.75) 38%,
+    rgba(0, 0, 0, 0.3) 48%,
+    transparent 58%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 28%,
+    rgba(0, 0, 0, 0.75) 38%,
+    rgba(0, 0, 0, 0.3) 48%,
+    transparent 58%
+  );
+}
+.feat-card-art-fallback {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30px;
+  margin: 0 auto;
+  width: 36px;
+  height: 36px;
+  color: rgb(var(--silver-3-rgb) / 0.2);
+  stroke-width: 1.2;
+}
+
+.feat-card-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 130px 18px 16px;
+}
+.feat-card-body .bg-card-head .card-name {
+  font-size: 1.08rem;
+}
+.feat-card-body .bg-card-desc {
+  -webkit-line-clamp: 3;
+}
+.feat-card-body .bg-card-foot {
+  margin-top: auto;
+}
+
+@media (max-width: 1150px) {
+  .card-grid:has(.card--feat) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .card-grid:has(.card--feat) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .card-grid:has(.card--bg) {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-grid:has(.card--bg) .card-slot {
+    padding-left: 0;
+  }
+  .card.card--bg {
+    --bg-card-h: auto;
+    --bg-hex-w: 92px;
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 14px 14px 14px;
+    gap: 12px;
+  }
+  .bg-card-hex {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: var(--bg-hex-w);
+    height: calc(var(--bg-hex-w) * var(--hex-aspect));
+    margin: 0 auto;
+  }
+  .bg-card-head .card-name {
+    white-space: normal;
+    overflow: visible;
+  }
+  .bg-card-foot {
+    flex-wrap: wrap;
+  }
+  .bg-card-go {
+    margin-left: 0;
+  }
+}
+

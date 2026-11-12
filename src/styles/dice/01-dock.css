@@ -1,0 +1,185 @@
+/* ============================================================
+   БРОСОК КУБИКА — рендерится прямо на странице (dice-box), без модалки
+   ============================================================ */
+
+/* 3D-сцена на весь экран — в простое opacity:0, иначе чёрный canvas перекрывает страницу */
+.dice-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.dice-stage.is-active {
+  opacity: 1;
+}
+
+.dice-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---------- Док: FAB / лоток / action bar ---------- */
+
+.dice-dock {
+  position: fixed;
+  left: calc(var(--sidebar-w) + 22px);
+  bottom: 22px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  transition: left 0.28s ease;
+}
+
+.dice-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* плавающая кнопка — гекс в закрытом состоянии */
+.dice-fab {
+  position: relative;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 58px;
+  height: calc(58px * var(--hex-aspect));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.2s ease;
+}
+.dice-fab:not(.is-visible) {
+  opacity: 0;
+  transform: scale(0.94);
+}
+.dice-fab::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.dice-fab-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.die-asset-img {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+.die-fab-icon {
+  position: relative;
+  z-index: 1;
+}
+.die-logo-img {
+  display: block;
+}
+.die-chip-icon {
+  flex-shrink: 0;
+}
+.die-play-icon {
+  flex-shrink: 0;
+}
+.die-play-icon--flip {
+  transform: scaleX(-1);
+}
+.dice-fab:hover {
+  transform: translateY(-2px) scale(1.05);
+  filter: drop-shadow(0 0 14px rgb(var(--silver-3-rgb) / 0.5));
+}
+.dice-fab:active { transform: translateY(0) scale(0.98); }
+
+/* морфинг FAB → вытянутая кнопка «Бросить» */
+.dice-roll-morph {
+  box-sizing: border-box;
+  min-width: 200px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 28px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bg-0);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition:
+    filter 0.2s ease,
+    transform var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.35s ease;
+  animation: dice-roll-morph-in 0.35s ease;
+}
+.dice-roll-morph:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.dice-roll-morph:disabled { opacity: 0.6; cursor: default; }
+
+@keyframes dice-roll-morph-in {
+  from { min-width: 58px; opacity: 0.7; }
+  to { min-width: 200px; opacity: 1; }
+}
+
+/* гекс-кнопка закрытия — box-sizing: border-box чтобы форма не смещалась */
+.dice-close-btn {
+  box-sizing: border-box;
+  position: relative;
+  flex-shrink: 0;
+  width: 58px;
+  height: calc(58px * var(--hex-aspect));
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  border: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    opacity var(--dice-hist-dur, 1.2s) cubic-bezier(0.22, 1, 0.36, 1);
+  animation: dice-close-in 0.3s ease 0.1s backwards;
+}
+.dice-close-btn::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.dice-close-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--silver-3);
+}
+.dice-close-btn:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 12px rgb(var(--silver-3-rgb) / 0.45));
+}
+
+@keyframes dice-close-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+

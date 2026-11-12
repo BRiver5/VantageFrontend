@@ -1,0 +1,334 @@
+/* ---------- лента рекомендаций справа (карточки с картинками) ---------- */
+.item-tube-recs {
+  flex: 0 0 clamp(280px, 32%, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 2px 2px 0;
+  overflow: visible;
+}
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+  padding-left: 0;
+}
+
+/* поиск и фильтры над лентой — в нашем стиле */
+.rec-head {
+  position: relative;
+  margin-bottom: 2px;
+}
+.rec-tools { display: flex; align-items: stretch; gap: 8px; }
+
+.rec-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.75), rgb(var(--silver-1-rgb) / 0.2) 50%, rgb(var(--silver-1-rgb) / 0.75)) border-box;
+  transition: box-shadow 0.18s ease;
+}
+.rec-search > svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--gold-2); }
+.rec-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+.rec-search input::placeholder { color: var(--text-dim); }
+.rec-search input::-webkit-search-cancel-button { display: none; }
+
+.rec-search-clear {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.rec-search-clear svg { width: 14px; height: 14px; }
+.rec-search-clear:hover { color: var(--gold-3); }
+
+/* кнопка, открывающая фильтры */
+.rec-filter-btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  clip-path: var(--hex-chip);
+  border: none;
+  color: var(--silver-2);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
+  background: var(--hex-edge);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.16s ease, box-shadow 0.16s ease;
+}
+.rec-filter-btn svg { width: 16px; height: 16px; }
+.rec-filter-btn:hover { color: var(--parchment); }
+.rec-filter-btn.is-open,
+.rec-filter-btn.has-active {
+  color: var(--parchment);
+  --hex-edge: var(--gold-2);
+}
+.rec-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--gold-2);
+  color: var(--bg-0);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* центрированная панель: в keyframes обязателен и translateX(-50%),
+   иначе на въезде её сносит вбок из-под кнопки */
+@keyframes quest-filter-drop {
+  from { opacity: 0; transform: translateX(-50%) translateY(-7px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* в узкой ленте меню прижато к правому краю, иначе уедет за экран */
+.rec-tools .quest-filter-panel {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: min(400px, calc(100vw - 40px));
+  animation-name: rec-filter-drop;
+}
+@keyframes rec-filter-drop {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rec-filter-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.rec-filter-reset {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.rec-filter-reset:hover { color: var(--gold-4); }
+
+.rec-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  clip-path: var(--hex-chip);
+  color: var(--text-dim);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.22);
+  background: var(--hex-edge);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.16s ease, box-shadow 0.16s ease;
+  --rarity-dot: #b0b6bf;
+}
+.rec-filter[data-rarity='common'] { --rarity-dot: #b0b6bf; }
+.rec-filter[data-rarity='uncommon'] { --rarity-dot: #3fae5a; }
+.rec-filter[data-rarity='rare'] { --rarity-dot: #3b82f6; }
+.rec-filter[data-rarity='very-rare'] { --rarity-dot: #a855f7; }
+.rec-filter[data-rarity='legendary'] { --rarity-dot: #f59e0b; }
+.rec-filter[data-rarity='artifact'] { --rarity-dot: #de4234; }
+.rec-filter::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rarity-dot);
+}
+.rec-filter:hover { color: var(--silver-3); }
+.rec-filter.is-active {
+  color: var(--parchment);
+  --hex-edge: var(--gold-2);
+}
+.rec-empty {
+  padding: 12px 4px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* каждый предмет — укороченный контейнер; картинка целиком слева от рамки */
+.rec-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 104px;
+  margin-left: 78px;
+  padding: 10px 14px 10px 12px;
+  overflow: visible;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.8), rgb(var(--silver-1-rgb) / 0.22) 38%, rgb(var(--silver-1-rgb) / 0.22) 62%, rgb(var(--silver-1-rgb) / 0.8)) border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  --rarity-dot: #b0b6bf;
+}
+.rec-card[data-rarity='common'] { --rarity-dot: #b0b6bf; }
+.rec-card[data-rarity='uncommon'] { --rarity-dot: #3fae5a; }
+.rec-card[data-rarity='rare'] { --rarity-dot: #3b82f6; }
+.rec-card[data-rarity='very-rare'] { --rarity-dot: #a855f7; }
+.rec-card[data-rarity='legendary'] { --rarity-dot: #f59e0b; }
+.rec-card[data-rarity='artifact'] { --rarity-dot: #de4234; }
+/* уголки-оклад (поверх выступающей картинки) */
+.rec-card::before,
+.rec-card::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border-color: var(--silver-2);
+  border-style: solid;
+  opacity: 0.8;
+}
+.rec-card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.rec-card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+.rec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 14px rgb(var(--silver-3-rgb) / 0.14); }
+
+/* картинка предмета — полностью вне рамки, слева от контейнера */
+.rec-thumb {
+  position: absolute;
+  left: -112px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.rec-thumb-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 210%;
+  height: 210%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(50% 50% at 50% 50%, var(--rarity-dot) 0%, transparent 66%);
+  opacity: 0.24;
+  filter: blur(12px);
+  pointer-events: none;
+}
+.rec-thumb img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.6));
+}
+.rec-thumb > svg {
+  position: relative;
+  z-index: 1;
+  width: 40%;
+  height: 40%;
+  color: var(--silver-2);
+  opacity: 0.7;
+}
+.rec-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
+}
+.rec-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.04rem;
+  line-height: 1.22;
+  color: var(--parchment);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.18s ease;
+}
+.rec-type {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+/* редкость — маленькой сплошной точкой, БЕЗ свечения (свечение только за предметом) */
+.rec-rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 1px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.rec-rarity::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rarity-dot);
+}
+.rec-card:hover .rec-name { color: var(--gold-3); }
+
+@media (max-width: 900px) {
+  .item-tube { flex-direction: column; }
+  .item-tube-recs { flex-basis: auto; width: 100%; }
+  .item-tube-head { text-align: center; }
+  .item-tube-head .item-chips { justify-content: center; }
+  .rec-card {
+    margin-left: 64px;
+    min-height: 96px;
+  }
+  .rec-thumb {
+    left: -90px;
+    width: 72px;
+    height: 72px;
+  }
+}
+

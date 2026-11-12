@@ -1,0 +1,327 @@
+/* ============================================================
+   HTML-описание класса (сырая разметка dnd.su → наши стили)
+   ============================================================ */
+.class-article {
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.62;
+}
+.class-article p { margin: 0 0 0.85em; }
+.class-article strong, .class-article b { color: var(--parchment); font-weight: 700; }
+.class-article em, .class-article i { font-style: italic; }
+.class-article img { max-width: 100%; height: auto; border-radius: 6px; }
+.class-article > .desc.card__article-body { display: block; }
+
+/* Заголовки dnd.su */
+.class-article .bigSectionTitle {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  margin: 1.5em 0 0.55em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.28);
+}
+.class-article .smallSectionTitle {
+  font-family: var(--font-display);
+  color: var(--gold-4);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  margin: 1.2em 0 0.4em;
+}
+.class-article .tableTitle {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 1.1em 0 0.35em;
+}
+/* заголовки без «фирменных» классов dnd.su — минимальный запас */
+.class-article h1, .class-article h2, .class-article h3, .class-article h4 {
+  font-family: var(--font-display);
+  color: var(--gold-3);
+  line-height: 1.25;
+}
+.class-article .underlined { text-decoration: none; }
+
+/* Цитаты */
+.class-article blockquote {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  font-style: italic;
+  color: var(--text);
+  border-left: 3px solid var(--gold-2);
+  background: rgb(var(--gold-2-rgb) / 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Списки */
+.class-article ul, .class-article ol { margin: 0.55em 0 1em; padding-left: 1.4em; }
+.class-article li { margin: 0.3em 0; }
+
+/* Таблицы — в стиле «Таблицы развития класса» (.ctable) */
+.class-article .table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.5), rgb(var(--silver-1-rgb) / 0.28) 55%, rgb(var(--gold-2-rgb) / 0.5)) border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.3) transparent;
+}
+.class-article .table-wrapper::-webkit-scrollbar { height: 7px; }
+.class-article .table-wrapper::-webkit-scrollbar-thumb { background: rgb(var(--silver-2-rgb) / 0.3); border-radius: 4px; }
+.class-article table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+.class-article table.class_table { min-width: 560px; }
+.class-article th, .class-article td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.12);
+  vertical-align: top;
+  text-align: left;
+}
+.class-article tbody tr:nth-child(even) { background: rgb(var(--silver-2-rgb) / 0.035); }
+.class-article tbody tr:hover { background: rgb(var(--gold-2-rgb) / 0.08); }
+.class-article tr.table_header td, .class-article tr.table_header th {
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  /* по умолчанию заголовок выровнен так же, как ячейки (влево) — чтобы значения
+     всегда стояли ровно под своим заголовком в любых таблицах */
+  text-align: left;
+  vertical-align: bottom;
+  border-bottom: 1.5px solid rgb(var(--gold-2-rgb) / 0.45);
+  white-space: nowrap;
+}
+.class-article tr.table_header:hover, .class-article tr.spell-slots-row { background: none; }
+/* В таблице развития класса числовые столбцы по центру — центрируем и заголовки */
+.class-article table.class_table tr.table_header td,
+.class-article table.class_table tr.table_header th { text-align: center; }
+/* В обычных таблицах короткие/числовые столбцы (уровень, к6, счётчики) — по центру
+   (и заголовок, и цифры под ним); помечены в трансформе как ca-col-center.
+   Второе правило перебивает `tr.table_header td` (та же специфика 0,2,2) для
+   ячеек-заголовков — иначе заголовок оставался бы слева, а цифры уезжали в центр. */
+.class-article td.ca-col-center, .class-article th.ca-col-center { text-align: center; }
+.class-article tr.table_header td.ca-col-center,
+.class-article tr.table_header th.ca-col-center { text-align: center; }
+/* В таблице развития все столбцы числовые/короткие — центрируем их под
+   заголовками; текстовый столбец «Умения» (ячейки со ссылками-умениями)
+   оставляем по левому краю. */
+.class-article table.class_table td { text-align: center; }
+.class-article table.class_table td:has(.ca-ref) { text-align: left; }
+/* заголовок «Умения» — влево, как и его ячейки (иначе он висит по центру
+   широкого столбца, не над своим содержимым) */
+.class-article table.class_table tr.table_header td.ca-feat-h { text-align: left; }
+.class-article table.class_table td:first-child {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--parchment);
+}
+.class-article tr.spell-slots-row td, .class-article td.roller { text-align: center; }
+
+/* Парные подписи dnd.su .long/.short (полная/краткая) — оставляем полную */
+.class-article .short { display: none; }
+.class-article .long { display: inline; }
+
+/* Умения подкласса в таблице развития — без ✦, цвет по типу класса */
+.class-article .ca-subfeat { font-style: normal; }
+.class-article--caster .ca-ref.ca-subfeat { color: var(--feat-caster); }
+.class-article--martial .ca-ref.ca-subfeat { color: var(--feat-martial); }
+.class-article--caster .ca-subfeat.ca-link:hover {
+  color: #ddb0ec;
+  background: rgba(200, 120, 220, 0.1);
+  box-shadow: 0 0 7px 0 rgba(200, 120, 220, 0.2);
+  text-shadow: 0 0 8px rgba(220, 176, 236, 0.35);
+}
+.class-article--martial .ca-subfeat.ca-link:hover {
+  color: #e88880;
+  background: rgba(212, 100, 88, 0.1);
+  box-shadow: 0 0 7px 0 rgba(212, 100, 88, 0.2);
+  text-shadow: 0 0 8px rgba(232, 136, 128, 0.35);
+}
+
+/* Блок умения подкласса в общем списке способностей */
+.class-article .ca-subfeat-block {
+  margin: 0.85em 0 1.1em;
+  padding: 0.65em 0.85em 0.75em 1em;
+  border-radius: 0 8px 8px 0;
+  background: rgb(var(--gold-2-rgb) / 0.07);
+  box-shadow: inset 3px 0 0 rgb(var(--gold-2-rgb) / 0.42);
+}
+.class-article .ca-subfeat-block > :first-child { margin-top: 0; }
+.class-article .ca-subfeat-block > :last-child { margin-bottom: 0; }
+.class-article--caster .ca-subfeat-block .ca-subfeat-title,
+.class-article--caster .ca-subfeat-block > h3:first-child,
+.class-article--caster .ca-subfeat-block > h4:first-child {
+  color: var(--feat-caster) !important;
+}
+.class-article--martial .ca-subfeat-block .ca-subfeat-title,
+.class-article--martial .ca-subfeat-block > h3:first-child,
+.class-article--martial .ca-subfeat-block > h4:first-child {
+  color: var(--feat-martial) !important;
+}
+.class-article .ca-subfeat-block .ca-flash { animation: ca-subfeat-flash 1.4s ease; }
+@keyframes ca-subfeat-flash {
+  0%, 100% { background: transparent; }
+  12% { background: rgb(var(--gold-2-rgb) / 0.22); }
+}
+
+/* Ссылки dnd.su (обезврежены) и всплывающие термины */
+.class-article .ca-ref { color: var(--gold-3); }
+/* Ссылка на конкретное заклинание — ведёт на страницу заклинания */
+.class-article .ca-spell {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--gold-2-rgb) / 0.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.class-article .ca-spell:hover {
+  color: var(--gold-4);
+  text-decoration-color: var(--gold-3);
+}
+/* Кликабельная кнопка-умение: ведёт к способности в статье, подсветка по наведению */
+.class-article .ca-link {
+  cursor: pointer;
+  border-radius: 4px;
+  /* padding даёт «воздух» подсветке, отрицательный margin возвращает раскладку
+     (иначе появляются щели перед запятыми между умениями) */
+  padding: 0 2px;
+  margin: 0 -2px;
+  /* чтобы подсветка корректно ложилась на каждую строку при переносе слов */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
+}
+.class-article .ca-link:hover {
+  color: var(--gold-4);
+  background: rgb(var(--gold-2-rgb) / 0.05);
+  box-shadow: 0 0 7px 0 rgb(var(--gold-2-rgb) / 0.16);
+  text-shadow: 0 0 8px rgb(var(--gold-4-rgb) / 0.38);
+}
+/* Отступ под липкую шапку при прокрутке к способности + вспышка на цели */
+.class-article h1, .class-article h2, .class-article h3, .class-article h4,
+.class-article [id] { scroll-margin-top: 90px; }
+.class-article .ca-flash { animation: ca-flash 1.4s ease; border-radius: 4px; }
+@keyframes ca-flash {
+  0%, 100% { background: transparent; }
+  12% { background: rgb(var(--gold-2-rgb) / 0.32); }
+}
+.class-article .ca-term { border-bottom: 1px dotted rgb(var(--gold-2-rgb) / 0.5); cursor: help; }
+.class-article .ca-dice {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-4);
+  background: rgb(var(--gold-2-rgb) / 0.12);
+  padding: 0 0.35em;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Выноски и авторские примечания */
+.class-article .additionalInfo {
+  margin: 1em 0;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.25);
+  background: rgb(var(--gold-2-rgb) / 0.05);
+}
+.class-article .additionalInfo > :first-child { margin-top: 0; }
+.class-article .article-body__finik {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 1em 0;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  border: 1px dashed rgb(var(--gold-2-rgb) / 0.35);
+  background: rgb(var(--silver-2-rgb) / 0.05);
+  font-size: 0.95rem;
+}
+.class-article .finik__icon { display: none; }
+.class-article .finik__sign { color: var(--gold-3); font-style: italic; text-align: right; }
+
+/* Спойлеры и свёрнутые подклассы → нативные <details> */
+.class-article details.ca-collapse { margin: 0.85em 0; }
+.class-article summary.ca-summary { cursor: pointer; list-style: none; }
+.class-article summary.ca-summary::-webkit-details-marker { display: none; }
+.class-article summary.ca-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.45em;
+  color: var(--gold-2);
+  transition: transform 0.15s ease;
+}
+.class-article details[open] > summary.ca-summary::before { transform: rotate(90deg); }
+.class-article summary.ca-summary:hover { color: var(--gold-4); }
+/* тело спойлера dnd.su — <span>, оборачивающий блоки; принудительно блок */
+.class-article details.ca-collapse > span,
+.class-article details.ca-collapse > .ca-collapse-body {
+  display: block;
+}
+
+/* меню соты подкласса: описание вместо кнопок */
+.hex-expand--sub { text-decoration: none; }
+.hex-expand-desc {
+  margin: 4px 2px 0;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.hex-expand--sub:hover .hex-expand-title-text { color: var(--gold-4); }
+
+/* кнопка перехода к заклинаниям класса/подкласса */
+.spell-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 4px 0 8px;
+  padding: 10px 22px;
+  clip-path: var(--hex-chip);
+  color: var(--bg-0);
+  --hex-in: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  --hex-edge: var(--gold-1);
+  background: var(--hex-edge);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+.spell-cta svg { width: 18px; height: 18px; }
+.spell-cta:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* кость хитов — между жёлтым фоном обложки и персонажем (картинка прозрачная) */
+.book-cover.detail-plate { position: relative; }
+.book-cover.detail-plate > img { position: relative; z-index: 1; }
+.detail-die-bg {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 86%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+  pointer-events: none;
+  filter: brightness(0.92) drop-shadow(0 3px 10px rgb(var(--gold-0-rgb) / 0.4));
+}
+

@@ -1,0 +1,320 @@
+/* ============================================================
+   ПРЕДЫСТОРИЯ — детальная страница
+   ============================================================ */
+
+.bg-detail-page {
+  /* ширина гекса шапки; высота считается из правильных пропорций */
+  --bg-hero-hex: clamp(196px, 22vw, 286px);
+}
+
+.bg-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3.6vw, 44px);
+  padding: clamp(24px, 3vw, 38px) clamp(22px, 3.2vw, 44px);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(150deg, rgba(30, 33, 41, 0.96), rgba(14, 16, 20, 0.98)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.5), rgb(var(--silver-1-rgb) / 0.2) 45%, rgb(var(--silver-2-rgb) / 0.6)) border-box;
+}
+
+/* размытый арт предыстории фоном шапки + затемняющая вуаль слева-направо,
+   чтобы текст лежал на спокойном фоне */
+.bg-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center 32%;
+  background-size: cover;
+  filter: blur(34px) saturate(0.8) brightness(0.5);
+  transform: scale(1.18);
+  pointer-events: none;
+}
+.bg-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(10, 11, 14, 0.86) 0%, rgba(10, 11, 14, 0.6) 45%, rgba(10, 11, 14, 0.82) 100%);
+}
+
+/* тёплое свечение из-под арта — «свет прожитой жизни» */
+.bg-hero-aura {
+  position: absolute;
+  z-index: 0;
+  left: clamp(-40px, -2vw, 0px);
+  top: 50%;
+  width: min(620px, 70%);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgb(var(--gold-2-rgb) / 0.22) 0%,
+    rgba(150, 116, 44, 0.11) 38%,
+    transparent 68%
+  );
+}
+
+.bg-hero-art {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: var(--bg-hero-hex);
+}
+
+.bg-hero-hex {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.1547;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2.6px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+}
+.bg-hero-hex-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.bg-hero-hex-inner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.bg-hero-hex-fallback {
+  position: absolute;
+  inset: 30%;
+  width: 40%;
+  height: 40%;
+  color: rgb(var(--gold-3-rgb) / 0.3);
+  stroke-width: 1.2;
+}
+
+.bg-hero-meta {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bg-hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bg-hero-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  text-wrap: balance;
+}
+
+.bg-hero-abilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+/* жетон характеристики: аббревиатура + расшифровка мелким */
+.bg-ability {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 17px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.24), rgb(var(--gold-2-rgb) / 0.07));
+  --hex-edge: rgba(228, 196, 120, 0.36);
+  background: var(--hex-edge);
+}
+.bg-ability b {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold-4);
+}
+.bg-ability i {
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* у черты во второй ячейке — бонус (+1), а не расшифровка характеристики */
+.bg-ability .feat-boost {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--parchment);
+}
+
+/* плашка черты предыстории — главный «крючок» страницы */
+.bg-hero-feature {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 11px 18px;
+  border-left: 2px solid rgb(var(--gold-2-rgb) / 0.55);
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.1), transparent 78%);
+}
+.bg-hero-feature svg {
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  color: var(--gold-3);
+  stroke-width: 1.6;
+}
+.bg-hero-feature span {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bg-hero-feature b {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+/* плитки владений: навыки, инструменты, языки */
+.bg-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bg-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.4), rgb(var(--silver-1-rgb) / 0.18) 55%, rgb(var(--gold-2-rgb) / 0.4)) border-box;
+}
+.bg-fact-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.bg-fact-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.3), rgb(var(--gold-2-rgb) / 0.08));
+}
+.bg-fact-icon svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-4); }
+.bg-fact-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.bg-fact-value {
+  padding: 4px 11px;
+  font-size: 0.84rem;
+  color: var(--parchment);
+  background: linear-gradient(180deg, rgb(var(--silver-2-rgb) / 0.12), rgb(var(--silver-2-rgb) / 0.04));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22);
+}
+
+@media (max-width: 860px) {
+  .bg-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .bg-hero-art { width: min(var(--bg-hero-hex), 62vw); }
+  .bg-hero-meta { align-items: center; }
+  .bg-hero-kicker,
+  .bg-hero-abilities { justify-content: center; }
+  .bg-hero-feature {
+    text-align: left;
+    border-left: none;
+    border-top: 2px solid rgb(var(--gold-2-rgb) / 0.55);
+    background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.1), transparent 82%);
+  }
+}
+
+/* подрасы — карточки-ссылки без арта (картинок у подрас нет) */
+.subrace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
+  gap: 16px;
+}
+
+.subrace-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 17px 20px 15px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.45), rgb(var(--silver-1-rgb) / 0.2) 45%, rgb(var(--silver-1-rgb) / 0.55)) border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.subrace-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 18px rgb(var(--gold-2-rgb) / 0.14);
+}
+
+.subrace-card-name {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  line-height: 1.2;
+}
+
+.subrace-card-desc { -webkit-line-clamp: 3; font-size: 0.95rem; }
+
+.subrace-card-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.subrace-card-go svg { width: 14px; height: 14px; transition: transform 0.2s ease; }
+.subrace-card:hover .subrace-card-go svg { transform: translateX(4px); }
+
+@media (max-width: 700px) {
+  .race-detail-stage { min-height: clamp(380px, 64vh, 520px); }
+  .race-detail-portrait { width: min(100%, 94vw); height: 86%; }
+  .race-detail-name-plate { padding: 13px 30px; font-size: 1.3rem; }
+}
+

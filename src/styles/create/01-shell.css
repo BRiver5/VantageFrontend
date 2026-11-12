@@ -1,0 +1,228 @@
+/* ============================================================
+   Конструктор персонажа (/characters/new)
+   Пошаговый визард: рейка шагов, карточки выбора, прокачка по
+   уровням и полноэкранные сцены награды.
+   ============================================================ */
+
+.cw {
+  position: relative;
+  isolation: isolate;
+  padding-top: clamp(20px, 3vw, 36px);
+  padding-bottom: 120px;
+}
+
+.cw-top { margin-bottom: 18px; }
+.cw-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.cw-title svg { width: 26px; height: 26px; color: var(--gold-2); }
+
+/* ---------- Рейка шагов ---------- */
+
+.cw-rail {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 10px;
+  margin: 22px 0 6px;
+}
+
+.cw-rail-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.18s ease;
+}
+.cw-rail-step:disabled { opacity: 0.45; cursor: default; }
+.cw-rail-step:not(:disabled):hover { color: var(--gold-3); }
+
+.cw-rail-hex {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: calc(30px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.26);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--silver-2);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cw-rail-step.is-done .cw-rail-hex {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
+  color: var(--gold-4);
+}
+.cw-rail-step.is-current { color: var(--gold-4); }
+.cw-rail-step.is-current .cw-rail-hex {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  color: var(--bg-0);
+  box-shadow: var(--glow-gold);
+}
+
+.cw-rail-label { white-space: nowrap; }
+
+/* ---------- Сцена шага ---------- */
+
+.cw-stage { animation: page-route-in 0.3s ease; }
+
+.cw-step {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cw-step-head { text-align: center; }
+.cw-step-kicker {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.cw-step-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.4rem, 2.8vw, 2rem);
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+.cw-step-lead {
+  max-width: 720px;
+  margin: 8px auto 0;
+  color: var(--text-dim);
+  font-size: 0.96rem;
+  font-style: italic;
+}
+
+.cw-status {
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.cw-panel {
+  position: relative;
+  padding: 18px 20px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.8), rgb(var(--silver-1-rgb) / 0.22) 40%, rgb(var(--silver-1-rgb) / 0.8)) border-box;
+}
+
+/* ---------- Поиск и фильтры ---------- */
+
+.cw-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.cw-search-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.cw-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 10px 16px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.26);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.cw-search:focus-within {
+  border-color: rgb(var(--gold-2-rgb) / 0.6);
+  box-shadow: 0 0 0 3px rgb(var(--gold-2-rgb) / 0.12);
+}
+.cw-search svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
+.cw-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.98rem;
+}
+.cw-search input:focus { outline: none; }
+.cw-search input::placeholder { color: var(--text-dim); font-style: italic; }
+
+/* кнопка «Фильтры» рядом с поиском и панель галочек — оформление из каталога */
+.cw-filter-menu { position: relative; z-index: 40; align-self: stretch; }
+.cw-filter-menu .quest-filter-btn { height: 100%; }
+/* панель раскрывается от правого края кнопки влево — кнопка стоит справа от
+   поиска, и центрированная панель вылезала за край окна (в попапе черт — обрезалась) */
+.cw-filter-panel {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: min(620px, calc(100vw - 40px));
+}
+/* легенду fieldset браузер рисует поверх верхней рамки — разделитель групп
+   её перечёркивал; плавающая легенда уходит внутрь блока */
+.cw-check-group > legend { float: left; width: 100%; padding: 0; }
+.cw-check-group > .cw-checks { clear: both; }
+
+.cw-check-group { border: none; padding: 0; margin: 0; min-width: 0; }
+.cw-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 2px 14px;
+  margin-top: 8px;
+}
+.cw-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.9rem;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.cw-check:hover { background: rgb(var(--gold-2-rgb) / 0.08); }
+.cw-check input { position: absolute; opacity: 0; pointer-events: none; }
+.cw-check-box {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.5px rgb(var(--silver-2-rgb) / 0.45);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+.cw-check-box svg { width: 12px; height: 12px; color: var(--bg-0); stroke-width: 3; }
+.cw-check.is-on { color: var(--gold-4); }
+.cw-check.is-on .cw-check-box {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  box-shadow: none;
+}
+.cw-check:has(input:focus-visible) .cw-check-box { box-shadow: 0 0 0 2px var(--gold-3); }
+.cw-check-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
