@@ -15,53 +15,50 @@
  */
 import { useLayoutEffect, useState, type ReactNode } from 'react'
 import {
-  Award,
   Backpack,
   BookOpen,
-  Camera,
-  Dices,
-  Eye,
-  EyeOff,
-  Footprints,
-  Heart,
-  Shield,
   ShieldCheck,
   Sparkles,
   Swords,
   UserRound,
-  Zap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
-import { formatDice } from '../equipment'
 import { useCatalogList } from '../create/useCatalog'
 import { parseAbilityText } from '../abilities/AbilityText'
 import type { AbilityName, InventoryItemInstance, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
-import { alignmentAbbr } from '../create/steps/AlignmentChart'
 import { GameHud, type HudControls, type HudTab } from './GameHud'
-import { HudSplit, RotateGate } from './hud/HudChrome'
+import { RotateGate } from './hud/HudChrome'
 import { HeroStage } from './HeroStage'
 import { useAppShell } from '../shell'
-import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
 import type { FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay } from './sheetPlay'
 import { RollTheater } from '../dice/theater/RollTheater'
-import { ActionButton, activeStates, EnginePanel, type EngineView } from './EnginePanel'
+import { activeStates, type EngineView } from './EnginePanel'
 import { ResourceBand } from './ResourceBand'
 import { WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
-import { type FeatureRow, SOURCE_GROUPS, SOURCE_LABEL, STATUS_LABEL, type SheetAttack, attacksPerAction, personaOf, signed } from './sheet/rules'
-import { Card, FeatureText, HeroPortrait, RollLog } from './sheet/parts'
+import { type FeatureRow, SOURCE_LABEL, type SheetAttack, attacksPerAction, personaOf } from './sheet/rules'
+import { Card, RollLog } from './sheet/parts'
 import { useSheetRolls } from './sheet/useSheetRolls'
 import { AbilitiesCard } from './sheet/AbilitiesCard'
 import { AttackRow, CombatCard, SpellAttackRow } from './sheet/CombatCard'
 import { InventoryCard } from './sheet/InventoryCard'
 import { FeaturesCard, FeatureTile, ProfsCard, RulesCard } from './sheet/FeatureCards'
 import { PersonaCard, PersonaEditCard } from './sheet/PersonaCard'
+import { FlatHero } from './sheet/FlatHero'
+import { SheetTabs, type TabRow } from './sheet/SheetTabs'
+import { ReviewTabs } from './sheet/ReviewTabs'
+import { FeatureModal } from './sheet/FeatureModal'
+import { FeaturesTab } from './sheet/tabs/FeaturesTab'
+import { StoryTab } from './sheet/tabs/StoryTab'
+import { MainTab } from './sheet/tabs/MainTab'
+import { ActionsTab } from './sheet/tabs/ActionsTab'
+import { HudFeaturesTab } from './sheet/tabs/HudFeaturesTab'
 
 /** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
 export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'skills' | 'actions'
@@ -298,136 +295,30 @@ export default function CharacterSheet({
 
   const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && <RulesCard extras={extras} />
 
-  /** Страница умений: группы по источнику, клик — попап с описанием */
-  const featuresPage = (
-    <div className="cw-fpage">
-      <div className="cw-fpage-groups">
-        {featureRows.length === 0 && <p className="cw-field-note">Умений пока нет.</p>}
-        {SOURCE_GROUPS.map((g) => {
-          const list = featureRows.filter((f) => g.sources.includes(f.source))
-          if (!list.length) return null
-          return (
-            <section key={g.title} className="cw-fgroup">
-              <h4 className="cw-fgroup-title">
-                {g.title} <em>{list.length}</em>
-              </h4>
-              <div className="cw-ftiles">{list.map(featureTile)}</div>
-            </section>
-          )
-        })}
-      </div>
-      <div className="cw-fpage-side">
-        {profsCard}
-        {rulesCard}
-      </div>
-    </div>
-  )
+  const featuresPage = <FeaturesTab featureRows={featureRows} featureTile={featureTile} profs={profsCard} rules={rulesCard} />
 
   const personaCard = onPatch ? <PersonaEditCard sheet={sheet} onPatch={onPatch} /> : persona.length > 0 && <PersonaCard persona={persona} />
 
-  /** Страница характера: большой портрет во весь рост и всё о внешности */
-  const looks = (
-    [
-      ['Раса', info.subrace?.name ?? info.race.name],
-      ['Предыстория', info.background?.name],
-      ['Мировоззрение', info.alignment],
-      ['Пол', info.gender],
-      ['Возраст', info.age != null ? String(info.age) : ''],
-      ['Рост', info.height],
-      ['Вес', info.weight],
-      ['Глаза', info.eyes],
-      ['Волосы', info.hair],
-      ['Кожа', info.skin],
-    ] as const
-  ).filter(([, v]) => v && String(v).trim())
-
   const storyPage = (
-    <div className="cw-story">
-      <figure className="cw-story-art">
-        <HeroPortrait own={portrait} fallback={fallbackPortrait} />
-        {onPortraitClick && (
-          <button type="button" className="cw-portrait-edit" onClick={onPortraitClick} title="Сменить портрет">
-            <Camera aria-hidden="true" />
-          </button>
-        )}
-        {looks.length > 0 && (
-          <figcaption className="cw-story-looks">
-            {looks.map(([label, value]) => (
-              <span key={label}>
-                <i>{label}</i>
-                <b>{value}</b>
-              </span>
-            ))}
-          </figcaption>
-        )}
-      </figure>
-      <div className="cw-story-text">{personaCard}</div>
-    </div>
+    <StoryTab info={info} portrait={portrait} fallbackPortrait={fallbackPortrait} onPortraitClick={onPortraitClick} persona={personaCard} />
   )
 
-  /** Шапка итога визарда: портрет целиком и главные числа строкой */
-  const abbr = alignmentAbbr(info.alignment ?? '')
   const flatHero = (
-    <header className="cw-sheet-hero">
-      <span className="cw-sheet-portrait">
-        <HeroPortrait own={portrait} fallback={fallbackPortrait} />
-        {abbr && <span className="cw-hero-align">{abbr}</span>}
-      </span>
-      <div className="cw-sheet-id">
-        <h2 className="cw-sheet-name gold-text">{info.name}</h2>
-        <p className="cw-sheet-who">
-          {[info.subrace?.name ?? info.race.name, `${cls.name} ${level} ур.`, cls.subclass_name].filter(Boolean).join(' · ')}
-        </p>
-        {(info.background || info.alignment) && (
-          <p className="cw-sheet-sub">
-            {[info.background?.name && `предыстория: ${info.background.name}`, info.alignment].filter(Boolean).join(' · ')}
-          </p>
-        )}
-        <div className="cw-sheet-stats">
-          <span className="cw-stat cw-stat--ac" title="Класс доспеха">
-            <Shield aria-hidden="true" />
-            <b>{combat.armor_class}</b>
-            <i>КД</i>
-          </span>
-          <span className="cw-stat cw-stat--hp" title="Максимум хитов">
-            <Heart aria-hidden="true" />
-            <b>{combat.hit_points.max}</b>
-            <i>хиты</i>
-          </span>
-          <button
-            type="button"
-            className="cw-stat cw-stat--roll"
-            onClick={() => void rollD20('Инициатива', combat.initiative, undefined, { kind: 'init' })}
-            disabled={dice.rolling}
-            title="Бросить инициативу"
-          >
-            <Zap aria-hidden="true" />
-            <b>{signed(combat.initiative)}</b>
-            <i>инициатива</i>
-          </button>
-          <span className="cw-stat">
-            <Footprints aria-hidden="true" />
-            <b>{combat.speed}</b>
-            <i>фт. скорость</i>
-          </span>
-          <span className="cw-stat">
-            <Award aria-hidden="true" />
-            <b>+{pb}</b>
-            <i>мастерство</i>
-          </span>
-          <span className="cw-stat">
-            <Dices aria-hidden="true" />
-            <b>{formatDice(combat.hit_dice.total)}</b>
-            <i>кости хитов</i>
-          </span>
-        </div>
-      </div>
-    </header>
+    <FlatHero
+      info={info}
+      cls={cls}
+      level={level}
+      combat={combat}
+      pb={pb}
+      portrait={portrait}
+      fallbackPortrait={fallbackPortrait}
+      rollD20={rollD20}
+      rolling={dice.rolling}
+    />
   )
 
   /* ---------- раскладка ---------- */
 
-  type TabRow = { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }
   const deskTabs: TabRow[] = [
     { id: 'main', label: 'Лист', icon: Swords },
     ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
@@ -443,29 +334,6 @@ export default function CharacterSheet({
       activeKeys={activeKeys}
       onOpen={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
     />
-  )
-
-  const tabButtons = (rows: TabRow[]) => (
-    <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
-      {rows.map(({ id, label, icon: Icon, badge, alert }) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={current === id}
-          className={`cw-tab${current === id ? ' is-on' : ''}`}
-          onClick={() => setTab(id)}
-        >
-          <Icon aria-hidden="true" /> {label}
-          {badge ? <em>{badge}</em> : null}
-          {alert ? (
-            <em className="is-alert" title="Нерешённые выборы">
-              !{alert}
-            </em>
-          ) : null}
-        </button>
-      ))}
-    </nav>
   )
 
   /* ---------- итог создания на телефоне: разделы вместо длинной ленты ---------- */
@@ -492,23 +360,15 @@ export default function CharacterSheet({
     ...attacks.filter((a) => a.key === 'unarmed').map(attackRow),
   ]
 
-  const featureTabs = [
-    ...SOURCE_GROUPS.map((g) => ({
-      key: g.title,
-      label: g.sources.includes('choice') ? 'Выбранные' : g.title,
-      count: featureRows.filter((f) => g.sources.includes(f.source)).length,
-    })).filter((g) => g.count > 0),
-    { key: 'profs', label: 'Владения' },
-    ...(rulesCard ? [{ key: 'rules', label: 'Особые правила' }] : []),
-  ]
-  const featureKey = featureTabs.some((t) => t.key === featureGroup) ? featureGroup! : featureTabs[0].key
-  const featureGroupDef = SOURCE_GROUPS.find((g) => g.title === featureKey)
   const hudFeatures = (
-    <HudSplit tabs={featureTabs} active={featureKey} onChange={setFeatureGroup}>
-      {featureKey === 'profs' ? profsCard : featureKey === 'rules' ? rulesCard : (
-        <div className="cw-ftiles">{featureRows.filter((f) => featureGroupDef?.sources.includes(f.source)).map(featureTile)}</div>
-      )}
-    </HudSplit>
+    <HudFeaturesTab
+      featureRows={featureRows}
+      featureTile={featureTile}
+      featureGroup={featureGroup}
+      onGroup={setFeatureGroup}
+      profs={profsCard}
+      rules={rulesCard}
+    />
   )
 
   const hudSlots = Object.entries(spell.spell_slots)
@@ -549,15 +409,7 @@ export default function CharacterSheet({
             tab={hudTab}
             onTab={(t) => setTab(t ?? 'main')}
             windows={{
-              actions: (
-                <div className="hud-combat">
-                  <div className="hud-combat-main">
-                    {resources}
-                    {engine && <EnginePanel engine={engine} showAll />}
-                  </div>
-                  <div className="hud-combat-side">{combatCard}</div>
-                </div>
-              ),
+              actions: <ActionsTab engine={engine} resources={resources} combat={combatCard} />,
               skills: abilitiesCard,
               bag: invCard,
               magic: spellBook || undefined,
@@ -578,16 +430,9 @@ export default function CharacterSheet({
             stage={stage}
           />
           {resources}
-          {tabButtons(deskTabs)}
+          <SheetTabs rows={deskTabs} current={current} onTab={setTab} />
           <div key={current} className={`cw-page cw-page--${current}`} role="tabpanel">
-            {current === 'main' && (
-              <>
-                {engine && <EnginePanel engine={engine} />}
-                {abilitiesCard}
-                {combatCard}
-                {invCard}
-              </>
-            )}
+            {current === 'main' && <MainTab engine={engine} abilities={abilitiesCard} combat={combatCard} inventory={invCard} />}
             {current === 'magic' && spellBook}
             {current === 'features' && featuresPage}
             {current === 'story' && storyPage}
@@ -596,17 +441,7 @@ export default function CharacterSheet({
       ) : shell.app ? (
         <>
           {flatHero}
-          <nav className="cw-rtabs" aria-label="Разделы листа">
-            {reviewTabs.map(({ id, label, icon: Icon }) => (
-              <button key={id} type="button" className={reviewCurrent.id === id ? 'is-on' : ''} aria-pressed={reviewCurrent.id === id} onClick={() => setReviewTab(id)}>
-                <Icon aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
-          <div key={reviewCurrent.id} className="cw-rpane">
-            {reviewCurrent.body}
-          </div>
+          <ReviewTabs tabs={reviewTabs} current={reviewCurrent} onSelect={setReviewTab} />
         </>
       ) : (
         <>
@@ -630,63 +465,15 @@ export default function CharacterSheet({
       {!hudMode && <RollLog rolls={rolls} onClear={clearRolls} />}
       {theater[0] && <RollTheater key={theater[0].id} spec={theater[0]} onDone={() => setTheater((q) => q.slice(1))} />}
       {openFeature && (
-        <SheetModal
-          title={openFeature.title}
-          kicker={openFeature.sub}
-          tone={openFeature.source}
-          visual={<BookOpen className="cw-smodal-glyph" aria-hidden="true" />}
+        <FeatureModal
+          feature={openFeature}
+          engine={engine}
+          activeKeys={activeKeys}
+          actionsOf={actionsOf}
+          resourcesOf={resourcesOf}
+          onToggleAbility={onToggleAbility}
           onClose={() => setOpenFeature(null)}
-          actions={
-            <>
-              {onToggleAbility && openFeature.grantId && (
-                <label className={`cw-ftoggle${openFeature.disabled ? '' : ' is-on'}`} title="Отключённое умение остаётся в списке, но его бонусы и действия не работают">
-                  <input
-                    type="checkbox"
-                    checked={!openFeature.disabled}
-                    onChange={(e) => onToggleAbility(openFeature.grantId!, e.target.checked)}
-                  />
-                  <span className="cw-ftoggle-track" aria-hidden="true">
-                    <span className="cw-ftoggle-knob">{openFeature.disabled ? <EyeOff /> : <Eye />}</span>
-                  </span>
-                  <span>{openFeature.disabled ? 'Умение отключено' : 'Умение действует'}</span>
-                </label>
-              )}
-              <button type="button" className="cs-btn cw-next" onClick={() => setOpenFeature(null)}>
-                Закрыть
-              </button>
-            </>
-          }
-        >
-          {openFeature.status && openFeature.status !== 'full' && !openFeature.disabled && (
-            <p className={`cw-field-note cw-fstatus is-${openFeature.status}`}>{STATUS_LABEL[openFeature.status] ?? openFeature.status}</p>
-          )}
-          {openFeature.disabled ? (
-            <p className="cw-field-note cw-fstatus is-off">Отключено: бонусы и действия умения не работают, пока его не включить.</p>
-          ) : (
-            openFeature.active === false && (
-              <p className="cw-field-note cw-fstatus is-off">Сейчас не действует: условие умения не выполнено.</p>
-            )
-          )}
-          {engine && !openFeature.disabled && resourcesOf(openFeature.slug).length > 0 && (
-            <div className="cw-fcard-res">
-              <ResourceBand resources={resourcesOf(openFeature.slug)} activeKeys={activeKeys} />
-            </div>
-          )}
-          {engine && !openFeature.disabled && openFeature.grantId && actionsOf(openFeature.grantId).length > 0 && (
-            <div className="eng-actions cw-fcard-acts">
-              {actionsOf(openFeature.grantId).map((a) => (
-                <ActionButton
-                  key={a.key}
-                  a={a}
-                  // поп-ап действия откроется поверх — карточку закрываем
-                  engine={{ ...engine, onAction: (x) => (setOpenFeature(null), engine.onAction(x)) }}
-                  showAbility={false}
-                />
-              ))}
-            </div>
-          )}
-          <FeatureText row={openFeature} />
-        </SheetModal>
+        />
       )}
     </div>
     </WhyProvider>
