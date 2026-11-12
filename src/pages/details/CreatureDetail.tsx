@@ -18,9 +18,10 @@ import type {
   Setting,
 } from '../../api'
 import { Divider } from '../../ornaments'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { DieChipIcon } from '../../dice/diceAssets'
-import { CreatureBoard, CreatureStage, WorldBackdrop } from '../../creatureSheet'
+import { CreatureBoard } from '../../creature/CreatureBoard'
+import { CreatureStage, WorldBackdrop } from '../../creature/CreatureStage'
 import { Chip, DetailSection, Rich, Traits } from './shared'
 import { useBookRef, useOne } from './hooks'
 

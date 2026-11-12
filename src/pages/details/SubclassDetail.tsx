@@ -14,9 +14,11 @@ import type {
   GameClass,
   Subclass,
 } from '../../api'
-import { SourceBadge, whenRouteCommitted } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
+import { whenRouteCommitted } from '../catalog/transitions'
 import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
-import { ClassArticle, resolveSubclassSectionHtml } from '../../classArticle'
+import { ClassArticle } from '../../classArticle'
+import { resolveSubclassSectionHtml } from '../../classArticleHtml'
 import { Chip, DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { SUB_HERO, type VTDocument } from './SubclassHive'

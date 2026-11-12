@@ -17,13 +17,14 @@ import type {
   Background,
 } from '../../api'
 import { Corners, Divider } from '../../ornaments'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import {
   StartingEquipment,
   hasStartingEquipment,
 } from '../StartingEquipment'
 import { AbilityList } from '../../abilities/AbilityList'
-import { ClassArticle, OpenLinksInNewTab, isHtmlDescription } from '../../classArticle'
+import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
+import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { abilitiesFromSkills } from '../../skills'
 import { Img, bgUrl } from '../../media'

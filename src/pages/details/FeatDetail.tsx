@@ -13,9 +13,10 @@ import type {
   Feat,
 } from '../../api'
 import { Corners, Divider } from '../../ornaments'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { AbilityList } from '../../abilities/AbilityList'
-import { ClassArticle, OpenLinksInNewTab, isHtmlDescription } from '../../classArticle'
+import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
+import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { bgUrl } from '../../media'
 import { DetailSection, Rich } from './shared'

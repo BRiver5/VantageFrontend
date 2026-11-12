@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type DragEvent as RDragEvent } from 'react'
 import { Boxes, DoorOpen, Eye, Gem, Hand, Hexagon, ImagePlus, Lightbulb, Mountain, PenLine, Redo2, RectangleHorizontal, Save, Trash2, Undo2, UserRound, X } from 'lucide-react'
-import { ApiError, fetchPage, uploadMedia, type Creature } from '../api'
+import { ApiError, uploadMedia } from '../api'
 import { addCreatures } from '../rooms/roomsApi'
 import { parsePortrait } from '../characters/portrait'
 import { useRoom } from '../rooms/RoomProvider'
@@ -20,73 +20,15 @@ import { creatureArt, creatureName } from '../rooms/table/parts'
 import { editMap, fireTrigger, getMap, patchMap } from './api'
 import { assetImage, assetTitle, type Asset } from './assets'
 import { ASSET_MIME, AssetLibrary, ItemProps, ObjectProps, SpawnsPanel, TriggersPanel, ZoneProps } from './EditorPanels'
-import { cellCenter, cellOf, circle, dist, pointInPolygon, pxPerFt, snapToCorner } from './geometry'
+import { cellCenter, cellOf, dist, pointInPolygon, snapToCorner } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
-import type { BattleMap, EditBatch, EditKind, MapItem, MapLight, MapObject, MapToken, MapWall, MapZone, Pt } from './types'
-
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'light' | 'token' | 'asset' | 'terrain' | 'zone' | 'item'
-type Brush = 'up' | 'down' | 'difficult' | 'water' | 'climbable'
-const KINDS: EditKind[] = ['walls', 'objects', 'lights', 'layers', 'tokens', 'items', 'zones', 'triggers', 'spawns']
-const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`
-const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось')
-
-/** Разница двух версий карты пакетом конструктора */
-export function diffBatch(saved: BattleMap, cur: BattleMap): EditBatch | null {
-  const batch: EditBatch = {}
-  let any = false
-  for (const k of KINDS) {
-    const a = new Map(((saved[k] ?? []) as { id: string }[]).map((x) => [x.id, x]))
-    const b = new Map(((cur[k] ?? []) as { id: string }[]).map((x) => [x.id, x]))
-    const add = [...b.values()].filter((x) => !a.has(x.id))
-    const remove = [...a.keys()].filter((id) => !b.has(id))
-    const update = [...b.values()].filter((x) => a.has(x.id) && JSON.stringify(a.get(x.id)) !== JSON.stringify(x))
-    if (add.length || remove.length || update.length) {
-      any = true
-      batch[k] = { ...(add.length ? { add } : {}), ...(update.length ? { update } : {}), ...(remove.length ? { remove } : {}) }
-    }
-  }
-  return any ? batch : null
-}
-
-/** Наложить пакет на свежую версию (после 409) */
-function applyBatch(fresh: BattleMap, batch: EditBatch): BattleMap {
-  const out = { ...fresh } as unknown as Record<EditKind, { id: string }[]>
-  for (const k of KINDS) {
-    const b = batch[k]
-    if (!b) continue
-    const rm = new Set(b.remove ?? [])
-    const up = new Map(((b.update ?? []) as { id: string }[]).map((x) => [x.id, x]))
-    out[k] = [...(out[k] ?? []).filter((x) => !rm.has(x.id)).map((x) => up.get(x.id) ?? x), ...((b.add ?? []) as { id: string }[])]
-  }
-  return out as unknown as BattleMap
-}
-
-function segDist(p: Pt, a: Pt, b: Pt) {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const l2 = dx * dx + dy * dy || 1
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
-}
-
-const wallOf = (kind: MapWall['kind'], a: Pt, b: Pt): MapWall => ({
-  id: uid('w'),
-  a,
-  b,
-  kind,
-  height_ft: 10,
-  base_ft: 0,
-  blocks: { move: kind !== 'window', sight: kind !== 'window', light: kind !== 'window', sound: true },
-  ...(kind === 'door' ? { door: { open: false, locked: false, secret: false } } : {}),
-})
-
-const SIZE_CELLS: Record<string, number> = { tiny: 0.5, small: 1, medium: 1, large: 2, huge: 3, gargantuan: 4 }
-
-/** Многоугольник зоны для попадания курсором */
-export function zonePoly(z: MapZone, map: BattleMap): Pt[] {
-  if (z.shape.kind === 'circle' && z.shape.center) return circle(z.shape.center, (z.shape.radius_ft ?? 10) * pxPerFt(map.grid), 24)
-  return z.shape.points ?? []
-}
+import type { BattleMap, MapItem, MapLight, MapObject, MapToken, MapWall, MapZone, Pt } from './types'
+import { applyBatch, diffBatch, errText, uid } from './editor/batch'
+import { SIZE_CELLS, segDist, wallOf, zonePoly } from './editor/geometry'
+import { GridFields } from './editor/GridFields'
+import { imageSize } from './editor/imageSize'
+import { BeastSearch } from './editor/BeastSearch'
+import type { Brush, Tool } from './editor/types'
 
 export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => void }) {
   const { roomId, data } = useRoom()
@@ -986,105 +928,3 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   )
 }
 
-function GridFields({ grid, onChange }: { grid: BattleMap['grid']; onChange: (g: BattleMap['grid']) => void }) {
-  const [g, setG] = useState(grid)
-  const [seen, setSeen] = useState(grid)
-  if (seen !== grid) {
-    setSeen(grid)
-    setG(grid)
-  }
-  const field = (key: 'cell_px' | 'feet_per_cell' | 'cols' | 'rows' | 'offset_x' | 'offset_y', label: string, min = 0) => (
-    <label>
-      {label}
-      <input
-        type="number"
-        min={min}
-        value={g[key]}
-        onChange={(e) => setG({ ...g, [key]: Number(e.target.value) || 0 })}
-        onBlur={() => JSON.stringify(g) !== JSON.stringify(grid) && g.cell_px >= 10 && onChange(g)}
-      />
-    </label>
-  )
-  return (
-    <div className="me-grid">
-      {field('cell_px', 'Клетка, px', 10)}
-      {field('feet_per_cell', 'Футов в клетке', 1)}
-      {field('cols', 'Столбцов', 1)}
-      {field('rows', 'Строк', 1)}
-      {field('offset_x', 'Сдвиг X')}
-      {field('offset_y', 'Сдвиг Y')}
-    </div>
-  )
-}
-
-function imageSize(f: File): Promise<{ w: number; h: number }> {
-  return new Promise((ok, fail) => {
-    const url = URL.createObjectURL(f)
-    const img = new Image()
-    img.onload = () => {
-      ok({ w: img.naturalWidth, h: img.naturalHeight })
-      URL.revokeObjectURL(url)
-    }
-    img.onerror = () => fail(new Error('Картинка не читается'))
-    img.src = url
-  })
-}
-
-/** Бестиарий прямо в конструкторе: найти, добавить в комнату и сразу ставить */
-function BeastSearch({ onAdded }: { onAdded: (c: { id: string; name: string }) => void }) {
-  const { roomId } = useRoom()
-  const [q, setQ] = useState('')
-  const [found, setFound] = useState<Creature[]>([])
-  const [busy, setBusy] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-  useEffect(() => {
-    if (!q.trim()) {
-      setFound([])
-      return
-    }
-    let on = true
-    const t = setTimeout(() => {
-      fetchPage<Creature>('creatures', { q: q.trim(), limit: 12 }).then(
-        (r) => on && setFound(r.items),
-        () => on && setFound([]),
-      )
-    }, 250)
-    return () => {
-      on = false
-      clearTimeout(t)
-    }
-  }, [q])
-  return (
-    <div className="me-beasts">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Бестиарий: гоблин, волк, скелет…" aria-label="Поиск существа" />
-      {found.length > 0 && (
-        <ul>
-          {found.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                disabled={busy === c.id}
-                onClick={async () => {
-                  setBusy(c.id)
-                  setErr(null)
-                  try {
-                    const [made] = await addCreatures(roomId, { catalog_ref: c.id, count: 1, on_screen_only: true })
-                    if (made) onAdded({ id: made.id, name: made.display_name ?? c.name })
-                  } catch (e) {
-                    setErr(errText(e))
-                  } finally {
-                    setBusy(null)
-                  }
-                }}
-              >
-                {c.name}
-                {c.size ? <i> · {c.size}</i> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {err && <p className="tb-err">{err}</p>}
-    </div>
-  )
-}

@@ -19,7 +19,7 @@ import type {
   SheetView,
   SpellKnown,
 } from '../types/character'
-import type { FeatureEntry } from '../classArticle'
+import type { FeatureEntry } from '../classArticleHtml'
 import { scoreOf, type CharacterDraft, type LevelChoice } from './draft'
 import { featureText } from './featureText'
 import type { GrantedSpell } from './grantedSpells'

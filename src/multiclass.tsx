@@ -14,13 +14,8 @@ import { ArrowLeft, Layers, Plus, Trash2, X } from 'lucide-react'
 import { getClasses, getOne, getSubList } from './api'
 import type { GameClass, Subclass } from './api'
 import { Corners } from './ornaments'
-import {
-  ClassArticle,
-  isHtmlDescription,
-  parseFeatureEntries,
-  resolveSubclassSectionHtml,
-  type FeatureEntry,
-} from './classArticle'
+import { ClassArticle } from './classArticle'
+import { isHtmlDescription, parseFeatureEntries, resolveSubclassSectionHtml, type FeatureEntry } from './classArticleHtml'
 
 /** Один «слот» персонажа: класс + подкласс + уровень в этом классе. */
 interface ClassSlot {

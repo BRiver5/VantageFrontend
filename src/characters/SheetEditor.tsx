@@ -18,7 +18,6 @@ import {
   Compass,
   Dumbbell,
   GraduationCap,
-  ImagePlus,
   NotebookPen,
   Plus,
   Swords,
@@ -27,182 +26,22 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { getSubList, type Background, type Feat, type GameClass, type Race, type Spell, type Subclass } from '../api'
 import { CoinImg } from '../coins'
 import { ALIGNMENTS } from '../create/steps/AlignmentChart'
-import { imageFileToDataUrl } from '../create/flavor'
 import { useCatalogList, useSubraces } from '../create/useCatalog'
 import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT } from '../types/character'
 import type { AttackEntry, Character, CharacterInput, ClassLevel, SheetView, SpellKnown } from '../types/character'
 import { AreaField, AutoNum, CatalogSearch, EdField, EdSection, Stepper, TextField, Toggle } from './editorFields'
 import { FaceAvatar, FaceCropper } from './FacePortrait'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
-import { abilityPath, contributionsOf, whyText } from './sheetView'
+import { abilityPath, whyText } from './sheetView'
 import { bgUrl } from '../media'
-
-type CombatField = { auto: boolean; value: number; computed: number }
-
-/** КД / хиты / мастерство: авто — как на листе, вручную — оверрайд */
-function combatField(character: Character, view: SheetView, path: string, current: number): CombatField {
-  const ov = character.manual_overrides?.[path]
-  const rows = contributionsOf(view.breakdown, path)
-  const overridden = typeof ov === 'number' || rows.some((r) => r.kind === 'override')
-  const base = view.bases?.[path]?.value
-  const adds = rows.filter((r) => r.kind !== 'override' && r.op === 'add' && r.value != null)
-  const computed =
-    overridden && typeof base === 'number' ? base + adds.reduce((s, r) => s + (r.value ?? 0), 0) : current
-  if (typeof ov === 'number') return { auto: false, computed, value: ov }
-  if (overridden) return { auto: false, computed, value: current }
-  return { auto: true, computed: current, value: current }
-}
-
-const COMBAT_PATHS = { ac: 'char.ac', hp: 'char.hp.max', pb: 'char.pb' } as const
+import { ImageSource, XpField } from './sheet/editorFields'
+import { ATTACK_TYPES, COINS, COMBAT_PATHS, type CombatField, SECTIONS, combatField } from './sheet/editorData'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
-const COINS = [
-  ['pp', 'Платиновые'],
-  ['gp', 'Золотые'],
-  ['ep', 'Электрумовые'],
-  ['sp', 'Серебряные'],
-  ['cp', 'Медные'],
-] as const
-
-const SECTIONS: { id: string; title: string; icon: LucideIcon }[] = [
-  { id: 'hero', title: 'Герой', icon: UserRound },
-  { id: 'origin', title: 'Происхождение', icon: Compass },
-  { id: 'classes', title: 'Класс и уровень', icon: GraduationCap },
-  { id: 'abilities', title: 'Характеристики', icon: Dumbbell },
-  { id: 'attacks', title: 'Атаки', icon: Swords },
-  { id: 'magic', title: 'Заклинания', icon: Wand2 },
-  { id: 'feats', title: 'Черты', icon: BookOpen },
-  { id: 'purse', title: 'Кошелёк', icon: Coins },
-  { id: 'persona', title: 'Личность', icon: NotebookPen },
-]
-
-const ATTACK_TYPES: { value: AttackEntry['type']; label: string }[] = [
-  { value: 'melee', label: 'ближний бой' },
-  { value: 'ranged', label: 'дальний бой' },
-  { value: 'spell', label: 'заклинание' },
-  { value: 'other', label: 'другое' },
-]
-
-/** Картинка ссылкой или файлом с устройства (файл ужимается и встраивается в лист) */
-function ImageSource({
-  label,
-  value,
-  maxSide,
-  onChange,
-}: {
-  label: string
-  value: string | null
-  maxSide: number
-  onChange: (next: string | null) => void
-}) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState<string | null>(null)
-  const embedded = !!value?.startsWith('data:')
-  const take = async (file: File | undefined) => {
-    if (!file) return
-    setError(null)
-    try {
-      onChange(await imageFileToDataUrl(file, maxSide))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить картинку')
-    }
-  }
-  return (
-    <EdField label={label} wide hint={embedded ? 'загружено с устройства' : undefined}>
-      <span className="ed-img-src">
-        <input
-          className="ed-input"
-          value={embedded ? '' : (value ?? '')}
-          placeholder={embedded ? 'вставьте ссылку, чтобы заменить' : 'https://…'}
-          onChange={(e) => onChange(e.target.value.trim() || null)}
-        />
-        <button type="button" className="ed-btn" onClick={() => fileRef.current?.click()}>
-          <ImagePlus aria-hidden="true" /> файл
-        </button>
-        {value && (
-          <button type="button" className="ed-btn ed-btn--icon is-danger" onClick={() => onChange(null)} title="Убрать" aria-label="Убрать картинку">
-            <Trash2 aria-hidden="true" />
-          </button>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            void take(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
-      </span>
-      {error && <span className="ed-error">{error}</span>}
-    </EdField>
-  )
-}
-
-/** Порог опыта для уровней 1–20 (PHB) */
-const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
-const fmtXp = (n: number) => n.toLocaleString('ru')
-
-/**
- * Опыт — просто число. Рядом — таблица развития: какой уровень даёт этот опыт.
- * Уровень героя она не меняет; клик по строке лишь вписывает порог опыта.
- */
-function XpField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [open, setOpen] = useState(false)
-  const byXp = XP_TABLE.findLastIndex((x) => value >= x) + 1
-  const ref = useRef<HTMLDivElement>(null)
-  // клик мимо таблицы закрывает её
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.parentElement?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-  return (
-    <EdField label="Опыт" hint={`по опыту — ${byXp} ур.`} className="ed-xp-field">
-      <span className="ed-img-src">
-        <input
-          className="ed-input"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) => onChange(Math.max(0, parseInt(e.target.value.replace(/\D/g, ''), 10) || 0))}
-          aria-label="Опыт"
-        />
-        <button type="button" className={`ed-btn${open ? ' is-on' : ''}`} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-          <BookOpen aria-hidden="true" /> таблица
-        </button>
-      </span>
-      {open && (
-        <div className="ed-xp" ref={ref}>
-          <div className="ed-xp-row ed-xp-head">
-            <span>Опыт</span>
-            <span>Уровень</span>
-          </div>
-          {XP_TABLE.map((xp, i) => (
-            <button
-              key={xp}
-              type="button"
-              className={`ed-xp-row${i + 1 === byXp ? ' is-on' : ''}`}
-              onClick={() => onChange(xp)}
-              title="Вписать этот порог опыта"
-            >
-              <span>{fmtXp(xp)}</span>
-              <span>{i + 1}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </EdField>
-  )
-}
 
 export function SheetEditor({
   character,

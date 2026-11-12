@@ -12,7 +12,7 @@ import {
 import type {
   Spell,
 } from '../../api'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { SpellSchoolMark, spellSchoolIcon } from '../../spellSchools'
 import { useAppShell } from '../../shell'
 import { Chip, DetailSection, DetailShell, HexBadge, Rich } from './shared'

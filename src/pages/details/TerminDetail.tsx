@@ -8,7 +8,7 @@ import {
 import type {
   Termin,
 } from '../../api'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
 

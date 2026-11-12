@@ -15,7 +15,7 @@ import type {
   Item,
 } from '../../api'
 import { Divider } from '../../ornaments'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { PriceMark } from '../../coins'
 import { Img } from '../../media'
 import { Chip, DetailSection, Rich } from './shared'

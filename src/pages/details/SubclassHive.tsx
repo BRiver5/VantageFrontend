@@ -14,7 +14,7 @@ import type {
   Subclass,
 } from '../../api'
 import { Corners } from '../../ornaments'
-import { whenRouteCommitted } from '../CatalogPage'
+import { whenRouteCommitted } from '../catalog/transitions'
 import { OpenLinksInNewTab } from '../../classArticle'
 import { Img } from '../../media'
 import { HEX_DWELL_MS, layoutHive } from '../../ui/hive'

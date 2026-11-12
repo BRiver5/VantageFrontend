@@ -15,7 +15,7 @@ import type {
   Equipment,
 } from '../../api'
 import { Divider } from '../../ornaments'
-import { SourceBadge } from '../CatalogPage'
+import { SourceBadge } from '../catalog/shared'
 import { categoryIcon, containerKindRu, formatDice, formatWeight } from '../../equipment'
 import { PriceMark } from '../../coins'
 import {

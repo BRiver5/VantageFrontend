@@ -6,12 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getOne, getSubList } from '../api'
 import type { GameClass, Subclass } from '../api'
-import {
-  isHtmlDescription,
-  parseFeatureEntries,
-  resolveSubclassSectionHtml,
-  type FeatureEntry,
-} from '../classArticle'
+import { isHtmlDescription, parseFeatureEntries, resolveSubclassSectionHtml, type FeatureEntry } from '../classArticleHtml'
 
 export interface ClassBundle {
   cls: GameClass

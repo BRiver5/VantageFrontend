@@ -14,13 +14,11 @@
  * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import {
   Award,
   Backpack,
   BookOpen,
   Camera,
-  ChevronDown,
   Crosshair,
   Clover,
   Dices,
@@ -38,7 +36,6 @@ import {
   Sparkles,
   Star,
   Swords,
-  Trash2,
   UserRound,
   Zap,
 } from 'lucide-react'
@@ -46,21 +43,17 @@ import type { LucideIcon } from 'lucide-react'
 import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
 import { CoinImg } from '../coins'
-import { useCreatureDice } from '../creatureSheet'
+import { useCreatureDice } from '../creature/dice'
 import { useRoomRoll } from '../rooms/RoomDice'
 import { formatDice } from '../equipment'
-import { DIE_IMAGE_URLS, hitDieType } from '../dice/diceAssets'
 import { useCatalogList } from '../create/useCatalog'
-import { Corners } from '../ornaments'
-import { RichText } from '../terms/terms'
-import { AbilityText, parseAbilityText } from '../abilities/AbilityText'
-import { useAbility } from '../abilities/abilityData'
+import { parseAbilityText } from '../abilities/AbilityText'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
-import type { AbilityName, AttackEntry, InventoryItemInstance, LogEntry, SheetView } from '../types/character'
+import type { AbilityName, InventoryItemInstance, LogEntry, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
-import { ChoicePortrait } from '../create/steps/ui'
 import { alignmentAbbr } from '../create/steps/AlignmentChart'
-import { GameHud, HudSplit, RotateGate, type HudControls, type HudTab } from './GameHud'
+import { GameHud, type HudControls, type HudTab } from './GameHud'
+import { HudSplit, RotateGate } from './hud/HudChrome'
 import { HeroStage } from './HeroStage'
 import { InventoryBoard } from './InventoryBoard'
 import { useAppShell } from '../shell'
@@ -76,257 +69,9 @@ import { abilityPath } from './sheetView'
 import { WhyDot, WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
-import { Img } from '../media'
 import { bonusNotes } from '../dice/bonusDice'
-
-const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
-
-/* ---------- бросок и история ---------- */
-
-interface RollShown {
-  id: number
-  label: string
-  /** выпавшие кости и бонус; total — итог */
-  dice: number[]
-  sides: number
-  bonus: number
-  /** число броска или знак для событий без броска (сотворено заклинание) */
-  total: number | string
-  crit?: boolean
-  fumble?: boolean
-}
-
-/**
- * История бросков — закреплена в правом нижнем углу экрана. Новый бросок
- * появляется сверху и подсвечивается; список можно свернуть или очистить.
- */
-function RollLog({ rolls, onClear, inline = false }: { rolls: RollShown[]; onClear: () => void; inline?: boolean }) {
-  const [collapsed, setCollapsed] = useState(false)
-  if (rolls.length === 0) return null
-  if (inline) {
-    return (
-      <div className="hud-rolls">
-        <ol className="cw-rolllog-list">
-          {rolls.map((r) => (
-            <li key={r.id} className={r.crit ? 'is-crit' : r.fumble ? 'is-fumble' : ''}>
-              <span>{r.label}</span>
-              <small>{r.dice.length > 0 ? `${r.dice.length}к${r.sides} [${r.dice.join(', ')}]${r.bonus ? ` ${signed(r.bonus)}` : ''}` : ''}</small>
-              <b>{r.total}</b>
-            </li>
-          ))}
-        </ol>
-        <button type="button" className="cw-mini-btn" onClick={onClear}>
-          <Trash2 aria-hidden="true" /> очистить
-        </button>
-      </div>
-    )
-  }
-  const [last, ...older] = rolls
-  const mark = (r: RollShown) => (r.crit ? ' is-crit' : r.fumble ? ' is-fumble' : '')
-  return createPortal(
-    <aside className={`cw-rolllog${collapsed ? ' is-collapsed' : ''}`} aria-label="История бросков">
-      <header className="cw-rolllog-head">
-        <Dices aria-hidden="true" />
-        <span>Броски · {rolls.length}</span>
-        <button type="button" onClick={onClear} title="Очистить историю" aria-label="Очистить историю">
-          <Trash2 aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setCollapsed((v) => !v)}
-          title={collapsed ? 'Развернуть' : 'Свернуть'}
-          aria-expanded={!collapsed}
-        >
-          <ChevronDown aria-hidden="true" />
-        </button>
-      </header>
-      <div key={last.id} className={`cw-rolllog-last${mark(last)}`} role="status" aria-live="polite">
-        <span className="cw-rolllog-label">{last.label}</span>
-        <span className="cw-rolllog-math">
-          {last.dice.length > 0 && (
-            <>
-              {last.dice.length}к{last.sides} [<b>{last.dice.join(', ')}</b>]
-            </>
-          )}{' '}
-          {last.bonus !== 0 && signed(last.bonus)}
-        </span>
-        <strong>{last.total}</strong>
-      </div>
-      {!collapsed && older.length > 0 && (
-        <ol className="cw-rolllog-list">
-          {older.map((r) => (
-            <li key={r.id} className={mark(r).trim()}>
-              <span>{r.label}</span>
-              <b>{r.total}</b>
-            </li>
-          ))}
-        </ol>
-      )}
-    </aside>,
-    document.body,
-  )
-}
-
-/** «1d8+3» / «1к8 + 3» → кости и бонус; число без костей — фиксированный урон */
-function parseDamage(text: string): { n: number; sides: number; bonus: number } | null {
-  const m = /(\d+)\s*[dк]\s*(\d+)\s*(?:([+\-−])\s*(\d+))?/i.exec(text)
-  if (m) {
-    const bonus = m[3] ? (m[3] === '+' ? 1 : -1) * Number(m[4]) : 0
-    return { n: Number(m[1]), sides: Number(m[2]), bonus }
-  }
-  const flat = /^\s*([+\-−]?\d+)\s*$/.exec(text)
-  return flat ? { n: 0, sides: 0, bonus: Number(flat[1].replace('−', '-')) } : null
-}
-
-/** Сколько атак даёт одно действие «Атака» */
-function attacksPerAction(className: string, level: number): number {
-  if (className === 'Воин') return level >= 20 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1
-  if (['Варвар', 'Паладин', 'Следопыт', 'Монах'].includes(className)) return level >= 5 ? 2 : 1
-  return 1
-}
-
-const SOURCE_LABEL: Record<string, string> = {
-  class: 'умение класса',
-  subclass: 'умение подкласса',
-  race: 'расовая особенность',
-  subrace: 'особенность подрасы',
-  background: 'умение предыстории',
-  feat: 'черта',
-  choice: 'выбор',
-  item: 'от предмета',
-  other: 'умение',
-}
-
-/** Порядок групп на странице умений */
-const SOURCE_GROUPS: { title: string; sources: string[] }[] = [
-  { title: 'Класс', sources: ['class'] },
-  { title: 'Подкласс', sources: ['subclass'] },
-  { title: 'Раса', sources: ['race', 'subrace'] },
-  { title: 'Предыстория', sources: ['background'] },
-  { title: 'Черты', sources: ['feat'] },
-  { title: 'Выбранные: стили, воззвания, предметы договора', sources: ['choice'] },
-  { title: 'Предметы', sources: ['item'] },
-  { title: 'Прочее', sources: ['other'] },
-]
-
-/* ---------- мелкие кирпичи ---------- */
-
-/** Текст умения: у способностей движка — опрятный, со ссылками и сводкой механики */
-function FeatureText({ row }: { row: FeatureRow }) {
-  const ability = useAbility(row.slug)
-  if (!row.slug) return row.text ? <RichText text={row.text} /> : <p className="cw-field-note">Описания нет.</p>
-  return (
-    <>
-      {row.text || ability?.description ? (
-        <AbilityText text={row.text || ability?.description} />
-      ) : (
-        <p className="cw-field-note">Описания нет.</p>
-      )}
-    </>
-  )
-}
-
-function Card({
-  title,
-  icon: Icon,
-  className = '',
-  aside,
-  children,
-}: {
-  title: string
-  icon: LucideIcon
-  className?: string
-  aside?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className={`beast-card cw-sheet-card ${className}`}>
-      <Corners size={18} />
-      <h3 className="beast-card-title">
-        <Icon aria-hidden="true" /> {title}
-        {aside && <span className="cw-sheet-aside">{aside}</span>}
-      </h3>
-      {children}
-    </section>
-  )
-}
-
-/** Портрет: свой арт героя, иначе арт расы; битая ссылка — силуэт */
-function HeroPortrait({ own, fallback }: { own: string | null; fallback: string | null }) {
-  const [broken, setBroken] = useState(false)
-  useEffect(() => setBroken(false), [own])
-  return own && !broken ? (
-    <Img src={own} alt="" onError={() => setBroken(true)} />
-  ) : (
-    <ChoicePortrait src={fallback} icon={UserRound} />
-  )
-}
-
-/** Картинка оружия из инвентаря; без картинки — значок вида атаки */
-function WeaponArt({ src, icon: Icon }: { src: string | null; icon: LucideIcon }) {
-  const [broken, setBroken] = useState(false)
-  return (
-    <span className="cw-wpn-art">
-      {src && !broken ? <Img src={src} alt="" loading="lazy" onError={() => setBroken(true)} /> : <Icon aria-hidden="true" />}
-    </span>
-  )
-}
-
-/** Кнопка-кость: сама кость за числом; «горячая» — следующий урон критический */
-function DieButton({
-  sides,
-  value,
-  label,
-  hot,
-  title,
-  disabled,
-  onClick,
-}: {
-  sides: number
-  value: ReactNode
-  label: string
-  hot?: boolean
-  title?: string
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      className={`cw-die${sides === 20 ? ' cw-die--hit' : ' cw-die--dmg'}${hot ? ' is-hot' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      <span className="cw-die-shape" aria-hidden="true">
-        {sides > 0 ? <Img src={DIE_IMAGE_URLS[hitDieType(sides)]} alt="" draggable={false} /> : <i className="cw-die-flat" />}
-      </span>
-      <b>{value}</b>
-      <i>{label}</i>
-    </button>
-  )
-}
-
-type SheetAttack = Pick<AttackEntry, 'name' | 'type' | 'attack_bonus' | 'damage' | 'damage_type' | 'range' | 'properties'> & {
-  key: string
-  versatile: string | null
-  image: string | null
-}
-
-interface FeatureRow {
-  key: string
-  source: string
-  title: string
-  sub: string
-  text: string
-  /** умение движка: можно включить или отключить, у него свои действия и ресурсы */
-  grantId?: string
-  slug?: string
-  /** отключено игроком: бонусы не действуют, но умение остаётся в списке */
-  disabled?: boolean
-  status?: string
-  active?: boolean
-}
+import { type FeatureRow, type RollShown, SOURCE_GROUPS, SOURCE_LABEL, STATUS_LABEL, type SheetAttack, attacksPerAction, parseDamage, sidesOf, signed } from './sheet/rules'
+import { Card, DieButton, FeatureText, HeroPortrait, RollLog, WeaponArt } from './sheet/parts'
 
 /** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
 export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'skills' | 'actions'
@@ -375,15 +120,6 @@ export interface CharacterSheetProps {
     onTransferCoins?: () => void
   }
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  text_only: 'только текст — механика не автоматизирована',
-  partial: 'частично автоматизировано — часть правила применяйте вручную',
-  full: 'автоматизировано',
-}
-
-/** «1d20» / «2d6» из лога сервера → число граней */
-const sidesOf = (dice: unknown) => Number(/d(\d+)/i.exec(String(dice ?? ''))?.[1]) || 0
 
 export default function CharacterSheet({
   sheet,

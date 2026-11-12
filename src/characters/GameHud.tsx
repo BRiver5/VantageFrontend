@@ -17,21 +17,17 @@ import {
   BookOpen,
   ChevronRight,
   Coffee,
-  Delete,
   Dices,
   Expand,
   Footprints,
-  Heart,
   Home,
   Library,
   ListChecks,
   Minus,
   Moon,
-  PawPrint,
   Plus,
   ScrollText,
   ShieldCheck,
-  ShieldPlus,
   Skull,
   Sparkles,
   Star,
@@ -46,15 +42,15 @@ import type { LucideIcon } from 'lucide-react'
 import { DieImage, hitDieType } from '../dice/diceAssets'
 import { formatDice } from '../equipment'
 import { abilityMod } from '../create/dnd5e'
-import { Corners } from '../ornaments'
 import { ABILITY_KEYS, ABILITY_LABELS } from '../types/character'
 import type { SheetResource, SheetView } from '../types/character'
-import { DamageTypePicker } from './DamageTypePicker'
 import { ArmorShield, WhyArea, type StageEngine } from './HeroStage'
-import { FaceAvatar } from './FacePortrait'
-import { DEFAULT_FACE, type FaceCrop } from './portrait'
+import { type FaceCrop } from './portrait'
 import type { SheetRoller } from './sheetPlay'
-import { Img, bgUrl } from '../media'
+import { bgUrl } from '../media'
+import { HudWindow, RoundButton } from './hud/HudChrome'
+import { HeroFigure, ResourceOrb } from './hud/HeroScene'
+import { HpDialog } from './hud/HpDialog'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
@@ -102,326 +98,6 @@ export interface HudControls {
   backTo?: { to: string; label: string }
   /** окна и пункты комнаты */
   extra?: HudExtra
-}
-
-/* ---------- просьба повернуть экран ---------- */
-
-export function RotateGate({ coarse, text, backTo = '/characters', backLabel = 'К персонажам' }: { coarse: boolean; text?: string; backTo?: string; backLabel?: string }) {
-  useEffect(() => {
-    document.documentElement.dataset.rotate = '1'
-    return () => {
-      delete document.documentElement.dataset.rotate
-    }
-  }, [])
-  return (
-    <div className="hud-rotate" role="status">
-      <svg className="hud-rotate-sigil" viewBox="0 0 200 200" aria-hidden="true">
-        <polygon points="100,6 181,53 181,147 100,194 19,147 19,53" />
-        <polygon points="100,22 167,61 167,139 100,178 33,139 33,61" />
-        <polygon points="100,6 167,139 33,139" />
-        <polygon points="100,194 33,61 167,61" />
-      </svg>
-      <svg className="hud-rotate-icon" viewBox="0 0 120 120" aria-hidden="true">
-        <path className="hud-rotate-arc" d="M28 34 A46 46 0 0 1 92 34" />
-        <path className="hud-rotate-arrow" d="M84 24 L93 35 L80 38" />
-        <g className="hud-rotate-phone">
-          <rect x="42" y="30" width="36" height="66" rx="6" />
-          <path d="M54 37 H66" />
-          <circle cx="60" cy="88" r="2.4" />
-        </g>
-      </svg>
-      <h2 className="gold-text">{coarse ? 'Поверните устройство' : 'Расширьте окно'}</h2>
-      <p>{text ?? 'Лист героя создан для горизонтального экрана — так всё важное видно сразу, без прокрутки.'}</p>
-      {coarse && <p className="hud-rotate-hint">Не поворачивается? Проверьте, включён ли автоповорот экрана.</p>}
-      <Link to={backTo} className="hud-rotate-back">
-        {backLabel}
-      </Link>
-    </div>
-  )
-}
-
-/* ---------- мелкие кирпичи ---------- */
-
-/** Круглая кнопка шапки: значок, подпись и счётчик */
-function RoundButton({
-  icon: Icon,
-  label,
-  badge,
-  alert,
-  on,
-  onClick,
-}: {
-  icon: LucideIcon
-  label: string
-  badge?: number
-  alert?: boolean
-  on?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button type="button" className={`ghud-round${on ? ' is-on' : ''}${alert ? ' is-alert' : ''}`} onClick={onClick} aria-label={label} aria-expanded={on}>
-      <span className="ghud-round-ring">
-        <Icon aria-hidden="true" />
-        {badge ? <em>{badge}</em> : null}
-      </span>
-      <i>{label}</i>
-    </button>
-  )
-}
-
-/** Окно поверх экрана: панель справа остаётся, между окнами можно переходить сразу */
-export function HudWindow({
-  id,
-  title,
-  icon: Icon,
-  aside,
-  onClose,
-  children,
-}: {
-  id: string
-  title: string
-  icon: LucideIcon
-  aside?: ReactNode
-  onClose: () => void
-  children: ReactNode
-}) {
-  return (
-    <section className={`hud-win hud-win--${id}`} role="dialog" aria-label={title}>
-      <Corners size={22} gold />
-      <header className="hud-win-head">
-        <span className="hud-win-sign">
-          <Icon aria-hidden="true" />
-        </span>
-        <h2 className="gold-text">{title}</h2>
-        {aside && <span className="hud-win-aside">{aside}</span>}
-        <button type="button" className="hud-win-close" onClick={onClose} aria-label="Закрыть">
-          <X aria-hidden="true" />
-        </button>
-      </header>
-      <div className="hud-win-body">{children}</div>
-    </section>
-  )
-}
-
-/** Разделы окна — вертикальными вкладками слева, вместо длинной прокрутки */
-export function HudSplit({
-  tabs,
-  active,
-  onChange,
-  children,
-}: {
-  tabs: { key: string; label: string; count?: number }[]
-  active: string
-  onChange: (key: string) => void
-  children: ReactNode
-}) {
-  return (
-    <div className="hud-split">
-      <nav className="hud-split-tabs" aria-label="Разделы">
-        {tabs.map((t) => (
-          <button key={t.key} type="button" className={active === t.key ? 'is-on' : ''} aria-pressed={active === t.key} onClick={() => onChange(t.key)}>
-            <span>{t.label}</span>
-            {t.count != null && <em>{t.count}</em>}
-          </button>
-        ))}
-      </nav>
-      <div key={active} className="hud-split-pane">
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/** Ресурс на дуге: кольцо заряда и число */
-function ResourceOrb({
-  r,
-  angle,
-  active,
-  onOpen,
-}: {
-  r: SheetResource
-  angle: number
-  active: boolean
-  onOpen?: () => void
-}) {
-  const unlimited = r.max >= 99
-  const ratio = unlimited ? 1 : r.max > 0 ? Math.max(0, Math.min(1, r.current / r.max)) : 0
-  const len = 2 * Math.PI * 30
-  const rad = (angle * Math.PI) / 180
-  return (
-    <button
-      type="button"
-      className={`ghud-orb${r.current <= 0 && !unlimited ? ' is-empty' : ''}${active ? ' is-active' : ''}`}
-      style={{ '--x': Math.cos(rad).toFixed(3), '--y': Math.sin(rad).toFixed(3) } as CSSProperties}
-      onClick={onOpen}
-      aria-label={`${r.label}: ${unlimited ? 'без ограничений' : `${r.current} из ${r.max}`}`}
-    >
-      <span className="ghud-orb-dial">
-        <svg viewBox="0 0 72 72" aria-hidden="true">
-          <circle className="ghud-orb-track" cx="36" cy="36" r="30" />
-          <circle className="ghud-orb-fill" cx="36" cy="36" r="30" style={{ strokeDasharray: len, strokeDashoffset: len * (1 - ratio) }} />
-        </svg>
-        <b>{unlimited ? '∞' : r.current}</b>
-      </span>
-      <i>{r.label}</i>
-    </button>
-  )
-}
-
-/** Фигура героя во весь рост; свой портрет с кадром — запасной вариант, если картинка битая */
-function HeroFigure({ src, face, onOpen }: { src: string | null; face: FaceCrop | null; onOpen: () => void }) {
-  const [broken, setBroken] = useState(false)
-  useEffect(() => setBroken(false), [src])
-  return (
-    <button type="button" className="ghud-figure" onClick={onOpen} aria-label="Открыть окно героя">
-      {src && !broken ? (
-        <Img src={src} alt="" draggable={false} onError={() => setBroken(true)} />
-      ) : (
-        <FaceAvatar src={null} crop={face ?? DEFAULT_FACE} className="ghud-figure-face" />
-      )}
-    </button>
-  )
-}
-
-/* ---------- хиты ---------- */
-
-/** Окно хитов: свой набор цифр — системная клавиатура закрыла бы половину экрана */
-function HpDialog({
-  sheet,
-  roller,
-  stage,
-  onClose,
-}: {
-  sheet: SheetView
-  roller: SheetRoller
-  stage?: StageEngine
-  onClose: () => void
-}) {
-  const [amount, setAmount] = useState('')
-  const [dmgType, setDmgType] = useState('')
-  const combat = sheet.combat
-  const form = stage?.form ?? null
-  const hp = form ? { current: form.hp, max: form.max, temp: combat.hit_points.temp } : combat.hit_points
-  const vitals = stage?.onVitals
-  const busy = !!stage?.busy
-  const dying = !form && combat.hit_points.current === 0
-  const n = Number(amount) || 0
-
-  const press = (d: string) => setAmount((a) => (a + d).replace(/^0+/, '').slice(0, 4))
-  const apply = (op: 'damage' | 'heal' | 'temp') => {
-    if (!n) return
-    vitals?.(op, n, op === 'damage' ? { damageType: dmgType || null } : undefined)
-    setAmount('')
-  }
-  const setDeath = (kind: 'successes' | 'failures', v: number) =>
-    vitals?.('death_save', Math.max(0, Math.min(3, v)), { success: kind === 'successes' })
-  const rollDeathSave = async () => {
-    const die = await roller.rollD20('Спасбросок от смерти', 0)
-    if (die == null || !vitals) return
-    const ds = combat.death_saves
-    if (die === 20) vitals('heal', 1)
-    else if (die === 1) setDeath('failures', ds.failures + 2)
-    else if (die >= 10) setDeath('successes', ds.successes + 1)
-    else setDeath('failures', ds.failures + 1)
-  }
-
-  return (
-    <div className="hud-dialog-layer" onClick={onClose}>
-      <div className="hud-hp" role="dialog" aria-label="Хиты" onClick={(e) => e.stopPropagation()}>
-        <Corners size={18} gold />
-        <button type="button" className="hud-win-close" onClick={onClose} aria-label="Закрыть">
-          <X aria-hidden="true" />
-        </button>
-
-        <div className="hud-hp-now">
-          <span className="hud-hp-caption">{form ? form.name : 'Хиты'}</span>
-          <b className="gold-text">{hp.current}</b>
-          <i>из {hp.max}</i>
-          {hp.temp > 0 && <em>+{hp.temp} временных</em>}
-          {form && (
-            <span className="hud-hp-form">
-              <PawPrint aria-hidden="true" /> свои {combat.hit_points.current}/{combat.hit_points.max}
-              {form.onRevert && (
-                <button type="button" className="cw-mini-btn" onClick={form.onRevert} disabled={busy}>
-                  выйти
-                </button>
-              )}
-            </span>
-          )}
-          {stage?.onHpJournal && (
-            <button type="button" className="hud-hp-log" onClick={stage.onHpJournal}>
-              <ScrollText aria-hidden="true" /> журнал хитов
-            </button>
-          )}
-        </div>
-
-        {dying && stage ? (
-          <div className="hud-hp-death">
-            <Skull aria-hidden="true" />
-            <p>Спасброски от смерти</p>
-            {(['successes', 'failures'] as const).map((kind) => (
-              <div key={kind} className={`hud-hp-pips is-${kind}`}>
-                <span>{kind === 'successes' ? 'успехи' : 'провалы'}</span>
-                {[1, 2, 3].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    className={combat.death_saves[kind] >= v ? 'is-on' : ''}
-                    onClick={() => setDeath(kind, combat.death_saves[kind] === v ? v - 1 : v)}
-                    disabled={!vitals || busy}
-                    aria-label={`${kind === 'successes' ? 'успехи' : 'провалы'}: ${v}`}
-                  />
-                ))}
-              </div>
-            ))}
-            {vitals && (
-              <button type="button" className="cs-btn" onClick={() => void rollDeathSave()} disabled={roller.rolling || busy}>
-                Бросить спасбросок
-              </button>
-            )}
-          </div>
-        ) : vitals ? (
-          <>
-            <div className="hud-hp-pad">
-              <output className={`hud-hp-amount${amount ? '' : ' is-empty'}`} aria-label="Сколько хитов">
-                {amount || 'сколько?'}
-              </output>
-              <div className="hud-hp-keys">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-                  <button key={d} type="button" onClick={() => press(d)}>
-                    {d}
-                  </button>
-                ))}
-                <button type="button" onClick={() => setAmount('')} aria-label="Очистить">
-                  <X aria-hidden="true" />
-                </button>
-                <button type="button" onClick={() => press('0')}>
-                  0
-                </button>
-                <button type="button" onClick={() => setAmount((a) => a.slice(0, -1))} aria-label="Стереть цифру">
-                  <Delete aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <div className="hud-hp-acts">
-              <button type="button" className="hud-hp-act is-dmg" disabled={busy || !n} onClick={() => apply('damage')}>
-                <Swords aria-hidden="true" /> Урон
-              </button>
-              {stage?.damageTypes && stage.damageTypes.length > 0 && (
-                <DamageTypePicker types={stage.damageTypes} value={dmgType} onChange={setDmgType} />
-              )}
-              <button type="button" className="hud-hp-act is-heal" disabled={busy || !n} onClick={() => apply('heal')}>
-                <Heart aria-hidden="true" /> Лечение
-              </button>
-              <button type="button" className="hud-hp-act is-temp" disabled={busy || !n} onClick={() => apply('temp')}>
-                <ShieldPlus aria-hidden="true" /> Временные
-              </button>
-            </div>
-          </>
-        ) : null}
-      </div>
-    </div>
-  )
 }
 
 /* ---------- экран ---------- */
