@@ -23,10 +23,8 @@ import {
   UserRound,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
 import { useCatalogList } from '../create/useCatalog'
-import { parseAbilityText } from '../abilities/AbilityText'
 import type { AbilityName, InventoryItemInstance, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
 import { GameHud, type HudControls, type HudTab } from './GameHud'
@@ -42,7 +40,8 @@ import { ResourceBand } from './ResourceBand'
 import { WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
-import { type FeatureRow, SOURCE_LABEL, type SheetAttack, attacksPerAction, personaOf } from './sheet/rules'
+import { type FeatureRow, type SheetAttack, attacksPerAction, personaOf } from './sheet/rules'
+import { buildAttacks, buildFeatureRows } from './sheet/sheetRows'
 import { Card, RollLog } from './sheet/parts'
 import { useSheetRolls } from './sheet/useSheetRolls'
 import { AbilitiesCard } from './sheet/AbilitiesCard'
@@ -169,55 +168,12 @@ export default function CharacterSheet({
   const score = (k: AbilityName) => sheet.ability_scores[k].score
   // у листа с сервера модификатор и спасбросок готовые; у черновика визарда — по таблице
   const mod = (k: AbilityName) => sheet.ability_scores[k].modifier ?? abilityMod(score(k))
-  const strMod = mod('strength')
   const perAction = extras?.perAction ?? attacksPerAction(cls.name, level)
   const combat = sheet.combat
   const spell = sheet.spellcasting
-  const items = sheet.inventory.items
   const hasMagic = spell.is_spellcaster || spell.spells_known.length > 0
 
-  // оружие — по экземплярам инвентаря: оттуда картинка и универсальный хват
-  const itemById = new Map(items.map((it) => [it.instance_id, it]))
-  const attacks: SheetAttack[] = sheet.attacks.map((a, i) => {
-    const eq = a.inventory_instance_id ? itemById.get(a.inventory_instance_id)?.equipment : null
-    const modPart = /[+\-−]\d+$/.exec(a.damage)?.[0] ?? ''
-    return {
-      ...a,
-      key: a.inventory_instance_id ?? `atk-${i}`,
-      versatile: eq?.weapon?.versatile_dice ? `${eq.weapon.versatile_dice}${modPart}` : null,
-      image: realImage(eq?.equipment_image_gallery),
-    }
-  })
-  // кость безоружного удара от Боевых искусств монаха: с ней можно бить Ловкостью
-  const unarmedDie = extras?.unarmedDie ?? 1
-  const unarmedMod = unarmedDie > 1 ? Math.max(strMod, mod('dexterity')) : strMod
-  const signedMod = unarmedMod ? (unarmedMod > 0 ? `+${unarmedMod}` : `${unarmedMod}`) : ''
-  attacks.push({
-    key: 'unarmed',
-    name: 'Безоружный удар',
-    type: 'melee',
-    attack_bonus: unarmedMod + pb,
-    damage: unarmedDie > 1 ? `1d${unarmedDie}${signedMod}` : String(Math.max(1, 1 + unarmedMod)),
-    damage_type: 'дробящий',
-    range: '5 фт.',
-    properties: [],
-    versatile: null,
-    image: null,
-  })
-
-  // feature_source в листе — UUID; в подписи показываем название владельца
-  const ownerOf = (source: string): string | null =>
-    source === 'class'
-      ? (info.classes[0]?.name ?? null)
-      : source === 'subclass'
-        ? (info.classes[0]?.subclass_name ?? null)
-        : source === 'subrace'
-          ? (info.subrace?.name ?? null)
-          : source === 'race'
-            ? info.race.name
-            : source === 'background'
-              ? (info.background?.name ?? null)
-              : null
+  const attacks = buildAttacks(sheet, mod, pb)
 
   // включённые состояния (идёт ярость) — подсветка ресурса того же ключа
   const activeKeys = new Set(engine ? activeStates(engine.sheet, engine.labels).map((x) => x.key) : [])
@@ -226,37 +182,7 @@ export default function CharacterSheet({
   const actionsOf = (grantId: string) => engine?.sheet.actions.filter((a) => a.grant_id === grantId) ?? []
   const resourcesOf = (slug: string | undefined) => (slug ? (engine?.sheet.resources.filter((r) => r.declared_by === slug) ?? []) : [])
 
-  const featureRows: FeatureRow[] = [
-    ...sheet.features.map((f, i) => ({
-      key: f.grant_id ?? `${f.name}-${i}`,
-      source: f.source,
-      title: f.name,
-      // уровень получения — из служебной строки описания («3-й уровень, умение воина»)
-      sub: [
-        SOURCE_LABEL[f.source] ?? '',
-        ownerOf(f.source),
-        f.level ? `${f.level} ур.` : (/^\d+ ур\./.exec(parseAbilityText(f.description).meta[0] ?? '')?.[0] ?? ''),
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      text: f.description,
-      grantId: f.grant_id,
-      slug: f.slug,
-      disabled: f.disabled,
-      status: f.implementation_status,
-      active: f.active,
-    })),
-    ...sheet.feats.map((featId) => {
-      const feat = featCatalog.find((x) => x.id === featId)
-      return {
-        key: featId,
-        source: 'feat',
-        title: feat?.feat_name ?? 'Черта',
-        sub: ['черта', feat?.prerequisite ? `требование: ${feat.prerequisite}` : ''].filter(Boolean).join(' · '),
-        text: cleanDescription(feat?.description),
-      }
-    }),
-  ]
+  const featureRows = buildFeatureRows(sheet, featCatalog)
 
   const persona = personaOf(sheet)
 
