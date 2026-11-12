@@ -1,26 +1,40 @@
-/* Точка входа стилей. Файлы в src/styles идут в порядке каскада — не переставлять. */
-@import './styles/base.css';
-@import './styles/home.css';
-@import './styles/catalog.css';
-@import './styles/details.css';
-@import './styles/dice.css';
-@import './styles/class-pages.css';
-@import './styles/equipment.css';
-@import './styles/lobby.css';
-@import './styles/create.css';
-@import './styles/sheet.css';
-@import './styles/shell.css';
-@import './styles/mobile.css';
-@import './styles/hud.css';
-@import './styles/rooms.css';
-@import './styles/table.css';
-@import './styles/room-tools.css';
-@import './styles/effects.css';
-@import './styles/kb.css';
-@import './styles/maps.css';
-@import './styles/maps-tools.css';
-@import './styles/terms.css';
-@import './styles/lss.css';
-@import './styles/reviews.css';
-@import './styles/profile.css';
-@import './styles/search.css';
+/* Точка входа стилей.
+
+   Каскад задаётся слоями (@layer), а не порядком файлов. Порядок слоёв ниже —
+   от слабого к сильному: правило из более позднего слоя побеждает правило из
+   раннего НЕЗАВИСИМО от специфичности селектора.
+
+   legacy — все исторические файлы. Внутри одного слоя действует обычный каскад
+   (специфичность, затем порядок), поэтому порядок импортов в legacy по-прежнему
+   важен — не переставлять. Файлы выносятся из legacy в смысловые слои по одному,
+   со сверкой скриншотов.
+
+   Осторожно с !important: у важных правил порядок слоёв ОБРАТНЫЙ — побеждает
+   более ранний слой. */
+@layer tokens, reset, legacy, layout, components, pages, utilities;
+
+@import './styles/base.css' layer(legacy);
+@import './styles/home.css' layer(legacy);
+@import './styles/catalog.css' layer(legacy);
+@import './styles/details.css' layer(legacy);
+@import './styles/dice.css' layer(legacy);
+@import './styles/class-pages.css' layer(legacy);
+@import './styles/equipment.css' layer(legacy);
+@import './styles/lobby.css' layer(legacy);
+@import './styles/create.css' layer(legacy);
+@import './styles/sheet.css' layer(legacy);
+@import './styles/shell.css' layer(legacy);
+@import './styles/mobile.css' layer(legacy);
+@import './styles/hud.css' layer(legacy);
+@import './styles/rooms.css' layer(legacy);
+@import './styles/table.css' layer(legacy);
+@import './styles/room-tools.css' layer(legacy);
+@import './styles/effects.css' layer(legacy);
+@import './styles/kb.css' layer(legacy);
+@import './styles/maps.css' layer(legacy);
+@import './styles/maps-tools.css' layer(legacy);
+@import './styles/terms.css' layer(legacy);
+@import './styles/lss.css' layer(legacy);
+@import './styles/reviews.css' layer(legacy);
+@import './styles/profile.css' layer(legacy);
+@import './styles/search.css' layer(legacy);
