@@ -13,65 +13,51 @@
  * кошелёк и записи. Всё, что бросается, бросается кликом — общими 3D-костями,
  * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import {
-  Award,
   Backpack,
   BookOpen,
-  Camera,
-  Crosshair,
-  Clover,
-  Dices,
-  Eye,
-  Flame,
-  EyeOff,
-  Footprints,
-  Hand,
-  Heart,
-  Languages,
-  NotebookPen,
-  Send,
-  Shield,
   ShieldCheck,
   Sparkles,
-  Star,
   Swords,
   UserRound,
-  Zap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
-import { CoinImg } from '../coins'
-import { useCreatureDice } from '../creature/dice'
-import { useRoomRoll } from '../rooms/RoomDice'
-import { formatDice } from '../equipment'
 import { useCatalogList } from '../create/useCatalog'
-import { parseAbilityText } from '../abilities/AbilityText'
-import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
-import type { AbilityName, InventoryItemInstance, LogEntry, SheetView } from '../types/character'
+import type { AbilityName, InventoryItemInstance, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
-import { alignmentAbbr } from '../create/steps/AlignmentChart'
 import { GameHud, type HudControls, type HudTab } from './GameHud'
-import { HudSplit, RotateGate } from './hud/HudChrome'
+import { RotateGate } from './hud/HudChrome'
 import { HeroStage } from './HeroStage'
-import { InventoryBoard } from './InventoryBoard'
 import { useAppShell } from '../shell'
-import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
 import type { FaceCrop } from './portrait'
-import type { SheetPatch, SheetPlay, SheetRoller } from './sheetPlay'
-import { attackTags, d20Cards, rollMode, tagBonus, tagCards, type RollContext, type RollMode } from './rollBonuses'
-import { RollTheater, type RollReaction, type RollSpec } from '../dice/theater/RollTheater'
-import { ActionButton, activeStates, EnginePanel, type EngineView } from './EnginePanel'
+import type { SheetPatch, SheetPlay } from './sheetPlay'
+import { RollTheater } from '../dice/theater/RollTheater'
+import { activeStates, type EngineView } from './EnginePanel'
 import { ResourceBand } from './ResourceBand'
-import { abilityPath } from './sheetView'
-import { WhyDot, WhyProvider } from './WhyPopover'
+import { WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
-import { bonusNotes } from '../dice/bonusDice'
-import { type FeatureRow, type RollShown, SOURCE_GROUPS, SOURCE_LABEL, STATUS_LABEL, type SheetAttack, attacksPerAction, parseDamage, sidesOf, signed } from './sheet/rules'
-import { Card, DieButton, FeatureText, HeroPortrait, RollLog, WeaponArt } from './sheet/parts'
+import { type FeatureRow, type SheetAttack, attacksPerAction, personaOf } from './sheet/rules'
+import { buildAttacks, buildFeatureRows } from './sheet/sheetRows'
+import { Card, RollLog } from './sheet/parts'
+import { useSheetRolls } from './sheet/useSheetRolls'
+import { AbilitiesCard } from './sheet/AbilitiesCard'
+import { AttackRow, CombatCard, SpellAttackRow } from './sheet/CombatCard'
+import { InventoryCard } from './sheet/InventoryCard'
+import { FeaturesCard, FeatureTile, ProfsCard, RulesCard } from './sheet/FeatureCards'
+import { PersonaCard, PersonaEditCard } from './sheet/PersonaCard'
+import { FlatHero } from './sheet/FlatHero'
+import { SheetTabs, type TabRow } from './sheet/SheetTabs'
+import { ReviewTabs } from './sheet/ReviewTabs'
+import { FeatureModal } from './sheet/FeatureModal'
+import { FeaturesTab } from './sheet/tabs/FeaturesTab'
+import { StoryTab } from './sheet/tabs/StoryTab'
+import { MainTab } from './sheet/tabs/MainTab'
+import { ActionsTab } from './sheet/tabs/ActionsTab'
+import { HudFeaturesTab } from './sheet/tabs/HudFeaturesTab'
 
 /** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
 export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'skills' | 'actions'
@@ -157,17 +143,14 @@ export default function CharacterSheet({
       delete document.documentElement.dataset.hud
     }
   }, [hudMode])
-  const dice = useCreatureDice()
-  // в комнате кости бросает сервер; вне её (и в предпросмотре) — локальные 3D-кости
-  const roomRoll = useRoomRoll()
-  const viaServer = !!roomMode && !!roomRoll
-  const [roomPending, setRoomPending] = useState(false)
+  const { dice, roller, rolls, clearRolls, critFor, rollD20, rollDamage, theater, setTheater } = useSheetRolls({
+    sheet,
+    stage,
+    engine,
+    roomMode,
+    serverLog,
+  })
   const lockedPurse = !!roomMode && !roomMode.isDm
-  // история бросков: свежий — первым, держим последние 30
-  const [rolls, setRolls] = useState<RollShown[]>([])
-  const clearRolls = useCallback(() => setRolls([]), [])
-  // атака, для которой выпала натуральная 20: её следующий урон — критический
-  const [critFor, setCritFor] = useState<string | null>(null)
   const [openFeatureKey, setOpenFeatureKey] = useState<string | null>(null)
   const setOpenFeature = (f: FeatureRow | null) => setOpenFeatureKey(f?.key ?? null)
   const { items: featCatalog } = useCatalogList<Feat>('feats', sheet.feats.length > 0)
@@ -177,315 +160,6 @@ export default function CharacterSheet({
   const extras = sheet.extras
   const critMin = extras?.critMin ?? 20
 
-  /* ---------- броски: 3D-кости, затем театр в духе BG3 ---------- */
-
-  const show = (r: Omit<RollShown, 'id'>) =>
-    setRolls((prev) => [{ ...r, id: (prev[0]?.id ?? 0) + 1 }, ...prev].slice(0, 30))
-  const note = (total: string, label: string) => show({ label, dice: [], sides: 0, bonus: 0, total })
-
-  // очередь показов: каждый бросок — свой «театр», по одному
-  const [theater, setTheater] = useState<RollSpec[]>([])
-  const theaterId = useRef(0)
-  const enqueue = useCallback(
-    (spec: Omit<RollSpec, 'id'>) => setTheater((q) => [...q, { ...spec, id: ++theaterId.current }]),
-    [],
-  )
-
-  /** Выбросить кости: сервером (в комнате) или локальными 3D-костями */
-  const rollValues = async (n: number, sides: number, label: string): Promise<number[] | null> => {
-    if (!viaServer || !roomRoll) return dice.roll(n, sides)
-    setRoomPending(true)
-    try {
-      const res = await roomRoll.roll({ expression: `${n}d${sides}`, label })
-      await roomRoll.whenPlayed(res.seq)
-      return res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
-    } catch (e) {
-      note('!', e instanceof Error ? e.message : 'Бросок не удался')
-      return null
-    } finally {
-      setRoomPending(false)
-    }
-  }
-
-  /**
-   * Реакции после к20 — что герой может добавить к уже выпавшему:
-   * вдохновение и Везунчик — ещё к20 и взять лучшую, кость превосходства — к
-   * атаке, Удача темнейшего — к10 к проверке или спасброску, Удача плута —
-   * превратить бросок в 20. Ресурс списывает сервер, кость бросает театр.
-   */
-  const d20Reactions = (kind: RollContext['kind'] | undefined): RollReaction[] => {
-    const out: RollReaction[] = []
-    const vitals = stage?.onVitals
-    const spendRes = stage?.onSpendResource
-    const res = (key: string) => engine?.sheet.resources.find((r) => r.key === key && r.current > 0)
-    const isAttack = kind === 'attack' || kind === 'spell'
-    const isCheck = kind === 'check' || kind === 'skill' || kind === 'init'
-    const isSave = kind === 'save'
-
-    if (vitals && (stage?.inspiration ?? 0) > 0) {
-      out.push({
-        key: 'inspiration',
-        label: 'Вдохновение',
-        hint: 'перебросить к20 и взять лучшее',
-        icon: Star,
-        run: async () => {
-          vitals('inspiration', -1)
-          const v = await rollValues(1, 20, 'Реакция: к20')
-          return v ? { newD20: v[0] } : null
-        },
-      })
-    }
-    if (!spendRes) return out
-
-    const luck = res('luck')
-    if (luck && (isAttack || isCheck || isSave)) {
-      out.push({
-        key: 'luck',
-        label: 'Везунчик',
-        hint: `ещё к20 — единиц удачи: ${luck.current}`,
-        icon: Clover,
-        run: async () => {
-          if (!(await spendRes('luck', 1, 'Везунчик: дополнительная к20'))) return null
-          const v = await rollValues(1, 20, 'Реакция: к20')
-          return v ? { newD20: v[0] } : null
-        },
-      })
-    }
-
-    // кость превосходства мастера боевых искусств — по классу, у черты и стиля — к6
-    const sup = ['superiority', 'superiority_feat', 'superiority_style'].map(res).find(Boolean)
-    if (sup && isAttack) {
-      const dieVar = engine?.sheet.values['var.superiority_die']
-      const sides = sup.key === 'superiority' && typeof dieVar === 'number' ? dieVar : 6
-      out.push({
-        key: 'superiority',
-        label: 'Кость превосходства',
-        hint: `+к${sides} к атаке — осталось ${sup.current}`,
-        icon: Swords,
-        run: async () => {
-          if (!(await spendRes(sup.key, 1, 'Приём точности: кость к атаке'))) return null
-          const v = await rollValues(1, sides, 'Кость превосходства')
-          return v ? { addDie: { sides, value: v[0] }, label: 'Кость превосходства' } : null
-        },
-      })
-    }
-
-    const dark = res('dark_ones_luck')
-    if (dark && (isCheck || isSave)) {
-      out.push({
-        key: 'dark_ones_luck',
-        label: 'Удача темнейшего',
-        hint: '+к10 к проверке или спасброску',
-        icon: Flame,
-        run: async () => {
-          if (!(await spendRes('dark_ones_luck', 1, 'Удача темнейшего: +к10'))) return null
-          const v = await rollValues(1, 10, 'Удача темнейшего: к10')
-          return v ? { addDie: { sides: 10, value: v[0] }, label: 'Удача темнейшего' } : null
-        },
-      })
-    }
-
-    const stroke = res('stroke_of_luck')
-    if (stroke && (isAttack || isCheck)) {
-      out.push({
-        key: 'stroke_of_luck',
-        label: 'Удача',
-        hint: 'считать бросок к20 равным 20',
-        icon: Sparkles,
-        run: async () => ((await spendRes('stroke_of_luck', 1, 'Удача: к20 становится 20')) ? { newD20: 20 } : null),
-      })
-    }
-    return out
-  }
-
-  const rollD20 = async (label: string, bonus: number, attackKey?: string, ctx?: RollContext) => {
-    // преимущество и помеха — из листа: Безрассудная атака, ярость на Силу
-    const { mode, label: modeLabel } = rollMode(sheet, ctx)
-    const tagForServer = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
-    let values: number[] | null
-    // кости эффектов (Благословение +1к4, Порча −1к4): их прибавляет сервер, показываем отдельно
-    let effects: { source: string; value: number }[] = []
-    if (viaServer && roomRoll) {
-      // с модификатором и режимом: итог в журнале комнаты сходится с листом
-      setRoomPending(true)
-      try {
-        const k = ctx?.kind
-        const res = await roomRoll.roll({
-          expression: `1d20${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`,
-          label: `${label}${tagForServer}`,
-          mode: mode === 'normal' ? null : mode,
-          kind: k === 'attack' || k === 'spell' ? 'attack' : k === 'save' || k === 'death' ? 'save' : k === 'check' || k === 'skill' || k === 'init' ? 'check' : undefined,
-        })
-        effects = bonusNotes(res.dice)
-        const rolls = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
-        // в dice остаётся только оставленная кость, вторую восстанавливаем из итога
-        const other = res.discarded_total != null ? res.discarded_total - res.modifier : null
-        values = rolls.length === 1 && mode !== 'normal' && other != null && other >= 1 && other <= 20 ? [rolls[0], other] : rolls
-        // сначала кости ложатся, потом показываем числа
-        await roomRoll.whenPlayed(res.seq)
-      } catch (e) {
-        note('!', e instanceof Error ? e.message : 'Бросок не удался')
-        values = null
-      } finally {
-        setRoomPending(false)
-      }
-    } else {
-      values = await dice.roll(mode === 'normal' ? 1 : 2, 20)
-    }
-    if (!values) return null
-    const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : values[0]
-    // у атаки крит может начинаться раньше 20 (Улучшенные критические попадания)
-    const crit = kept >= (attackKey ? critMin : 20)
-    const tag = mode === 'adv' ? ' · преимущество' : mode === 'dis' ? ' · помеха' : ''
-    const effectSum = effects.reduce((s, e) => s + e.value, 0)
-    show({ label: `${label}${tag}`, dice: values, sides: 20, bonus: bonus + effectSum, total: kept + bonus + effectSum, crit, fumble: kept === 1 })
-    if (attackKey) setCritFor(crit ? attackKey : null)
-    enqueue({
-      title: label,
-      kind: 'd20',
-      dice: values.map((value) => ({ sides: 20, value })),
-      mode,
-      modeLabel,
-      bonuses: [...d20Cards(sheet, ctx, bonus), ...effects.map((e) => ({ label: e.source, value: e.value, kind: 'effect' as const }))],
-      critMin: attackKey ? critMin : 20,
-      reactions: ctx?.kind === 'death' ? [] : d20Reactions(ctx?.kind),
-    })
-    return kept
-  }
-
-  const rollDamage = async (label: string, formula: string, attackKey: string, ctx?: RollContext) => {
-    const parsed = parseDamage(formula)
-    if (!parsed) return
-    const crit = critFor === attackKey
-    // бонусы урона по тегам атаки: Ярость +2 к силовой рукопашной
-    const extra = ctx?.tags ? tagCards(sheet, 'dmgBonus', ctx.tags) : []
-    const extraSum = extra.reduce((s, c) => s + c.value, 0)
-    const modCard = parsed.bonus
-      ? [{ label: ctx?.ability ? ABILITY_LABELS[ctx.ability].label : 'Модификатор', value: parsed.bonus, kind: 'ability' as const }]
-      : []
-    if (parsed.n === 0) {
-      show({ label, dice: [], sides: 0, bonus: parsed.bonus + extraSum, total: Math.max(1, parsed.bonus + extraSum) })
-      return
-    }
-    const n = crit ? parsed.n * 2 : parsed.n
-    let values: number[] | null
-    if (viaServer && roomRoll) {
-      const mod = parsed.bonus + extraSum
-      setRoomPending(true)
-      try {
-        const res = await roomRoll.roll({ expression: `${n}d${parsed.sides}${mod ? (mod > 0 ? `+${mod}` : `${mod}`) : ''}`, label: crit ? `${label} · крит!` : label })
-        values = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
-        await roomRoll.whenPlayed(res.seq)
-      } catch (e) {
-        note('!', e instanceof Error ? e.message : 'Бросок не удался')
-        values = null
-      } finally {
-        setRoomPending(false)
-      }
-    } else {
-      values = await dice.roll(n, parsed.sides)
-    }
-    if (!values) return
-    const total = Math.max(1, values.reduce((a, b) => a + b, 0) + parsed.bonus + extraSum)
-    const title = crit ? `${label} · крит!` : label
-    show({ label: title, dice: values, sides: parsed.sides, bonus: parsed.bonus + extraSum, total, crit })
-    setCritFor(null)
-    enqueue({ title, kind: 'dice', dice: values.map((value) => ({ sides: parsed.sides, value })), mode: 'normal', bonuses: [...modCard, ...extra] })
-  }
-
-  const rollDice = async (label: string, n: number, sides: number, bonus: number) => {
-    let values: number[] | null
-    if (viaServer && roomRoll) {
-      setRoomPending(true)
-      try {
-        const res = await roomRoll.roll({ expression: `${n}d${sides}${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ''}`, label })
-        values = res.dice.filter((d) => !d.source).flatMap((d) => d.rolls)
-        await roomRoll.whenPlayed(res.seq)
-      } catch (e) {
-        note('!', e instanceof Error ? e.message : 'Бросок не удался')
-        values = null
-      } finally {
-        setRoomPending(false)
-      }
-    } else {
-      values = await dice.roll(n, sides)
-    }
-    if (!values) return null
-    show({ label, dice: values, sides, bonus, total: values.reduce((a, b) => a + b, 0) + bonus })
-    enqueue({
-      title: label,
-      kind: 'dice',
-      dice: values.map((value) => ({ sides, value })),
-      mode: 'normal',
-      bonuses: bonus ? [{ label: 'Бонус', value: bonus, kind: 'other' }] : [],
-    })
-    return values
-  }
-
-  const roller: SheetRoller = { rolling: dice.rolling || roomPending, critFor, rollD20, rollDamage, rollDice, note }
-
-  /*
-   * Броски сервера (Скрытая атака, отдых): 3D-кости катятся для вида, а театр
-   * показывает числа сервера. Пришло одно значение к20 при преимуществе —
-   * вторую кость дорисовываем случайно не выше (при помехе — не ниже).
-   */
-  const rollDice3d = dice.roll
-  useEffect(() => {
-    if (!serverLog) return
-    const shown = serverLog.log.filter((l: LogEntry) => l.kind === 'roll' && Array.isArray(l.data?.rolls))
-    setRolls((prev) => {
-      let next = prev
-      const push = (r: Omit<RollShown, 'id'>) => (next = [{ ...r, id: (next[0]?.id ?? 0) + 1 }, ...next].slice(0, 30))
-      for (const l of shown) {
-        const rolled = l.data!.rolls!
-        const sum = rolled.reduce((a, b) => a + b, 0)
-        const total = typeof l.data?.total === 'number' ? l.data.total : sum
-        push({ label: `${serverLog.title}: ${l.message.split(':')[0]}`, dice: rolled, sides: sidesOf(l.data?.dice), bonus: total - sum, total })
-      }
-      if (shown.length === 0) push({ label: serverLog.title, dice: [], sides: 0, bonus: 0, total: '✓' })
-      return next
-    })
-    let cancelled = false
-    void (async () => {
-      for (const l of shown) {
-        if (cancelled) return
-        const rolled = l.data!.rolls!
-        const sides = sidesOf(l.data?.dice) || 6
-        const notation = String(l.data?.dice ?? '')
-        // сервер сам присылает режим и обе кости; у старого — догадка по нотации
-        const sent = l.data?.mode
-        let mode: RollMode =
-          sent === 'adv' || sent === 'dis' ? sent : /kh|adv/i.test(notation) ? 'adv' : /kl|dis/i.test(notation) ? 'dis' : 'normal'
-        let values = [...rolled]
-        if (sides === 20 && mode !== 'normal' && values.length === 1) {
-          const v = values[0]
-          const other = mode === 'adv' ? 1 + Math.floor(Math.random() * v) : v + Math.floor(Math.random() * (21 - v))
-          values = [v, other]
-        }
-        // две кости не к20 с преимуществом — показываем только оставленную
-        if (mode !== 'normal' && sides !== 20 && values.length === 2) {
-          values = [mode === 'adv' ? Math.max(...values) : Math.min(...values)]
-        }
-        if (sides !== 20 || values.length !== 2) mode = 'normal'
-        // визуальный бросок: число костей и граней как у сервера
-        if (!viaServer) await rollDice3d(values.length, sides).catch(() => null)
-        const kept = mode === 'adv' ? Math.max(...values) : mode === 'dis' ? Math.min(...values) : null
-        const sum = kept ?? values.reduce((a, b) => a + b, 0)
-        const total = typeof l.data?.total === 'number' ? l.data.total : sum
-        enqueue({
-          title: `${serverLog.title}: ${l.message.split(':')[0]}`,
-          kind: sides === 20 ? 'd20' : 'dice',
-          dice: values.map((value) => ({ sides, value })),
-          mode,
-          bonuses: total - sum ? [{ label: serverLog.title, value: total - sum, kind: 'feature' }] : [],
-        })
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [serverLog]) // eslint-disable-line react-hooks/exhaustive-deps
-
   /* ---------- значения листа ---------- */
 
   const cls = info.classes[0] ?? { name: '—', level: info.total_level }
@@ -494,67 +168,12 @@ export default function CharacterSheet({
   const score = (k: AbilityName) => sheet.ability_scores[k].score
   // у листа с сервера модификатор и спасбросок готовые; у черновика визарда — по таблице
   const mod = (k: AbilityName) => sheet.ability_scores[k].modifier ?? abilityMod(score(k))
-  const strMod = mod('strength')
   const perAction = extras?.perAction ?? attacksPerAction(cls.name, level)
   const combat = sheet.combat
   const spell = sheet.spellcasting
-  const items = sheet.inventory.items
   const hasMagic = spell.is_spellcaster || spell.spells_known.length > 0
 
-  // оружие — по экземплярам инвентаря: оттуда картинка и универсальный хват
-  const itemById = new Map(items.map((it) => [it.instance_id, it]))
-  const attacks: SheetAttack[] = sheet.attacks.map((a, i) => {
-    const eq = a.inventory_instance_id ? itemById.get(a.inventory_instance_id)?.equipment : null
-    const modPart = /[+\-−]\d+$/.exec(a.damage)?.[0] ?? ''
-    return {
-      ...a,
-      key: a.inventory_instance_id ?? `atk-${i}`,
-      versatile: eq?.weapon?.versatile_dice ? `${eq.weapon.versatile_dice}${modPart}` : null,
-      image: realImage(eq?.equipment_image_gallery),
-    }
-  })
-  // кость безоружного удара от Боевых искусств монаха: с ней можно бить Ловкостью
-  const unarmedDie = extras?.unarmedDie ?? 1
-  const unarmedMod = unarmedDie > 1 ? Math.max(strMod, mod('dexterity')) : strMod
-  const signedMod = unarmedMod ? (unarmedMod > 0 ? `+${unarmedMod}` : `${unarmedMod}`) : ''
-  attacks.push({
-    key: 'unarmed',
-    name: 'Безоружный удар',
-    type: 'melee',
-    attack_bonus: unarmedMod + pb,
-    damage: unarmedDie > 1 ? `1d${unarmedDie}${signedMod}` : String(Math.max(1, 1 + unarmedMod)),
-    damage_type: 'дробящий',
-    range: '5 фт.',
-    properties: [],
-    versatile: null,
-    image: null,
-  })
-
-  const coins = ['pp', 'gp', 'ep', 'sp', 'cp'] as const
-  const purse = live ? coins : coins.filter((c) => sheet.inventory.currency[c] > 0)
-
-  // навыки с владением — первыми: ими пользуются чаще; компетентность — двойное мастерство
-  const skillRows = DEFAULT_SKILLS.map((s) => {
-    const entry = sheet.skills[s.key]
-    const prof = !!entry?.proficient
-    const expert = prof && !!entry?.expertise
-    const ability = entry?.ability ?? s.ability
-    return { ...s, ability, prof, expert, bonus: entry?.modifier ?? mod(ability) + (expert ? pb * 2 : prof ? pb : 0) }
-  }).sort((a, b) => Number(b.prof) - Number(a.prof) || a.label.localeCompare(b.label, 'ru'))
-
-  // feature_source в листе — UUID; в подписи показываем название владельца
-  const ownerOf = (source: string): string | null =>
-    source === 'class'
-      ? (info.classes[0]?.name ?? null)
-      : source === 'subclass'
-        ? (info.classes[0]?.subclass_name ?? null)
-        : source === 'subrace'
-          ? (info.subrace?.name ?? null)
-          : source === 'race'
-            ? info.race.name
-            : source === 'background'
-              ? (info.background?.name ?? null)
-              : null
+  const attacks = buildAttacks(sheet, mod, pb)
 
   // включённые состояния (идёт ярость) — подсветка ресурса того же ключа
   const activeKeys = new Set(engine ? activeStates(engine.sheet, engine.labels).map((x) => x.key) : [])
@@ -563,526 +182,69 @@ export default function CharacterSheet({
   const actionsOf = (grantId: string) => engine?.sheet.actions.filter((a) => a.grant_id === grantId) ?? []
   const resourcesOf = (slug: string | undefined) => (slug ? (engine?.sheet.resources.filter((r) => r.declared_by === slug) ?? []) : [])
 
-  const featureRows: FeatureRow[] = [
-    ...sheet.features.map((f, i) => ({
-      key: f.grant_id ?? `${f.name}-${i}`,
-      source: f.source,
-      title: f.name,
-      // уровень получения — из служебной строки описания («3-й уровень, умение воина»)
-      sub: [
-        SOURCE_LABEL[f.source] ?? '',
-        ownerOf(f.source),
-        f.level ? `${f.level} ур.` : (/^\d+ ур\./.exec(parseAbilityText(f.description).meta[0] ?? '')?.[0] ?? ''),
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      text: f.description,
-      grantId: f.grant_id,
-      slug: f.slug,
-      disabled: f.disabled,
-      status: f.implementation_status,
-      active: f.active,
-    })),
-    ...sheet.feats.map((featId) => {
-      const feat = featCatalog.find((x) => x.id === featId)
-      return {
-        key: featId,
-        source: 'feat',
-        title: feat?.feat_name ?? 'Черта',
-        sub: ['черта', feat?.prerequisite ? `требование: ${feat.prerequisite}` : ''].filter(Boolean).join(' · '),
-        text: cleanDescription(feat?.description),
-      }
-    }),
-  ]
+  const featureRows = buildFeatureRows(sheet, featCatalog)
 
-  const personaFields = [
-    ['traits', 'Черты'],
-    ['ideals', 'Идеалы'],
-    ['bonds', 'Привязанности'],
-    ['flaws', 'Слабости'],
-  ] as const
-  const persona = [
-    ...personaFields.map(([k, label]) => [label, sheet.personality[k]] as const),
-    ['История', sheet.backstory] as const,
-  ].filter(([, text]) => text.trim())
+  const persona = personaOf(sheet)
 
   const openFeature = openFeatureKey ? (featureRows.find((f) => f.key === openFeatureKey) ?? null) : null
 
   /* ---------- карточки ---------- */
 
-  const abilitiesCard = (
-    <Card title="Характеристики и навыки" icon={ShieldCheck} className="cw-sheet-card--abilities">
-      <div className="cw-abil-grid">
-        {ABILITY_KEYS.map((k) => {
-          const label = ABILITY_LABELS[k]
-          const saveProf = sheet.ability_scores[k].saving_throw_proficient
-          const save = sheet.ability_scores[k].save ?? mod(k) + (saveProf ? pb : 0)
-          return (
-            <div key={k} className={`cw-abil${saveProf ? ' is-prof' : ''}`}>
-              <button
-                type="button"
-                className="cw-abil-check"
-                onClick={() => void rollD20(`${label.label}, проверка`, mod(k), undefined, { kind: 'check', ability: k })}
-                disabled={dice.rolling}
-                title={`Проверка: к20 ${signed(mod(k))}`}
-              >
-                <i>{label.abbr}</i>
-                <b>{score(k)}</b>
-                <em>{signed(mod(k))}</em>
-                <WhyDot req={{ path: abilityPath(k, 'score'), title: label.label, total: score(k), baseLabel: 'Базовое значение' }} />
-              </button>
-              <button
-                type="button"
-                className="cw-abil-save"
-                onClick={() => void rollD20(`${label.label}, спасбросок`, save, undefined, { kind: 'save', ability: k })}
-                disabled={dice.rolling}
-                title={saveProf ? 'Спасбросок — владение' : 'Спасбросок'}
-              >
-                спас <b>{signed(save)}</b>
-                <WhyDot req={{ path: abilityPath(k, 'save'), title: `Спасбросок: ${label.label}`, total: save }} />
-              </button>
-            </div>
-          )
-        })}
-      </div>
-      <div className="beast-skills cw-skill-buttons cw-skill-cols">
-        {skillRows.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}`}
-            onClick={() => void rollD20(s.label, s.bonus, undefined, { kind: 'skill', skill: s.key, ability: s.ability })}
-            disabled={dice.rolling}
-            title={s.expert ? 'Компетентность: двойной бонус мастерства' : undefined}
-          >
-            <span className="beast-skill-bonus">{signed(s.bonus)}</span>
-            <span className="beast-skill-name">{s.label}</span>
-            <span className="beast-skill-ab">{ABILITY_LABELS[s.ability].abbr}</span>
-            <WhyDot req={{ path: `char.skills.${s.key}.bonus`, title: s.label, total: s.bonus }} />
-          </button>
-        ))}
-      </div>
-      <p className="cw-passive">
-        <Eye aria-hidden="true" /> пассивная внимательность <b>{combat.passive_perception}</b>
-      </p>
-    </Card>
+  const abilitiesCard = <AbilitiesCard sheet={sheet} mod={mod} score={score} pb={pb} rollD20={rollD20} rolling={dice.rolling} />
+
+  const attackRow = (a: SheetAttack) => (
+    <AttackRow key={a.key} a={a} sheet={sheet} critFor={critFor} rollD20={rollD20} rollDamage={rollDamage} rolling={dice.rolling} />
   )
 
-  const attackRow = (a: SheetAttack) => {
-      const crit = critFor === a.key
-      // бонусы способностей по тегам атаки: к попаданию и к урону (Ярость +2)
-      const { tags, ability } = attackTags(a, sheet)
-      const ctx: RollContext = { kind: 'attack', ability, tags }
-      const hit = a.attack_bonus + tagBonus(sheet, 'attackBonus', tags)
-      const dmgExtra = tagBonus(sheet, 'dmgBonus', tags)
-      const dmg = parseDamage(a.damage)
-      const dmgText = (formula: string) => {
-        const p = parseDamage(formula)
-        if (!p || !dmgExtra) return formatDice(formula) ?? formula
-        const b = p.bonus + dmgExtra
-        return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
-      }
-      const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
-      return (
-        <div key={a.key} className={`cw-wpn${crit ? ' is-crit' : ''}`}>
-          <WeaponArt src={a.image} icon={a.type === 'ranged' ? Crosshair : a.key === 'unarmed' ? Hand : Swords} />
-          <span className="cw-wpn-body">
-            <b>{a.name}</b>
-            <i title={props}>{props}</i>
-          </span>
-          <span className="cw-wpn-dice">
-            <DieButton
-              sides={20}
-              value={signed(hit)}
-              label="атака"
-              onClick={() =>
-                void rollD20(`${a.name}, попадание`, hit, a.key, {
-                  ...ctx,
-                  bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
-                })
-              }
-              disabled={dice.rolling}
-              title="Бросок атаки: к20 + бонус"
-            />
-            {a.damage && (
-              <DieButton
-                sides={dmg?.sides ?? 0}
-                value={dmgText(a.damage)}
-                label={crit ? 'крит ×2' : (a.damage_type || 'урон').toLocaleLowerCase('ru')}
-                hot={crit}
-                onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key, { kind: 'damage', ability, tags })}
-                disabled={dice.rolling}
-                title={crit ? 'Критическое попадание: кости урона удваиваются' : 'Бросок урона'}
-              />
-            )}
-            {a.versatile && (
-              <DieButton
-                sides={parseDamage(a.versatile)?.sides ?? 0}
-                value={dmgText(a.versatile)}
-                label="двуручно"
-                hot={crit}
-                onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key, { kind: 'damage', ability, tags })}
-                disabled={dice.rolling}
-                title="Универсальное оружие двумя руками"
-              />
-            )}
-          </span>
-        </div>
-      )
-  }
-
   const spellAttackRow = spell.is_spellcaster && spell.spell_attack_bonus != null && (
-      <div className="cw-wpn cw-wpn--spell">
-        <WeaponArt src={null} icon={Sparkles} />
-        <span className="cw-wpn-body">
-          <b>Атака заклинанием</b>
-          <i>Сл спасброска {spell.spell_save_dc}</i>
-        </span>
-        <span className="cw-wpn-dice">
-          <DieButton
-            sides={20}
-            value={signed(spell.spell_attack_bonus)}
-            label="атака"
-            onClick={() =>
-              void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
-                kind: 'spell',
-                ability: spell.spellcasting_ability ?? undefined,
-                tags: ['spell'],
-              })
-            }
-            disabled={dice.rolling}
-          />
-        </span>
-      </div>
+    <SpellAttackRow spell={spell} rollD20={rollD20} rolling={dice.rolling} />
   )
 
   const combatCard = (
-    <Card
-      title="Бой"
-      icon={Swords}
-      className="cw-sheet-card--combat"
-      aside={[perAction > 1 ? `атак за действие: ×${perAction}` : '', critMin < 20 ? `крит от ${critMin}` : ''].filter(Boolean).join(' · ') || null}
-    >
-      <div className="cw-wpns">
-        {attacks.map(attackRow)}
-        {spellAttackRow}
-      </div>
-    </Card>
+    <CombatCard perAction={perAction} critMin={critMin}>
+      {attacks.map(attackRow)}
+      {spellAttackRow}
+    </CombatCard>
   )
 
   const invCard = (
-    <Card title="Инвентарь" icon={Backpack} className="cw-sheet-card--inv" aside={items.length ? String(items.length) : null}>
-      <InventoryBoard items={items} onChange={onInventory} locked={lockedPurse} onTransfer={roomMode?.onTransfer} onDropToTable={roomMode?.onDropToTable} />
-      {purse.length > 0 && (
-        <div className={`cw-purse${live ? ' is-live' : ''}`}>
-          {purse.map((c) => (
-            <span key={c}>
-              <CoinImg currency={c} size={20} />
-              {onPatch && !lockedPurse ? (
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={sheet.inventory.currency[c]}
-                  aria-label={`Монеты: ${c}`}
-                  onChange={(e) => {
-                    const v = Math.max(0, parseInt(e.target.value, 10) || 0)
-                    onPatch((ch) => ({
-                      ...ch,
-                      inventory: { ...ch.inventory, currency: { ...ch.inventory.currency, [c]: v } },
-                    }))
-                  }}
-                />
-              ) : (
-                <b>{sheet.inventory.currency[c]}</b>
-              )}
-            </span>
-          ))}
-          {roomMode?.onTransferCoins && (
-            <button type="button" className="cw-mini-btn" onClick={roomMode.onTransferCoins} title="Передать монеты другому герою">
-              <Send aria-hidden="true" /> передать
-            </button>
-          )}
-        </div>
-      )}
-    </Card>
+    <InventoryCard sheet={sheet} onInventory={onInventory} onPatch={onPatch} live={live} lockedPurse={lockedPurse} roomMode={roomMode} />
   )
 
   const spellBook = hasMagic && <SpellBook spellcasting={spell} play={play} roller={roller} tabbed={hudMode} />
 
-  const featureTile = (f: FeatureRow) => (
-    <button
-      key={f.key}
-      type="button"
-      className={`cw-ftile cw-feat-line--${f.source}${f.disabled ? ' is-disabled' : f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
-      onClick={() => setOpenFeature(f)}
-      title={f.disabled ? 'Отключено — бонусы не действуют' : f.status ? STATUS_LABEL[f.status] : undefined}
-    >
-      <b>
-        {f.disabled && <EyeOff className="cw-ftile-lock" aria-label="отключено" />}
-        {f.title}
-      </b>
-      <i>
-        {f.sub}
-        {f.disabled ? ' · отключено' : f.active === false ? ' · не действует' : ''}
-        {f.status === 'partial' && ' · частично'}
-      </i>
-      {f.grantId && actionsOf(f.grantId).length > 0 && (
-        <span className="cw-ftile-acts" title="Действий у способности">
-          <Zap aria-hidden="true" />
-          {actionsOf(f.grantId).length}
-        </span>
-      )}
-      <BookOpen className="cw-ftile-ico" aria-hidden="true" />
-    </button>
-  )
+  const featureTile = (f: FeatureRow) => <FeatureTile key={f.key} f={f} actionsOf={actionsOf} onOpen={setOpenFeature} />
 
-  const featuresCard = (
-    <Card title="Умения" icon={BookOpen} className="cw-sheet-card--features" aside={String(featureRows.length)}>
-      <div className="cw-ftiles">{featureRows.map(featureTile)}</div>
-    </Card>
-  )
+  const featuresCard = <FeaturesCard featureRows={featureRows} featureTile={featureTile} />
 
-  const profsCard = (
-    <Card title="Владения" icon={Languages} className="cw-sheet-card--profs">
-      <dl className="cw-profs">
-        {(
-          [
-            ['Доспехи', sheet.proficiencies.armor],
-            ['Оружие', sheet.proficiencies.weapons],
-            ['Инструменты', sheet.proficiencies.tools],
-            ['Языки', sheet.proficiencies.languages],
-          ] as const
-        )
-          .filter(([, list]) => list.length > 0)
-          .map(([label, list]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{list.join(', ')}</dd>
-            </div>
-          ))}
-      </dl>
-    </Card>
-  )
+  const profsCard = <ProfsCard proficiencies={sheet.proficiencies} />
 
-  /** Что выдают способности: приёмы, особые правила, величины (кость скрытой атаки…) */
-  const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && (
-    <Card title="Особые правила" icon={Sparkles} className="cw-sheet-card--rules">
-      <dl className="cw-profs">
-        {extras.vars.length > 0 && (
-          <div>
-            <dt>Величины</dt>
-            <dd>
-              <ul className="cw-rules-vars">
-                {extras.vars.map((v) => (
-                  <li key={v.key}>
-                    <span>{v.label}</span>
-                    <b>{formatDice(v.value) ?? v.value}</b>
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
-        {extras.maneuvers.length > 0 && (
-          <div>
-            <dt>Боевые приёмы</dt>
-            <dd>{extras.maneuvers.join(', ')}</dd>
-          </div>
-        )}
-        {extras.flags.length > 0 && (
-          <div>
-            <dt>Помнить за столом</dt>
-            <dd>
-              <ul className="cw-rules-flags">
-                {extras.flags.map((f) => (
-                  <li key={f.key}>{f.label}</li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
-      </dl>
-    </Card>
-  )
+  const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && <RulesCard extras={extras} />
 
-  /** Страница умений: группы по источнику, клик — попап с описанием */
-  const featuresPage = (
-    <div className="cw-fpage">
-      <div className="cw-fpage-groups">
-        {featureRows.length === 0 && <p className="cw-field-note">Умений пока нет.</p>}
-        {SOURCE_GROUPS.map((g) => {
-          const list = featureRows.filter((f) => g.sources.includes(f.source))
-          if (!list.length) return null
-          return (
-            <section key={g.title} className="cw-fgroup">
-              <h4 className="cw-fgroup-title">
-                {g.title} <em>{list.length}</em>
-              </h4>
-              <div className="cw-ftiles">{list.map(featureTile)}</div>
-            </section>
-          )
-        })}
-      </div>
-      <div className="cw-fpage-side">
-        {profsCard}
-        {rulesCard}
-      </div>
-    </div>
-  )
+  const featuresPage = <FeaturesTab featureRows={featureRows} featureTile={featureTile} profs={profsCard} rules={rulesCard} />
 
-  const personaCard = onPatch ? (
-    <Card title="Характер и записи" icon={NotebookPen} className="cw-sheet-card--persona">
-      <div className="cw-persona-edit">
-        {personaFields.map(([key, label]) => (
-          <label key={key} className="cw-field">
-            <span>{label}</span>
-            <textarea
-              rows={3}
-              value={sheet.personality[key]}
-              placeholder={`${label}…`}
-              onChange={(e) => onPatch((c) => ({ ...c, personality: { ...c.personality, [key]: e.target.value } }))}
-            />
-          </label>
-        ))}
-        <label className="cw-field cw-field--wide">
-          <span>История</span>
-          <textarea
-            rows={5}
-            value={sheet.backstory}
-            placeholder="Откуда герой и что привело его в путь…"
-            onChange={(e) => onPatch((c) => ({ ...c, backstory: e.target.value }))}
-          />
-        </label>
-        <label className="cw-field cw-field--wide">
-          <span>Заметки</span>
-          <textarea
-            rows={5}
-            value={sheet.notes}
-            placeholder="Квесты, имена, долги, подсказки мастера…"
-            onChange={(e) => onPatch((c) => ({ ...c, notes: e.target.value }))}
-          />
-        </label>
-      </div>
-    </Card>
-  ) : (
-    persona.length > 0 && (
-      <Card title="Характер" icon={UserRound} className="cw-sheet-card--persona">
-        <dl className="cw-profs">
-          {persona.map(([label, text]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{text}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
-    )
-  )
-
-  /** Страница характера: большой портрет во весь рост и всё о внешности */
-  const looks = (
-    [
-      ['Раса', info.subrace?.name ?? info.race.name],
-      ['Предыстория', info.background?.name],
-      ['Мировоззрение', info.alignment],
-      ['Пол', info.gender],
-      ['Возраст', info.age != null ? String(info.age) : ''],
-      ['Рост', info.height],
-      ['Вес', info.weight],
-      ['Глаза', info.eyes],
-      ['Волосы', info.hair],
-      ['Кожа', info.skin],
-    ] as const
-  ).filter(([, v]) => v && String(v).trim())
+  const personaCard = onPatch ? <PersonaEditCard sheet={sheet} onPatch={onPatch} /> : persona.length > 0 && <PersonaCard persona={persona} />
 
   const storyPage = (
-    <div className="cw-story">
-      <figure className="cw-story-art">
-        <HeroPortrait own={portrait} fallback={fallbackPortrait} />
-        {onPortraitClick && (
-          <button type="button" className="cw-portrait-edit" onClick={onPortraitClick} title="Сменить портрет">
-            <Camera aria-hidden="true" />
-          </button>
-        )}
-        {looks.length > 0 && (
-          <figcaption className="cw-story-looks">
-            {looks.map(([label, value]) => (
-              <span key={label}>
-                <i>{label}</i>
-                <b>{value}</b>
-              </span>
-            ))}
-          </figcaption>
-        )}
-      </figure>
-      <div className="cw-story-text">{personaCard}</div>
-    </div>
+    <StoryTab info={info} portrait={portrait} fallbackPortrait={fallbackPortrait} onPortraitClick={onPortraitClick} persona={personaCard} />
   )
 
-  /** Шапка итога визарда: портрет целиком и главные числа строкой */
-  const abbr = alignmentAbbr(info.alignment ?? '')
   const flatHero = (
-    <header className="cw-sheet-hero">
-      <span className="cw-sheet-portrait">
-        <HeroPortrait own={portrait} fallback={fallbackPortrait} />
-        {abbr && <span className="cw-hero-align">{abbr}</span>}
-      </span>
-      <div className="cw-sheet-id">
-        <h2 className="cw-sheet-name gold-text">{info.name}</h2>
-        <p className="cw-sheet-who">
-          {[info.subrace?.name ?? info.race.name, `${cls.name} ${level} ур.`, cls.subclass_name].filter(Boolean).join(' · ')}
-        </p>
-        {(info.background || info.alignment) && (
-          <p className="cw-sheet-sub">
-            {[info.background?.name && `предыстория: ${info.background.name}`, info.alignment].filter(Boolean).join(' · ')}
-          </p>
-        )}
-        <div className="cw-sheet-stats">
-          <span className="cw-stat cw-stat--ac" title="Класс доспеха">
-            <Shield aria-hidden="true" />
-            <b>{combat.armor_class}</b>
-            <i>КД</i>
-          </span>
-          <span className="cw-stat cw-stat--hp" title="Максимум хитов">
-            <Heart aria-hidden="true" />
-            <b>{combat.hit_points.max}</b>
-            <i>хиты</i>
-          </span>
-          <button
-            type="button"
-            className="cw-stat cw-stat--roll"
-            onClick={() => void rollD20('Инициатива', combat.initiative, undefined, { kind: 'init' })}
-            disabled={dice.rolling}
-            title="Бросить инициативу"
-          >
-            <Zap aria-hidden="true" />
-            <b>{signed(combat.initiative)}</b>
-            <i>инициатива</i>
-          </button>
-          <span className="cw-stat">
-            <Footprints aria-hidden="true" />
-            <b>{combat.speed}</b>
-            <i>фт. скорость</i>
-          </span>
-          <span className="cw-stat">
-            <Award aria-hidden="true" />
-            <b>+{pb}</b>
-            <i>мастерство</i>
-          </span>
-          <span className="cw-stat">
-            <Dices aria-hidden="true" />
-            <b>{formatDice(combat.hit_dice.total)}</b>
-            <i>кости хитов</i>
-          </span>
-        </div>
-      </div>
-    </header>
+    <FlatHero
+      info={info}
+      cls={cls}
+      level={level}
+      combat={combat}
+      pb={pb}
+      portrait={portrait}
+      fallbackPortrait={fallbackPortrait}
+      rollD20={rollD20}
+      rolling={dice.rolling}
+    />
   )
 
   /* ---------- раскладка ---------- */
 
-  type TabRow = { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }
   const deskTabs: TabRow[] = [
     { id: 'main', label: 'Лист', icon: Swords },
     ...(hasMagic ? [{ id: 'magic' as const, label: 'Магия', icon: Sparkles, badge: spell.spells_known.length }] : []),
@@ -1098,29 +260,6 @@ export default function CharacterSheet({
       activeKeys={activeKeys}
       onOpen={(slug) => setOpenFeature(featureRows.find((f) => f.slug === slug) ?? null)}
     />
-  )
-
-  const tabButtons = (rows: TabRow[]) => (
-    <nav className="cw-tabs" role="tablist" aria-label="Страницы листа">
-      {rows.map(({ id, label, icon: Icon, badge, alert }) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={current === id}
-          className={`cw-tab${current === id ? ' is-on' : ''}`}
-          onClick={() => setTab(id)}
-        >
-          <Icon aria-hidden="true" /> {label}
-          {badge ? <em>{badge}</em> : null}
-          {alert ? (
-            <em className="is-alert" title="Нерешённые выборы">
-              !{alert}
-            </em>
-          ) : null}
-        </button>
-      ))}
-    </nav>
   )
 
   /* ---------- итог создания на телефоне: разделы вместо длинной ленты ---------- */
@@ -1147,23 +286,15 @@ export default function CharacterSheet({
     ...attacks.filter((a) => a.key === 'unarmed').map(attackRow),
   ]
 
-  const featureTabs = [
-    ...SOURCE_GROUPS.map((g) => ({
-      key: g.title,
-      label: g.sources.includes('choice') ? 'Выбранные' : g.title,
-      count: featureRows.filter((f) => g.sources.includes(f.source)).length,
-    })).filter((g) => g.count > 0),
-    { key: 'profs', label: 'Владения' },
-    ...(rulesCard ? [{ key: 'rules', label: 'Особые правила' }] : []),
-  ]
-  const featureKey = featureTabs.some((t) => t.key === featureGroup) ? featureGroup! : featureTabs[0].key
-  const featureGroupDef = SOURCE_GROUPS.find((g) => g.title === featureKey)
   const hudFeatures = (
-    <HudSplit tabs={featureTabs} active={featureKey} onChange={setFeatureGroup}>
-      {featureKey === 'profs' ? profsCard : featureKey === 'rules' ? rulesCard : (
-        <div className="cw-ftiles">{featureRows.filter((f) => featureGroupDef?.sources.includes(f.source)).map(featureTile)}</div>
-      )}
-    </HudSplit>
+    <HudFeaturesTab
+      featureRows={featureRows}
+      featureTile={featureTile}
+      featureGroup={featureGroup}
+      onGroup={setFeatureGroup}
+      profs={profsCard}
+      rules={rulesCard}
+    />
   )
 
   const hudSlots = Object.entries(spell.spell_slots)
@@ -1204,15 +335,7 @@ export default function CharacterSheet({
             tab={hudTab}
             onTab={(t) => setTab(t ?? 'main')}
             windows={{
-              actions: (
-                <div className="hud-combat">
-                  <div className="hud-combat-main">
-                    {resources}
-                    {engine && <EnginePanel engine={engine} showAll />}
-                  </div>
-                  <div className="hud-combat-side">{combatCard}</div>
-                </div>
-              ),
+              actions: <ActionsTab engine={engine} resources={resources} combat={combatCard} />,
               skills: abilitiesCard,
               bag: invCard,
               magic: spellBook || undefined,
@@ -1233,16 +356,9 @@ export default function CharacterSheet({
             stage={stage}
           />
           {resources}
-          {tabButtons(deskTabs)}
+          <SheetTabs rows={deskTabs} current={current} onTab={setTab} />
           <div key={current} className={`cw-page cw-page--${current}`} role="tabpanel">
-            {current === 'main' && (
-              <>
-                {engine && <EnginePanel engine={engine} />}
-                {abilitiesCard}
-                {combatCard}
-                {invCard}
-              </>
-            )}
+            {current === 'main' && <MainTab engine={engine} abilities={abilitiesCard} combat={combatCard} inventory={invCard} />}
             {current === 'magic' && spellBook}
             {current === 'features' && featuresPage}
             {current === 'story' && storyPage}
@@ -1251,17 +367,7 @@ export default function CharacterSheet({
       ) : shell.app ? (
         <>
           {flatHero}
-          <nav className="cw-rtabs" aria-label="Разделы листа">
-            {reviewTabs.map(({ id, label, icon: Icon }) => (
-              <button key={id} type="button" className={reviewCurrent.id === id ? 'is-on' : ''} aria-pressed={reviewCurrent.id === id} onClick={() => setReviewTab(id)}>
-                <Icon aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
-          <div key={reviewCurrent.id} className="cw-rpane">
-            {reviewCurrent.body}
-          </div>
+          <ReviewTabs tabs={reviewTabs} current={reviewCurrent} onSelect={setReviewTab} />
         </>
       ) : (
         <>
@@ -1285,63 +391,15 @@ export default function CharacterSheet({
       {!hudMode && <RollLog rolls={rolls} onClear={clearRolls} />}
       {theater[0] && <RollTheater key={theater[0].id} spec={theater[0]} onDone={() => setTheater((q) => q.slice(1))} />}
       {openFeature && (
-        <SheetModal
-          title={openFeature.title}
-          kicker={openFeature.sub}
-          tone={openFeature.source}
-          visual={<BookOpen className="cw-smodal-glyph" aria-hidden="true" />}
+        <FeatureModal
+          feature={openFeature}
+          engine={engine}
+          activeKeys={activeKeys}
+          actionsOf={actionsOf}
+          resourcesOf={resourcesOf}
+          onToggleAbility={onToggleAbility}
           onClose={() => setOpenFeature(null)}
-          actions={
-            <>
-              {onToggleAbility && openFeature.grantId && (
-                <label className={`cw-ftoggle${openFeature.disabled ? '' : ' is-on'}`} title="Отключённое умение остаётся в списке, но его бонусы и действия не работают">
-                  <input
-                    type="checkbox"
-                    checked={!openFeature.disabled}
-                    onChange={(e) => onToggleAbility(openFeature.grantId!, e.target.checked)}
-                  />
-                  <span className="cw-ftoggle-track" aria-hidden="true">
-                    <span className="cw-ftoggle-knob">{openFeature.disabled ? <EyeOff /> : <Eye />}</span>
-                  </span>
-                  <span>{openFeature.disabled ? 'Умение отключено' : 'Умение действует'}</span>
-                </label>
-              )}
-              <button type="button" className="cs-btn cw-next" onClick={() => setOpenFeature(null)}>
-                Закрыть
-              </button>
-            </>
-          }
-        >
-          {openFeature.status && openFeature.status !== 'full' && !openFeature.disabled && (
-            <p className={`cw-field-note cw-fstatus is-${openFeature.status}`}>{STATUS_LABEL[openFeature.status] ?? openFeature.status}</p>
-          )}
-          {openFeature.disabled ? (
-            <p className="cw-field-note cw-fstatus is-off">Отключено: бонусы и действия умения не работают, пока его не включить.</p>
-          ) : (
-            openFeature.active === false && (
-              <p className="cw-field-note cw-fstatus is-off">Сейчас не действует: условие умения не выполнено.</p>
-            )
-          )}
-          {engine && !openFeature.disabled && resourcesOf(openFeature.slug).length > 0 && (
-            <div className="cw-fcard-res">
-              <ResourceBand resources={resourcesOf(openFeature.slug)} activeKeys={activeKeys} />
-            </div>
-          )}
-          {engine && !openFeature.disabled && openFeature.grantId && actionsOf(openFeature.grantId).length > 0 && (
-            <div className="eng-actions cw-fcard-acts">
-              {actionsOf(openFeature.grantId).map((a) => (
-                <ActionButton
-                  key={a.key}
-                  a={a}
-                  // поп-ап действия откроется поверх — карточку закрываем
-                  engine={{ ...engine, onAction: (x) => (setOpenFeature(null), engine.onAction(x)) }}
-                  showAbility={false}
-                />
-              ))}
-            </div>
-          )}
-          <FeatureText row={openFeature} />
-        </SheetModal>
+        />
       )}
     </div>
     </WhyProvider>
