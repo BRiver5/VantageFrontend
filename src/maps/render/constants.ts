@@ -1,5 +1,20 @@
-export const SIDE: Record<string, string> = { party: '#d9a441', enemies: '#c8493c', neutral: '#9aa3ad' }
-export const REL: Record<string, string> = { enemy: '#e5484d', ally: '#3fb950', self: '#f5a524', neutral: '#a1a1aa' }
+import { cssVar } from '../../styles/palette'
+
+/** цвет обводки жетона по стороне (tokens.css: --side-*) */
+export const sideColors = (): Record<string, string> => ({
+  party: cssVar('--side-party', '#d9a441'),
+  enemies: cssVar('--side-enemy', '#c8493c'),
+  neutral: cssVar('--side-neutral', '#9aa3ad'),
+})
+
+/** цвет отношения к наводящему (tokens.css: --rel-*) */
+export const relColors = (): Record<string, string> => ({
+  enemy: cssVar('--rel-enemy', '#e5484d'),
+  ally: cssVar('--rel-ally', '#3fb950'),
+  self: cssVar('--rel-self', '#f5a524'),
+  neutral: cssVar('--rel-neutral', '#a1a1aa'),
+})
+
 export const ELEMENT: Record<string, string[]> = {
   fire: ['#fff3c4', '#ffb347', '#ff5a1f', '#8a1c06'],
   cold: ['#ffffff', '#bfe6ff', '#5fb4ff', '#1d4f9a'],

@@ -1,9 +1,11 @@
 /** Жетоны: подставка, портрет, обводка стороны, подписи и шанс над целью */
 import type { MapGrid, MapToken, Pt } from '../types'
-import { REL, SIDE } from './constants'
+import { relColors, sideColors } from './constants'
 import type { ImgFn, MapOverlays, View } from './types'
 
 export function drawTokens(ctx: CanvasRenderingContext2D, tokens: MapToken[], pos: Map<string, Pt>, g: MapGrid, ov: MapOverlays, v: View, img: ImgFn, art: (t: MapToken) => string | null) {
+  const SIDE = sideColors()
+  const REL = relColors()
   for (const t of [...tokens].sort((a, b) => a.size - b.size)) {
     const p = pos.get(t.id)!
     const r = (t.size * g.cell_px) / 2 - 2
