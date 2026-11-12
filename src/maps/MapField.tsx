@@ -14,8 +14,8 @@ import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePrev
 import { getAttribution, sfxFor, type AssetCredit } from './assets'
 import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
-import { angleTo, areaPolygon, cellCenter, cellOf, dist, pxPerFt } from './geometry'
-import { MapCanvas, pathPoints, type MapCanvasHandle } from './MapCanvas'
+import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
+import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */

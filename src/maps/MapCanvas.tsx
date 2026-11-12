@@ -11,82 +11,13 @@
  */
 import { loadPresets, presetOf, VfxEngine } from './vfx'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type PointerEvent as RPointerEvent } from 'react'
-import { blockingSegments, cellCenter, circle, pxPerFt, visibility } from './geometry'
-import type { BattleMap, MapToken, MapVfx, Pt } from './types'
+import { blockingSegments, circle, pxPerFt, visibility } from './geometry'
+import type { BattleMap, MapToken, Pt } from './types'
 
-export interface MapOverlays {
-  /** досягаемые клетки и их стоимость */
-  reach?: Map<string, number> | null
-  /** путь под курсором: центры клеток */
-  path?: Pt[] | null
-  /** фигура наведения (от сервера или своя до ответа) */
-  aim?: { polygon: Pt[]; color: string; origin?: Pt; ok: boolean } | null
-  /** отношение токенов под фигурой */
-  relations?: Record<string, 'enemy' | 'ally' | 'self' | 'neutral'>
-  /** шанс над целью */
-  chances?: Record<string, number>
-  selected?: string | null
-  picked?: string[]
-  /** чужие перетаскивания: token_id → точка */
-  drags?: Record<string, Pt>
-  /** конструктор: показывать стены, свет, сетку ярче */
-  editor?: boolean
-  /** черновик стены в конструкторе */
-  draft?: Pt[] | null
-  /** конструктор: высоты пола числами и цветом */
-  heights?: boolean
-  /** черновик — замкнутый контур (зона) */
-  closeDraft?: boolean
-  /** предметы, до которых можно дотянуться: пульсируют */
-  reachItems?: string[]
-  /** чужие шаблоны наведения: бледно */
-  ghosts?: { polygon: Pt[]; color: string }[]
-}
+import { ELEMENT, REL, SIDE } from './render/constants'
+import type { FloatText, MapCanvasHandle, MapOverlays, MapViewer } from './render/types'
 
-export interface MapViewer {
-  isDm: boolean
-  /** жетоны, чьими глазами смотрим (игрок — свои) */
-  eyes: string[]
-  /** мастер «глазами игрока» */
-  asPlayer?: boolean
-}
-
-export interface MapCanvasHandle {
-  /** экран → карта */
-  toMap: (clientX: number, clientY: number) => Pt
-  centerOn: (p: Pt) => void
-  ping: (p: Pt, color?: string) => void
-  vfx: (v: MapVfx, at: (combatantId: string) => Pt | null) => void
-  /** разовый пресет в точке (зона легла, предмет упал) */
-  effect: (presetId: string, p: Pt, size?: number) => void
-  /** анимировать ход по клеткам */
-  walk: (tokenId: string, path: Pt[]) => void
-}
-
-const SIDE: Record<string, string> = { party: '#d9a441', enemies: '#c8493c', neutral: '#9aa3ad' }
-const REL: Record<string, string> = { enemy: '#e5484d', ally: '#3fb950', self: '#f5a524', neutral: '#a1a1aa' }
-const ELEMENT: Record<string, string[]> = {
-  fire: ['#fff3c4', '#ffb347', '#ff5a1f', '#8a1c06'],
-  cold: ['#ffffff', '#bfe6ff', '#5fb4ff', '#1d4f9a'],
-  lightning: ['#ffffff', '#d9f2ff', '#7cc8ff', '#3a5fd6'],
-  acid: ['#f4ffd0', '#b9f26b', '#5fae2a', '#2b5a12'],
-  poison: ['#e9ffd6', '#9be37a', '#4e9c3a', '#1f4a17'],
-  necrotic: ['#e6d9ff', '#9b7fd6', '#4d2d7a', '#1a0d2e'],
-  radiant: ['#ffffff', '#fff6c9', '#ffd76a', '#c9902a'],
-  force: ['#ffffff', '#d6d1ff', '#8f82ff', '#3d2fb0'],
-  psychic: ['#ffe0f4', '#ff8fd6', '#c03aa0', '#5a1050'],
-  thunder: ['#ffffff', '#cfe1ff', '#8aa8e6', '#3a4f80'],
-  heal: ['#ffffff', '#d8ffe4', '#6fe39a', '#1f8a4c'],
-  arcane: ['#ffffff', '#e6d6ff', '#a78bfa', '#5b3fb5'],
-}
-
-interface FloatText {
-  x: number
-  y: number
-  text: string
-  color: string
-  life: number
-}
+export type { MapCanvasHandle, MapOverlays, MapViewer } from './render/types'
 
 type Props = {
   map: BattleMap
@@ -947,6 +878,3 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     />
   )
 })
-
-/** Центр клетки → точка для пути */
-export const pathPoints = (g: BattleMap['grid'], path: [number, number][]) => path.map(([c, r]) => cellCenter(g, c, r))
