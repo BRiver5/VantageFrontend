@@ -10,41 +10,41 @@
  * клик или Enter заканчивает, Esc отменяет черновик. Ассет можно
  * перетащить из библиотеки прямо на холст.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type DragEvent as RDragEvent } from 'react'
-import { Boxes, DoorOpen, Eye, Gem, Hand, Hexagon, ImagePlus, Lightbulb, Mountain, PenLine, Redo2, RectangleHorizontal, Save, Trash2, Undo2, UserRound, X } from 'lucide-react'
-import { ApiError, uploadMedia } from '../api'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as RDragEvent } from 'react'
+import { X } from 'lucide-react'
 import { addCreatures } from '../rooms/roomsApi'
 import { parsePortrait } from '../characters/portrait'
 import { useRoom } from '../rooms/RoomProvider'
 import { creatureArt, creatureName } from '../rooms/table/parts'
-import { editMap, fireTrigger, getMap, patchMap } from './api'
-import { assetImage, assetTitle, type Asset } from './assets'
-import { ASSET_MIME, AssetLibrary, ItemProps, ObjectProps, SpawnsPanel, TriggersPanel, ZoneProps } from './EditorPanels'
-import { cellCenter, cellOf, dist, pointInPolygon, snapToCorner } from './geometry'
+import type { Asset } from './assets'
+import { ASSET_MIME, AssetLibrary, ItemProps, ObjectProps, ZoneProps } from './EditorPanels'
+import { cellOf, dist, snapToCorner } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
-import type { BattleMap, MapItem, MapLight, MapObject, MapToken, MapWall, MapZone, Pt } from './types'
-import { applyBatch, diffBatch, errText, uid } from './editor/batch'
-import { SIZE_CELLS, segDist, wallOf, zonePoly } from './editor/geometry'
-import { GridFields } from './editor/GridFields'
-import { imageSize } from './editor/imageSize'
-import { BeastSearch } from './editor/BeastSearch'
-import type { Brush, Tool } from './editor/types'
+import type { MapItem, MapLight, MapToken, MapWall, MapZone, Pt } from './types'
+import { errText, uid } from './editor/batch'
+import { assetPlacement, dragTo, duplicateNear, hitAt, paintTerrain, snapCell, toolTip } from './editor/edit'
+import { EditorHeader } from './editor/EditorHeader'
+import { SIZE_CELLS, wallOf } from './editor/geometry'
+import { LightProps } from './editor/LightProps'
+import { SidePanel } from './editor/SidePanel'
+import { StampPanel } from './editor/StampPanel'
+import { TerrainBrush } from './editor/TerrainBrush'
+import { TokenProps } from './editor/TokenProps'
+import { ToolBar } from './editor/ToolBar'
+import { useMapDoc } from './editor/useMapDoc'
+import { WallProps } from './editor/WallProps'
+import type { Brush, Stamp, Tool } from './editor/types'
 
 export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => void }) {
   const { roomId, data } = useRoom()
-  const [map, setMap] = useState<BattleMap | null>(null)
-  const saved = useRef<BattleMap | null>(null)
-  const undo = useRef<BattleMap[]>([])
-  const redo = useRef<BattleMap[]>([])
+  const { map, setMap, undo, redo, state, setState, error, setError, change, save, patchProps } = useMapDoc(roomId, mapId)
   const [tool, setTool] = useState<Tool>('select')
   const [brush, setBrush] = useState<Brush>('up')
   const [sel, setSel] = useState<string | null>(null)
   const [draft, setDraft] = useState<Pt[]>([])
   const [hover, setHover] = useState<Pt | null>(null)
-  const [state, setState] = useState<'saved' | 'dirty' | 'saving' | 'error'>('saved')
-  const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [stamp, setStamp] = useState<{ creature_id?: string; character_id?: string; label: string } | null>(null)
+  const [stamp, setStamp] = useState<Stamp | null>(null)
   const [asset, setAsset] = useState<Asset | null>(null)
   const [stampHidden, setStampHidden] = useState(false)
   const [eyes, setEyes] = useState<string | null>(null)
@@ -52,86 +52,6 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const canvas = useRef<MapCanvasHandle>(null)
   const drag = useRef<{ id: string; kind: 'token' | 'light' | 'item' | 'object'; from: Pt; moved: boolean } | null>(null)
   const stroke = useRef<{ painted: Set<string>; add: boolean } | null>(null)
-
-  useEffect(() => {
-    getMap(roomId, mapId).then(
-      (m) => {
-        saved.current = m
-        setMap(m)
-      },
-      (e) => setError(errText(e)),
-    )
-  }, [roomId, mapId])
-
-  /** правка со стеком отмены */
-  const change = useCallback((fn: (m: BattleMap) => BattleMap) => {
-    setMap((m) => {
-      if (!m) return m
-      undo.current = [...undo.current.slice(-60), m]
-      redo.current = []
-      return fn(m)
-    })
-    setState('dirty')
-  }, [])
-
-  // автосохранение: пакет конструктора и рельеф
-  const saving = useRef(false)
-  const mapRef = useRef(map)
-  useEffect(() => {
-    mapRef.current = map
-  }, [map])
-  const save = useCallback(async () => {
-    const base = saved.current
-    const cur = mapRef.current
-    if (!base || !cur || saving.current) return
-    const batch = diffBatch(base, cur)
-    const terrainChanged = JSON.stringify(base.terrain) !== JSON.stringify(cur.terrain)
-    if (!batch && !terrainChanged) return setState('saved')
-    saving.current = true
-    setState('saving')
-    try {
-      let next = base
-      if (batch) next = await editMap(roomId, mapId, { ...batch, revision: base.revision })
-      if (terrainChanged) {
-        const r = await patchMap(roomId, mapId, { terrain: cur.terrain, revision: next.revision } as Partial<BattleMap>)
-        next = { ...next, terrain: cur.terrain, revision: r.revision }
-      }
-      saved.current = next
-      // пока сохраняли, могли ещё править: их оставим, revision — свежий
-      setMap((m) => (m === cur ? next : m && { ...m, revision: next.revision }))
-      setState((s) => (s === 'saving' ? 'saved' : s))
-      setError(null)
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        const fresh = await getMap(roomId, mapId)
-        saved.current = fresh
-        setMap((m) => (m ? { ...applyBatch(fresh, diffBatch(base, m) ?? {}), terrain: m.terrain } : fresh))
-        setState('dirty')
-      } else {
-        setState('error')
-        setError(errText(e))
-      }
-    } finally {
-      saving.current = false
-    }
-  }, [roomId, mapId])
-  useEffect(() => {
-    if (state !== 'dirty') return
-    const t = setTimeout(() => void save(), 1800)
-    return () => clearTimeout(t)
-  }, [state, map, save])
-
-  /** свойства карты: сетка, свет, туман — PATCH */
-  const patchProps = async (body: Partial<BattleMap>) => {
-    if (!map) return
-    try {
-      const next = await patchMap(roomId, mapId, { ...body, revision: saved.current?.revision ?? map.revision })
-      saved.current = { ...(saved.current ?? next), ...body, revision: next.revision } as BattleMap
-      setMap((m) => (m ? { ...m, ...body, revision: next.revision } : m))
-    } catch (e) {
-      setError(errText(e))
-    }
-  }
 
   const flash = (t: string) => {
     setNote(t)
@@ -193,16 +113,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       if ((e.ctrlKey || e.metaKey) && k === 'd' && sel) {
         // копия выбранного рядом
         e.preventDefault()
-        change((m) => {
-          const shift = m.grid.cell_px
-          const o = m.objects.find((x) => x.id === sel)
-          if (o) return { ...m, objects: [...m.objects, { ...o, id: uid('o'), x: o.x + shift, y: o.y + shift }] }
-          const l = m.lights.find((x) => x.id === sel)
-          if (l) return { ...m, lights: [...m.lights, { ...l, id: uid('l'), x: l.x + shift }] }
-          const t = m.tokens.find((x) => x.id === sel && !x.character_id)
-          if (t) return { ...m, tokens: [...m.tokens, { ...t, id: uid('t'), x: t.x + shift, combatant_id: null }] }
-          return m
-        })
+        change((m) => duplicateNear(m, sel))
         return
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -217,7 +128,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     }
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
-  }, [draft, sel, finishDraft, remove, change])
+  }, [draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
 
   const artOf = useCallback(
     (t: MapToken): string | null => {
@@ -258,79 +169,12 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   }
   const g = map.grid
   const snap = (p: Pt, free: boolean) => (free ? { x: Math.round(p.x), y: Math.round(p.y) } : snapToCorner(g, p))
-  const snapCell = (p: Pt, w = 1, h = 1) => {
-    // объект в клетках: чётный размер — к углу, нечётный — к центру
-    const [c, r] = cellOf(g, p)
-    const cc = cellCenter(g, c, r)
-    return { x: cc.x + (w % 2 === 0 ? g.cell_px / 2 : 0), y: cc.y + (h % 2 === 0 ? g.cell_px / 2 : 0) }
-  }
-  const hitAt = (p: Pt): string | null => {
-    const near = g.cell_px * 0.3
-    const l = map.lights.find((x) => dist(x, p) < near)
-    if (l) return l.id
-    const t = map.tokens.find((x) => dist(x, p) <= (x.size * g.cell_px) / 2)
-    if (t) return t.id
-    const it = map.items.find((x) => !x.carried_by && dist(x, p) < near)
-    if (it) return it.id
-    const o = [...map.objects].reverse().find((x) => Math.abs(p.x - x.x) <= x.w / 2 && Math.abs(p.y - x.y) <= x.h / 2)
-    if (o) return o.id
-    const w = map.walls.map((x) => ({ x, d: segDist(p, x.a, x.b) })).filter((x) => x.d < near * 0.6).sort((a, b) => a.d - b.d)[0]
-    if (w) return w.x.id
-    const z = [...map.zones].reverse().find((x) => pointInPolygon(p, zonePoly(x, map)))
-    return z?.id ?? null
-  }
 
   /** поставить ассет: по виду — пол, фон, жетон или объект */
   const placeAsset = (a: Asset, p: Pt) => {
-    const w = Math.max(0.5, a.footprint?.w_cells ?? 1)
-    const h = Math.max(0.5, a.footprint?.h_cells ?? 1)
-    const url = assetImage(a)
-    if (a.kind === 'map_background') {
-      const ratio = (a.height_px ?? 1) / (a.width_px ?? 1)
-      const W = g.cols * g.cell_px
-      change((m) => ({ ...m, layers: [...m.layers.filter((l) => l.kind !== 'background'), { id: uid('bg'), asset_id: a.id, image_url: url, x: g.offset_x, y: g.offset_y, w: W, h: Math.round(W * ratio), rotation: 0, z: 0, kind: 'background', opacity: 1 }] }))
-      return
-    }
-    if (a.kind === 'terrain') {
-      const [c, r] = cellOf(g, p)
-      const x = g.offset_x + c * g.cell_px
-      const y = g.offset_y + r * g.cell_px
-      change((m) => ({ ...m, layers: [...m.layers.filter((l) => !(l.kind === 'floor' && l.x === x && l.y === y)), { id: uid('fl'), asset_id: a.id, image_url: url, x, y, w: g.cell_px, h: g.cell_px, rotation: 0, z: 1, kind: 'floor', opacity: 1 }] }))
-      return
-    }
-    if (a.kind === 'token') {
-      const at = snapCell(p, w, w)
-      const t: MapToken = { id: uid('t'), asset_id: a.id, image_url: url, label: assetTitle(a), x: at.x, y: at.y, elevation_ft: 0, size: w, rotation: 0, vision_mode: 'normal', senses: {}, flying: false, hidden: true, side: 'enemies' }
-      change((m) => ({ ...m, tokens: [...m.tokens, t] }))
-      setSel(t.id)
-      return
-    }
-    const at = snapCell(p, w, h)
-    const o: MapObject = {
-      id: uid('o'),
-      asset_id: a.id,
-      image_url: url,
-      name: assetTitle(a),
-      x: at.x,
-      y: at.y,
-      w: w * g.cell_px,
-      h: h * g.cell_px,
-      rotation: 0,
-      z: 2,
-      height_ft: a.height_ft ?? 0,
-      base_ft: 0,
-      climbable: !!a.climbable,
-      cover: a.cover ?? 'none',
-      blocks_move: !!a.blocks_move,
-      blocks_sight: !!a.blocks_sight,
-      blocks_light: !!a.blocks_sight,
-      walkable_top: !!a.walkable_top,
-      container: false,
-      interactions: [],
-      hidden: false,
-    }
-    change((m) => ({ ...m, objects: [...m.objects, o] }))
-    setSel(o.id)
+    const placed = assetPlacement(g, a, p)
+    change(placed.apply)
+    if (placed.select) setSel(placed.select)
   }
 
   /** кисть рельефа по клетке */
@@ -343,18 +187,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     st.painted.add(key)
     setMap((m) => {
       if (!m) return m
-      const tr = { elevation: { ...(m.terrain?.elevation ?? {}) }, difficult: [...(m.terrain?.difficult ?? [])], water: [...(m.terrain?.water ?? [])], climbable: [...(m.terrain?.climbable ?? [])] }
-      if (brush === 'up' || brush === 'down') {
-        const v = (tr.elevation[key] ?? 0) + (brush === 'up' ? 5 : -5)
-        if (v === 0) delete tr.elevation[key]
-        else tr.elevation[key] = v
-      } else {
-        const set = new Set(tr[brush])
-        if (st.add) set.add(key)
-        else set.delete(key)
-        tr[brush] = [...set]
-      }
-      return { ...m, terrain: tr }
+      return paintTerrain(m, key, brush, st.add)
     })
     setState('dirty')
   }
@@ -434,7 +267,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       if (kind === 'up' && e.button === 0 && stamp) {
         const cr = stamp.creature_id ? data?.creatures.find((x) => x.id === stamp.creature_id) : null
         const size = cr && 'snapshot' in cr ? (SIZE_CELLS[String((cr.snapshot as { size?: string })?.size ?? 'medium').toLowerCase()] ?? 1) : 1
-        const at = snapCell(p, size, size)
+        const at = snapCell(g, p, size, size)
         // один жетон — одно существо (одно место в инициативе). Уже стоит — добавляем в комнату ещё одного такого же
         if (stamp.creature_id && map.tokens.some((x) => x.creature_id === stamp.creature_id)) {
           if (!cr || !('snapshot' in cr)) return
@@ -473,7 +306,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     // выбор и перетаскивание
     if (kind === 'down') {
       if (e.button !== 0) return false
-      const id = hitAt(p)
+      const id = hitAt(map, p)
       setSel(id)
       const what = !id
         ? null
@@ -500,17 +333,9 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         redo.current = []
       }
       d.moved = true
-      const raw = { x: Math.round(p.x), y: Math.round(p.y) }
       setMap((m) => {
         if (!m) return m
-        if (d.kind === 'token') {
-          return { ...m, tokens: m.tokens.map((t) => (t.id === d.id ? { ...t, ...(free ? raw : snapCell(p, t.size, t.size)) } : t)) }
-        }
-        if (d.kind === 'object') {
-          return { ...m, objects: m.objects.map((o) => (o.id === d.id ? { ...o, ...(free ? raw : snapCell(p, Math.round(o.w / g.cell_px), Math.round(o.h / g.cell_px))) } : o)) }
-        }
-        if (d.kind === 'item') return { ...m, items: m.items.map((i) => (i.id === d.id ? { ...i, ...raw } : i)) }
-        return { ...m, lights: m.lights.map((l) => (l.id === d.id ? { ...l, ...raw } : l)) }
+        return dragTo(m, g, d, p, free)
       })
       setState('dirty')
       return
@@ -538,83 +363,13 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const setWall = (patch: Partial<MapWall>) => change((m) => ({ ...m, walls: m.walls.map((w) => (w.id === sel ? { ...w, ...patch } : w)) }))
   const setLight = (patch: Partial<MapLight>) => change((m) => ({ ...m, lights: m.lights.map((l) => (l.id === sel ? { ...l, ...patch } : l)) }))
   const setToken = (patch: Partial<MapToken>) => change((m) => ({ ...m, tokens: m.tokens.map((t) => (t.id === sel ? { ...t, ...patch } : t)) }))
-  const bg = map.layers.find((l) => l.kind === 'background')
-  const heroTokens = map.tokens.filter((t) => t.character_id)
-
-  const TOOLS: { id: Tool; label: string; key: string; icon: ReactNode }[] = [
-    { id: 'select', label: 'Выбор', key: 'V', icon: <Hand aria-hidden="true" /> },
-    { id: 'wall', label: 'Стена', key: 'W', icon: <PenLine aria-hidden="true" /> },
-    { id: 'door', label: 'Дверь', key: 'D', icon: <DoorOpen aria-hidden="true" /> },
-    { id: 'window', label: 'Окно', key: 'N', icon: <RectangleHorizontal aria-hidden="true" /> },
-    { id: 'asset', label: 'Ассеты', key: 'O', icon: <Boxes aria-hidden="true" /> },
-    { id: 'terrain', label: 'Рельеф', key: 'H', icon: <Mountain aria-hidden="true" /> },
-    { id: 'light', label: 'Свет', key: 'L', icon: <Lightbulb aria-hidden="true" /> },
-    { id: 'zone', label: 'Зона', key: 'Z', icon: <Hexagon aria-hidden="true" /> },
-    { id: 'token', label: 'Жетон', key: 'T', icon: <UserRound aria-hidden="true" /> },
-    { id: 'item', label: 'Находка', key: 'I', icon: <Gem aria-hidden="true" /> },
-  ]
-  const tip =
-    tool === 'wall'
-      ? 'Клик — точка, двойной клик или Enter — закончить, Shift — без привязки'
-      : tool === 'door' || tool === 'window'
-        ? 'Два клика: начало и конец'
-        : tool === 'zone'
-          ? 'Клики — углы зоны, Enter — замкнуть; один клик и Enter — круг 10 фт.'
-          : tool === 'terrain'
-            ? 'Ведите по клеткам; числа — высота пола в футах'
-            : tool === 'asset'
-              ? asset
-                ? `«${assetTitle(asset)}»: клик по карте — поставить. Или перетащите из библиотеки`
-                : 'Выберите ассет снизу или перетащите на карту'
-              : tool === 'item'
-                ? 'Клик — положить находку; в контейнер — кликом по сундуку'
-                : null
+  const tip = toolTip(tool, asset)
 
   return (
     <div className={`me-shell${tool === 'asset' ? ' has-lib' : ''}`} role="dialog" aria-label={`Конструктор: ${map.name}`}>
-      <header className="me-head">
-        <input className="me-name" defaultValue={map.name} aria-label="Название карты" onBlur={(e) => e.target.value.trim() && e.target.value !== map.name && void patchProps({ name: e.target.value.trim() })} />
-        <span className={`me-state is-${state}`}>{{ saved: 'сохранено', dirty: 'есть правки', saving: 'сохраняем…', error: 'ошибка' }[state]}</span>
-        <button type="button" className="tb-round" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }))} aria-label="Отменить" title="Отменить (Ctrl+Z)">
-          <Undo2 aria-hidden="true" />
-        </button>
-        <button type="button" className="tb-round" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true }))} aria-label="Повторить" title="Повторить (Ctrl+Shift+Z)">
-          <Redo2 aria-hidden="true" />
-        </button>
-        <button type="button" className="tb-round" disabled={state === 'saved' || state === 'saving'} onClick={() => void save()} aria-label="Сохранить" title="Сохранить сейчас">
-          <Save aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="tb-round"
-          onClick={async () => {
-            await save()
-            onClose()
-          }}
-          aria-label="Закрыть конструктор"
-        >
-          <X aria-hidden="true" />
-        </button>
-      </header>
+      <EditorHeader name={map.name} state={state} patchProps={patchProps} save={save} onClose={onClose} />
 
-      <nav className="me-tools" aria-label="Инструменты">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={tool === t.id ? 'is-on' : ''}
-            aria-pressed={tool === t.id}
-            onClick={() => {
-              setTool(t.id)
-              setDraft([])
-            }}
-            title={`${t.label} (${t.key})`}
-          >
-            {t.icon}
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </nav>
+      <ToolBar tool={tool} setTool={setTool} setDraft={setDraft} />
 
       <div className="me-canvas" onDragOver={(e) => e.dataTransfer.types.includes(ASSET_MIME) && e.preventDefault()} onDrop={onDrop}>
         <MapCanvas ref={canvas} map={map} viewer={viewer} artOf={artOf} overlays={overlays} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
@@ -624,305 +379,22 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
           </p>
         )}
         {tip && <p className="me-tip">{tip}</p>}
-        {tool === 'terrain' && (
-          <div className="me-brush" role="radiogroup" aria-label="Кисть рельефа">
-            {(
-              [
-                ['up', '+5 фт'],
-                ['down', '−5 фт'],
-                ['difficult', 'сложная'],
-                ['water', 'вода'],
-                ['climbable', 'можно лезть'],
-              ] as [Brush, string][]
-            ).map(([b, l]) => (
-              <button key={b} type="button" role="radio" aria-checked={brush === b} className={brush === b ? 'is-on' : ''} onClick={() => setBrush(b)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        )}
+        {tool === 'terrain' && <TerrainBrush brush={brush} setBrush={setBrush} />}
       </div>
 
       {tool === 'asset' && <AssetLibrary picked={asset} onPick={setAsset} />}
 
       <aside className="me-props" aria-label="Свойства">
-        {selWall && (
-          <section>
-            <h3>{selWall.kind === 'door' ? 'Дверь' : selWall.kind === 'window' ? 'Окно' : 'Стена'}</h3>
-            <label>
-              Вид
-              <select
-                value={selWall.kind}
-                onChange={(e) => {
-                  const k = e.target.value as MapWall['kind']
-                  const w = wallOf(k, selWall.a, selWall.b)
-                  setWall({ kind: k, blocks: w.blocks, door: k === 'door' || k === 'secret' ? (selWall.door ?? { open: false, locked: false }) : null })
-                }}
-              >
-                <option value="wall">стена</option>
-                <option value="door">дверь</option>
-                <option value="secret">тайная дверь</option>
-                <option value="window">окно</option>
-                <option value="invisible">невидимая</option>
-                <option value="terrain">низкая (ограда)</option>
-              </select>
-            </label>
-            <label>
-              Высота, фт
-              <input type="number" min={0} step={5} value={selWall.height_ft} onChange={(e) => setWall({ height_ft: Number(e.target.value) || 0 })} />
-            </label>
-            {(selWall.kind === 'door' || selWall.kind === 'secret') && (
-              <>
-                <label className="me-check">
-                  <input type="checkbox" checked={!!selWall.door?.locked} onChange={(e) => setWall({ door: { ...(selWall.door ?? { open: false, locked: false }), locked: e.target.checked } })} /> заперта
-                </label>
-                {selWall.door?.locked && (
-                  <label>
-                    Сл взлома
-                    <input type="number" min={5} max={30} value={selWall.door?.lock_dc ?? 15} onChange={(e) => setWall({ door: { ...(selWall.door ?? { open: false, locked: true }), lock_dc: Number(e.target.value) || 15 } })} />
-                  </label>
-                )}
-              </>
-            )}
-            <button type="button" className="me-del" onClick={() => remove(selWall.id)}>
-              <Trash2 aria-hidden="true" /> Удалить
-            </button>
-          </section>
-        )}
-        {selLight && (
-          <section>
-            <h3>Свет</h3>
-            <label>
-              Яркий, фт
-              <input type="number" min={0} step={5} value={selLight.bright_ft} onChange={(e) => setLight({ bright_ft: Number(e.target.value) || 0 })} />
-            </label>
-            <label>
-              Тусклый, ещё фт
-              <input type="number" min={0} step={5} value={selLight.dim_ft} onChange={(e) => setLight({ dim_ft: Number(e.target.value) || 0 })} />
-            </label>
-            <label>
-              Цвет
-              <input type="color" value={selLight.color || '#ffd27a'} onChange={(e) => setLight({ color: e.target.value })} />
-            </label>
-            <label>
-              Едет за жетоном
-              <select value={selLight.attached_to ?? ''} onChange={(e) => setLight({ attached_to: e.target.value || null })}>
-                <option value="">нет</option>
-                {map.tokens.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="me-check">
-              <input type="checkbox" checked={selLight.flicker} onChange={(e) => setLight({ flicker: e.target.checked })} /> мерцает
-            </label>
-            <label className="me-check">
-              <input type="checkbox" checked={selLight.enabled} onChange={(e) => setLight({ enabled: e.target.checked })} /> горит
-            </label>
-            <button type="button" className="me-del" onClick={() => remove(selLight.id)}>
-              <Trash2 aria-hidden="true" /> Удалить
-            </button>
-          </section>
-        )}
-        {selToken && (
-          <section>
-            <h3>{selToken.label || 'Жетон'}</h3>
-            <label>
-              Подпись
-              <input value={selToken.label} onChange={(e) => setToken({ label: e.target.value })} />
-            </label>
-            <label>
-              Размер, клеток
-              <select value={selToken.size} onChange={(e) => setToken({ size: Number(e.target.value) })}>
-                {[0.5, 1, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Высота, фт
-              <input type="number" step={5} value={selToken.elevation_ft} onChange={(e) => setToken({ elevation_ft: Number(e.target.value) || 0 })} />
-            </label>
-            <label>
-              Сторона
-              <select value={selToken.side ?? 'neutral'} onChange={(e) => setToken({ side: e.target.value as MapToken['side'] })}>
-                <option value="party">отряд</option>
-                <option value="enemies">враги</option>
-                <option value="neutral">нейтралы</option>
-              </select>
-            </label>
-            <label>
-              Группа
-              <input value={selToken.group ?? ''} placeholder="засада, стража…" onChange={(e) => setToken({ group: e.target.value || null })} />
-            </label>
-            <label className="me-check">
-              <input type="checkbox" checked={selToken.hidden} onChange={(e) => setToken({ hidden: e.target.checked })} /> скрыт от игроков
-            </label>
-            <label className="me-check">
-              <input type="checkbox" checked={!!selToken.dormant} onChange={(e) => setToken({ dormant: e.target.checked })} /> спит (проснётся по сценарию)
-            </label>
-            <label className="me-check">
-              <input type="checkbox" checked={selToken.flying} onChange={(e) => setToken({ flying: e.target.checked })} /> летает
-            </label>
-            <button type="button" className="me-del" onClick={() => remove(selToken.id)}>
-              <Trash2 aria-hidden="true" /> Убрать с карты
-            </button>
-          </section>
-        )}
+        {selWall && <WallProps wall={selWall} setWall={setWall} remove={remove} />}
+        {selLight && <LightProps light={selLight} setLight={setLight} remove={remove} tokens={map.tokens} />}
+        {selToken && <TokenProps token={selToken} setToken={setToken} remove={remove} />}
         {selObj && <ObjectProps key={selObj.id} obj={selObj} map={map} onChange={(patch) => change((m) => ({ ...m, objects: m.objects.map((o) => (o.id === selObj.id ? { ...o, ...patch } : o)) }))} onRemove={() => remove(selObj.id)} />}
         {selItem && <ItemProps item={selItem} map={map} onChange={(patch) => change((m) => ({ ...m, items: m.items.map((i) => (i.id === selItem.id ? { ...i, ...patch } : i)) }))} onRemove={() => remove(selItem.id)} />}
         {selZone && <ZoneProps key={selZone.id} zone={selZone} map={map} onChange={(patch) => change((m) => ({ ...m, zones: m.zones.map((z) => (z.id === selZone.id ? { ...z, ...patch } : z)) }))} onRemove={() => remove(selZone.id)} />}
 
-        {tool === 'token' && (
-          <section>
-            <h3>Что ставить</h3>
-            <BeastSearch
-              onAdded={(c) => {
-                setStamp({ creature_id: c.id, label: c.name })
-                flash(`«${c.name}» добавлен в комнату — кликните по клетке`)
-              }}
-            />
-            <div className="me-stamps">
-              {(data?.characters ?? []).map((c) => (
-                <button key={c.id} type="button" className={stamp?.character_id === c.id ? 'is-on' : ''} onClick={() => setStamp({ character_id: c.id, label: c.name })}>
-                  {c.name}
-                </button>
-              ))}
-              {(data?.creatures ?? []).map((c) => (
-                <button key={c.id} type="button" className={`is-foe${stamp?.creature_id === c.id ? ' is-on' : ''}`} onClick={() => setStamp({ creature_id: c.id, label: creatureName(c) })}>
-                  {creatureName(c)}
-                </button>
-              ))}
-            </div>
-            <label className="me-check">
-              <input type="checkbox" checked={stampHidden} onChange={(e) => setStampHidden(e.target.checked)} /> ставить скрытыми (игроки не видят)
-            </label>
-            <p className="tb-hint">
-              {stamp
-                ? `«${stamp.label}»: кликните по клетке. Каждый следующий клик — ещё один такой же враг.`
-                : 'Найдите врага в бестиарии выше или выберите существо комнаты. В бою враг на карте сам станет участником.'}
-            </p>
-          </section>
-        )}
+        {tool === 'token' && <StampPanel data={data} stamp={stamp} setStamp={setStamp} stampHidden={stampHidden} setStampHidden={setStampHidden} flash={flash} />}
 
-        {!sel && tool !== 'token' && (
-          <>
-            <nav className="me-tabs is-top">
-              <button type="button" className={side === 'map' ? 'is-on' : ''} onClick={() => setSide('map')}>
-                Карта
-              </button>
-              <button type="button" className={side === 'script' ? 'is-on' : ''} onClick={() => setSide('script')}>
-                Сценарий
-                {(map.triggers?.length ?? 0) + (map.spawns?.length ?? 0) > 0 && <i>{(map.triggers?.length ?? 0) + (map.spawns?.length ?? 0)}</i>}
-              </button>
-            </nav>
-            {side === 'script' ? (
-              <>
-                <TriggersPanel
-                  map={map}
-                  onChange={(triggers) => change((m) => ({ ...m, triggers }))}
-                  onFire={(id) => {
-                    void save()
-                      .then(() => fireTrigger(roomId, mapId, id))
-                      .then(() => flash('Триггер запущен'), (e) => setError(errText(e)))
-                  }}
-                />
-                <SpawnsPanel map={map} creatures={creatureRefs} onChange={(spawns) => change((m) => ({ ...m, spawns }))} />
-              </>
-            ) : (
-              <>
-                <section>
-                  <h3>Фон</h3>
-                  <label className="me-upload">
-                    <ImagePlus aria-hidden="true" /> {bg ? 'Заменить картинку' : 'Загрузить картинку'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0]
-                        if (!f) return
-                        try {
-                          const [{ url }, size] = await Promise.all([uploadMedia(f), imageSize(f)])
-                          const layer = { id: bg?.id ?? uid('bg'), image_url: url, x: 0, y: 0, w: size.w, h: size.h, rotation: 0, z: 0, kind: 'background' as const, opacity: 1 }
-                          change((m) => ({ ...m, layers: [...m.layers.filter((l) => l.id !== layer.id), layer] }))
-                          await patchProps({ grid: { ...g, cols: Math.ceil(size.w / g.cell_px), rows: Math.ceil(size.h / g.cell_px) } })
-                        } catch (err) {
-                          setError(errText(err))
-                        } finally {
-                          e.target.value = ''
-                        }
-                      }}
-                    />
-                  </label>
-                </section>
-                <section>
-                  <h3>Сетка</h3>
-                  <GridFields grid={g} onChange={(grid) => void patchProps({ grid })} />
-                </section>
-                <section>
-                  <h3>Свет и туман</h3>
-                  <label>
-                    Освещение
-                    <select value={map.ambient.level} onChange={(e) => void patchProps({ ambient: { ...map.ambient, level: e.target.value as BattleMap['ambient']['level'] } })}>
-                      <option value="bright">яркое</option>
-                      <option value="dim">сумерки</option>
-                      <option value="dark">темнота</option>
-                    </select>
-                  </label>
-                  <label>
-                    Туман
-                    <select value={map.fog.mode} onChange={(e) => void patchProps({ fog: { ...map.fog, mode: e.target.value as BattleMap['fog']['mode'] } })}>
-                      <option value="off">нет</option>
-                      <option value="dynamic">по обзору героев</option>
-                    </select>
-                  </label>
-                  {map.fog.mode !== 'off' && (
-                    <>
-                      <label className="me-check">
-                        <input type="checkbox" checked={map.fog.shared_party_vision} onChange={(e) => void patchProps({ fog: { ...map.fog, shared_party_vision: e.target.checked } })} /> общий обзор отряда
-                      </label>
-                      <label className="me-check" title="Сервер не присылает игроку то, чего его герой не видит">
-                        <input type="checkbox" checked={map.fog.honest} onChange={(e) => void patchProps({ fog: { ...map.fog, honest: e.target.checked } })} /> честный туман
-                      </label>
-                      {!map.fog.honest && <p className="tb-hint">Туман на клиенте: скрытое лишь не нарисовано.</p>}
-                    </>
-                  )}
-                </section>
-                <section>
-                  <h3>Правила</h3>
-                  <label>
-                    Поднять предмет в бою
-                    <select value={map.rules?.pickup_costs ?? 'object'} onChange={(e) => void patchProps({ rules: { high_ground_advantage: map.rules?.high_ground_advantage ?? false, pickup_costs: e.target.value } })}>
-                      <option value="object">свободно</option>
-                      <option value="bonus">бонусное действие</option>
-                      <option value="action">действие</option>
-                    </select>
-                  </label>
-                </section>
-                {heroTokens.length > 0 && (
-                  <section>
-                    <h3>
-                      <Eye aria-hidden="true" /> Глазами игрока
-                    </h3>
-                    <select value={eyes ?? ''} onChange={(e) => setEyes(e.target.value || null)} aria-label="Чьими глазами смотреть">
-                      <option value="">мастер</option>
-                      {heroTokens.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </section>
-                )}
-              </>
-            )}
-          </>
-        )}
+        {!sel && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
       </aside>
     </div>
   )
