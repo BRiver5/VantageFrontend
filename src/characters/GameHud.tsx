@@ -51,6 +51,7 @@ import { bgUrl } from '../media'
 import { HudWindow, RoundButton } from './hud/HudChrome'
 import { HeroFigure, ResourceOrb } from './hud/HeroScene'
 import { HpDialog } from './hud/HpDialog'
+import { useKeybinding } from '../input/useKeybinding'
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
@@ -166,17 +167,13 @@ export function GameHud({
     seenNotice.current = noticeKey
   }, [noticeKey])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('.cw-modal-layer, .jr-layer')) return
-      setMenuOpen(false)
-      setHpOpen(false)
-      setInspOpen(false)
-      setPop(null)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  useKeybinding('dialog.close', () => {
+    if (document.querySelector('.cw-modal-layer, .jr-layer')) return
+    setMenuOpen(false)
+    setHpOpen(false)
+    setInspOpen(false)
+    setPop(null)
+  })
 
   const info = sheet.basic_info
   const cls = info.classes[0] ?? { name: '—', level: info.total_level }

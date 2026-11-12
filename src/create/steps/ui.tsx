@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Corners } from '../../ornaments'
 import type { BookMap } from '../../api'
 import { Img, bgUrl } from '../../media'
+import { useKeybinding } from '../../input/useKeybinding'
 
 export function StepHeader({
   kicker,
@@ -366,13 +367,11 @@ export function ChoiceModal({
 
   useEffect(() => {
     chooseRef.current?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => {
-      // поверх может быть открыта панель снаряжения — Escape закрывает её первой
-      if (e.key === 'Escape' && !document.querySelector('.eq-drawer-layer')) onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+  useKeybinding('dialog.close', () => {
+    // поверх может быть открыта панель снаряжения — Escape закрывает её первой
+    if (!document.querySelector('.eq-drawer-layer')) onClose()
+  })
 
   // портал в body: внутри `.page` fixed прилип бы к колонке из-за transform
   return createPortal(

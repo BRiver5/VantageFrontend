@@ -28,6 +28,7 @@ import { buildTree, iconOf } from './tree'
 import { FolderNode, PageRow } from './TreeView'
 import { TEMPLATES } from './templates'
 import { PageView } from './PageView'
+import { useKeybinding } from '../../input/useKeybinding'
 
 /* ---------- рабочая область ---------- */
 
@@ -43,13 +44,9 @@ export function KnowledgeWorkspace() {
   const byTitle = useMemo(() => new Map(notes.map((n) => [norm(n.title), n])), [notes])
   const current = notes.find((n) => n.id === kb.current) ?? null
 
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.querySelector('.kb-suggest')) kb.close()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [kb])
+  useKeybinding('dialog.close', () => {
+    if (!document.querySelector('.kb-suggest')) kb.close()
+  })
 
   // открытая страница — раскрыть её папки
   useEffect(() => {

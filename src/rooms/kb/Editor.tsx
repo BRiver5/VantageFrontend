@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { uploadMedia } from '../../api'
 import { norm } from './context'
+import { matches } from '../../input/keybindings'
 
 /* ---------- редактор ---------- */
 
@@ -84,9 +85,9 @@ export function Editor({ value, onChange, titles }: { value: string; onChange: (
       if (e.key === 'Enter' || e.key === 'Tab') return e.preventDefault(), choose(options[pick])
       if (e.key === 'Escape') return setSuggest(null)
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') return e.preventDefault(), insert('**', '**', 'жирный')
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') return e.preventDefault(), insert('*', '*', 'курсив')
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') return e.preventDefault(), insert('[[', ']]', 'Страница')
+    if (matches(e, 'kb.bold')) return e.preventDefault(), insert('**', '**', 'жирный')
+    if (matches(e, 'kb.italic')) return e.preventDefault(), insert('*', '*', 'курсив')
+    if (matches(e, 'kb.link')) return e.preventDefault(), insert('[[', ']]', 'Страница')
   }
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const img = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'))

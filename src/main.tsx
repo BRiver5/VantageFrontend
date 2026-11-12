@@ -8,9 +8,10 @@ import { AuthProvider } from './auth/AuthContext.tsx'
 import { TermsProvider } from './terms/terms.tsx'
 import { EquipmentDrawerProvider } from './equipmentDrawer.tsx'
 
-// StrictMode отключён: двойной dev-монтаж ломает WebGL-контекст/WASM-инициализацию
-// rapier у 3D-кубика (see src/dice/DiceRoller.tsx) — известная несовместимость
-// react-three-fiber/rapier со StrictMode. В проде (без StrictMode) всё работает штатно.
+// StrictMode отключён: двойной dev-монтаж ломает инициализацию 3D-кубиков —
+// @3d-dice/dice-box поднимает свой WebGL-контекст и WASM-физику на общем
+// контейнере #dice-box-stage (см. src/dice/DiceRoller.tsx) и не переживает
+// повторный init. В проде StrictMode и так не действует.
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <BrowserRouter>

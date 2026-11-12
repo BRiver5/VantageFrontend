@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { searchCatalog, type SearchHit, type SearchResult } from '../api'
+import { matches } from '../input/keybindings'
 
 /** Раздел → страница и значок. Без страницы (способности классов) результат раскрывается на месте */
 const ENTITY: Record<string, { path: string | null; icon: LucideIcon; label: string }> = {
@@ -68,10 +69,10 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (matches(e, 'search.open')) {
         e.preventDefault()
         setOpen((o) => (o ? null : { initial: '' }))
-      } else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      } else if (!typing && matches(e, 'search.quick')) {
         e.preventDefault()
         setOpen({ initial: '' })
       }

@@ -2,9 +2,10 @@
  * Попап листа: заклинание, умение, черта. Шапка с картинкой-знаком, фактами
  * жетонами и описанием; внизу — свои действия (сотворить, бросить, закрыть).
  */
-import { useEffect, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useKeybinding } from '../input/useKeybinding'
 
 export function SheetModal({
   title,
@@ -27,13 +28,9 @@ export function SheetModal({
   onClose: () => void
   children?: ReactNode
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.querySelector('.eq-drawer-layer')) onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useKeybinding('dialog.close', () => {
+    if (!document.querySelector('.eq-drawer-layer')) onClose()
+  })
 
   return createPortal(
     <div className="cw-modal-layer" onClick={onClose}>
