@@ -9,6 +9,8 @@ export const pxPerFt = (g: MapGrid) => g.cell_px / g.feet_per_cell
 
 export const cellOf = (g: MapGrid, p: Pt): [number, number] => [Math.floor((p.x - g.offset_x) / g.cell_px), Math.floor((p.y - g.offset_y) / g.cell_px)]
 export const cellCenter = (g: MapGrid, col: number, row: number): Pt => ({ x: g.offset_x + (col + 0.5) * g.cell_px, y: g.offset_y + (row + 0.5) * g.cell_px })
+/** Центр клетки → точка для пути */
+export const pathPoints = (g: MapGrid, path: [number, number][]) => path.map(([c, r]) => cellCenter(g, c, r))
 export const snapToCell = (g: MapGrid, p: Pt): Pt => {
   const [c, r] = cellOf(g, p)
   return cellCenter(g, c, r)
