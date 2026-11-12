@@ -4,7 +4,7 @@
 .mp-canvas:active { cursor: grabbing; }
 .mp-canvas.is-drawing { cursor: crosshair; }
 
-.mp-field { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: calc(var(--t, 1px) * 10); background: #0d0a07; box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.28), 0 14px 40px rgba(0, 0, 0, 0.55); }
+.mp-field { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: calc(var(--t, 1px) * 10); background: #0d0a07; box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.28), 0 14px 40px rgba(0, 0, 0, 0.55); }
 .mp-field.is-aiming .mp-canvas { cursor: crosshair; }
 
 /* в бою карта занимает поле фигур */
@@ -40,7 +40,7 @@
 
 /* джойстик: только на сенсорных экранах */
 .mp-joy { position: absolute; left: 14px; bottom: 14px; z-index: 4; display: none; width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 208, 106, 0.08), rgba(14, 10, 6, 0.55) 70%); box-shadow: inset 0 0 0 1.5px rgba(245, 208, 106, 0.35); touch-action: none; }
-.mp-joy-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1c2, #c49a3c 70%); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); transition: transform 0.08s linear; pointer-events: none; }
+.mp-joy-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1c2, var(--gold-2) 70%); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); transition: transform 0.08s linear; pointer-events: none; }
 @media (pointer: coarse) { .mp-joy { display: block; } }
 @media (max-height: 520px) {
   .mp-aimbar i { display: none; }
@@ -65,14 +65,14 @@ button.sc-map { width: 100%; border: 0; font: inherit; cursor: pointer; }
   color: var(--parchment, #f1e4c8);
   font-family: var(--font-body, inherit);
 }
-.me-head { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(196, 154, 60, 0.2); }
+.me-head { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.2); }
 .me-name { flex: 1; max-width: 420px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: 600 17px/1.2 var(--font-display, inherit); }
 .me-name:focus { outline: none; background: rgba(255, 255, 255, 0.05); }
 .me-state { margin-right: auto; font-size: 12px; opacity: 0.6; }
 .me-state.is-dirty, .me-state.is-saving { color: #f5d06a; opacity: 0.9; }
 .me-state.is-error { color: #ff8a80; opacity: 1; }
 
-.me-tools { grid-area: tools; display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-right: 1px solid rgba(196, 154, 60, 0.15); }
+.me-tools { grid-area: tools; display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-right: 1px solid rgb(var(--gold-2-rgb) / 0.15); }
 .me-tools button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 10.5px; opacity: 0.65; cursor: pointer; transition: background 0.15s, opacity 0.15s; }
 .me-tools button svg { width: 20px; height: 20px; }
 .me-tools button:hover { opacity: 1; }
@@ -81,8 +81,8 @@ button.sc-map { width: 100%; border: 0; font: inherit; cursor: pointer; }
 .me-canvas { grid-area: canvas; position: relative; min-width: 0; min-height: 0; }
 .me-tip { position: absolute; left: 50%; top: 10px; translate: -50% 0; margin: 0; padding: 4px 12px; border-radius: 999px; background: rgba(14, 10, 6, 0.8); font-size: 12px; opacity: 0.8; pointer-events: none; }
 
-.me-props { grid-area: props; overflow-y: auto; padding: 10px 14px 24px; border-left: 1px solid rgba(196, 154, 60, 0.15); }
-.me-props section { padding: 10px 0 14px; border-bottom: 1px solid rgba(196, 154, 60, 0.12); }
+.me-props { grid-area: props; overflow-y: auto; padding: 10px 14px 24px; border-left: 1px solid rgb(var(--gold-2-rgb) / 0.15); }
+.me-props section { padding: 10px 0 14px; border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.12); }
 .me-props h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: #f5d06a; font: 600 11.5px/1.2 var(--font-body, inherit); letter-spacing: 0.12em; text-transform: uppercase; }
 .me-props h3 svg { width: 14px; height: 14px; }
 .me-props label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; font-size: 13px; }

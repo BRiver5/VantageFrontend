@@ -38,7 +38,7 @@
   clip-path: var(--hex-wide);
   background: var(--silver-grad);
   padding: 2px;
-  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgba(205, 211, 219, 0.28));
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgb(var(--silver-3-rgb) / 0.28));
   transition: filter 0.3s ease, transform 0.2s ease;
 }
 
@@ -54,7 +54,7 @@
   overflow: hidden;
   background:
     radial-gradient(120% 160% at 50% -30%, rgba(154, 110, 34, 0.5), transparent 55%),
-    linear-gradient(180deg, #2e333d 0%, #1b1e24 55%, #121419 100%);
+    linear-gradient(180deg, #2e333d 0%, var(--bg-2) 55%, #121419 100%);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1.3rem, 2.4vw, 1.72rem);
@@ -74,7 +74,7 @@
   bottom: -60%;
   width: 46px;
   left: -80px;
-  background: linear-gradient(100deg, transparent, rgba(241, 244, 248, 0.28), transparent);
+  background: linear-gradient(100deg, transparent, rgb(var(--silver-4-rgb) / 0.28), transparent);
   transform: skewX(-22deg);
   animation: sheen 4.2s ease-in-out infinite;
 }
@@ -84,7 +84,7 @@
   85%, 100% { left: calc(100% + 40px); }
 }
 
-.play-btn:hover { filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 34px rgba(205, 211, 219, 0.5)) brightness(1.12); transform: translateY(-2px) scale(1.012); }
+.play-btn:hover { filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 34px rgb(var(--silver-3-rgb) / 0.5)) brightness(1.12); transform: translateY(-2px) scale(1.012); }
 .play-btn:active { transform: translateY(0) scale(0.995); }
 
 .play-hint {
@@ -119,7 +119,7 @@
   flex: 0 0 clamp(230px, 25vw, 290px);
   aspect-ratio: 1 / 2;
   padding: 1.4px;
-  background: linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.25) 40%, rgba(124, 130, 139, 0.7));
+  background: linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.25) 40%, rgb(var(--silver-1-rgb) / 0.7));
   clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
   transition: transform 0.28s ease, filter 0.28s ease;
   text-align: left;
@@ -160,10 +160,10 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(13, 14, 17, 0.5) 0%,
-    rgba(13, 14, 17, 0.68) 34%,
-    rgba(13, 14, 17, 0.93) 58%,
-    rgba(13, 14, 17, 0.98) 100%
+    rgb(var(--bg-0-rgb) / 0.5) 0%,
+    rgb(var(--bg-0-rgb) / 0.68) 34%,
+    rgb(var(--bg-0-rgb) / 0.93) 58%,
+    rgb(var(--bg-0-rgb) / 0.98) 100%
   );
 }
 /* содержимое баннера — поверх арта */
@@ -176,7 +176,7 @@
   padding: 6px 20px;
   clip-path: var(--hex-chip);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.5);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.5);
   background: var(--hex-edge);
   color: var(--gold-3);
   text-decoration: none;
@@ -187,7 +187,7 @@
   text-transform: uppercase;
   transition: color 0.2s ease, filter 0.2s ease;
 }
-.setting-open:hover { color: var(--gold-4); filter: brightness(1.3) drop-shadow(0 0 8px rgba(205, 211, 219, 0.45)); }
+.setting-open:hover { color: var(--gold-4); filter: brightness(1.3) drop-shadow(0 0 8px rgb(var(--silver-3-rgb) / 0.45)); }
 
 /* гексагональная печать с инициалом мира */
 .setting-seal {
@@ -209,7 +209,7 @@
   height: 100%;
   clip-path: var(--hex-point);
   background:
-    radial-gradient(90% 90% at 50% 0%, rgba(241, 244, 248, 0.16), transparent 55%),
+    radial-gradient(90% 90% at 50% 0%, rgb(var(--silver-4-rgb) / 0.16), transparent 55%),
     linear-gradient(180deg, var(--bg-2), var(--bg-0));
   font-family: var(--font-display);
   font-weight: 700;
@@ -228,7 +228,7 @@
   width: 170px;
   height: 190px;
   clip-path: var(--hex-point);
-  background: linear-gradient(160deg, rgba(205, 211, 219, 0.16), rgba(205, 211, 219, 0.02));
+  background: linear-gradient(160deg, rgb(var(--silver-3-rgb) / 0.16), rgb(var(--silver-3-rgb) / 0.02));
   pointer-events: none;
 }
 
@@ -236,7 +236,7 @@
 
 .setting-card.is-active {
   background: var(--silver-grad);
-  filter: drop-shadow(0 0 20px rgba(205, 211, 219, 0.45)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 0 20px rgb(var(--silver-3-rgb) / 0.45)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
   transform: translateY(-4px);
 }
 
@@ -330,7 +330,7 @@
   color: var(--gold-3);
 }
 .car-arrow svg { width: 20px; height: 20px; }
-.car-arrow:hover { filter: brightness(1.3) drop-shadow(0 0 12px rgba(205, 211, 219, 0.45)); }
+.car-arrow:hover { filter: brightness(1.3) drop-shadow(0 0 12px rgb(var(--silver-3-rgb) / 0.45)); }
 .car-arrow--left { left: -12px; }
 .car-arrow--right { right: -12px; }
 
@@ -346,7 +346,7 @@
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
-    linear-gradient(160deg, rgba(168, 175, 186, 0.55), rgba(168, 175, 186, 0.2) 40%, rgba(168, 175, 186, 0.55)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.55), rgb(var(--silver-2-rgb) / 0.2) 40%, rgb(var(--silver-2-rgb) / 0.55)) border-box;
 }
 .setting-search svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
 .setting-search input {
@@ -361,7 +361,7 @@
   letter-spacing: 0.03em;
 }
 .setting-search input::placeholder { color: var(--text-dim); font-style: italic; }
-.setting-search:focus-within { background: linear-gradient(var(--bg-1), var(--bg-1)) padding-box, linear-gradient(160deg, var(--gold-3), rgba(196, 154, 60, 0.35) 40%, var(--gold-3)) border-box; }
+.setting-search:focus-within { background: linear-gradient(var(--bg-1), var(--bg-1)) padding-box, linear-gradient(160deg, var(--gold-3), rgb(var(--gold-2-rgb) / 0.35) 40%, var(--gold-3)) border-box; }
 .setting-search-count { flex-shrink: 0; color: var(--gold-3); font-size: 0.78rem; font-style: italic; }
 .soon-badge {
   flex-shrink: 0;
@@ -373,8 +373,8 @@
   color: var(--gold-3);
   padding: 3px 9px;
   clip-path: var(--hex-chip);
-  --hex-in: rgba(196, 154, 60, 0.14);
-  --hex-edge: rgba(196, 154, 60, 0.4);
+  --hex-in: rgb(var(--gold-2-rgb) / 0.14);
+  --hex-edge: rgb(var(--gold-2-rgb) / 0.4);
   background: var(--hex-edge);
 }
 
@@ -390,7 +390,7 @@
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.85), rgba(124, 130, 139, 0.2) 35%, rgba(124, 130, 139, 0.2) 65%, rgba(124, 130, 139, 0.85)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.85), rgb(var(--silver-1-rgb) / 0.2) 35%, rgb(var(--silver-1-rgb) / 0.2) 65%, rgb(var(--silver-1-rgb) / 0.85)) border-box;
 }
 
 .loot-title {
@@ -418,9 +418,9 @@
   clip-path: var(--hex-chip);
   padding: 8px 24px;
   --hex-in:
-    linear-gradient(180deg, rgba(241, 244, 248, 0.06), transparent 50%),
+    linear-gradient(180deg, rgb(var(--silver-4-rgb) / 0.06), transparent 50%),
     linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.3);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.3);
   background: var(--hex-edge);
   font-size: 0.98rem;
   font-weight: 500;
@@ -453,7 +453,7 @@ button.loot-chip {
 /* подсветка — кромкой самой плашки: тень-рамка рисовала прямоугольник поверх гекса */
 .loot-chip--clickable:hover,
 .loot-chip--clickable:focus-visible {
-  --hex-edge: rgba(228, 196, 110, 0.75);
+  --hex-edge: rgb(var(--gold-3-rgb) / 0.75);
   color: var(--gold-4);
   outline: none;
   transform: translateY(-1px);
@@ -573,8 +573,8 @@ button.loot-chip {
   clip-path: var(--hex-clip-elongated);
   overflow: visible;
   filter:
-    drop-shadow(0 0 22px rgba(205, 211, 219, 0.7))
-    drop-shadow(0 0 6px rgba(241, 244, 248, 0.55))
+    drop-shadow(0 0 22px rgb(var(--silver-3-rgb) / 0.7))
+    drop-shadow(0 0 6px rgb(var(--silver-4-rgb) / 0.55))
     drop-shadow(0 12px 30px rgba(0, 0, 0, 0.5));
 }
 
@@ -614,7 +614,7 @@ button.loot-chip {
 
 .hex-cell-wrap.is-expanded .hex-cell,
 .hex-cell-wrap:focus-within .hex-cell {
-  filter: drop-shadow(0 0 16px rgba(205, 211, 219, 0.55)) brightness(1.1);
+  filter: drop-shadow(0 0 16px rgb(var(--silver-3-rgb) / 0.55)) brightness(1.1);
   /* плоский низ — обложка стыкуется со списком без острого выступа */
   clip-path: var(--hex-clip-head);
   background: transparent;
@@ -673,7 +673,7 @@ button.loot-chip {
   mix-blend-mode: normal;
   filter: none;
 }
-.hex-cover--empty svg { width: 34%; height: 34%; color: rgba(228, 196, 110, 0.3); stroke-width: 1; }
+.hex-cover--empty svg { width: 34%; height: 34%; color: rgb(var(--gold-3-rgb) / 0.3); stroke-width: 1; }
 
 /* вторая, тонкая внутренняя грань оклада */
 /* внутренняя грань — только в свёрнутой соте */
@@ -682,7 +682,7 @@ button.loot-chip {
   position: absolute;
   inset: 6px;
   clip-path: var(--hex-point);
-  box-shadow: inset 0 0 0 1px rgba(205, 211, 219, 0.35);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-3-rgb) / 0.35);
   pointer-events: none;
   z-index: 3;
   transition: opacity 0.28s ease;
@@ -731,7 +731,7 @@ button.loot-chip {
   clip-path: var(--hex-chip);
   color: var(--gold-4);
   --hex-in: rgba(13, 14, 18, 0.82);
-  --hex-edge: rgba(168, 175, 186, 0.55);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.55);
   background: var(--hex-edge);
 }
 
@@ -784,7 +784,7 @@ button.loot-chip {
 
 .hex-loot-link:hover {
   color: var(--gold-4);
-  background: rgba(228, 196, 110, 0.14);
+  background: rgb(var(--gold-3-rgb) / 0.14);
 }
 
 /* список нововведений — внутри той же соты, без отдельной рамки */
@@ -813,7 +813,7 @@ button.loot-chip {
     10px
     calc(var(--hex-gap) + var(--hex-tip));
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(196, 154, 60, 0.08), transparent 62%),
+    radial-gradient(120% 80% at 50% 0%, rgb(var(--gold-2-rgb) / 0.08), transparent 62%),
     linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 55%, var(--bg-0) 100%);
 }
 
@@ -856,7 +856,7 @@ button.loot-chip {
   right: 6%;
   bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168, 175, 186, 0.45) 20%, rgba(241, 244, 248, 0.65) 50%, rgba(168, 175, 186, 0.45) 80%, transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--silver-2-rgb) / 0.45) 20%, rgb(var(--silver-4-rgb) / 0.65) 50%, rgb(var(--silver-2-rgb) / 0.45) 80%, transparent);
 }
 
 .hex-expand-title-text {
@@ -877,7 +877,7 @@ button.loot-chip {
   letter-spacing: 0.05em;
   color: var(--gold-3);
   --hex-in: rgba(13, 14, 18, 0.82);
-  --hex-edge: rgba(168, 175, 186, 0.5);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.5);
   background: var(--hex-edge);
 }
 
@@ -908,9 +908,9 @@ button.loot-chip {
   font-weight: 500;
   letter-spacing: 0.02em;
   --hex-in:
-    linear-gradient(180deg, rgba(241, 244, 248, 0.05), transparent 48%),
+    linear-gradient(180deg, rgb(var(--silver-4-rgb) / 0.05), transparent 48%),
     linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.26);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.26);
   background: var(--hex-edge);
   transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
 }
@@ -935,7 +935,7 @@ button.loot-chip {
 
 a.hex-expand-link:hover {
   color: var(--gold-4);
-  --hex-edge: rgba(205, 211, 219, 0.5);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.5);
   transform: translateY(-1px);
 }
 
@@ -1009,8 +1009,8 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
   padding: 12px 22px 12px 28px;
   overflow: hidden;
   clip-path: var(--hex-wide-blunt);
-  background: linear-gradient(180deg, rgba(38, 42, 50, 0.92), rgba(19, 21, 25, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35);
+  background: linear-gradient(180deg, rgb(var(--bg-3-rgb) / 0.92), rgb(var(--bg-1-rgb) / 0.96));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35);
   color: var(--text);
   text-align: left;
   text-decoration: none;
@@ -1018,9 +1018,9 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
 }
 /* тонкая золотая кромка по форме гексагона */
 .cr-card::before { content: ''; position: absolute; inset: 0; clip-path: var(--hex-wide-blunt); background: var(--gold-grad); opacity: 0.55; z-index: -1; }
-.cr-card::after { content: ''; position: absolute; inset: 1px; clip-path: var(--hex-wide-blunt); background: linear-gradient(180deg, #23262d, #131519); z-index: -1; }
+.cr-card::after { content: ''; position: absolute; inset: 1px; clip-path: var(--hex-wide-blunt); background: linear-gradient(180deg, #23262d, var(--bg-1)); z-index: -1; }
 .cr-card { isolation: isolate; }
-.cr-card:hover { transform: translateY(-2px); filter: brightness(1.1) drop-shadow(0 0 18px rgba(228, 196, 110, 0.25)); }
+.cr-card:hover { transform: translateY(-2px); filter: brightness(1.1) drop-shadow(0 0 18px rgb(var(--gold-3-rgb) / 0.25)); }
 .cr-card:focus-visible { outline: none; filter: brightness(1.15) drop-shadow(0 0 0 1px var(--gold-3)); }
 
 /* обложка комнаты — тихо, справа, растворяется к тексту */
@@ -1029,8 +1029,8 @@ a.hex-expand-link:hover .hex-expand-count { color: var(--gold-4); }
 .cr-face { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 52px; height: 60px; clip-path: var(--hex-point); background: var(--gold-grad); }
 .cr-face > img, .cr-face > b, .cr-face > svg { width: calc(100% - 4px); height: calc(100% - 4px); clip-path: var(--hex-point); }
 .cr-face > img { object-fit: cover; object-position: top; }
-.cr-face > b { display: grid; place-items: center; background: #1b1e24; color: var(--gold-3); font: 700 1.4rem var(--font-display); }
-.cr-face > svg { padding: 14px; box-sizing: border-box; background: #1b1e24; color: var(--gold-3); }
+.cr-face > b { display: grid; place-items: center; background: var(--bg-2); color: var(--gold-3); font: 700 1.4rem var(--font-display); }
+.cr-face > svg { padding: 14px; box-sizing: border-box; background: var(--bg-2); color: var(--gold-3); }
 
 .cr-text { position: relative; z-index: 1; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cr-kicker { color: var(--gold-2); font: 600 0.68rem/1 var(--font-body); font-style: normal; letter-spacing: 0.22em; text-transform: uppercase; }

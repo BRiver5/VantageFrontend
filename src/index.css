@@ -13,6 +13,8 @@
    более ранний слой. */
 @layer tokens, reset, legacy, layout, components, pages, utilities;
 
+@import './styles/tokens.css' layer(tokens);
+
 @import './styles/base.css' layer(legacy);
 @import './styles/home.css' layer(legacy);
 @import './styles/catalog.css' layer(legacy);

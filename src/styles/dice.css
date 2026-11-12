@@ -101,7 +101,7 @@
 }
 .dice-fab:hover {
   transform: translateY(-2px) scale(1.05);
-  filter: drop-shadow(0 0 14px rgba(205, 211, 219, 0.5));
+  filter: drop-shadow(0 0 14px rgb(var(--silver-3-rgb) / 0.5));
 }
 .dice-fab:active { transform: translateY(0) scale(0.98); }
 
@@ -175,7 +175,7 @@
 }
 .dice-close-btn:hover {
   transform: translateY(-2px);
-  filter: drop-shadow(0 0 12px rgba(205, 211, 219, 0.45));
+  filter: drop-shadow(0 0 12px rgb(var(--silver-3-rgb) / 0.45));
 }
 
 @keyframes dice-close-in {
@@ -342,7 +342,7 @@
   gap: 10px;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(168, 175, 186, 0.18);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.18);
   animation: dice-cloud-in 0.22s ease;
 }
 
@@ -374,8 +374,8 @@
     90deg,
     var(--gold-3) 0%,
     var(--gold-3) var(--vol-pct, 50%),
-    rgba(168, 175, 186, 0.25) var(--vol-pct, 50%),
-    rgba(168, 175, 186, 0.25) 100%
+    rgb(var(--silver-2-rgb) / 0.25) var(--vol-pct, 50%),
+    rgb(var(--silver-2-rgb) / 0.25) 100%
   );
   cursor: pointer;
   outline: none;
@@ -387,7 +387,7 @@
   height: 14px;
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   background: var(--gold-grad);
-  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 8px rgb(var(--gold-3-rgb) / 0.45), 0 0 0 1px rgba(0, 0, 0, 0.35);
   transition: transform 0.12s ease, filter 0.12s ease;
 }
 
@@ -397,7 +397,7 @@
   border: none;
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   background: var(--gold-grad);
-  box-shadow: 0 0 8px rgba(228, 196, 110, 0.45);
+  box-shadow: 0 0 8px rgb(var(--gold-3-rgb) / 0.45);
   transition: transform 0.12s ease;
 }
 
@@ -415,12 +415,12 @@
 .dice-volume-slider::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: rgba(168, 175, 186, 0.25);
+  background: rgb(var(--silver-2-rgb) / 0.25);
 }
 
 .dice-settings-divider {
   height: 1px;
-  background: rgba(168, 175, 186, 0.12);
+  background: rgb(var(--silver-2-rgb) / 0.12);
 }
 
 .dice-colors-block {
@@ -453,7 +453,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--silver-3-rgb) / 0.3);
 }
 
 .dice-fav-remove {
@@ -470,7 +470,7 @@
   color: var(--silver-3);
   font-size: 0.65rem;
   line-height: 1;
-  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
+  box-shadow: 0 0 0 1px rgb(var(--silver-3-rgb) / 0.35);
 }
 .dice-fav-remove:hover { background: #792c22; color: #fff; }
 
@@ -482,7 +482,7 @@
   border-radius: 50%;
   background: none;
   cursor: pointer;
-  box-shadow: 0 0 0 1px rgba(205, 211, 219, 0.35);
+  box-shadow: 0 0 0 1px rgb(var(--silver-3-rgb) / 0.35);
 }
 
 .dice-fav-add {
@@ -505,7 +505,7 @@
   height: 16px;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--silver-3-rgb) / 0.2);
   transition: transform 0.1s ease, opacity 0.15s ease;
 }
 .dice-preset:hover:not(:disabled) {
@@ -628,7 +628,7 @@
   flex-shrink: 0;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(205, 211, 219, 0.4);
+  box-shadow: inset 0 0 0 1.4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--silver-3-rgb) / 0.4);
   transition: transform 0.12s ease, box-shadow 0.15s ease;
 }
 .dice-row-color:hover {
@@ -739,7 +739,7 @@
 .dice-history-panel:hover .dice-history-scroll,
 .dice-history-panel:focus-within .dice-history-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 175, 186, 0.45) transparent;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.45) transparent;
 }
 
 .dice-history-scroll::-webkit-scrollbar { width: 0; height: 0; }
@@ -748,7 +748,7 @@
   width: 4px;
 }
 .dice-history-scroll::-webkit-scrollbar-thumb {
-  background: rgba(168, 175, 186, 0.45);
+  background: rgb(var(--silver-2-rgb) / 0.45);
   border-radius: 2px;
 }
 
@@ -821,11 +821,11 @@
 }
 
 .dice-history-result .dice-crit-fail { color: #c07f3c; }
-.dice-history-result .dice-crit-normal { color: #cdd3db; }
+.dice-history-result .dice-crit-normal { color: var(--silver-3); }
 .dice-history-result .dice-crit-success { color: var(--gold-4); }
 
 .dice-hist-op {
-  color: rgba(205, 211, 219, 0.7);
+  color: rgb(var(--silver-3-rgb) / 0.7);
   font-weight: 500;
 }
 .dice-hist-total {
@@ -836,7 +836,7 @@
 /* ---------- Цвет цифры по результату (крит-провал/успех) ---------- */
 /* минимум (1) — бронза, максимум грани — золото, всё между — серебро */
 .dice-crit-fail { color: #c07f3c; }
-.dice-crit-normal { color: #cdd3db; }
+.dice-crit-normal { color: var(--silver-3); }
 .dice-crit-success { color: var(--gold-3); }
 
 .dice-formula-error {
@@ -940,11 +940,11 @@
 }
 
 .dice-reveal-title--success {
-  filter: drop-shadow(0 0 18px rgba(228, 196, 110, 0.45));
+  filter: drop-shadow(0 0 18px rgb(var(--gold-3-rgb) / 0.45));
 }
 
 .dice-reveal-title--fail {
-  background: linear-gradient(180deg, #f6e7b6 8%, #e3c46e 40%, #c07f3c 72%, #8a3a22 100%);
+  background: linear-gradient(180deg, var(--gold-4) 8%, var(--gold-3) 40%, #c07f3c 72%, #8a3a22 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1071,7 +1071,7 @@
 }
 .dice-reveal-value.dice-crit-normal {
   color: #dfe4ec;
-  text-shadow: 0 0 22px rgba(205, 211, 219, 0.6), 0 0 44px rgba(140, 150, 165, 0.3);
+  text-shadow: 0 0 22px rgb(var(--silver-3-rgb) / 0.6), 0 0 44px rgba(140, 150, 165, 0.3);
 }
 .dice-reveal-value.dice-crit-success {
   color: var(--gold-4);
@@ -1449,8 +1449,8 @@
 .dq { --dq-die: 50px; --dq-ease: cubic-bezier(0.2, 1.15, 0.35, 1); }
 /* без поворотов и масштаба: векторный значок во время трансформации браузер рисует мылом */
 .dq .dice-fab { transition: filter 0.2s ease, opacity 0.3s ease; }
-.dq .dice-fab:hover { filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.45)); }
-.dq .dice-fab.is-open { filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.6)); }
+.dq .dice-fab:hover { filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.45)); }
+.dq .dice-fab.is-open { filter: drop-shadow(0 0 12px rgb(var(--gold-3-rgb) / 0.6)); }
 .dq .dice-fab::before { transition: background 0.25s ease; }
 .dq .dice-fab.is-open::before { background: linear-gradient(180deg, #3a3524, #1d1a12); }
 .dq .dice-fab.is-busy { opacity: 0.6; }
@@ -1507,7 +1507,7 @@
 .dq-die > * { position: relative; }
 .dq-die .die-asset-img { width: 26px; height: 26px; margin-top: -7px; }
 .dq-die-name { position: absolute !important; bottom: 7px; left: 0; right: 0; color: var(--gold-3); font-family: var(--font-display); font-size: 0.66rem; font-style: normal; font-weight: 700; letter-spacing: 0.04em; text-align: center; }
-.dq-die:hover:not(:disabled), .dq-row.is-active .dq-die { filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.55)); }
+.dq-die:hover:not(:disabled), .dq-row.is-active .dq-die { filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.55)); }
 .dq-die:hover:not(:disabled)::before, .dq-row.is-active .dq-die::before { background: linear-gradient(180deg, #3a3524, #1d1a12); }
 .dq-die:active:not(:disabled) { filter: brightness(0.85); }
 .dq-die:disabled { opacity: 0.5; cursor: default; }
@@ -1526,7 +1526,7 @@
   padding: 6px 12px 6px 22px;
   border-radius: 0 99px 99px 0;
   background: rgba(16, 17, 21, 0.94);
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35), 0 8px 18px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35), 0 8px 18px rgba(0, 0, 0, 0.45);
   clip-path: inset(0 100% 0 0 round 0 99px 99px 0);
   opacity: 0;
   transition: clip-path 0.32s var(--dq-ease), opacity 0.2s ease;
@@ -1534,34 +1534,34 @@
 }
 .dq-row.is-active .dq-side { clip-path: inset(0 0 0 0 round 0 99px 99px 0); opacity: 1; pointer-events: auto; }
 .dq-qty { display: flex; align-items: center; gap: 6px; }
-.dq-qty button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(196, 154, 60, 0.16); color: var(--gold-3); transition: background 0.18s ease, transform 0.18s ease; }
+.dq-qty button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgb(var(--gold-2-rgb) / 0.16); color: var(--gold-3); transition: background 0.18s ease, transform 0.18s ease; }
 .dq-qty button svg { width: 14px; height: 14px; }
-.dq-qty button:hover:not(:disabled) { background: rgba(196, 154, 60, 0.34); }
+.dq-qty button:hover:not(:disabled) { background: rgb(var(--gold-2-rgb) / 0.34); }
 .dq-qty button:disabled { opacity: 0.3; cursor: default; }
 .dq-qty b { min-width: 1.4em; color: var(--parchment); font-family: var(--font-display); font-size: 1.1rem; text-align: center; }
-.dq-mode { display: flex; gap: 4px; padding-left: 8px; border-left: 1px solid rgba(196, 154, 60, 0.25); }
-.dq-mode button { padding: 5px 10px; border: none; border-radius: 99px; cursor: pointer; background: rgba(168, 175, 186, 0.08); color: var(--text-dim); font: inherit; font-size: 0.78rem; white-space: nowrap; transition: background 0.18s ease, color 0.18s ease; }
+.dq-mode { display: flex; gap: 4px; padding-left: 8px; border-left: 1px solid rgb(var(--gold-2-rgb) / 0.25); }
+.dq-mode button { padding: 5px 10px; border: none; border-radius: 99px; cursor: pointer; background: rgb(var(--silver-2-rgb) / 0.08); color: var(--text-dim); font: inherit; font-size: 0.78rem; white-space: nowrap; transition: background 0.18s ease, color 0.18s ease; }
 .dq-mode button:hover { color: var(--text); }
 .dq-mode button.is-adv.is-on { background: rgba(98, 196, 123, 0.25); color: #b6f0c4; box-shadow: inset 0 0 0 1px rgba(98, 196, 123, 0.6); }
 .dq-mode button.is-dis.is-on { background: rgba(224, 87, 63, 0.25); color: #ffc2b8; box-shadow: inset 0 0 0 1px rgba(224, 87, 63, 0.6); }
 
 /* язычок для телефона: открыть полоску без броска */
-.dq-tab { position: relative; z-index: 3; display: grid; place-items: center; width: 22px; height: 30px; margin-left: -6px; padding: 0; border: none; border-radius: 0 8px 8px 0; cursor: pointer; background: rgba(16, 17, 21, 0.94); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35); color: var(--gold-3); }
+.dq-tab { position: relative; z-index: 3; display: grid; place-items: center; width: 22px; height: 30px; margin-left: -6px; padding: 0; border: none; border-radius: 0 8px 8px 0; cursor: pointer; background: rgba(16, 17, 21, 0.94); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35); color: var(--gold-3); }
 .dq-tab svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
 .dq-row.is-active .dq-tab svg { transform: rotate(180deg); }
 .dq-row:has(.dq-tab) .dq-side { margin-left: -4px; }
 
 /* журнал бросков: маленькая кнопка рядом с кубиком, список — над ней */
 .dq-journal { position: relative; align-self: flex-end; }
-.dq-journal-btn { position: relative; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(16, 17, 21, 0.92); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45), 0 6px 14px rgba(0, 0, 0, 0.45); color: var(--gold-3); transition: transform 0.2s ease, color 0.2s ease; }
+.dq-journal-btn { position: relative; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(16, 17, 21, 0.92); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.45), 0 6px 14px rgba(0, 0, 0, 0.45); color: var(--gold-3); transition: transform 0.2s ease, color 0.2s ease; }
 .dq-journal-btn svg { width: 16px; height: 16px; }
-.dq-journal-btn:hover, .dq-journal-btn.is-on { color: var(--gold-4); box-shadow: inset 0 0 0 1px var(--gold-3), 0 0 12px rgba(228, 196, 110, 0.45); }
+.dq-journal-btn:hover, .dq-journal-btn.is-on { color: var(--gold-4); box-shadow: inset 0 0 0 1px var(--gold-3), 0 0 12px rgb(var(--gold-3-rgb) / 0.45); }
 .dq-journal-btn em { position: absolute; top: -5px; right: -6px; min-width: 17px; padding: 0 4px; border-radius: 9px; background: var(--gold-3); color: #1c1007; font-size: 0.62rem; font-style: normal; font-weight: 800; line-height: 16px; text-align: center; }
-.dq-history { position: absolute; left: 0; bottom: calc(100% + 8px); display: flex; flex-direction: column; gap: 3px; width: max-content; min-width: 150px; max-width: 260px; max-height: min(60vh, 420px); margin: 0; padding: 6px; overflow-y: auto; list-style: none; border-radius: 12px; background: rgba(16, 17, 21, 0.95); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.3), 0 12px 28px rgba(0, 0, 0, 0.55); transform-origin: 0 100%; animation: dq-pop 0.28s cubic-bezier(0.2, 1.15, 0.35, 1); scrollbar-width: thin; }
+.dq-history { position: absolute; left: 0; bottom: calc(100% + 8px); display: flex; flex-direction: column; gap: 3px; width: max-content; min-width: 150px; max-width: 260px; max-height: min(60vh, 420px); margin: 0; padding: 6px; overflow-y: auto; list-style: none; border-radius: 12px; background: rgba(16, 17, 21, 0.95); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.3), 0 12px 28px rgba(0, 0, 0, 0.55); transform-origin: 0 100%; animation: dq-pop 0.28s cubic-bezier(0.2, 1.15, 0.35, 1); scrollbar-width: thin; }
 @keyframes dq-pop { from { opacity: 0; transform: translateY(8px) scale(0.9); } }
 .dq-history li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 14px; padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; outline: none; }
 .dq-history li.has-calc { cursor: help; }
-.dq-history li.has-calc:hover, .dq-history li.has-calc:focus { background: rgba(196, 154, 60, 0.12); }
+.dq-history li.has-calc:hover, .dq-history li.has-calc:focus { background: rgb(var(--gold-2-rgb) / 0.12); }
 .dq-history i { color: var(--text-dim); font-style: normal; }
 .dq-history b { color: var(--parchment); font-family: var(--font-display); font-size: 1.02rem; }
 /* формула расчёта: раскрывается под строкой при наведении (на телефоне — касанием) */

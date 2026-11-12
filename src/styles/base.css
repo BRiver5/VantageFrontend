@@ -4,64 +4,7 @@
    Тёмный чернильно-сливовый фон + гравированное золото + гексагоны
    ============================================================ */
 
-:root {
-  /* Уголь и пергамент — тёмный нейтральный тон в духе D&D Beyond */
-  --bg-0: #0d0e11;
-  --bg-1: #131519;
-  --bg-2: #1b1e24;
-  --bg-3: #262a32;
-  --panel: rgba(22, 24, 29, 0.88);
-  --text: #d9cfb6;
-  --text-dim: #97906f;
-  --parchment: #ecdcb0;
-
-  /* Золото — только в верхней навигации (списки Классы/Бестиарий и т.д.) */
-  --gold-0: #5c451c;
-  --gold-1: #8a6a2f;
-  --gold-2: #c49a3c;
-  --gold-3: #e3c46e;
-  --gold-4: #f6e7b6;
-
-  /* Градиенты золота */
-  --gold-grad: linear-gradient(160deg, var(--gold-0) 0%, var(--gold-2) 24%, var(--gold-4) 50%, var(--gold-2) 76%, var(--gold-0) 100%);
-  --gold-grad-h: linear-gradient(90deg, var(--gold-1), var(--gold-4) 50%, var(--gold-1));
-  --gold-text-grad: linear-gradient(180deg, var(--gold-4) 8%, var(--gold-3) 40%, var(--gold-2) 72%, var(--gold-1) 100%);
-
-  /* Серебро — рамки всего остального контента (середина и низ страницы) */
-  --silver-0: #4b4f56;
-  --silver-1: #7c828b;
-  --silver-2: #a8afba;
-  --silver-3: #cdd3db;
-  --silver-4: #f1f4f8;
-
-  --silver-grad: linear-gradient(160deg, var(--silver-0) 0%, var(--silver-2) 24%, var(--silver-4) 50%, var(--silver-2) 76%, var(--silver-0) 100%);
-  --silver-grad-h: linear-gradient(90deg, var(--silver-1), var(--silver-4) 50%, var(--silver-1));
-
-  /* Формы */
-  --hex-point: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  --hex-aspect: 1.1547; /* 2/√3 — правильные пропорции pointy-top гекса */
-  --hex-wide: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
-  --hex-wide-blunt: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
-  --hex-chip: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
-  --hex-stroke: 1px;
-
-  /* Умения подкласса — в таблице развития */
-  --feat-caster: #c878dc;
-  --feat-caster-dim: #9a5cb0;
-  --feat-martial: #d46458;
-  --feat-martial-dim: #a84038;
-
-  --font-display: 'Cormorant Unicase', 'Cormorant', serif;
-  --font-body: 'Inter', sans-serif;
-
-  --shadow-deep: 0 18px 44px rgba(0, 0, 0, 0.55);
-  --glow-gold: 0 0 18px rgba(228, 196, 110, 0.28), 0 0 46px rgba(228, 196, 110, 0.1);
-
-  /* сайдбар */
-  --sidebar-w: 252px;
-  --sidebar-w-collapsed: 76px;
-  --sidebar-w-expanded: 252px;
-}
+/* Цвета, шрифты, формы и шкалы — в tokens.css (слой tokens). */
 :root[data-sidebar='collapsed'] {
   --sidebar-w: var(--sidebar-w-collapsed);
 }
@@ -106,7 +49,7 @@ body::before {
 
 #root { position: relative; z-index: 1; }
 
-::selection { background: rgba(196, 154, 60, 0.35); color: var(--gold-4); }
+::selection { background: rgb(var(--gold-2-rgb) / 0.35); color: var(--gold-4); }
 
 /* Скроллбары под латунь */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -151,7 +94,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 .cw-vis,
 .cw-tab,
 .rt-card {
-  --hex-edge: rgba(168, 175, 186, 0.35);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.35);
   --hex-in: var(--bg-2);
   position: relative;
   isolation: isolate;
@@ -304,7 +247,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   line-height: 1.4;
   color: #e88;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(205, 211, 219, 0.2);
+  border: 1px solid rgb(var(--silver-3-rgb) / 0.2);
   border-radius: 6px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -412,7 +355,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   padding: 18px 12px 16px;
   box-sizing: border-box;
   background:
-    linear-gradient(180deg, rgb(19, 21, 25), rgb(13, 14, 17));
+    linear-gradient(180deg, rgb(var(--bg-1-rgb)), rgb(var(--bg-0-rgb)));
   border-right: 1px solid transparent;
   border-image: linear-gradient(180deg, var(--gold-1), var(--silver-0) 40%, transparent 100%) 1;
   overflow: hidden;
@@ -441,7 +384,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 .sidebar-brand .brand-logo,
 .sidebar-brand svg {
   flex-shrink: 0;
-  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.22));
+  filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.22));
 }
 
 .sidebar-brand-name {
@@ -548,7 +491,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
     rgba(110, 116, 128, 0.18) 0%,
     rgba(72, 76, 86, 0.34) 42%,
     rgba(140, 110, 40, 0.38) 72%,
-    rgba(228, 196, 110, 0.62) 100%
+    rgb(var(--gold-3-rgb) / 0.62) 100%
   );
   opacity: 0;
   transform: scaleX(0.97);
@@ -607,7 +550,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 .brand-logo {
   display: block;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.22));
+  filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.22));
 }
 
 .brand-name {
@@ -648,16 +591,16 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 
 .cat-btn svg { width: 15px; height: 15px; stroke-width: 1.5; flex-shrink: 0; }
 
-.cat-btn:hover { filter: brightness(1.25) drop-shadow(0 0 10px rgba(228, 196, 110, 0.35)); transform: translateY(-1px); }
+.cat-btn:hover { filter: brightness(1.25) drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.35)); transform: translateY(-1px); }
 .cat-btn:active { transform: translateY(0); }
 
 .cat-btn.is-active .cat-btn-inner {
   background:
-    linear-gradient(180deg, rgba(246, 231, 182, 0.16), rgba(196, 154, 60, 0.05) 55%),
+    linear-gradient(180deg, rgb(var(--gold-4-rgb) / 0.16), rgb(var(--gold-2-rgb) / 0.05) 55%),
     linear-gradient(180deg, var(--bg-3), var(--bg-2));
   color: var(--gold-4);
 }
-.cat-btn.is-active { filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.4)); }
+.cat-btn.is-active { filter: drop-shadow(0 0 12px rgb(var(--gold-3-rgb) / 0.4)); }
 
 /* ---------- Свиток «Классы» (если используется на страницах) ---------- */
 
@@ -750,6 +693,6 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 }
 .nav-scroll-item:hover {
   color: var(--gold-4);
-  background: linear-gradient(90deg, rgba(228, 196, 110, 0.12), transparent);
+  background: linear-gradient(90deg, rgb(var(--gold-3-rgb) / 0.12), transparent);
 }
 

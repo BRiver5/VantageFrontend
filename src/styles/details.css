@@ -32,7 +32,7 @@
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.85), rgba(124, 130, 139, 0.2) 35%, rgba(124, 130, 139, 0.2) 65%, rgba(124, 130, 139, 0.85)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.85), rgb(var(--silver-1-rgb) / 0.2) 35%, rgb(var(--silver-1-rgb) / 0.2) 65%, rgb(var(--silver-1-rgb) / 0.85)) border-box;
 }
 
 .book-cover {
@@ -44,12 +44,12 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #cfc0a2, #b8a887);
-  box-shadow: inset 0 0 0 1px rgba(92, 69, 28, 0.55), var(--shadow-deep);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-0-rgb) / 0.55), var(--shadow-deep);
   overflow: hidden;
 }
 
 /* иконка-фолбэк, если обложки нет или ссылка на неё битая (CoverImage) */
-.cover-fallback { width: 34%; height: 34%; stroke-width: 1; color: rgba(92, 69, 28, 0.55); }
+.cover-fallback { width: 34%; height: 34%; stroke-width: 1; color: rgb(var(--gold-0-rgb) / 0.55); }
 .book-cover img {
   width: 100%;
   height: 100%;
@@ -78,7 +78,7 @@
 }
 
 .tome-section {
-  border: 1px solid rgba(168, 175, 186, 0.32);
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.32);
   background: var(--panel);
 }
 
@@ -93,7 +93,7 @@
   transition: background 0.2s ease;
 }
 .tome-section summary::-webkit-details-marker { display: none; }
-.tome-section summary:hover { background: rgba(168, 175, 186, 0.07); }
+.tome-section summary:hover { background: rgb(var(--silver-2-rgb) / 0.07); }
 .tome-section summary svg { width: 18px; height: 18px; stroke-width: 1.5; color: var(--gold-2); }
 
 .tome-section-name {
@@ -122,7 +122,7 @@
   flex-wrap: wrap;
   gap: 7px;
   padding: 6px 22px 20px;
-  border-top: 1px solid rgba(168, 175, 186, 0.18);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.18);
   margin-top: 0;
   padding-top: 16px;
 }
@@ -131,7 +131,7 @@
   clip-path: var(--hex-chip);
   padding: 4px 17px;
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.22);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.22);
   background: var(--hex-edge);
   font-size: 0.94rem;
   font-weight: 500;
@@ -151,7 +151,7 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 .tome-entry--link:hover {
   color: var(--gold-4);
-  --hex-edge: rgba(205, 211, 219, 0.7);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.7);
 }
 
 .tome-entry--btn {
@@ -186,7 +186,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   object-fit: contain;
   object-position: center;
 }
-.detail-plate-fallback { width: 64px; height: 64px; stroke-width: 0.9; color: rgba(92, 69, 28, 0.55); }
+.detail-plate-fallback { width: 64px; height: 64px; stroke-width: 0.9; color: rgb(var(--gold-0-rgb) / 0.55); }
 /* у заклинаний и предметов часто нет арта — узкая пластина не нужна */
 .book-cover.detail-plate:has(.detail-plate-fallback) { aspect-ratio: 1; width: clamp(120px, 15vw, 170px); }
 
@@ -216,17 +216,17 @@ a.card-slot { text-decoration: none; color: inherit; }
    поэтому вместо цветного пятна из центра — нейтральный отблеск по углам) ---------- */
 .detail-plate--corner-glow {
   background:
-    radial-gradient(65% 65% at 4% 4%, rgba(205, 211, 219, 0.32), transparent 60%),
-    radial-gradient(65% 65% at 96% 4%, rgba(205, 211, 219, 0.32), transparent 60%),
-    radial-gradient(65% 65% at 4% 96%, rgba(205, 211, 219, 0.32), transparent 60%),
-    radial-gradient(65% 65% at 96% 96%, rgba(205, 211, 219, 0.32), transparent 60%),
+    radial-gradient(65% 65% at 4% 4%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 4%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 4% 96%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 96%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
     linear-gradient(180deg, var(--bg-2), var(--bg-0)) !important;
   box-shadow:
-    inset 0 0 0 1px rgba(168, 175, 186, 0.4),
-    inset 0 0 34px -10px rgba(205, 211, 219, 0.3),
+    inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
+    inset 0 0 34px -10px rgb(var(--silver-3-rgb) / 0.3),
     var(--shadow-deep) !important;
 }
-.detail-plate--corner-glow .detail-plate-fallback { color: rgba(205, 211, 219, 0.55); }
+.detail-plate--corner-glow .detail-plate-fallback { color: rgb(var(--silver-3-rgb) / 0.55); }
 
 /* ---------- Превью вложенного содержимого — стопка мини-иконок в левом нижнем углу арта ---------- */
 .detail-plate-contents {
@@ -246,7 +246,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   justify-content: center;
   border-radius: 6px;
   background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  box-shadow: 0 0 0 1.5px var(--bg-0), inset 0 0 0 1px rgba(168, 175, 186, 0.4), 0 3px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1.5px var(--bg-0), inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4), 0 3px 8px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .detail-plate-contents-item:not(:first-child) { margin-left: -10px; }
@@ -257,7 +257,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   padding: 3px 6px;
   border-radius: 5px;
   background: var(--bg-0);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.4);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4);
   font-family: var(--font-display);
   font-size: 0.7rem;
   font-weight: 700;
@@ -270,7 +270,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  box-shadow: 0 0 0 1px var(--bg-0), inset 0 0 0 1px rgba(168, 175, 186, 0.4), 0 2px 5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1px var(--bg-0), inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4), 0 2px 5px rgba(0, 0, 0, 0.5);
 }
 .detail-plate-contents--sm .detail-plate-contents-item img { padding: 2px; }
 .detail-plate-contents--sm .detail-plate-contents-item:not(:first-child) { margin-left: -7px; }
@@ -427,7 +427,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   cursor: default;
   clip-path: var(--hex-chip);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.28);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
   background: var(--hex-edge);
 }
 .tube-act-btn svg { width: 17px; height: 17px; }
@@ -462,14 +462,14 @@ a.card-slot { text-decoration: none; color: inherit; }
   height: 7px;
   transform: rotate(45deg);
   background: var(--gold-2);
-  box-shadow: 0 0 8px rgba(196, 154, 60, 0.55);
+  box-shadow: 0 0 8px rgb(var(--gold-2-rgb) / 0.55);
 }
 
 .parchment-scroll-title::after {
   content: '';
   flex: 1 1 auto;
   height: 1px;
-  background: linear-gradient(90deg, rgba(196, 154, 60, 0.5), rgba(196, 154, 60, 0.05));
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.5), rgb(var(--gold-2-rgb) / 0.05));
 }
 
 .parchment-scroll-title-text {
@@ -548,9 +548,9 @@ a.card-slot { text-decoration: none; color: inherit; }
   z-index: 1;
   margin: 0 12px;
   background:
-    radial-gradient(120% 65% at 50% 0%, rgba(196, 154, 60, 0.06), transparent 58%),
+    radial-gradient(120% 65% at 50% 0%, rgb(var(--gold-2-rgb) / 0.06), transparent 58%),
     linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 52%, var(--bg-1) 100%);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.24);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.24);
 }
 
 .parchment-scroll-sheet .corner {
@@ -584,7 +584,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   bottom: 0;
   height: 3.6em;
   background: linear-gradient(180deg, transparent, rgba(6, 7, 9, 0.72) 80%, rgba(6, 7, 9, 0.94) 100%);
-  box-shadow: inset 0 -1px 0 rgba(236, 220, 176, 0.16);
+  box-shadow: inset 0 -1px 0 rgb(var(--parchment-rgb) / 0.16);
   pointer-events: none;
   transition: opacity 0.32s ease;
 }
@@ -700,7 +700,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   color: var(--text);
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(168, 175, 186, 0.3);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.3);
   font-family: var(--font-body);
   font-size: 1rem;
 }
@@ -711,8 +711,8 @@ a.card-slot { text-decoration: none; color: inherit; }
   align-items: center;
   padding: 4px 11px;
   clip-path: var(--hex-chip);
-  --hex-in: rgba(196, 154, 60, 0.16);
-  --hex-edge: rgba(196, 154, 60, 0.4);
+  --hex-in: rgb(var(--gold-2-rgb) / 0.16);
+  --hex-edge: rgb(var(--gold-2-rgb) / 0.4);
   background: var(--hex-edge);
   color: var(--gold-3);
   font-family: var(--font-display);
@@ -756,7 +756,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.75), rgba(124, 130, 139, 0.2) 50%, rgba(124, 130, 139, 0.75)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.75), rgb(var(--silver-1-rgb) / 0.2) 50%, rgb(var(--silver-1-rgb) / 0.75)) border-box;
   transition: box-shadow 0.18s ease;
 }
 .rec-search > svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--gold-2); }
@@ -801,7 +801,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   border: none;
   color: var(--silver-2);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.28);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
   background: var(--hex-edge);
   font-family: var(--font-display);
   font-size: 0.88rem;
@@ -883,7 +883,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   clip-path: var(--hex-chip);
   color: var(--text-dim);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.22);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.22);
   background: var(--hex-edge);
   font-family: var(--font-display);
   font-size: 0.8rem;
@@ -930,7 +930,7 @@ a.card-slot { text-decoration: none; color: inherit; }
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 38%, rgba(124, 130, 139, 0.22) 62%, rgba(124, 130, 139, 0.8)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.8), rgb(var(--silver-1-rgb) / 0.22) 38%, rgb(var(--silver-1-rgb) / 0.22) 62%, rgb(var(--silver-1-rgb) / 0.8)) border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   --rarity-dot: #b0b6bf;
 }
@@ -954,7 +954,7 @@ a.card-slot { text-decoration: none; color: inherit; }
 }
 .rec-card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
 .rec-card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
-.rec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 14px rgba(205, 211, 219, 0.14); }
+.rec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 14px rgb(var(--silver-3-rgb) / 0.14); }
 
 /* картинка предмета — полностью вне рамки, слева от контейнера */
 .rec-thumb {
@@ -1196,13 +1196,13 @@ a.card-slot { text-decoration: none; color: inherit; }
   clip-path: var(--hex-chip);
   color: var(--silver-3);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.35);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.35);
   background: var(--hex-edge);
   cursor: pointer;
   transition: color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 .item-split-close svg { width: 18px; height: 18px; }
-.item-split-close:hover { color: var(--gold-3); --hex-edge: rgba(205, 211, 219, 0.65); transform: scale(1.06); }
+.item-split-close:hover { color: var(--gold-3); --hex-edge: rgb(var(--silver-3-rgb) / 0.65); transform: scale(1.06); }
 
 .detail-note {
   font-style: italic;
@@ -1279,8 +1279,8 @@ a.term-link:hover {
   position: absolute;
   inset: 8% 4% 6%;
   background:
-    radial-gradient(48% 46% at 50% 52%, rgba(228, 196, 110, 0.16), transparent 70%),
-    radial-gradient(70% 60% at 50% 60%, rgba(124, 130, 139, 0.12), transparent 72%);
+    radial-gradient(48% 46% at 50% 52%, rgb(var(--gold-3-rgb) / 0.16), transparent 70%),
+    radial-gradient(70% 60% at 50% 60%, rgb(var(--silver-1-rgb) / 0.12), transparent 72%);
   filter: blur(6px);
   pointer-events: none;
 }
@@ -1292,12 +1292,12 @@ a.term-link:hover {
   aspect-ratio: 1;
   translate: -50% -52%;
   fill: none;
-  stroke: rgba(205, 211, 219, 0.16);
+  stroke: rgb(var(--silver-3-rgb) / 0.16);
   stroke-width: 0.6;
   animation: beast-sigil-spin 120s linear infinite;
   pointer-events: none;
 }
-.beast-art-sigil polygon:first-child { stroke: rgba(228, 196, 110, 0.28); stroke-width: 0.9; }
+.beast-art-sigil polygon:first-child { stroke: rgb(var(--gold-3-rgb) / 0.28); stroke-width: 0.9; }
 @keyframes beast-sigil-spin { to { rotate: 360deg; } }
 .beast-art-floor {
   position: absolute;
@@ -1331,7 +1331,7 @@ a.term-link:hover {
   width: 120px;
   height: 120px;
   stroke-width: 0.7;
-  color: rgba(168, 175, 186, 0.45);
+  color: rgb(var(--silver-2-rgb) / 0.45);
 }
 
 /* --- табличка с именем: гекс ПО + имя --- */
@@ -1347,7 +1347,7 @@ a.term-link:hover {
   z-index: 2;
 }
 .beast-nameplate .book-title { text-wrap: balance; }
-.beast-cr { width: 74px; height: 85px; filter: drop-shadow(0 0 14px rgba(228, 196, 110, 0.18)); }
+.beast-cr { width: 74px; height: 85px; filter: drop-shadow(0 0 14px rgb(var(--gold-3-rgb) / 0.18)); }
 .beast-cr .hex-badge-inner b { font-size: 1.6rem; }
 .beast-cr .hex-badge-inner i { color: var(--gold-2); }
 .beast-nameplate-text { min-width: 0; }
@@ -1376,10 +1376,10 @@ a.term-link:hover {
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.14) 45%, rgba(124, 130, 139, 0.55)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.14) 45%, rgb(var(--silver-1-rgb) / 0.55)) border-box;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.beast-def-card:hover { transform: translateX(4px); box-shadow: -6px 0 22px rgba(228, 196, 110, 0.07); }
+.beast-def-card:hover { transform: translateX(4px); box-shadow: -6px 0 22px rgb(var(--gold-3-rgb) / 0.07); }
 .beast-def-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .beast-def-label {
   font-family: var(--font-display);
@@ -1407,7 +1407,7 @@ a.term-link:hover {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgba(241, 244, 248, 0.22) 50%, transparent 65%);
+  background: linear-gradient(105deg, transparent 35%, rgb(var(--silver-4-rgb) / 0.22) 50%, transparent 65%);
   translate: -120% 0;
   clip-path: path('M42 3.4 L77.3 15.1 V45.4 C77.3 70.6 60.5 85.7 42 94.1 C23.5 85.7 6.7 70.6 6.7 45.4 V15.1 Z');
   pointer-events: none;
@@ -1454,7 +1454,7 @@ a.term-link:hover {
 }
 .beast-stepper button:hover { background: var(--gold-1); color: var(--gold-4); }
 .beast-stepper svg { width: 12px; height: 12px; }
-.beast-hit-bar { height: 4px; background: rgba(168, 175, 186, 0.14); overflow: hidden; }
+.beast-hit-bar { height: 4px; background: rgb(var(--silver-2-rgb) / 0.14); overflow: hidden; }
 .beast-hit-bar span {
   display: block;
   height: 100%;
@@ -1511,7 +1511,7 @@ a.term-link:hover {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
 }
 .beast-vial-value b { color: var(--gold-4); animation: beast-pop 0.45s ease; }
-.beast-vial-value i { color: rgba(246, 231, 182, 0.75); }
+.beast-vial-value i { color: rgb(var(--gold-4-rgb) / 0.75); }
 @keyframes beast-pop {
   0% { scale: 0.6; opacity: 0; }
   60% { scale: 1.15; opacity: 1; }
@@ -1528,7 +1528,7 @@ a.term-link:hover {
   padding: 5px 16px;
   clip-path: var(--hex-chip);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.3);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.3);
   background: var(--hex-edge);
   font-size: 0.8rem;
   font-weight: 600;
@@ -1537,11 +1537,11 @@ a.term-link:hover {
 }
 .beast-roll-btn svg { width: 14px; height: 14px; color: var(--gold-2); transition: rotate 0.4s ease; }
 .beast-roll-btn b { color: var(--gold-3); }
-.beast-roll-btn:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.6); }
+.beast-roll-btn:hover { color: var(--gold-4); --hex-edge: rgb(var(--gold-3-rgb) / 0.6); }
 .beast-roll-btn:hover svg { rotate: 180deg; }
 .beast-roll-btn:active { translate: 0 1px; }
 .beast-roll-btn:disabled, .beast-save:disabled, .beast-skill:disabled { opacity: 0.5; cursor: progress; pointer-events: none; }
-.beast-roll-btn.is-prof { --hex-edge: rgba(228, 196, 110, 0.45); }
+.beast-roll-btn.is-prof { --hex-edge: rgb(var(--gold-3-rgb) / 0.45); }
 
 /* движение */
 .beast-move { flex-direction: column; align-items: stretch; gap: 8px; }
@@ -1549,17 +1549,17 @@ a.term-link:hover {
 .beast-move-row svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-2); }
 .beast-move-label { color: var(--text-dim); }
 .beast-move-row b { font-weight: 600; color: var(--text); }
-.beast-move-track { height: 3px; background: rgba(168, 175, 186, 0.14); }
+.beast-move-track { height: 3px; background: rgb(var(--silver-2-rgb) / 0.14); }
 .beast-move-track span { display: block; height: 100%; background: linear-gradient(90deg, var(--silver-1), var(--silver-3)); }
 
 /* --- роза характеристик --- */
 .beast-rose { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .beast-rose-chart { position: relative; width: min(100%, 340px); aspect-ratio: 1; }
 .beast-rose-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.beast-rose-ring { fill: none; stroke: rgba(168, 175, 186, 0.2); stroke-width: 0.8; }
-.beast-rose-ring:first-child { stroke: rgba(205, 211, 219, 0.42); stroke-width: 1.1; }
-.beast-rose-axis { stroke: rgba(168, 175, 186, 0.18); stroke-width: 0.8; transition: stroke 0.2s ease; }
-.beast-rose-axis.is-active { stroke: rgba(228, 196, 110, 0.75); stroke-dasharray: 3 3; }
+.beast-rose-ring { fill: none; stroke: rgb(var(--silver-2-rgb) / 0.2); stroke-width: 0.8; }
+.beast-rose-ring:first-child { stroke: rgb(var(--silver-3-rgb) / 0.42); stroke-width: 1.1; }
+.beast-rose-axis { stroke: rgb(var(--silver-2-rgb) / 0.18); stroke-width: 0.8; transition: stroke 0.2s ease; }
+.beast-rose-axis.is-active { stroke: rgb(var(--gold-3-rgb) / 0.75); stroke-dasharray: 3 3; }
 .beast-rose-data {
   fill: url(#rose-fill);
   stroke: var(--gold-3);
@@ -1567,7 +1567,7 @@ a.term-link:hover {
   stroke-linejoin: round;
   transform-origin: 160px 160px;
   animation: beast-rose-grow 0.9s cubic-bezier(0.2, 1.2, 0.4, 1) both;
-  filter: drop-shadow(0 0 8px rgba(228, 196, 110, 0.35));
+  filter: drop-shadow(0 0 8px rgb(var(--gold-3-rgb) / 0.35));
 }
 @keyframes beast-rose-grow { from { scale: 0; opacity: 0; } }
 .beast-rose-dot { fill: var(--gold-4); transition: r 0.2s ease; }
@@ -1595,7 +1595,7 @@ a.term-link:hover {
 .beast-rose-node b { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1; color: var(--gold-3); }
 .beast-rose-node i { font-style: normal; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-dim); margin-top: 2px; white-space: nowrap; }
 .beast-rose-node.is-prof { background: var(--gold-grad); }
-.beast-rose-node:hover, .beast-rose-node.is-active { scale: 1.12; filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.45)); }
+.beast-rose-node:hover, .beast-rose-node.is-active { scale: 1.12; filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.45)); }
 .beast-rose-node.is-active { background: var(--gold-grad); }
 .beast-rose-node.is-active i { color: var(--gold-2); }
 
@@ -1606,7 +1606,7 @@ a.term-link:hover {
   align-items: center;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid rgba(168, 175, 186, 0.18);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.18);
 }
 .beast-rose-readout-head { display: flex; align-items: baseline; gap: 10px; }
 .beast-rose-readout-name {
@@ -1664,9 +1664,9 @@ a.term-link:hover {
   padding: 22px 24px 20px;
   border: 1px solid transparent;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(228, 196, 110, 0.05), transparent 60%) padding-box,
+    radial-gradient(120% 80% at 50% 0%, rgb(var(--gold-3-rgb) / 0.05), transparent 60%) padding-box,
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.7), rgba(124, 130, 139, 0.14) 45%, rgba(124, 130, 139, 0.55)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.14) 45%, rgb(var(--silver-1-rgb) / 0.55)) border-box;
   animation: beast-card-in 0.5s ease both;
 }
 .beast-card:nth-child(2) { animation-delay: 0.05s; }
@@ -1694,14 +1694,14 @@ a.term-link:hover {
   min-height: 260px;
   max-height: 320px;
   margin: 4px 0 0 34px;
-  border-left: 1px solid rgba(168, 175, 186, 0.22);
+  border-left: 1px solid rgb(var(--silver-2-rgb) / 0.22);
 }
 .beast-size-tick {
   position: absolute;
   left: 0;
   right: 0;
   height: 0;
-  border-top: 1px dashed rgba(168, 175, 186, 0.14);
+  border-top: 1px dashed rgb(var(--silver-2-rgb) / 0.14);
 }
 .beast-size-tick i {
   position: absolute;
@@ -1765,10 +1765,10 @@ a.term-link:hover {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--gold-3);
-  background: rgba(13, 14, 17, 0.75);
-  border-bottom: 1px solid rgba(228, 196, 110, 0.5);
+  background: rgb(var(--bg-0-rgb) / 0.75);
+  border-bottom: 1px solid rgb(var(--gold-3-rgb) / 0.5);
 }
-.beast-size-mark--knight { color: var(--silver-3); border-bottom-color: rgba(205, 211, 219, 0.4); }
+.beast-size-mark--knight { color: var(--silver-3); border-bottom-color: rgb(var(--silver-3-rgb) / 0.4); }
 
 .beast-size-caption { margin-top: auto; padding-top: 14px; font-size: 0.84rem; color: var(--text-dim); line-height: 1.4; }
 .beast-size-caption b { font-family: var(--font-display); font-size: 1rem; letter-spacing: 0.06em; color: var(--parchment); }
@@ -1785,7 +1785,7 @@ a.term-link:hover {
   text-transform: uppercase;
   color: var(--gold-2);
 }
-.beast-card-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(168, 175, 186, 0.35), transparent); }
+.beast-card-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgb(var(--silver-2-rgb) / 0.35), transparent); }
 .beast-card-title svg { width: 16px; height: 16px; stroke-width: 1.6; color: var(--gold-3); }
 .beast-card-title--sub { margin: 18px 0 12px; font-size: 0.8rem; }
 
@@ -1796,7 +1796,7 @@ a.term-link:hover {
   height: 64px;
   padding: 1.5px;
   clip-path: var(--hex-point);
-  background: linear-gradient(160deg, rgba(124, 130, 139, 0.6), rgba(75, 79, 86, 0.6));
+  background: linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.6), rgb(var(--silver-0-rgb) / 0.6));
   transition: scale 0.18s ease, filter 0.18s ease;
 }
 .beast-save-inner {
@@ -1814,7 +1814,7 @@ a.term-link:hover {
 .beast-save.is-prof { background: var(--gold-grad); }
 .beast-save.is-prof b { color: var(--gold-3); }
 .beast-save.is-prof i { color: var(--gold-2); }
-.beast-save:hover { scale: 1.1; filter: drop-shadow(0 0 10px rgba(228, 196, 110, 0.4)); }
+.beast-save:hover { scale: 1.1; filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.4)); }
 .beast-save:active { scale: 1.02; }
 
 /* навыки — жетоны с бонусом */
@@ -1826,13 +1826,13 @@ a.term-link:hover {
   padding: 5px 16px 5px 6px;
   clip-path: var(--hex-chip);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.24);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.24);
   background: var(--hex-edge);
   font-size: 0.92rem;
   color: var(--text);
   transition: box-shadow 0.15s ease, color 0.15s ease, translate 0.15s ease;
 }
-.beast-skill:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.6); translate: 0 -1px; }
+.beast-skill:hover { color: var(--gold-4); --hex-edge: rgb(var(--gold-3-rgb) / 0.6); translate: 0 -1px; }
 .beast-skill-bonus {
   display: grid;
   place-items: center;
@@ -1908,7 +1908,7 @@ a.term-link:hover {
   height: 39px;
   clip-path: var(--hex-point);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.3);
 }
 .beast-cond-icon svg { width: 16px; height: 16px; stroke-width: 1.6; color: var(--silver-2); }
 .beast-cond-icon::after {
@@ -1918,7 +1918,7 @@ a.term-link:hover {
   height: 1.5px;
   background: var(--gold-3);
   rotate: -45deg;
-  box-shadow: 0 0 6px rgba(228, 196, 110, 0.6);
+  box-shadow: 0 0 6px rgb(var(--gold-3-rgb) / 0.6);
   scale: 0 1;
   transition: scale 0.25s ease;
 }
@@ -1928,11 +1928,11 @@ a.term-link:hover {
 /* чувства — сонар */
 .beast-sonar { display: flex; align-items: center; gap: 20px; }
 .beast-sonar svg { width: 120px; height: 120px; flex-shrink: 0; overflow: visible; }
-.beast-sonar-grid { fill: none; stroke: rgba(168, 175, 186, 0.16); stroke-width: 0.6; }
+.beast-sonar-grid { fill: none; stroke: rgb(var(--silver-2-rgb) / 0.16); stroke-width: 0.6; }
 .beast-sonar-ring { stroke-width: 1.2; transform-origin: 60px 60px; animation: beast-ping 0.9s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
 @keyframes beast-ping { from { scale: 0; opacity: 0; } }
 .beast-sonar-sweep { transform-origin: 60px 60px; animation: beast-sigil-spin 4s linear infinite; }
-.beast-sonar-sweep path { fill: rgba(228, 196, 110, 0.12); }
+.beast-sonar-sweep path { fill: rgb(var(--gold-3-rgb) / 0.12); }
 .beast-sonar-legend { list-style: none; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .beast-sonar-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--text-dim); }
 .beast-sonar-legend svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--c); }
@@ -1948,9 +1948,9 @@ a.term-link:hover {
   letter-spacing: 0.04em;
   color: var(--parchment);
   background:
-    linear-gradient(90deg, transparent, rgba(236, 220, 176, 0.06) 20%, rgba(236, 220, 176, 0.06) 80%, transparent);
-  border-top: 1px solid rgba(236, 220, 176, 0.18);
-  border-bottom: 1px solid rgba(236, 220, 176, 0.18);
+    linear-gradient(90deg, transparent, rgb(var(--parchment-rgb) / 0.06) 20%, rgb(var(--parchment-rgb) / 0.06) 80%, transparent);
+  border-top: 1px solid rgb(var(--parchment-rgb) / 0.18);
+  border-bottom: 1px solid rgb(var(--parchment-rgb) / 0.18);
 }
 .beast-lang:first-letter { text-transform: uppercase; }
 
@@ -1967,7 +1967,7 @@ a.term-link:hover {
   translate: -50% 0;
   clip-path: var(--hex-wide);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
-  box-shadow: inset 0 0 0 1px rgba(228, 196, 110, 0.5);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.5);
   animation: beast-toast-in 0.35s cubic-bezier(0.2, 1.3, 0.4, 1), beast-toast-out 0.4s ease 2.8s forwards;
 }
 .beast-toast svg { width: 20px; height: 20px; color: var(--gold-3); animation: beast-sigil-spin 0.6s ease-out; }
@@ -2006,8 +2006,8 @@ a.term-link:hover {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(38% 55% at 50% 42%, rgba(13, 14, 17, 0.55), transparent 75%),
-    linear-gradient(90deg, rgba(13, 14, 17, 0.4) 0%, transparent 14%, transparent 86%, rgba(13, 14, 17, 0.4) 100%);
+    radial-gradient(38% 55% at 50% 42%, rgb(var(--bg-0-rgb) / 0.55), transparent 75%),
+    linear-gradient(90deg, rgb(var(--bg-0-rgb) / 0.4) 0%, transparent 14%, transparent 86%, rgb(var(--bg-0-rgb) / 0.4) 100%);
 }
 @keyframes beast-world-in { from { opacity: 0; scale: 1.04; } }
 .has-world .beast-art-aura { opacity: 0.6; }
@@ -2016,7 +2016,7 @@ a.term-link:hover {
 .has-world .race-detail-aura { opacity: 0.7; }
 
 a.chip--link { text-decoration: none; transition: color 0.15s ease, box-shadow 0.15s ease; }
-a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55); }
+a.chip--link:hover { color: var(--gold-4); --hex-edge: rgb(var(--gold-3-rgb) / 0.55); }
 
 /* --- знак уникального персонажа рядом с именем --- */
 .beast-name-row { display: flex; align-items: center; gap: 12px; }
@@ -2063,7 +2063,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   width: 260px;
   padding: 12px 14px;
   translate: -50% 4px;
-  border: 1px solid rgba(228, 196, 110, 0.45);
+  border: 1px solid rgb(var(--gold-3-rgb) / 0.45);
   background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
   box-shadow: var(--shadow-deep);
   font-size: 0.82rem;
@@ -2093,8 +2093,8 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   translate: -50% -5px;
   rotate: 45deg;
   background: var(--bg-0);
-  border-right: 1px solid rgba(228, 196, 110, 0.45);
-  border-bottom: 1px solid rgba(228, 196, 110, 0.45);
+  border-right: 1px solid rgb(var(--gold-3-rgb) / 0.45);
+  border-bottom: 1px solid rgb(var(--gold-3-rgb) / 0.45);
 }
 .beast-unique:hover .beast-unique-tip,
 .beast-unique:focus-visible .beast-unique-tip { opacity: 1; visibility: visible; translate: -50% 0; }
@@ -2114,7 +2114,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   display: flex;
   gap: 16px;
   padding: 9px 4px;
-  border-bottom: 1px solid rgba(168, 175, 186, 0.16);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.16);
   font-size: 1.05rem;
 }
 .stat-row-label {
@@ -2158,7 +2158,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(13, 14, 17, 0.97) 0%, rgba(13, 14, 17, 0.9) 45%, rgba(13, 14, 17, 0.66) 100%);
+  background: linear-gradient(90deg, rgb(var(--bg-0-rgb) / 0.97) 0%, rgb(var(--bg-0-rgb) / 0.9) 45%, rgb(var(--bg-0-rgb) / 0.66) 100%);
 }
 .setting-hero .book-meta { position: relative; z-index: 1; }
 
@@ -2211,13 +2211,13 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   background:
     linear-gradient(
       180deg,
-      rgba(13, 14, 17, 0.1) 0%,
-      rgba(13, 14, 17, 0.32) 44%,
-      rgba(13, 14, 17, 0.72) 74%,
-      rgba(13, 14, 17, 0.93) 90%,
+      rgb(var(--bg-0-rgb) / 0.1) 0%,
+      rgb(var(--bg-0-rgb) / 0.32) 44%,
+      rgb(var(--bg-0-rgb) / 0.72) 74%,
+      rgb(var(--bg-0-rgb) / 0.93) 90%,
       var(--bg-0) 100%
     ),
-    linear-gradient(90deg, rgba(13, 14, 17, 0.5) 0%, transparent 30%, transparent 70%, rgba(13, 14, 17, 0.5) 100%);
+    linear-gradient(90deg, rgb(var(--bg-0-rgb) / 0.5) 0%, transparent 30%, transparent 70%, rgb(var(--bg-0-rgb) / 0.5) 100%);
 }
 /* содержимое героя выровнено с остальной страницей (центр, макс. 1280) */
 .world-hero-inner {
@@ -2244,7 +2244,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.85), rgba(124, 130, 139, 0.2) 35%, rgba(124, 130, 139, 0.2) 65%, rgba(124, 130, 139, 0.85)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.85), rgb(var(--silver-1-rgb) / 0.2) 35%, rgb(var(--silver-1-rgb) / 0.2) 65%, rgb(var(--silver-1-rgb) / 0.85)) border-box;
 }
 .world-hero--plain .world-hero-inner { padding: clamp(24px, 4vw, 44px); }
 
@@ -2263,7 +2263,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   color: inherit;
   transition: transform 0.22s ease, filter 0.22s ease;
 }
-.tome-card:hover { transform: translateY(-4px); filter: drop-shadow(0 0 14px rgba(205, 211, 219, 0.35)); }
+.tome-card:hover { transform: translateY(-4px); filter: drop-shadow(0 0 14px rgb(var(--silver-3-rgb) / 0.35)); }
 
 .tome-card-cover {
   width: 100%;
@@ -2272,7 +2272,7 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #cfc0a2, #b8a887);
-  box-shadow: inset 0 0 0 1px rgba(92, 69, 28, 0.55), 0 10px 22px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-0-rgb) / 0.55), 0 10px 22px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 .tome-card-cover img {
@@ -2306,8 +2306,8 @@ a.chip--link:hover { color: var(--gold-4); --hex-edge: rgba(228, 196, 110, 0.55)
 /* ---------- записи книги и мира карточками ---------- */
 
 .te-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 0; padding: 4px 16px 16px; list-style: none; }
-.te-cards .te-card { display: flex; align-items: center; gap: 12px; height: 100%; padding: 8px 10px; border-radius: 10px; background: rgba(168, 175, 186, 0.05); box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.12); color: var(--text); text-decoration: none; transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.2s ease; }
-.te-cards a.te-card:hover { background: rgba(196, 154, 60, 0.1); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.5); transform: translateY(-2px); }
+.te-cards .te-card { display: flex; align-items: center; gap: 12px; height: 100%; padding: 8px 10px; border-radius: 10px; background: rgb(var(--silver-2-rgb) / 0.05); box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.12); color: var(--text); text-decoration: none; transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.2s ease; }
+.te-cards a.te-card:hover { background: rgb(var(--gold-2-rgb) / 0.1); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5); transform: translateY(-2px); }
 .te-art { flex: none; display: grid; place-items: center; width: 48px; aspect-ratio: 100 / 115.47; overflow: hidden; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: radial-gradient(circle at 50% 35%, #2e2a24, #121214); color: var(--gold-2); }
 .te-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; }
 .te-art.is-school img { width: 64%; height: 64%; object-fit: contain; }

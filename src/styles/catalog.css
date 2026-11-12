@@ -35,7 +35,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
-    linear-gradient(160deg, rgba(168, 175, 186, 0.7), rgba(168, 175, 186, 0.25) 40%, rgba(168, 175, 186, 0.7)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.7), rgb(var(--silver-2-rgb) / 0.25) 40%, rgb(var(--silver-2-rgb) / 0.7)) border-box;
   transition: box-shadow 0.18s ease;
 }
 .quest-input > svg { width: 18px; height: 18px; color: var(--gold-2); flex-shrink: 0; }
@@ -61,7 +61,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 
 .quest-input:focus-within,
 .rec-search:focus-within {
-  box-shadow: 0 0 0 1px rgba(196, 154, 60, 0.5), 0 0 18px -4px rgba(196, 154, 60, 0.45);
+  box-shadow: 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5), 0 0 18px -4px rgb(var(--gold-2-rgb) / 0.45);
 }
 .quest-input:focus-within::before,
 .quest-input:focus-within::after,
@@ -122,13 +122,13 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   max-height: min(68vh, 560px);
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 175, 186, 0.3) transparent;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.3) transparent;
   padding: 16px 18px 18px;
   text-align: left;
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
-    linear-gradient(160deg, rgba(196, 154, 60, 0.55), rgba(124, 130, 139, 0.22) 55%, rgba(196, 154, 60, 0.55)) border-box;
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.55), rgb(var(--silver-1-rgb) / 0.22) 55%, rgb(var(--gold-2-rgb) / 0.55)) border-box;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.62);
   animation: quest-filter-drop 0.26s cubic-bezier(0.33, 1, 0.35, 1);
 }
@@ -136,7 +136,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 .quest-filter-group + .quest-filter-group {
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid rgba(168, 175, 186, 0.14);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.14);
 }
 
 .quest-filter-group-label {
@@ -185,7 +185,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   clip-path: var(--hex-chip);
   padding: 7px 20px;
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.3);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.3);
   background: var(--hex-edge);
   font-size: 0.92rem;
   font-weight: 500;
@@ -193,13 +193,13 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   transition: color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .sort-btn svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-2); flex-shrink: 0; }
-.sort-btn:hover { color: var(--text); --hex-edge: rgba(168, 175, 186, 0.55); }
+.sort-btn:hover { color: var(--text); --hex-edge: rgb(var(--silver-2-rgb) / 0.55); }
 .sort-btn.is-active {
   color: var(--gold-4);
   --hex-in:
-    linear-gradient(180deg, rgba(241, 244, 248, 0.16), transparent 55%),
+    linear-gradient(180deg, rgb(var(--silver-4-rgb) / 0.16), transparent 55%),
     linear-gradient(180deg, var(--bg-3), var(--bg-2));
-  --hex-edge: rgba(205, 211, 219, 0.6);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.6);
 }
 .sort-btn.is-active svg { color: var(--gold-4); }
 
@@ -225,12 +225,12 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   border: 1px solid transparent;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(160deg, rgba(124, 130, 139, 0.8), rgba(124, 130, 139, 0.22) 38%, rgba(124, 130, 139, 0.22) 62%, rgba(124, 130, 139, 0.8)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.8), rgb(var(--silver-1-rgb) / 0.22) 38%, rgb(var(--silver-1-rgb) / 0.22) 62%, rgb(var(--silver-1-rgb) / 0.8)) border-box;
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 .card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgba(205, 211, 219, 0.16);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgb(var(--silver-3-rgb) / 0.16);
 }
 
 /* срезанные уголки как у оклада */
@@ -337,7 +337,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   z-index: 2;
   width: 38%;
   height: 38%;
-  color: rgba(196, 154, 60, 0.45);
+  color: rgb(var(--gold-2-rgb) / 0.45);
   stroke-width: 0.85;
   transform: scale(1.42);
   transform-origin: center bottom;
@@ -353,8 +353,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   transform: translateY(-100%);
   background: linear-gradient(
     to top,
-    rgba(196, 154, 60, 0.38) 0%,
-    rgba(196, 154, 60, 0.2) 38%,
+    rgb(var(--gold-2-rgb) / 0.38) 0%,
+    rgb(var(--gold-2-rgb) / 0.2) 38%,
     rgba(228, 196, 120, 0.08) 68%,
     transparent 100%
   );
@@ -377,7 +377,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   gap: 10px;
   background:
     linear-gradient(168deg, rgba(28, 32, 42, 0.97), rgba(14, 16, 22, 0.98)) padding-box,
-    linear-gradient(155deg, rgba(168, 175, 186, 0.45), rgba(168, 175, 186, 0.12) 45%, rgba(168, 175, 186, 0.35)) border-box;
+    linear-gradient(155deg, rgb(var(--silver-2-rgb) / 0.45), rgb(var(--silver-2-rgb) / 0.12) 45%, rgb(var(--silver-2-rgb) / 0.35)) border-box;
   border: 1px solid transparent;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
   transition: box-shadow 0.22s ease;
@@ -417,7 +417,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 }
 
 .card.card--portrait:hover .class-card-panel {
-  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.55), 0 0 24px rgba(196, 154, 60, 0.1);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.55), 0 0 24px rgb(var(--gold-2-rgb) / 0.1);
 }
 
 .card.card--portrait:hover .class-card-portrait > img {
@@ -510,7 +510,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   line-height: 1;
   clip-path: var(--hex-chip);
   padding: 0 15px;
-  --hex-in: linear-gradient(180deg, rgba(196, 154, 60, 0.26), rgba(196, 154, 60, 0.08));
+  --hex-in: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.26), rgb(var(--gold-2-rgb) / 0.08));
   --hex-edge: rgba(228, 196, 120, 0.4);
   background: var(--hex-edge);
   font-family: var(--font-display);
@@ -543,7 +543,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   display: flex;
   margin-top: auto;
   padding-top: 11px;
-  border-top: 1px solid rgba(168, 175, 186, 0.16);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.16);
 }
 
 .race-rail-cell {
@@ -557,7 +557,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   min-width: 0;
 }
 .race-rail-cell + .race-rail-cell {
-  border-left: 1px solid rgba(168, 175, 186, 0.14);
+  border-left: 1px solid rgb(var(--silver-2-rgb) / 0.14);
 }
 .race-rail-cell svg {
   width: 15px;
@@ -642,7 +642,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   transform: none;
   filter: saturate(0.85) brightness(0.88);
   box-shadow:
-    0 0 0 1px rgba(168, 175, 186, 0.4),
+    0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
     0 0 0 5px rgba(14, 16, 22, 0.9),
     0 0 0 6px color-mix(in srgb, var(--danger) 45%, transparent),
     0 16px 34px rgba(0, 0, 0, 0.55);
@@ -669,9 +669,9 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   transform: none;
   filter: saturate(0.92) brightness(0.94);
   box-shadow:
-    0 0 0 1px rgba(168, 175, 186, 0.4),
+    0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
     0 0 0 5px rgba(14, 16, 22, 0.9),
-    0 0 0 6px rgba(196, 154, 60, 0.45),
+    0 0 0 6px rgb(var(--gold-2-rgb) / 0.45),
     0 16px 34px rgba(0, 0, 0, 0.55);
   transition: filter 0.28s ease;
 }
@@ -823,7 +823,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 .catalog-group-rule {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168, 175, 186, 0.45) 30%, rgba(168, 175, 186, 0.45) 70%, transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--silver-2-rgb) / 0.45) 30%, rgb(var(--silver-2-rgb) / 0.45) 70%, transparent);
 }
 
 .catalog-group-plate {
@@ -835,9 +835,9 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   clip-path: var(--hex-chip);
   padding: 7px 22px;
   --hex-in:
-    linear-gradient(180deg, rgba(241, 244, 248, 0.06), transparent 55%),
+    linear-gradient(180deg, rgb(var(--silver-4-rgb) / 0.06), transparent 55%),
     linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.32);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.32);
   background: var(--hex-edge);
   font-family: var(--font-display);
   font-size: 1.02rem;
@@ -867,8 +867,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 999px;
-  background: rgba(196, 154, 60, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  background: rgb(var(--gold-2-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
   color: var(--gold-4);
 }
 
@@ -878,8 +878,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 }
 .catalog-group-plate--link:hover {
   color: var(--gold-4);
-  --hex-edge: rgba(228, 196, 110, 0.75);
-  filter: drop-shadow(0 0 12px rgba(196, 154, 60, 0.22));
+  --hex-edge: rgb(var(--gold-3-rgb) / 0.75);
+  filter: drop-shadow(0 0 12px rgb(var(--gold-2-rgb) / 0.22));
 }
 
 /* ---------- Карточка предыстории: горизонтальная, гекс слева ---------- */
@@ -916,14 +916,14 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   box-sizing: border-box;
   background:
     linear-gradient(180deg, rgba(28, 31, 38, 0.96), rgba(16, 18, 22, 0.98)) padding-box,
-    linear-gradient(160deg, rgba(168, 175, 186, 0.7), rgba(124, 130, 139, 0.2) 40%, rgba(124, 130, 139, 0.2) 60%, rgba(168, 175, 186, 0.7)) border-box;
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.2) 40%, rgb(var(--silver-1-rgb) / 0.2) 60%, rgb(var(--silver-2-rgb) / 0.7)) border-box;
 }
 .card.card--bg:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgba(205, 211, 219, 0.14);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgb(var(--silver-3-rgb) / 0.14);
 }
 .card.card--bg:hover .bg-card-hex {
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 14px rgba(205, 211, 219, 0.28));
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 14px rgb(var(--silver-3-rgb) / 0.28));
 }
 .card.card--bg:hover .bg-card-go {
   color: var(--gold-3);
@@ -965,7 +965,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   inset: 28%;
   width: 44%;
   height: 44%;
-  color: rgba(228, 196, 110, 0.32);
+  color: rgb(var(--gold-3-rgb) / 0.32);
   stroke-width: 1.2;
 }
 
@@ -1057,7 +1057,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   height: 34px;
   border-radius: 6px;
   background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.35);
 }
 .eq-icon-face {
   display: block;
@@ -1075,7 +1075,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 .eq-icon-face--empty svg {
   width: 18px;
   height: 18px;
-  color: rgba(228, 196, 110, 0.42);
+  color: rgb(var(--gold-3-rgb) / 0.42);
   stroke-width: 1.4;
 }
 .eq-icon-face--choice {
@@ -1084,7 +1084,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   font-weight: 700;
   color: var(--gold-3);
   background: linear-gradient(180deg, rgba(28, 24, 15, 0.95), rgba(11, 10, 8, 0.98));
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.4);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
 }
 .eq-icon-badge {
   position: absolute;
@@ -1096,7 +1096,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   padding: 1px 4px 1px 2px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(228, 196, 110, 0.45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.45);
   z-index: 1;
 }
 .eq-icon-badge img,
@@ -1125,7 +1125,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--text-dim);
-  background: linear-gradient(180deg, rgba(38, 42, 50, 0.95), rgba(18, 20, 24, 0.98));
+  background: linear-gradient(180deg, rgb(var(--bg-3-rgb) / 0.95), rgba(18, 20, 24, 0.98));
 }
 
 /* ряд плашек характеристик на карточке черты (вместо снаряжения у предыстории) */
@@ -1146,7 +1146,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   padding: 5px 10px;
   border-radius: 6px;
   background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.35);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.35);
   font-family: var(--font-display);
   font-size: 0.72rem;
   font-weight: 600;
@@ -1217,7 +1217,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   margin: 0 auto;
   width: 36px;
   height: 36px;
-  color: rgba(205, 211, 219, 0.2);
+  color: rgb(var(--silver-3-rgb) / 0.2);
   stroke-width: 1.2;
 }
 
@@ -1489,7 +1489,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #cfc0a2, #b8a887);
-  box-shadow: inset 0 0 0 1px rgba(92, 69, 28, 0.55), inset 0 0 26px rgba(60, 44, 16, 0.3);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-0-rgb) / 0.55), inset 0 0 26px rgba(60, 44, 16, 0.3);
   overflow: hidden;
 }
 .card-img img {
@@ -1501,7 +1501,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   object-fit: contain;
   object-position: center;
 }
-.card-img-fallback { width: 52px; height: 52px; stroke-width: 1; color: rgba(92, 69, 28, 0.55); }
+.card-img-fallback { width: 52px; height: 52px; stroke-width: 1; color: rgb(var(--gold-0-rgb) / 0.55); }
 
 .card-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 
@@ -1512,7 +1512,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   clip-path: var(--hex-chip);
   padding: 5px 18px;
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgba(168, 175, 186, 0.28);
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
   background: var(--hex-edge);
   font-size: 0.92rem;
   font-weight: 500;
@@ -1528,8 +1528,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
 
 /* бейдж книги-источника — аббревиатура, полное название всплывает через title */
 .source-chip {
-  --hex-in: linear-gradient(180deg, rgba(205, 211, 219, 0.14), var(--bg-1) 60%);
-  --hex-edge: rgba(205, 211, 219, 0.5);
+  --hex-in: linear-gradient(180deg, rgb(var(--silver-3-rgb) / 0.14), var(--bg-1) 60%);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.5);
   color: var(--gold-3);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1571,7 +1571,7 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
   font-size: 0.9rem;
   font-style: italic;
   color: var(--text-dim);
-  border-top: 1px solid rgba(168, 175, 186, 0.2);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.2);
 }
 .card-foot svg { width: 13px; height: 13px; color: var(--gold-1); flex-shrink: 0; }
 

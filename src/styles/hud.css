@@ -34,7 +34,7 @@
   color: var(--text);
   font-size: calc(var(--u) * 13);
   background:
-    radial-gradient(ellipse 58% 90% at 46% 62%, rgba(196, 154, 60, 0.13), transparent 70%),
+    radial-gradient(ellipse 58% 90% at 46% 62%, rgb(var(--gold-2-rgb) / 0.13), transparent 70%),
     linear-gradient(180deg, #14161b, #0b0c0f);
 }
 .ghud button { font: inherit; color: inherit; }
@@ -172,7 +172,7 @@
   line-height: 1;
   white-space: nowrap;
 }
-.ghud-round.is-on .ghud-round-ring { color: var(--gold-4); box-shadow: inset 0 0 0 1.5px var(--gold-4), 0 0 12px rgba(228, 196, 110, 0.4); }
+.ghud-round.is-on .ghud-round-ring { color: var(--gold-4); box-shadow: inset 0 0 0 1.5px var(--gold-4), 0 0 12px rgb(var(--gold-3-rgb) / 0.4); }
 .ghud-round.is-on > i { color: var(--gold-4); }
 .ghud-round.is-alert .ghud-round-ring { animation: ghud-pulse 1.8s ease-in-out infinite; }
 .ghud-round.is-alert .ghud-round-ring em { background: #e0574b; color: #fff; }
@@ -264,7 +264,7 @@
   text-align: center;
 }
 .ghud-emblem + .ghud-emblem,
-.ghud-insp-wrap { box-shadow: -1px 0 0 rgba(168, 175, 186, 0.18); }
+.ghud-insp-wrap { box-shadow: -1px 0 0 rgb(var(--silver-2-rgb) / 0.18); }
 .ghud-emblem svg { width: calc(var(--u) * 13); height: calc(var(--u) * 13); color: var(--gold-3); }
 .ghud-emblem b {
   color: var(--parchment);
@@ -280,7 +280,7 @@
   font-style: normal;
   line-height: 1;
 }
-.ghud-emblem.is-lit svg { color: var(--gold-4); fill: var(--gold-3); filter: drop-shadow(0 0 5px rgba(228, 196, 110, 0.8)); }
+.ghud-emblem.is-lit svg { color: var(--gold-4); fill: var(--gold-3); filter: drop-shadow(0 0 5px rgb(var(--gold-3-rgb) / 0.8)); }
 .ghud-insp-pop {
   position: absolute;
   z-index: 8;
@@ -324,9 +324,9 @@
   border-radius: 50%;
   background: radial-gradient(circle at 50% 30%, #2b2f38, #0f1115 74%);
   box-shadow:
-    inset 0 0 0 1px rgba(168, 175, 186, 0.45),
-    inset 0 0 0 4px rgba(13, 14, 17, 0.9),
-    inset 0 0 0 5px rgba(168, 175, 186, 0.16),
+    inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.45),
+    inset 0 0 0 4px rgb(var(--bg-0-rgb) / 0.9),
+    inset 0 0 0 5px rgb(var(--silver-2-rgb) / 0.16),
     0 3px 8px rgba(0, 0, 0, 0.55);
   transition: transform 0.14s ease;
 }
@@ -355,8 +355,8 @@
 .ghud-abil.is-prof {
   box-shadow:
     inset 0 0 0 1.5px var(--gold-2),
-    inset 0 0 0 4px rgba(13, 14, 17, 0.9),
-    inset 0 0 0 5px rgba(196, 154, 60, 0.3),
+    inset 0 0 0 4px rgb(var(--bg-0-rgb) / 0.9),
+    inset 0 0 0 5px rgb(var(--gold-2-rgb) / 0.3),
     0 3px 8px rgba(0, 0, 0, 0.55);
 }
 .ghud-abil:active:not(:disabled) { transform: scale(0.93); }
@@ -375,7 +375,7 @@
   width: calc(var(--u) * 360);
   height: calc(var(--u) * 360);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(196, 154, 60, 0.2), transparent 66%);
+  background: radial-gradient(circle, rgb(var(--gold-2-rgb) / 0.2), transparent 66%);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -386,7 +386,7 @@
   width: calc(var(--u) * 330);
   height: calc(var(--u) * 330);
   fill: none;
-  stroke: rgba(196, 154, 60, 0.26);
+  stroke: rgb(var(--gold-2-rgb) / 0.26);
   stroke-width: 0.7;
   translate: -50% -50%;
   animation: ghud-spin 90s linear infinite;
@@ -447,8 +447,8 @@
   gap: calc(var(--u) * 3);
   padding: calc(var(--u) * 2) calc(var(--u) * 9);
   border-radius: 999px;
-  background: rgba(13, 14, 17, 0.8);
-  box-shadow: inset 0 0 0 1px var(--gold-2), 0 0 12px rgba(228, 196, 110, 0.35);
+  background: rgb(var(--bg-0-rgb) / 0.8);
+  box-shadow: inset 0 0 0 1px var(--gold-2), 0 0 12px rgb(var(--gold-3-rgb) / 0.35);
   color: var(--gold-4);
   font-size: calc(var(--u) * 11);
   pointer-events: auto;
@@ -493,7 +493,7 @@
   inset: 0;
   rotate: -90deg;
 }
-.ghud-orb-track { fill: none; stroke: rgba(168, 175, 186, 0.22); stroke-width: 5; }
+.ghud-orb-track { fill: none; stroke: rgb(var(--silver-2-rgb) / 0.22); stroke-width: 5; }
 .ghud-orb-fill { fill: none; stroke: var(--gold-3); stroke-linecap: round; stroke-width: 5; transition: stroke-dashoffset 0.5s ease; }
 .ghud-orb-dial b {
   color: var(--gold-4);
@@ -678,7 +678,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-evenly;
-  background: linear-gradient(90deg, rgba(13, 14, 17, 0.72), rgba(19, 21, 25, 0.97));
+  background: linear-gradient(90deg, rgb(var(--bg-0-rgb) / 0.72), rgb(var(--bg-1-rgb) / 0.97));
   box-shadow: inset 1px 0 0 color-mix(in srgb, var(--gold-1) 45%, transparent);
 }
 .ghud-rail button {
@@ -701,7 +701,7 @@
   width: calc(var(--u) * 34);
   height: calc(var(--u) * 34 * var(--hex-aspect) * 0.92);
   clip-path: var(--hex-point);
-  background: linear-gradient(180deg, rgba(196, 154, 60, 0.26), rgba(196, 154, 60, 0.06));
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.26), rgb(var(--gold-2-rgb) / 0.06));
   color: var(--gold-3);
 }
 .ghud-rail-sign svg { width: calc(var(--u) * 17); height: calc(var(--u) * 17); }
@@ -800,7 +800,7 @@ html[data-rotate] .dice-dock {
   flex-direction: column;
   margin: calc(var(--u) * 5);
   background:
-    radial-gradient(ellipse 70% 90% at 50% 0%, rgba(196, 154, 60, 0.09), transparent 70%),
+    radial-gradient(ellipse 70% 90% at 50% 0%, rgb(var(--gold-2-rgb) / 0.09), transparent 70%),
     linear-gradient(168deg, rgba(28, 32, 42, 0.985), rgba(12, 13, 17, 0.99));
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--gold-2) 58%, transparent),
@@ -819,8 +819,8 @@ html[data-rotate] .dice-dock {
   gap: calc(var(--u) * 8);
   min-height: calc(var(--u) * 38);
   padding: calc(var(--u) * 4) calc(var(--u) * 10);
-  background: linear-gradient(90deg, rgba(196, 154, 60, 0.15), transparent 60%);
-  box-shadow: inset 0 -1px 0 rgba(196, 154, 60, 0.26);
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.15), transparent 60%);
+  box-shadow: inset 0 -1px 0 rgb(var(--gold-2-rgb) / 0.26);
 }
 .hud-win-sign {
   display: grid;
@@ -828,7 +828,7 @@ html[data-rotate] .dice-dock {
   width: calc(var(--u) * 26);
   height: calc(var(--u) * 26 * var(--hex-aspect));
   clip-path: var(--hex-point);
-  background: linear-gradient(180deg, rgba(196, 154, 60, 0.42), rgba(196, 154, 60, 0.1));
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.42), rgb(var(--gold-2-rgb) / 0.1));
   color: var(--gold-4);
 }
 .hud-win-sign svg { width: calc(var(--u) * 14); height: calc(var(--u) * 14); }
@@ -849,7 +849,7 @@ html[data-rotate] .dice-dock {
   height: calc(var(--u) * 34);
   padding: 0;
   border-radius: 50%;
-  background: rgba(13, 14, 17, 0.6);
+  background: rgb(var(--bg-0-rgb) / 0.6);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-2) 60%, transparent);
   color: var(--gold-3);
 }
@@ -896,7 +896,7 @@ html[data-rotate] .dice-dock {
   min-height: calc(var(--u) * 36);
   padding: calc(var(--u) * 3) calc(var(--u) * 8);
   background: none;
-  box-shadow: inset 2px 0 0 rgba(168, 175, 186, 0.2);
+  box-shadow: inset 2px 0 0 rgb(var(--silver-2-rgb) / 0.2);
   color: var(--text-dim);
   font-size: calc(var(--u) * 12.5);
   text-align: left;
@@ -907,7 +907,7 @@ html[data-rotate] .dice-dock {
   font-style: normal;
 }
 .hud-split-tabs button.is-on {
-  background: linear-gradient(90deg, rgba(196, 154, 60, 0.2), transparent);
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.2), transparent);
   box-shadow: inset 2px 0 0 var(--gold-3);
   color: var(--gold-4);
 }
@@ -980,12 +980,12 @@ html[data-rotate] .dice-dock {
   min-height: 0;
   padding: 0 calc(var(--u) * 7);
   clip-path: none;
-  background: linear-gradient(90deg, rgba(168, 175, 186, 0.1), transparent);
+  background: linear-gradient(90deg, rgb(var(--silver-2-rgb) / 0.1), transparent);
   font-size: calc(var(--u) * 12);
 }
 .hud-win--skills .beast-skill::before,
 .hud-win--skills .beast-skill::after { display: none; }
-.hud-win--skills .beast-skill.is-prof { background: linear-gradient(90deg, rgba(196, 154, 60, 0.24), transparent); }
+.hud-win--skills .beast-skill.is-prof { background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.24), transparent); }
 .hud-win--skills .beast-skill-bonus {
   flex: none;
   min-width: calc(var(--u) * 24);
@@ -1078,7 +1078,7 @@ html[data-rotate] .dice-dock {
   display: grid;
   place-items: center;
   padding: calc(var(--u) * 20);
-  border: 1px dashed rgba(168, 175, 186, 0.24);
+  border: 1px dashed rgb(var(--silver-2-rgb) / 0.24);
   color: var(--text-dim);
   font-size: calc(var(--u) * 12);
   text-align: center;
@@ -1127,7 +1127,7 @@ html[data-rotate] .dice-dock {
   min-width: 0;
   min-height: calc(var(--u) * 24);
   padding: 0;
-  box-shadow: inset 0 -1px 0 rgba(168, 175, 186, 0.14);
+  box-shadow: inset 0 -1px 0 rgb(var(--silver-2-rgb) / 0.14);
 }
 .cw-book.is-tabbed .cw-bstat i {
   font-size: calc(var(--u) * 10.5);
@@ -1342,7 +1342,7 @@ html[data-rotate] .dice-dock {
   margin-top: calc(var(--u) * 4);
   padding: calc(var(--u) * 4) 0 0;
   overflow-y: auto;
-  border-top: 1px solid rgba(196, 154, 60, 0.24);
+  border-top: 1px solid rgb(var(--gold-2-rgb) / 0.24);
   background: none;
 }
 .hud-win--hero .cw-story-looks i { font-size: calc(var(--u) * 9.5); letter-spacing: 0.02em; }
@@ -1423,7 +1423,7 @@ html[data-rotate] .dice-dock {
   align-items: center;
   gap: calc(var(--u) * 6);
   padding-bottom: calc(var(--u) * 6);
-  border-bottom: 1px solid rgba(168, 175, 186, 0.14);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
 }
 .hud-pop .eng-pending li > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hud-pop .eng-pending li i { color: var(--text-dim); font-size: calc(var(--u) * 11); font-style: normal; }
@@ -1444,7 +1444,7 @@ html[data-rotate] .dice-dock {
   align-items: center;
   column-gap: calc(var(--u) * 8);
   padding: calc(var(--u) * 4) 0;
-  border-bottom: 1px solid rgba(168, 175, 186, 0.12);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.12);
   font-size: calc(var(--u) * 12.5);
 }
 .hud-rolls li > span { grid-column: 1; }
@@ -1465,7 +1465,7 @@ html[data-rotate] .dice-dock {
   gap: calc(var(--u) * 3);
   padding: calc(var(--u) * 10) calc(var(--u) * 8);
   background: radial-gradient(ellipse at 50% 0%, rgba(127, 178, 232, 0.16), transparent 70%);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.26);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.26);
   text-align: center;
 }
 .hud-rest svg { width: calc(var(--u) * 24); height: calc(var(--u) * 24); color: var(--gold-3); }
@@ -1555,13 +1555,13 @@ html[data-rotate] .dice-dock {
   height: calc(var(--u) * 44);
   border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, #2a2e37, #101216 76%);
-  box-shadow: inset 0 0 0 1px rgba(168, 175, 186, 0.3);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.3);
   color: var(--parchment);
   font-family: var(--font-display);
   font-size: calc(var(--u) * 18);
   font-weight: 700;
 }
-.hud-hp-keys button:active { background: rgba(196, 154, 60, 0.3); }
+.hud-hp-keys button:active { background: rgb(var(--gold-2-rgb) / 0.3); }
 .hud-hp-keys svg { width: calc(var(--u) * 17); height: calc(var(--u) * 17); color: var(--text-dim); }
 .hud-hp-acts {
   display: flex;
@@ -1650,7 +1650,7 @@ html[data-rotate] .dice-dock {
   align-items: center;
   justify-content: space-between;
   padding: calc(var(--u) * 6) calc(var(--u) * 12);
-  box-shadow: inset 0 -1px 0 rgba(196, 154, 60, 0.26);
+  box-shadow: inset 0 -1px 0 rgb(var(--gold-2-rgb) / 0.26);
 }
 .hud-menu > header b {
   font-family: var(--font-display);
@@ -1674,7 +1674,7 @@ html[data-rotate] .dice-dock {
   gap: calc(var(--u) * 10);
   min-height: calc(var(--u) * 42);
   padding: 0 calc(var(--u) * 6);
-  border-bottom: 1px solid rgba(168, 175, 186, 0.1);
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.1);
   background: none;
   color: var(--parchment);
   font-size: calc(var(--u) * 14);
@@ -1683,7 +1683,7 @@ html[data-rotate] .dice-dock {
 }
 .hud-menu-item svg { flex: none; width: calc(var(--u) * 17); height: calc(var(--u) * 17); color: var(--gold-3); }
 .hud-menu-item:disabled { opacity: 0.45; }
-.hud-menu-vis { flex: none; padding: calc(var(--u) * 7) calc(var(--u) * 6); border-bottom: 1px solid rgba(168, 175, 186, 0.1); }
+.hud-menu-vis { flex: none; padding: calc(var(--u) * 7) calc(var(--u) * 6); border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.1); }
 .hud-menu-vis > span { color: var(--text-dim); font-size: calc(var(--u) * 11.5); }
 .hud-menu-vis > div { display: flex; gap: calc(var(--u) * 3); margin-top: calc(var(--u) * 4); }
 .hud-menu-vis button {
@@ -1694,13 +1694,13 @@ html[data-rotate] .dice-dock {
   gap: 1px;
   min-height: calc(var(--u) * 40);
   padding: calc(var(--u) * 3);
-  background: rgba(168, 175, 186, 0.06);
+  background: rgb(var(--silver-2-rgb) / 0.06);
   color: var(--text-dim) !important;
   font-size: calc(var(--u) * 10.5) !important;
 }
 .hud-menu-vis svg { width: calc(var(--u) * 15); height: calc(var(--u) * 15); }
 .hud-menu-vis button.is-on {
-  background: rgba(196, 154, 60, 0.18);
+  background: rgb(var(--gold-2-rgb) / 0.18);
   box-shadow: inset 0 0 0 1px var(--gold-2);
   color: var(--gold-4) !important;
 }
@@ -1708,7 +1708,7 @@ html[data-rotate] .dice-dock {
   flex: none;
   padding: calc(var(--u) * 6) calc(var(--u) * 12);
   font-size: calc(var(--u) * 11.5);
-  box-shadow: inset 0 1px 0 rgba(168, 175, 186, 0.14);
+  box-shadow: inset 0 1px 0 rgb(var(--silver-2-rgb) / 0.14);
 }
 
 /* ---------- попапы листа: шапка слева, текст справа ---------- */
@@ -1778,7 +1778,7 @@ html[data-rotate] .dice-dock {
   overflow: hidden;
   text-align: center;
   background:
-    radial-gradient(ellipse 80% 50% at 50% 40%, rgba(196, 154, 60, 0.15), transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% 40%, rgb(var(--gold-2-rgb) / 0.15), transparent 70%),
     linear-gradient(180deg, #14161b, #0b0c0f);
 }
 .hud-rotate-sigil {
@@ -1788,7 +1788,7 @@ html[data-rotate] .dice-dock {
   width: min(150vw, 680px);
   height: min(150vw, 680px);
   fill: none;
-  stroke: rgba(196, 154, 60, 0.13);
+  stroke: rgb(var(--gold-2-rgb) / 0.13);
   stroke-width: 0.5;
   translate: -50% -50%;
   animation: ghud-spin 120s linear infinite;
@@ -1804,14 +1804,14 @@ html[data-rotate] .dice-dock {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.4;
-  filter: drop-shadow(0 0 12px rgba(228, 196, 110, 0.4));
+  filter: drop-shadow(0 0 12px rgb(var(--gold-3-rgb) / 0.4));
 }
 .hud-rotate-phone {
   transform-box: view-box;
   transform-origin: 60px 63px;
   animation: hud-rotate-turn 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
-.hud-rotate-phone rect { fill: rgba(196, 154, 60, 0.12); }
+.hud-rotate-phone rect { fill: rgb(var(--gold-2-rgb) / 0.12); }
 .hud-rotate-phone circle { fill: var(--gold-3); stroke: none; }
 .hud-rotate-arc { stroke-dasharray: 4 6; opacity: 0.8; }
 @keyframes hud-rotate-turn {

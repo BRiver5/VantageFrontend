@@ -5,17 +5,17 @@
    ============================================================ */
 
 .kb-layer { position: fixed; inset: 0; z-index: 120; display: grid; place-items: stretch; padding: clamp(0px, 1.6vw, 22px); background: rgba(6, 4, 2, 0.62); backdrop-filter: blur(3px); animation: tb-fade 0.25s ease; font-size: 15px; }
-.kb-shell { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: 0; overflow: hidden; border-radius: 14px; background: #1a110b; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(196, 154, 60, 0.35); animation: kb-in 0.4s cubic-bezier(0.2, 1, 0.3, 1); }
+.kb-shell { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: 0; overflow: hidden; border-radius: 14px; background: #1a110b; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35); animation: kb-in 0.4s cubic-bezier(0.2, 1, 0.3, 1); }
 @keyframes kb-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
 
 /* ---------- переплёт: навигация ---------- */
 
-.kb-nav { display: flex; flex-direction: column; min-height: 0; gap: 10px; padding: 16px 12px 12px; background: linear-gradient(180deg, #2a1a10, #1d130c); box-shadow: inset -1px 0 0 rgba(196, 154, 60, 0.25), inset -14px 0 18px -14px rgba(0, 0, 0, 0.8); color: var(--parchment); }
+.kb-nav { display: flex; flex-direction: column; min-height: 0; gap: 10px; padding: 16px 12px 12px; background: linear-gradient(180deg, #2a1a10, #1d130c); box-shadow: inset -1px 0 0 rgb(var(--gold-2-rgb) / 0.25), inset -14px 0 18px -14px rgba(0, 0, 0, 0.8); color: var(--parchment); }
 .kb-brand { position: relative; display: flex; align-items: center; gap: 9px; padding: 0 36px 6px 6px; }
 .kb-brand > svg { width: 20px; height: 20px; color: var(--gold-3); }
 .kb-brand b { color: var(--gold-3); font-family: var(--font-display); font-size: 19px; font-weight: 700; letter-spacing: 0.02em; }
 .kb-brand .tb-card-x { position: absolute; top: -6px; right: -2px; }
-.kb-search { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.2); }
+.kb-search { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.2); }
 .kb-search svg { width: 15px; height: 15px; color: var(--text-dim); }
 .kb-search input { flex: 1; min-width: 0; border: none; background: none; color: var(--parchment); font: inherit; font-size: 13.5px; }
 .kb-search input:focus { outline: none; }
@@ -23,26 +23,26 @@
 .kb-new-wrap { position: relative; flex: 1; display: flex; }
 .kb-new { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; border: none; border-radius: 9px; cursor: pointer; background: linear-gradient(180deg, var(--gold-3), var(--gold-1)); color: #1c1007; font: inherit; font-size: 13px; font-weight: 700; }
 .kb-new svg { width: 15px; height: 15px; }
-.kb-new.is-quiet { flex: none; width: 36px; background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.25); color: var(--gold-3); }
-.kb-new.is-quiet:hover, .kb-new.is-quiet.is-on { background: rgba(196, 154, 60, 0.2); }
-.kb-new-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; display: flex; flex-direction: column; min-width: 230px; padding: 5px; border-radius: 10px; background: #24170e; box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.35), 0 14px 30px rgba(0, 0, 0, 0.55); animation: ck-pop 0.2s ease; }
+.kb-new.is-quiet { flex: none; width: 36px; background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.25); color: var(--gold-3); }
+.kb-new.is-quiet:hover, .kb-new.is-quiet.is-on { background: rgb(var(--gold-2-rgb) / 0.2); }
+.kb-new-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; display: flex; flex-direction: column; min-width: 230px; padding: 5px; border-radius: 10px; background: #24170e; box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35), 0 14px 30px rgba(0, 0, 0, 0.55); animation: ck-pop 0.2s ease; }
 .kb-new-menu button { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: none; border-radius: 7px; cursor: pointer; background: none; color: var(--parchment); font: inherit; font-size: 13.5px; text-align: left; }
-.kb-new-menu button:hover { background: rgba(196, 154, 60, 0.14); }
+.kb-new-menu button:hover { background: rgb(var(--gold-2-rgb) / 0.14); }
 .kb-new-menu span { display: grid; place-items: center; width: 22px; font-size: 16px; }
 .kb-new-menu svg { width: 15px; height: 15px; color: var(--text-dim); }
-.kb-newfolder { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: rgba(196, 154, 60, 0.1); }
+.kb-newfolder { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: rgb(var(--gold-2-rgb) / 0.1); }
 .kb-newfolder svg { width: 15px; height: 15px; color: var(--gold-3); }
 .kb-newfolder input { flex: 1; border: none; background: none; color: var(--parchment); font: inherit; font-size: 13.5px; }
 .kb-newfolder input:focus { outline: none; }
 
 .kb-tree { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px 30px; scrollbar-width: thin; }
 .kb-tree ul { margin: 0; padding: 0; list-style: none; }
-.kb-pinned { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed rgba(196, 154, 60, 0.25); }
+.kb-pinned { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed rgb(var(--gold-2-rgb) / 0.25); }
 .kb-pinned h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 8px; color: var(--gold-2); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .kb-pinned h4 svg { width: 12px; height: 12px; }
 .kb-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 8px; border: none; border-radius: 7px; cursor: pointer; background: none; color: var(--text); font: inherit; font-size: 13.5px; text-align: left; transition: background 0.12s ease, color 0.12s ease; }
 .kb-row:hover { background: rgba(255, 255, 255, 0.05); color: var(--parchment); }
-.kb-row.is-on { background: rgba(196, 154, 60, 0.18); color: var(--gold-4); }
+.kb-row.is-on { background: rgb(var(--gold-2-rgb) / 0.18); color: var(--gold-4); }
 .kb-row-icon { flex: none; display: grid; place-items: center; width: 18px; font-size: 14px; }
 .kb-row-icon svg { width: 15px; height: 15px; opacity: 0.7; }
 .kb-row.is-folder .kb-row-icon svg { color: var(--gold-2); opacity: 1; }
@@ -55,9 +55,9 @@
 .kb-folder-head { position: relative; display: flex; align-items: center; }
 .kb-folder-add { position: absolute; right: 4px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: none; border-radius: 6px; cursor: pointer; background: none; color: var(--text-dim); opacity: 0; transition: opacity 0.15s ease; }
 .kb-folder-head:hover .kb-folder-add { opacity: 1; }
-.kb-folder-add:hover { background: rgba(196, 154, 60, 0.18); color: var(--gold-3); }
+.kb-folder-add:hover { background: rgb(var(--gold-2-rgb) / 0.18); color: var(--gold-3); }
 .kb-folder-add svg { width: 14px; height: 14px; }
-.kb-folder.is-over > .kb-folder-head .kb-row { background: rgba(196, 154, 60, 0.25); box-shadow: inset 0 0 0 1px var(--gold-3); }
+.kb-folder.is-over > .kb-folder-head .kb-row { background: rgb(var(--gold-2-rgb) / 0.25); box-shadow: inset 0 0 0 1px var(--gold-3); }
 .kb-hint { margin: 6px 8px; color: var(--text-dim); font-size: 13px; font-style: italic; }
 
 /* ---------- сцена: страница или граф ---------- */
@@ -87,7 +87,7 @@
 .kb-icon.is-empty svg { width: 30px; height: 30px; }
 .kb-icons { position: absolute; top: calc(100% + 6px); left: 0; z-index: 6; display: grid; grid-template-columns: repeat(6, 36px); gap: 2px; padding: 8px; border-radius: 12px; background: #24170e; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5); animation: ck-pop 0.2s ease; }
 .kb-icons button { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; background: none; font-size: 20px; }
-.kb-icons button:hover { background: rgba(196, 154, 60, 0.2); }
+.kb-icons button:hover { background: rgb(var(--gold-2-rgb) / 0.2); }
 .kb-icons .is-clear { grid-column: 1 / -1; width: auto; height: 28px; color: var(--text-dim); font: inherit; font-size: 12px; }
 .kb-title { flex: 1; min-width: 0; padding: 0; border: none; background: transparent; color: var(--ink); font-family: var(--font-display); font-size: clamp(28px, 3.2vw, 42px); font-weight: 700; line-height: 1.1; }
 .kb-title:focus { outline: none; }
@@ -128,7 +128,7 @@
 .kb-suggest { position: absolute; left: 16px; top: 40px; z-index: 6; min-width: 240px; margin: 0; padding: 4px; list-style: none; border-radius: 10px; background: #24170e; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5); }
 .kb-suggest button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 9px; border: none; border-radius: 7px; cursor: pointer; background: none; color: var(--parchment); font: inherit; font-size: 13.5px; text-align: left; }
 .kb-suggest button svg { width: 14px; height: 14px; opacity: 0.6; }
-.kb-suggest button.is-on, .kb-suggest button:hover { background: rgba(196, 154, 60, 0.2); }
+.kb-suggest button.is-on, .kb-suggest button:hover { background: rgb(var(--gold-2-rgb) / 0.2); }
 
 /* правая колонка: оглавление и обратные ссылки */
 .kb-side { position: sticky; top: 12px; align-self: start; display: flex; flex-direction: column; gap: 20px; font-size: 13px; }
@@ -247,7 +247,7 @@ h4.kb-h { font-size: 1.1em; font-variant: small-caps; letter-spacing: 0.03em; }
 .kb-board-link { position: relative; }
 .kb-board-pages { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 6; display: flex; flex-direction: column; max-height: 220px; min-width: 200px; overflow-y: auto; padding: 4px; border-radius: 10px; background: #24170e; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5); }
 .kb-board-pages button { padding: 6px 9px; border: none; border-radius: 7px; cursor: pointer; background: none; color: var(--parchment); font: inherit; font-size: 13px; text-align: left; }
-.kb-board-pages button:hover { background: rgba(196, 154, 60, 0.2); }
+.kb-board-pages button:hover { background: rgb(var(--gold-2-rgb) / 0.2); }
 .kb-board-h { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--ink-soft); font-size: 12px; }
 .kb-board-h input { width: 110px; accent-color: #6b4510; }
 
@@ -278,7 +278,7 @@ h4.kb-h { font-size: 1.1em; font-variant: small-caps; letter-spacing: 0.03em; }
 .kb-graph { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #2a1c12, #120b06 75%); cursor: grab; touch-action: none; }
 .kb-graph:active { cursor: grabbing; }
 .kb-graph svg { display: block; }
-.kb-edge { stroke: rgba(228, 196, 110, 0.22); stroke-width: 1; transition: stroke 0.2s ease, opacity 0.2s ease; }
+.kb-edge { stroke: rgb(var(--gold-3-rgb) / 0.22); stroke-width: 1; transition: stroke 0.2s ease, opacity 0.2s ease; }
 .kb-edge.is-lit { stroke: rgba(255, 220, 140, 0.85); stroke-width: 1.6; }
 .kb-edge.is-dim { opacity: 0.25; }
 .kb-node { cursor: pointer; transition: opacity 0.2s ease; }
@@ -304,11 +304,11 @@ h4.kb-h { font-size: 1.1em; font-variant: small-caps; letter-spacing: 0.03em; }
 /* ---------- дашборд: закреплённое ---------- */
 
 .kb-pins { display: flex; flex-direction: column; gap: 6px; height: 100%; overflow-y: auto; }
-.kb-pin-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: none; border-radius: 8px; cursor: pointer; background: rgba(255, 250, 235, 0.06); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.2); color: var(--parchment); font: inherit; text-align: left; }
-.kb-pin-card:hover { background: rgba(196, 154, 60, 0.12); }
+.kb-pin-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: none; border-radius: 8px; cursor: pointer; background: rgba(255, 250, 235, 0.06); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.2); color: var(--parchment); font: inherit; text-align: left; }
+.kb-pin-card:hover { background: rgb(var(--gold-2-rgb) / 0.12); }
 .kb-pin-card b { font-family: var(--font-display); font-size: 15px; }
 .kb-pin-card i { color: var(--text-dim); font-size: 12px; font-style: normal; line-height: 1.35; }
-.kb-open-all { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding: 4px 10px; border: none; border-radius: 99px; cursor: pointer; background: rgba(196, 154, 60, 0.16); color: var(--gold-3); font: inherit; font-size: 12.5px; }
+.kb-open-all { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding: 4px 10px; border: none; border-radius: 99px; cursor: pointer; background: rgb(var(--gold-2-rgb) / 0.16); color: var(--gold-3); font: inherit; font-size: 12.5px; }
 .kb-open-all svg { width: 14px; height: 14px; }
 .kb-hint:only-child { margin: auto; }
 
