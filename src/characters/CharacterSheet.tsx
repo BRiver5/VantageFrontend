@@ -19,16 +19,11 @@ import {
   Backpack,
   BookOpen,
   Camera,
-  Crosshair,
   Dices,
   Eye,
   EyeOff,
   Footprints,
-  Hand,
   Heart,
-  Languages,
-  NotebookPen,
-  Send,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -39,34 +34,34 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { cleanDescription, realImage } from '../api'
 import type { Currency, Feat } from '../api'
-import { CoinImg } from '../coins'
 import { formatDice } from '../equipment'
 import { useCatalogList } from '../create/useCatalog'
 import { parseAbilityText } from '../abilities/AbilityText'
-import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../types/character'
 import type { AbilityName, InventoryItemInstance, SheetView } from '../types/character'
 import { abilityMod } from '../create/dnd5e'
 import { alignmentAbbr } from '../create/steps/AlignmentChart'
 import { GameHud, type HudControls, type HudTab } from './GameHud'
 import { HudSplit, RotateGate } from './hud/HudChrome'
 import { HeroStage } from './HeroStage'
-import { InventoryBoard } from './InventoryBoard'
 import { useAppShell } from '../shell'
 import { SheetModal } from './SheetModal'
 import { SpellBook } from './SpellBook'
 import type { FaceCrop } from './portrait'
 import type { SheetPatch, SheetPlay } from './sheetPlay'
-import { attackTags, d20Cards, tagBonus, tagCards, type RollContext } from './rollBonuses'
 import { RollTheater } from '../dice/theater/RollTheater'
 import { ActionButton, activeStates, EnginePanel, type EngineView } from './EnginePanel'
 import { ResourceBand } from './ResourceBand'
-import { abilityPath } from './sheetView'
-import { WhyDot, WhyProvider } from './WhyPopover'
+import { WhyProvider } from './WhyPopover'
 import type { Outcome } from './useCharacterEngine'
 import type { StageEngine } from './HeroStage'
-import { type FeatureRow, SOURCE_GROUPS, SOURCE_LABEL, STATUS_LABEL, type SheetAttack, attacksPerAction, parseDamage, signed } from './sheet/rules'
-import { Card, DieButton, FeatureText, HeroPortrait, RollLog, WeaponArt } from './sheet/parts'
+import { type FeatureRow, SOURCE_GROUPS, SOURCE_LABEL, STATUS_LABEL, type SheetAttack, attacksPerAction, personaOf, signed } from './sheet/rules'
+import { Card, FeatureText, HeroPortrait, RollLog } from './sheet/parts'
 import { useSheetRolls } from './sheet/useSheetRolls'
+import { AbilitiesCard } from './sheet/AbilitiesCard'
+import { AttackRow, CombatCard, SpellAttackRow } from './sheet/CombatCard'
+import { InventoryCard } from './sheet/InventoryCard'
+import { FeaturesCard, FeatureTile, ProfsCard, RulesCard } from './sheet/FeatureCards'
+import { PersonaCard, PersonaEditCard } from './sheet/PersonaCard'
 
 /** Страницы листа: на телефоне — бой / сумка / герой, на столе — те же четыре */
 export type SheetTab = 'main' | 'magic' | 'features' | 'story' | 'bag' | 'hero' | 'skills' | 'actions'
@@ -213,18 +208,6 @@ export default function CharacterSheet({
     image: null,
   })
 
-  const coins = ['pp', 'gp', 'ep', 'sp', 'cp'] as const
-  const purse = live ? coins : coins.filter((c) => sheet.inventory.currency[c] > 0)
-
-  // навыки с владением — первыми: ими пользуются чаще; компетентность — двойное мастерство
-  const skillRows = DEFAULT_SKILLS.map((s) => {
-    const entry = sheet.skills[s.key]
-    const prof = !!entry?.proficient
-    const expert = prof && !!entry?.expertise
-    const ability = entry?.ability ?? s.ability
-    return { ...s, ability, prof, expert, bonus: entry?.modifier ?? mod(ability) + (expert ? pb * 2 : prof ? pb : 0) }
-  }).sort((a, b) => Number(b.prof) - Number(a.prof) || a.label.localeCompare(b.label, 'ru'))
-
   // feature_source в листе — UUID; в подписи показываем название владельца
   const ownerOf = (source: string): string | null =>
     source === 'class'
@@ -278,316 +261,42 @@ export default function CharacterSheet({
     }),
   ]
 
-  const personaFields = [
-    ['traits', 'Черты'],
-    ['ideals', 'Идеалы'],
-    ['bonds', 'Привязанности'],
-    ['flaws', 'Слабости'],
-  ] as const
-  const persona = [
-    ...personaFields.map(([k, label]) => [label, sheet.personality[k]] as const),
-    ['История', sheet.backstory] as const,
-  ].filter(([, text]) => text.trim())
+  const persona = personaOf(sheet)
 
   const openFeature = openFeatureKey ? (featureRows.find((f) => f.key === openFeatureKey) ?? null) : null
 
   /* ---------- карточки ---------- */
 
-  const abilitiesCard = (
-    <Card title="Характеристики и навыки" icon={ShieldCheck} className="cw-sheet-card--abilities">
-      <div className="cw-abil-grid">
-        {ABILITY_KEYS.map((k) => {
-          const label = ABILITY_LABELS[k]
-          const saveProf = sheet.ability_scores[k].saving_throw_proficient
-          const save = sheet.ability_scores[k].save ?? mod(k) + (saveProf ? pb : 0)
-          return (
-            <div key={k} className={`cw-abil${saveProf ? ' is-prof' : ''}`}>
-              <button
-                type="button"
-                className="cw-abil-check"
-                onClick={() => void rollD20(`${label.label}, проверка`, mod(k), undefined, { kind: 'check', ability: k })}
-                disabled={dice.rolling}
-                title={`Проверка: к20 ${signed(mod(k))}`}
-              >
-                <i>{label.abbr}</i>
-                <b>{score(k)}</b>
-                <em>{signed(mod(k))}</em>
-                <WhyDot req={{ path: abilityPath(k, 'score'), title: label.label, total: score(k), baseLabel: 'Базовое значение' }} />
-              </button>
-              <button
-                type="button"
-                className="cw-abil-save"
-                onClick={() => void rollD20(`${label.label}, спасбросок`, save, undefined, { kind: 'save', ability: k })}
-                disabled={dice.rolling}
-                title={saveProf ? 'Спасбросок — владение' : 'Спасбросок'}
-              >
-                спас <b>{signed(save)}</b>
-                <WhyDot req={{ path: abilityPath(k, 'save'), title: `Спасбросок: ${label.label}`, total: save }} />
-              </button>
-            </div>
-          )
-        })}
-      </div>
-      <div className="beast-skills cw-skill-buttons cw-skill-cols">
-        {skillRows.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            className={`beast-skill${s.prof ? ' is-prof' : ''}${s.expert ? ' is-expert' : ''}`}
-            onClick={() => void rollD20(s.label, s.bonus, undefined, { kind: 'skill', skill: s.key, ability: s.ability })}
-            disabled={dice.rolling}
-            title={s.expert ? 'Компетентность: двойной бонус мастерства' : undefined}
-          >
-            <span className="beast-skill-bonus">{signed(s.bonus)}</span>
-            <span className="beast-skill-name">{s.label}</span>
-            <span className="beast-skill-ab">{ABILITY_LABELS[s.ability].abbr}</span>
-            <WhyDot req={{ path: `char.skills.${s.key}.bonus`, title: s.label, total: s.bonus }} />
-          </button>
-        ))}
-      </div>
-      <p className="cw-passive">
-        <Eye aria-hidden="true" /> пассивная внимательность <b>{combat.passive_perception}</b>
-      </p>
-    </Card>
+  const abilitiesCard = <AbilitiesCard sheet={sheet} mod={mod} score={score} pb={pb} rollD20={rollD20} rolling={dice.rolling} />
+
+  const attackRow = (a: SheetAttack) => (
+    <AttackRow key={a.key} a={a} sheet={sheet} critFor={critFor} rollD20={rollD20} rollDamage={rollDamage} rolling={dice.rolling} />
   )
 
-  const attackRow = (a: SheetAttack) => {
-      const crit = critFor === a.key
-      // бонусы способностей по тегам атаки: к попаданию и к урону (Ярость +2)
-      const { tags, ability } = attackTags(a, sheet)
-      const ctx: RollContext = { kind: 'attack', ability, tags }
-      const hit = a.attack_bonus + tagBonus(sheet, 'attackBonus', tags)
-      const dmgExtra = tagBonus(sheet, 'dmgBonus', tags)
-      const dmg = parseDamage(a.damage)
-      const dmgText = (formula: string) => {
-        const p = parseDamage(formula)
-        if (!p || !dmgExtra) return formatDice(formula) ?? formula
-        const b = p.bonus + dmgExtra
-        return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
-      }
-      const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
-      return (
-        <div key={a.key} className={`cw-wpn${crit ? ' is-crit' : ''}`}>
-          <WeaponArt src={a.image} icon={a.type === 'ranged' ? Crosshair : a.key === 'unarmed' ? Hand : Swords} />
-          <span className="cw-wpn-body">
-            <b>{a.name}</b>
-            <i title={props}>{props}</i>
-          </span>
-          <span className="cw-wpn-dice">
-            <DieButton
-              sides={20}
-              value={signed(hit)}
-              label="атака"
-              onClick={() =>
-                void rollD20(`${a.name}, попадание`, hit, a.key, {
-                  ...ctx,
-                  bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
-                })
-              }
-              disabled={dice.rolling}
-              title="Бросок атаки: к20 + бонус"
-            />
-            {a.damage && (
-              <DieButton
-                sides={dmg?.sides ?? 0}
-                value={dmgText(a.damage)}
-                label={crit ? 'крит ×2' : (a.damage_type || 'урон').toLocaleLowerCase('ru')}
-                hot={crit}
-                onClick={() => void rollDamage(`${a.name}, урон`, a.damage, a.key, { kind: 'damage', ability, tags })}
-                disabled={dice.rolling}
-                title={crit ? 'Критическое попадание: кости урона удваиваются' : 'Бросок урона'}
-              />
-            )}
-            {a.versatile && (
-              <DieButton
-                sides={parseDamage(a.versatile)?.sides ?? 0}
-                value={dmgText(a.versatile)}
-                label="двуручно"
-                hot={crit}
-                onClick={() => void rollDamage(`${a.name}, двуручно`, a.versatile!, a.key, { kind: 'damage', ability, tags })}
-                disabled={dice.rolling}
-                title="Универсальное оружие двумя руками"
-              />
-            )}
-          </span>
-        </div>
-      )
-  }
-
   const spellAttackRow = spell.is_spellcaster && spell.spell_attack_bonus != null && (
-      <div className="cw-wpn cw-wpn--spell">
-        <WeaponArt src={null} icon={Sparkles} />
-        <span className="cw-wpn-body">
-          <b>Атака заклинанием</b>
-          <i>Сл спасброска {spell.spell_save_dc}</i>
-        </span>
-        <span className="cw-wpn-dice">
-          <DieButton
-            sides={20}
-            value={signed(spell.spell_attack_bonus)}
-            label="атака"
-            onClick={() =>
-              void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
-                kind: 'spell',
-                ability: spell.spellcasting_ability ?? undefined,
-                tags: ['spell'],
-              })
-            }
-            disabled={dice.rolling}
-          />
-        </span>
-      </div>
+    <SpellAttackRow spell={spell} rollD20={rollD20} rolling={dice.rolling} />
   )
 
   const combatCard = (
-    <Card
-      title="Бой"
-      icon={Swords}
-      className="cw-sheet-card--combat"
-      aside={[perAction > 1 ? `атак за действие: ×${perAction}` : '', critMin < 20 ? `крит от ${critMin}` : ''].filter(Boolean).join(' · ') || null}
-    >
-      <div className="cw-wpns">
-        {attacks.map(attackRow)}
-        {spellAttackRow}
-      </div>
-    </Card>
+    <CombatCard perAction={perAction} critMin={critMin}>
+      {attacks.map(attackRow)}
+      {spellAttackRow}
+    </CombatCard>
   )
 
   const invCard = (
-    <Card title="Инвентарь" icon={Backpack} className="cw-sheet-card--inv" aside={items.length ? String(items.length) : null}>
-      <InventoryBoard items={items} onChange={onInventory} locked={lockedPurse} onTransfer={roomMode?.onTransfer} onDropToTable={roomMode?.onDropToTable} />
-      {purse.length > 0 && (
-        <div className={`cw-purse${live ? ' is-live' : ''}`}>
-          {purse.map((c) => (
-            <span key={c}>
-              <CoinImg currency={c} size={20} />
-              {onPatch && !lockedPurse ? (
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={sheet.inventory.currency[c]}
-                  aria-label={`Монеты: ${c}`}
-                  onChange={(e) => {
-                    const v = Math.max(0, parseInt(e.target.value, 10) || 0)
-                    onPatch((ch) => ({
-                      ...ch,
-                      inventory: { ...ch.inventory, currency: { ...ch.inventory.currency, [c]: v } },
-                    }))
-                  }}
-                />
-              ) : (
-                <b>{sheet.inventory.currency[c]}</b>
-              )}
-            </span>
-          ))}
-          {roomMode?.onTransferCoins && (
-            <button type="button" className="cw-mini-btn" onClick={roomMode.onTransferCoins} title="Передать монеты другому герою">
-              <Send aria-hidden="true" /> передать
-            </button>
-          )}
-        </div>
-      )}
-    </Card>
+    <InventoryCard sheet={sheet} onInventory={onInventory} onPatch={onPatch} live={live} lockedPurse={lockedPurse} roomMode={roomMode} />
   )
 
   const spellBook = hasMagic && <SpellBook spellcasting={spell} play={play} roller={roller} tabbed={hudMode} />
 
-  const featureTile = (f: FeatureRow) => (
-    <button
-      key={f.key}
-      type="button"
-      className={`cw-ftile cw-feat-line--${f.source}${f.disabled ? ' is-disabled' : f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
-      onClick={() => setOpenFeature(f)}
-      title={f.disabled ? 'Отключено — бонусы не действуют' : f.status ? STATUS_LABEL[f.status] : undefined}
-    >
-      <b>
-        {f.disabled && <EyeOff className="cw-ftile-lock" aria-label="отключено" />}
-        {f.title}
-      </b>
-      <i>
-        {f.sub}
-        {f.disabled ? ' · отключено' : f.active === false ? ' · не действует' : ''}
-        {f.status === 'partial' && ' · частично'}
-      </i>
-      {f.grantId && actionsOf(f.grantId).length > 0 && (
-        <span className="cw-ftile-acts" title="Действий у способности">
-          <Zap aria-hidden="true" />
-          {actionsOf(f.grantId).length}
-        </span>
-      )}
-      <BookOpen className="cw-ftile-ico" aria-hidden="true" />
-    </button>
-  )
+  const featureTile = (f: FeatureRow) => <FeatureTile key={f.key} f={f} actionsOf={actionsOf} onOpen={setOpenFeature} />
 
-  const featuresCard = (
-    <Card title="Умения" icon={BookOpen} className="cw-sheet-card--features" aside={String(featureRows.length)}>
-      <div className="cw-ftiles">{featureRows.map(featureTile)}</div>
-    </Card>
-  )
+  const featuresCard = <FeaturesCard featureRows={featureRows} featureTile={featureTile} />
 
-  const profsCard = (
-    <Card title="Владения" icon={Languages} className="cw-sheet-card--profs">
-      <dl className="cw-profs">
-        {(
-          [
-            ['Доспехи', sheet.proficiencies.armor],
-            ['Оружие', sheet.proficiencies.weapons],
-            ['Инструменты', sheet.proficiencies.tools],
-            ['Языки', sheet.proficiencies.languages],
-          ] as const
-        )
-          .filter(([, list]) => list.length > 0)
-          .map(([label, list]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{list.join(', ')}</dd>
-            </div>
-          ))}
-      </dl>
-    </Card>
-  )
+  const profsCard = <ProfsCard proficiencies={sheet.proficiencies} />
 
-  /** Что выдают способности: приёмы, особые правила, величины (кость скрытой атаки…) */
-  const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && (
-    <Card title="Особые правила" icon={Sparkles} className="cw-sheet-card--rules">
-      <dl className="cw-profs">
-        {extras.vars.length > 0 && (
-          <div>
-            <dt>Величины</dt>
-            <dd>
-              <ul className="cw-rules-vars">
-                {extras.vars.map((v) => (
-                  <li key={v.key}>
-                    <span>{v.label}</span>
-                    <b>{formatDice(v.value) ?? v.value}</b>
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
-        {extras.maneuvers.length > 0 && (
-          <div>
-            <dt>Боевые приёмы</dt>
-            <dd>{extras.maneuvers.join(', ')}</dd>
-          </div>
-        )}
-        {extras.flags.length > 0 && (
-          <div>
-            <dt>Помнить за столом</dt>
-            <dd>
-              <ul className="cw-rules-flags">
-                {extras.flags.map((f) => (
-                  <li key={f.key}>{f.label}</li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
-      </dl>
-    </Card>
-  )
+  const rulesCard = extras && (extras.maneuvers.length > 0 || extras.flags.length > 0 || extras.vars.length > 0) && <RulesCard extras={extras} />
 
   /** Страница умений: группы по источнику, клик — попап с описанием */
   const featuresPage = (
@@ -614,54 +323,7 @@ export default function CharacterSheet({
     </div>
   )
 
-  const personaCard = onPatch ? (
-    <Card title="Характер и записи" icon={NotebookPen} className="cw-sheet-card--persona">
-      <div className="cw-persona-edit">
-        {personaFields.map(([key, label]) => (
-          <label key={key} className="cw-field">
-            <span>{label}</span>
-            <textarea
-              rows={3}
-              value={sheet.personality[key]}
-              placeholder={`${label}…`}
-              onChange={(e) => onPatch((c) => ({ ...c, personality: { ...c.personality, [key]: e.target.value } }))}
-            />
-          </label>
-        ))}
-        <label className="cw-field cw-field--wide">
-          <span>История</span>
-          <textarea
-            rows={5}
-            value={sheet.backstory}
-            placeholder="Откуда герой и что привело его в путь…"
-            onChange={(e) => onPatch((c) => ({ ...c, backstory: e.target.value }))}
-          />
-        </label>
-        <label className="cw-field cw-field--wide">
-          <span>Заметки</span>
-          <textarea
-            rows={5}
-            value={sheet.notes}
-            placeholder="Квесты, имена, долги, подсказки мастера…"
-            onChange={(e) => onPatch((c) => ({ ...c, notes: e.target.value }))}
-          />
-        </label>
-      </div>
-    </Card>
-  ) : (
-    persona.length > 0 && (
-      <Card title="Характер" icon={UserRound} className="cw-sheet-card--persona">
-        <dl className="cw-profs">
-          {persona.map(([label, text]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{text}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
-    )
-  )
+  const personaCard = onPatch ? <PersonaEditCard sheet={sheet} onPatch={onPatch} /> : persona.length > 0 && <PersonaCard persona={persona} />
 
   /** Страница характера: большой портрет во весь рост и всё о внешности */
   const looks = (

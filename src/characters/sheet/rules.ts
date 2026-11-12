@@ -1,4 +1,4 @@
-import type { AttackEntry } from '../../types/character'
+import type { AttackEntry, SheetView } from '../../types/character'
 
 export const signed = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
@@ -88,3 +88,19 @@ export const STATUS_LABEL: Record<string, string> = {
 
 /** «1d20» / «2d6» из лога сервера → число граней */
 export const sidesOf = (dice: unknown) => Number(/d(\d+)/i.exec(String(dice ?? ''))?.[1]) || 0
+
+/* ---------- характер ---------- */
+
+export const PERSONA_FIELDS = [
+  ['traits', 'Черты'],
+  ['ideals', 'Идеалы'],
+  ['bonds', 'Привязанности'],
+  ['flaws', 'Слабости'],
+] as const
+
+/** Заполненные поля характера и история — для листа без правки */
+export const personaOf = (sheet: SheetView) =>
+  [
+    ...PERSONA_FIELDS.map(([k, label]) => [label, sheet.personality[k]] as const),
+    ['История', sheet.backstory] as const,
+  ].filter(([, text]) => text.trim())
