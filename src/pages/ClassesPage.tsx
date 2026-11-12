@@ -1,5 +1,5 @@
 import { ClassesCatalog } from './CatalogPage'
-import { ClassDetailView } from './DetailPages'
+import { ClassDetailView } from './details/ClassDetail'
 
 /** Каталог и деталь класса — одна оболочка; URL `/classes` ⇄ `/classes/:id`. */
 export default function ClassesPage() {

@@ -23,18 +23,15 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProfilePage from './pages/ProfilePage'
 import ModerationPage from './reviews/ModerationPage'
-import {
-  BackgroundDetailPage,
-  CreatureDetailPage,
-  EquipmentDetailPage,
-  FeatDetailPage,
-  ItemDetailPage,
-  RaceDetailPage,
-  SpellDetailPage,
-  SubclassDetailPage,
-  SubraceDetailPage,
-  TerminDetailPage,
-} from './pages/DetailPages'
+import { TerminDetailPage } from './pages/details/TerminDetail'
+import { EquipmentDetailPage } from './pages/details/EquipmentDetail'
+import { ItemDetailPage } from './pages/details/ItemDetail'
+import { FeatDetailPage } from './pages/details/FeatDetail'
+import { BackgroundDetailPage } from './pages/details/BackgroundDetail'
+import { SubclassDetailPage } from './pages/details/SubclassDetail'
+import { RaceDetailPage, SubraceDetailPage } from './pages/details/RaceDetail'
+import { CreatureDetailPage } from './pages/details/CreatureDetail'
+import { SpellDetailPage } from './pages/details/SpellDetail'
 import DiceRoller from './dice/DiceRoller'
 import RouteReadyGate from './RouteReadyGate'
 import { useAppShell } from './shell'

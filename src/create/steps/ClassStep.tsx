@@ -4,7 +4,7 @@ import { Check, Swords } from 'lucide-react'
 import { realImage } from '../../api'
 import type { GameClass } from '../../api'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../../dice/diceAssets'
-import { ClassDetailView } from '../../pages/DetailPages'
+import { ClassDetailView } from '../../pages/details/ClassDetail'
 import { CLASS_PRIMARY_ABILITY, casterKind } from '../dnd5e'
 import { emptyLevelChoice, type StepProps } from '../draft'
 import {

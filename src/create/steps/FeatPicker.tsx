@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Check, Lock, Repeat, Shield, Sparkles, X } from 'l
 import { ABILITY_RU, descriptionPreview, realImage } from '../../api'
 import type { Feat } from '../../api'
 import { ABILITY_KEYS, ABILITY_LABELS } from '../../types/character'
-import { FeatDetailBody } from '../../pages/DetailPages'
+import { FeatDetailBody } from '../../pages/details/FeatDetail'
 import type { PrereqResult } from '../prereq'
 import { useBookMap } from '../useCatalog'
 import {
