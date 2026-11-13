@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addWaypoint, elevationStep, feet, floorAt, heightLabel, hexSteps, measure, removeWaypoint, roundHalfEven, segmentFt, type RulerPoint } from './math'
+import { addWaypoint, elevationStep, feet, floorAt, heightLabel, measure, removeWaypoint, roundHalfEven, segmentFt, type RulerPoint } from './math'
 
 const square5 = { kind: 'square' as const, feet_per_cell: 5, diagonal: '5' as const }
 const square510 = { kind: 'square' as const, feet_per_cell: 5, diagonal: '5-10' as const }
@@ -29,14 +29,24 @@ describe('segmentFt', () => {
     expect(segmentFt([0, 0], [6, 0], -10, square5).ft).toBe(30)
   })
 
-  it('шестиугольники', () => {
-    expect(hexSteps([0, 0], [3, 0])).toBe(3)
-    expect(hexSteps([0, 0], [0, 2])).toBe(2)
-    expect(hexSteps([0, 0], [0, 1])).toBe(1)
-    expect(hexSteps([0, 0], [1, 1])).toBe(2)
-    expect(hexSteps([0, 0], [2, 4])).toBe(4)
+  it('сетка «hex» считается квадратной, как на сервере', () => {
+    expect(segmentFt([0, 0], [2, 4], 0, hex).ft).toBe(segmentFt([0, 0], [2, 4], 0, square5).ft)
     expect(segmentFt([0, 0], [2, 4], 0, hex).ft).toBe(20)
     expect(segmentFt([0, 0], [1, 0], 15, hex).ft).toBe(15)
+  })
+
+  // Та же таблица — в tests/maps/test_geometry_parity.py на сервере (grid_distance_ft)
+  it.each([
+    [[0, 0], [4, 0], 0, '5', 20],
+    [[0, 0], [3, 3], 0, '5', 15],
+    [[0, 0], [4, 2], 0, '5-10', 25],
+    [[0, 0], [3, 3], 0, '5-10', 20],
+    [[0, 0], [2, 0], 10, '5-10', 15],
+    [[2, 5], [0, 0], 0, '5-10', 30],
+    [[0, 0], [0, 0], 12.5, '5', 10],
+    [[0, 0], [1, 1], 7.5, '5', 10],
+  ] as const)('%j → %j, высота %d, диагональ %s: %d фт', (a, b, dz, diagonal, ft) => {
+    expect(segmentFt([a[0], a[1]], [b[0], b[1]], dz, { feet_per_cell: 5, diagonal }).ft).toBe(ft)
   })
 })
 
