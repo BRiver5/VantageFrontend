@@ -32,6 +32,7 @@ import { drawHealth } from './render/health'
 import { drawTurnRing } from './render/turn'
 import { drawWalls } from './render/walls'
 import { drawZones } from './render/zones'
+import { WeatherLayer } from './render/weather'
 import type { FloatText, MapCanvasHandle, MapOverlays, MapViewer, Ping } from './render/types'
 
 export type { MapCanvasHandle, MapOverlays, MapViewer } from './render/types'
@@ -62,6 +63,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const fx = useRef<VfxEngine>(null as unknown as VfxEngine)
   fx.current ??= new VfxEngine()
   useEffect(() => () => fx.current.dispose(), [])
+  const weather = useRef<WeatherLayer | null>(null)
+  weather.current ??= new WeatherLayer()
   const floats = useRef<FloatText[]>([])
   const props = useRef({ map, viewer, overlays, artOf })
   props.current = { map, viewer, overlays, artOf }
@@ -136,6 +139,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (path.length > 1) anim.current.set(tokenId, { path, t0: performance.now() })
       dirty.current = true
     },
+    attack: (plan, from, targets, palette) => {
+      fx.current.attack(plan, from, targets, palette, isPingCalm(), (p, text, color) => {
+        if (text) floats.current.push({ x: p.x, y: p.y - 30, text, color, life: 0 })
+      })
+      dirty.current = true
+    },
     effect: (presetId, p, size) => {
       void loadPresets([presetId]).then(() => {
         fx.current.play(presetOf(presetId), { at: p, size: size ?? 30 })
@@ -205,7 +214,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
       // кольцо хода бежит по кругу, пока движение не отключено
       const turning = !!props.current.overlays?.turn && !prefersReducedMotion()
-      if (!dirty.current && !busy && !flick && !turning) return
+      // погода и живые состояния на жетонах (пульс, огонь, рябь) — каждый кадр
+      const living = WeatherLayer.active(props.current.map) || (!!props.current.overlays?.looksLive && !isPingCalm())
+      if (!dirty.current && !busy && !flick && !turning && !living) return
       dirty.current = false
       const { map: m, viewer: vw, overlays: ov = {}, artOf: art } = props.current
       const dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -287,11 +298,14 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       drawnPos.current = pos
       const turnTk = ov.turn ? tokens.find((t) => t.id === ov.turn) : undefined
       if (turnTk) drawTurnRing(ctx, turnTk, pos.get(turnTk.id)!, g, v, now, prefersReducedMotion())
-      drawTokens(ctx, tokens, pos, g, ov, v, img, art)
+      drawTokens(ctx, tokens, pos, g, ov, v, img, art, now, isPingCalm())
       // p1/hud: цели игрока и рамка выделения
       if (ov.targets?.length) drawTargets(ctx, tokens, pos, g, ov.targets, v)
       if (ov.targetBox) drawTargetBox(ctx, ov.targetBox, v)
       if (ov.health) drawHealth(ctx, tokens, pos, g, ov.health, v)
+
+      // погода: над сценой, под темнотой; под крышами и в зонах «без погоды» её нет
+      weather.current!.draw(ctx, m, v, W, H, dt, isPingCalm())
 
       // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
       drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now)

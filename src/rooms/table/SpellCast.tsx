@@ -442,6 +442,7 @@ export function SpellCast({
                   {t.kind === 'auto' ? 'без броска' : `${Math.round(t.chance * 100)}%`}
                   {t.kind === 'save' ? ' провала' : t.kind === 'attack' ? ' попасть' : ''}
                   {t.ac != null ? ` · КД ${t.ac}` : ''}
+                  {t.high_ground ? ' · ▲ высота: преимущество' : ''}
                 </i>
               </li>
             ))}

@@ -2,6 +2,7 @@ import type { HealthView } from '../../rooms/health'
 import type { MapVfx, Pt } from '../types'
 import type { PingKind } from '../pings'
 import type { RulerOverlay } from './ruler'
+import type { TokenLook } from '../tokenLooks'
 
 export interface MapOverlays {
   /** досягаемые клетки и их стоимость */
@@ -40,6 +41,10 @@ export interface MapOverlays {
   health?: Record<string, HealthView>
   /** жетон того, чей сейчас ход */
   turn?: string | null
+  /** состояния на жетонах: token_id → признаки вида (tokenLooks) */
+  looks?: Record<string, TokenLook>
+  /** среди состояний есть движущиеся — перерисовывать каждый кадр */
+  looksLive?: boolean
 }
 
 export interface MapViewer {
@@ -62,6 +67,13 @@ export interface MapCanvasHandle {
   vfx: (v: MapVfx, at: (combatantId: string) => Pt | null) => void
   /** разовый пресет в точке (зона легла, предмет упал) */
   effect: (presetId: string, p: Pt, size?: number) => void
+  /** анимация атаки без map.vfx (attackFx): жест или полёт, удар, числа */
+  attack: (
+    plan: { gesture: string; travel: string | null; impact: string | null; melee: boolean },
+    from: Pt | null,
+    targets: { at: Pt; miss: Pt | null; text: string; color: string }[],
+    palette: string[],
+  ) => void
   /** анимировать ход по клеткам */
   walk: (tokenId: string, path: Pt[]) => void
 }

@@ -108,6 +108,19 @@ interface Glow {
   max: number
   flicker: boolean
 }
+/** жест атаки: взмах, выпад, удар — рисуется линией, без частиц */
+interface Stroke {
+  kind: 'slash' | 'thrust' | 'smash'
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  color: string
+  /** вбок: +1 или −1 — сторона дуги взмаха */
+  side: number
+  life: number
+  max: number
+}
 interface Decal {
   x: number
   y: number
@@ -190,6 +203,7 @@ export class VfxEngine {
   parts: Particle[] = []
   glows: Glow[] = []
   decals: Decal[] = []
+  strokes: Stroke[] = []
   shakeLeft = 0
   shakePower = 0
   flash: { color: string; life: number } | null = null
@@ -202,7 +216,7 @@ export class VfxEngine {
   unit = 1
 
   get busy() {
-    return this.parts.length > 0 || this.glows.length > 0 || this.decals.length > 0 || this.shakeLeft > 0 || !!this.flash
+    return this.parts.length > 0 || this.glows.length > 0 || this.decals.length > 0 || this.strokes.length > 0 || this.timers.length > 0 || this.shakeLeft > 0 || !!this.flash
   }
 
   dispose() {
@@ -212,7 +226,52 @@ export class VfxEngine {
 
   private later(ms: number, fn: () => void) {
     if (ms <= 0) return fn()
-    this.timers.push(setTimeout(fn, ms))
+    const t = setTimeout(() => {
+      this.timers = this.timers.filter((x) => x !== t)
+      fn()
+    }, ms)
+    this.timers.push(t)
+  }
+
+  /** жест рукопашной от a к b (до края цели); miss — серый и мимо */
+  strike(kind: Stroke['kind'], a: Pt, b: Pt, color: string, side: 1 | -1 = 1) {
+    if (this.strokes.length > 40) return
+    this.strokes.push({ kind, x0: a.x, y0: a.y, x1: b.x, y1: b.y, color, side, life: 0, max: kind === 'smash' ? 360 : 300 })
+  }
+
+  /**
+   * Атака без map.vfx (attackFx.planAttackFx): жест или полёт, потом удар
+   * на каждой цели и число. calm — без жеста и полёта, только удар.
+   */
+  attack(
+    plan: { gesture: string; travel: string | null; impact: string | null; melee: boolean },
+    from: Pt | null,
+    targets: { at: Pt; miss: Pt | null; text: string; color: string }[],
+    palette: string[],
+    calm: boolean,
+    onNumber: (p: Pt, text: string, color: string) => void,
+  ) {
+    void loadPresets([plan.travel, plan.impact]).then(() => {
+      const tr = presetOf(plan.travel)
+      const im = presetOf(plan.impact)
+      targets.forEach((tg, i) => {
+        const side: 1 | -1 = i % 2 ? -1 : 1
+        let t = 0
+        if (from && !calm) {
+          const end = tg.miss ?? tg.at
+          if (plan.melee) {
+            this.strike(plan.gesture === 'thrust' || plan.gesture === 'smash' ? plan.gesture : 'slash', from, end, tg.miss ? '#9aa0a8' : (palette[1] ?? '#ffffff'), side)
+            t = 160
+          } else if (plan.travel) {
+            t = this.travel(tr, [from, end], tg.miss ? ['#d6d9de', '#9aa0a8'] : palette)
+          }
+        }
+        this.later(t, () => {
+          if (!tg.miss) this.play(im, { at: tg.at, size: 22 * this.unit }, palette)
+          onNumber(tg.at, tg.text, tg.color)
+        })
+      })
+    })
   }
 
   /** выпустить n частиц эмиттера по форме */
@@ -375,6 +434,7 @@ export class VfxEngine {
     }
     this.glows = this.glows.filter((g) => (g.life += dt) < g.max)
     this.decals = this.decals.filter((d) => (d.life += dt) < 9000)
+    if (this.strokes.length) this.strokes = this.strokes.filter((k) => (k.life += dt) < k.max)
     if (this.shakeLeft > 0) this.shakeLeft = Math.max(0, this.shakeLeft - dt)
     if (this.flash && (this.flash.life += dt) > 260) this.flash = null
   }
@@ -401,9 +461,54 @@ export class VfxEngine {
     }
   }
 
+  /** жесты: дуга взмаха, выпад, удар с кольцом */
+  private drawStrokes(ctx: CanvasRenderingContext2D) {
+    for (const k of this.strokes) {
+      const f = k.life / k.max
+      const dx = k.x1 - k.x0
+      const dy = k.y1 - k.y0
+      const len = Math.hypot(dx, dy) || 1
+      const ux = dx / len
+      const uy = dy / len
+      ctx.globalAlpha = Math.max(0, 1 - f) * 0.9
+      ctx.strokeStyle = k.color
+      ctx.lineCap = 'round'
+      if (k.kind === 'slash') {
+        // дуга у цели: проходит поперёк линии удара
+        const cx = k.x1 - ux * len * 0.15
+        const cy = k.y1 - uy * len * 0.15
+        const r = Math.max(14, 26 * this.unit)
+        const base = Math.atan2(dy, dx) + (Math.PI / 2) * k.side
+        const sweep = Math.PI * 0.9 * Math.min(1, f * 2.2)
+        ctx.lineWidth = Math.max(2, 5 * this.unit * (1 - f))
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, base, base - sweep * k.side, k.side > 0)
+        ctx.stroke()
+      } else if (k.kind === 'thrust') {
+        const reach = Math.min(len, 1.6 * len * Math.min(1, f * 2.5))
+        const sx = k.x1 - ux * Math.min(len, 34 * this.unit)
+        const sy = k.y1 - uy * Math.min(len, 34 * this.unit)
+        const ex = sx + ux * Math.min(reach, 40 * this.unit)
+        const ey = sy + uy * Math.min(reach, 40 * this.unit)
+        ctx.lineWidth = Math.max(2, 4 * this.unit)
+        ctx.beginPath()
+        ctx.moveTo(sx, sy)
+        ctx.lineTo(ex, ey)
+        ctx.stroke()
+      } else {
+        ctx.lineWidth = Math.max(2, 4 * this.unit * (1 - f))
+        ctx.beginPath()
+        ctx.arc(k.x1, k.y1, (8 + 30 * f) * this.unit, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+    }
+    ctx.globalAlpha = 1
+  }
+
   /** частицы и свет — поверх всего */
   draw(ctx: CanvasRenderingContext2D) {
     ctx.save()
+    if (this.strokes.length) this.drawStrokes(ctx)
     for (const g of this.glows) {
       const k = 1 - g.life / g.max
       const a = (g.flicker ? 0.75 + Math.random() * 0.25 : 1) * k * 0.55

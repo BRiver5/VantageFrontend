@@ -14,7 +14,7 @@ export interface OverlaySource {
 }
 
 /** Карточка героя или существо за жетоном: по прямой ссылке или через участника боя */
-function subjectOf(t: MapToken, src: OverlaySource): { card?: CharacterCard; creature?: AnyCreature } {
+export function subjectOf(t: MapToken, src: OverlaySource): { card?: CharacterCard; creature?: AnyCreature } {
   const unit = t.combatant_id ? src.combat?.combatants.find((c) => c.id === t.combatant_id) : undefined
   if (t.character_id || unit?.card) {
     const card = src.characters.find((c) => c.id === (t.character_id ?? unit?.ref_id)) ?? unit?.card
