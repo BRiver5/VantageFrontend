@@ -196,6 +196,8 @@ export function ActionTray({
   }
 
   const dropOwn = async (p: Preset) => {
+    // тот же флаг, что у сохранения: иначе два запроса перезапишут attacks друг друга
+    setSaving(true)
     setError(null)
     try {
       if (hero && actor.card && doc) {
@@ -209,6 +211,8 @@ export function ActionTray({
       }
     } catch (e) {
       setError(errText(e))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -330,7 +334,7 @@ export function ActionTray({
                   </i>
                 </button>
                 {p.custom && (
-                  <button type="button" className="bt-preset-x" onClick={() => void dropOwn(p)} aria-label={`Убрать приём: ${p.name}`} title="Убрать приём">
+                  <button type="button" className="bt-preset-x" disabled={saving} onClick={() => void dropOwn(p)} aria-label={`Убрать приём: ${p.name}`} title="Убрать приём">
                     <X aria-hidden="true" />
                   </button>
                 )}
