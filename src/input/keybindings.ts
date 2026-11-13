@@ -12,7 +12,7 @@
  * обработчики, написанные до реестра (Escape закрывал окно и с зажатым Shift).
  */
 
-export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor'
+export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor' | 'map-ruler'
 
 export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   general: 'Общее',
@@ -20,6 +20,7 @@ export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   create: 'Создание персонажа',
   kb: 'База знаний',
   'map-editor': 'Редактор карт',
+  'map-ruler': 'Линейка и ход по карте',
 }
 
 export interface KeyAction {
@@ -65,6 +66,15 @@ export const ACTIONS = [
 
   // игровой стол: пауза (только мастер, не в поле ввода)
   { id: 'room.pause', label: 'Пауза игры (мастер)', category: 'general', defaults: ['Space'] },
+  // линейка и перетаскивание жетона на столе
+  { id: 'ruler.toggle', label: 'Линейка: включить или выключить', category: 'map-ruler', defaults: ['R'] },
+  { id: 'ruler.waypoint', label: 'Линейка и ход: точка под курсором', category: 'map-ruler', defaults: ['F'] },
+  { id: 'ruler.unwaypoint', label: 'Линейка и ход: убрать последнюю точку', category: 'map-ruler', defaults: ['Alt+F'] },
+  { id: 'ruler.up', label: 'Высота следующей точки: выше на клетку', category: 'map-ruler', defaults: ['E'] },
+  { id: 'ruler.down', label: 'Высота следующей точки: ниже на клетку', category: 'map-ruler', defaults: ['Q'] },
+  { id: 'ruler.upFine', label: 'Высота следующей точки: выше на 1 фут', category: 'map-ruler', defaults: ['Shift+E'] },
+  { id: 'ruler.downFine', label: 'Высота следующей точки: ниже на 1 фут', category: 'map-ruler', defaults: ['Shift+Q'] },
+  { id: 'ruler.cancel', label: 'Линейка: сбросить', category: 'map-ruler', defaults: ['Escape'] },
 ] as const satisfies readonly KeyAction[]
 
 export type ActionId = (typeof ACTIONS)[number]['id']

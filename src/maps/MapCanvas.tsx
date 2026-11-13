@@ -25,6 +25,7 @@ import { drawAim, drawDraft, drawGhosts, drawPath, drawReach } from './render/ov
 import { drawPingEdges, drawPingMarkers } from './render/pings'
 import { pingLife } from './pings'
 import { isPingCalm, prefersReducedMotion } from './pingSettings'
+import { drawRuler } from './render/ruler'
 import { drawTokens } from './render/tokens'
 import { drawWalls } from './render/walls'
 import { drawZones } from './render/zones'
@@ -197,7 +198,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const c = canvas.current
       if (!c) return
       const zoneFx = props.current.map.zones.some((z) => z.enabled && z.vfx_preset)
-      const busy = zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || !!flight.current || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
+      const busy = (props.current.overlays?.ruler?.threats.length ?? 0) > 0 || zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || !!flight.current || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
       const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
       if (!dirty.current && !busy && !flick) return
       dirty.current = false
@@ -288,6 +289,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       drawGhosts(ctx, ov.ghosts ?? [], v)
       // наведение
       if (ov.aim && ov.aim.polygon.length) drawAim(ctx, ov.aim, v)
+      // линейка и маршрут перетаскивания
+      if (ov.ruler) drawRuler(ctx, ov.ruler, v, now)
 
       // пинги
       const calm = isPingCalm()

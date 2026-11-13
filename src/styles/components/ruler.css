@@ -1,0 +1,66 @@
+/* Линейка на карте: кнопка, полоса измерения, предупреждение об атаке по возможности */
+.rl-toggle {
+  position: absolute;
+  top: 44px;
+  right: 10px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--black-rgb) / 0.72);
+  color: var(--parchment);
+  cursor: pointer;
+  opacity: 0.75;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.rl-toggle svg { width: 16px; height: 16px; }
+.rl-toggle:hover, .rl-toggle:focus-visible { opacity: 1; }
+.rl-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.rl-toggle.is-on { opacity: 1; color: #8fd3ff; box-shadow: inset 0 0 0 1.5px #8fd3ff, 0 0 12px rgb(143 211 255 / 0.35); }
+
+.rl-bar, .rl-warn {
+  position: absolute;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 10px;
+  translate: -50% 0;
+  background: rgb(var(--black-rgb) / 0.82);
+  color: var(--parchment);
+  font-size: 12.5px;
+  backdrop-filter: blur(4px);
+}
+.rl-bar { bottom: 52px; pointer-events: none; box-shadow: inset 0 0 0 1px rgb(143 211 255 / 0.4); }
+.rl-bar b { color: #8fd3ff; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rl-bar i { font-style: normal; opacity: 0.7; }
+.rl-bar em { color: #8fd3ff; font-style: normal; }
+
+.rl-warn { top: 10px; align-items: center; box-shadow: inset 0 0 0 1px rgb(229 72 77 / 0.65); animation: mp-rise 0.2s ease; pointer-events: none; }
+.rl-warn b { color: var(--danger-soft); font-weight: 600; }
+.rl-warn.is-ask { pointer-events: auto; }
+.rl-warn button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--white-rgb) / 0.1);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.rl-warn button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.rl-warn .rl-go { background: rgb(229 72 77 / 0.85); color: #fff; }
+
+@media (max-width: 560px) {
+  .rl-bar i { display: none; }
+}
+.mp-field.is-measuring .mp-canvas { cursor: crosshair; }

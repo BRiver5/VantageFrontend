@@ -112,3 +112,4 @@
 @import './styles/search.css' layer(legacy);
 
 @import './styles/components/pause-pings.css' layer(components);
+@import './styles/components/ruler.css' layer(components);

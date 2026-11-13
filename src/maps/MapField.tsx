@@ -18,6 +18,8 @@ import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } f
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
 import { parsePing, pingColor, pingKindFor, userColor, type PingKind } from './pings'
 import { PAUSE_HINT, isPausedStatus } from '../rooms/pause'
+import { RulerHud } from './ruler/RulerHud'
+import { useRuler } from './ruler/useRuler'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -305,6 +307,21 @@ export function MapField({
     }
   }
 
+  // линейка и маршрут перетаскивания: точки, высота, цена и атаки по возможности
+  const fieldRef = useRef<HTMLDivElement>(null)
+  const ruler = useRuler({
+    map,
+    roomId,
+    field: fieldRef,
+    moveMode,
+    flyHeight,
+    onError: flash,
+    onMoved: () => {
+      setReach(null)
+      setSelected(null)
+    },
+  })
+
   if (!map) return null
 
   /** пинг: себе сразу, другим через сокет; «сюда» несёт масштаб мастера */
@@ -325,6 +342,7 @@ export function MapField({
       }
       return true
     }
+    if (ruler.pointer(kind, p, e)) return true
     if (kind === 'down') {
       clearTimeout(press.current)
       // Alt+клик — «внимание», Shift+клик мастера — «сюда»
@@ -344,6 +362,7 @@ export function MapField({
       }
       if (t && canMove(t) && !targeting) {
         dragging.current = { id: t.id, from: { x: t.x, y: t.y } }
+        ruler.dragBegin(t)
         return true
       }
       // долгое нажатие — пинг
@@ -355,11 +374,12 @@ export function MapField({
       const dg = dragging.current
       if (dg) {
         setDrags((d) => ({ ...d, [dg.id]: p }))
+        ruler.dragMove(p)
         const now = performance.now()
         if (now - lastDrag.current > 66) {
           lastDrag.current = now
           const t = map.tokens.find((x) => x.id === dg.id)
-          sendEphemeral({ type: 'map.drag', map_id: map.id, token_id: dg.id, x: Math.round(p.x), y: Math.round(p.y), elevation_ft: t?.elevation_ft ?? 0, ...(t?.hidden ? { hidden: true } : {}) })
+          sendEphemeral({ type: 'map.drag', map_id: map.id, token_id: dg.id, x: Math.round(p.x), y: Math.round(p.y), elevation_ft: ruler.dragElevation ?? t?.elevation_ft ?? 0, ...(t?.hidden ? { hidden: true } : {}) })
         }
         return
       }
@@ -373,8 +393,9 @@ export function MapField({
     if (dg) {
       const t = map.tokens.find((x) => x.id === dg.id)
       setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== dg.id)))
-      if (!t) return
+      if (!t) return ruler.dragCancel()
       if (dist(dg.from, p) < map.grid.cell_px * 0.4) {
+        ruler.dragCancel()
         // это был клик: выбрать или открыть
         if (selected === t.id) {
           setSelected(null)
@@ -382,8 +403,8 @@ export function MapField({
         } else void select(t)
         return
       }
-      const [c, r] = cellOf(map.grid, p)
-      void go(t, cellCenter(map.grid, c, r))
+      // по клеткам маршрута с точками; атака по возможности — сначала вопрос
+      void ruler.dragDrop(t, p)
       return
     }
     // объект с действиями: «Обыскать», «Открыть»… — если не идём на эту клетку
@@ -434,7 +455,7 @@ export function MapField({
   const pickedTokens = (picked ?? []).map(byCombatant).filter((x): x is string => !!x)
 
   return (
-    <div className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}`}>
+    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`}>
       <MapCanvas
         ref={canvas}
         map={map}
@@ -451,6 +472,7 @@ export function MapField({
           chances: tokenChances,
           picked: pickedTokens,
           ghosts: Object.values(ghosts),
+          ruler: ruler.overlay,
         }}
         onPointer={onPointer}
         onToken={(t) => {
@@ -466,6 +488,7 @@ export function MapField({
         }}
       />
       {hoverCost != null && sel && <span className="mp-cost">{hoverCost} фт.</span>}
+      {!aim && <RulerHud active={ruler.active} started={ruler.started} total={ruler.total} offset={ruler.offset} route={ruler.route} pending={ruler.pending} onToggle={ruler.toggle} onConfirm={ruler.confirm} onDismiss={ruler.dismiss} />}
       {aim && (
         <div className="mp-aimbar">
           <b>{aim.spell}</b>
