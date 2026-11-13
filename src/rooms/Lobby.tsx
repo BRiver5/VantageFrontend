@@ -350,7 +350,7 @@ export function RoomSettingsPanel() {
                   patchRoom(roomId, {
                     name: name.trim(),
                     description,
-                    settings: { max_players: Math.max(1, Math.min(20, maxPlayers)), allow_player_rolls_hidden: rollsHidden },
+                    settings: { ...room.settings, max_players: Math.max(1, Math.min(20, maxPlayers)), allow_player_rolls_hidden: rollsHidden },
                   }),
                 () => {
                   setSaved(true)

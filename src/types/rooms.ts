@@ -18,6 +18,8 @@ export interface RoomSettings {
   allow_player_rolls_hidden: boolean
   /** пока ни на что не влияет: видимость хитов задаётся у каждого существа */
   show_enemy_hp: HpVisibility
+  /** p2/layers: «Игроки могут рисовать» на карте */
+  players_can_draw?: boolean
 }
 
 /** Задел под музыку: эндпоинтов пока нет */

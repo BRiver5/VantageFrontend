@@ -2,6 +2,7 @@ import type { HealthView } from '../../rooms/health'
 import type { MapVfx, Pt } from '../types'
 import type { PingKind } from '../pings'
 import type { RulerOverlay } from './ruler'
+import type { MapDrawing, MapNote, MapSound } from '../layers/types'
 
 export interface MapOverlays {
   /** досягаемые клетки и их стоимость */
@@ -40,6 +41,14 @@ export interface MapOverlays {
   health?: Record<string, HealthView>
   /** жетон того, чей сейчас ход */
   turn?: string | null
+  /** p2/layers: метки, рисунки, значки звуков (мастеру), выбранное в слоях */
+  notes?: readonly MapNote[]
+  drawings?: readonly MapDrawing[]
+  drawingDraft?: { drawing: MapDrawing; open: boolean; cursor?: Pt | null } | null
+  sounds?: readonly MapSound[] | null
+  layerSelected?: string | null
+  /** откуда слушает мастер («слушать отсюда») */
+  listener?: Pt | null
 }
 
 export interface MapViewer {
@@ -59,6 +68,8 @@ export interface MapCanvasHandle {
   panTo: (p: Pt, zoom?: number | null) => void
   /** текущий масштаб камеры */
   zoom: () => number
+  /** точка карты в центре экрана */
+  center: () => Pt
   vfx: (v: MapVfx, at: (combatantId: string) => Pt | null) => void
   /** разовый пресет в точке (зона легла, предмет упал) */
   effect: (presetId: string, p: Pt, size?: number) => void
