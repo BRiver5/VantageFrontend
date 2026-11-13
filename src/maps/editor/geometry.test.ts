@@ -33,7 +33,7 @@ describe('wallOf', () => {
   })
 
   it('окно пропускает движение, взгляд и свет, но не звук', () => {
-    expect(wallOf('window', a, b).blocks).toEqual({ move: false, sight: false, light: false, sound: true })
+    expect(wallOf('window', a, b).blocks).toEqual({ move: true, sight: false, light: false, sound: true })
   })
 
   it('дверь создаётся закрытой и незапертой', () => {

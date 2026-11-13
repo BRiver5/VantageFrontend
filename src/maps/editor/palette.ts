@@ -76,7 +76,7 @@ export const WALL_PRESETS: { id: string; label: string; hint: string; style: Pic
   { id: 'ethereal', label: 'Эфирная', hint: 'Пройти можно; закрывает обзор и звук, свет проходит', style: { kind: 'wall', move: false, sight: true, light: false, sound: true } },
   { id: 'door', label: 'Дверь', hint: 'Открывается и запирается', style: { kind: 'door', move: true, sight: true, light: true, sound: true } },
   { id: 'secret', label: 'Секретная дверь', hint: 'Игроки не видят, пока мастер не покажет', style: { kind: 'secret', move: true, sight: true, light: true, sound: true } },
-  { id: 'window', label: 'Окно', hint: 'Видно и светит насквозь, звук глушит', style: { kind: 'window', move: false, sight: false, light: false, sound: true } },
+  { id: 'window', label: 'Окно', hint: 'Видно и светит насквозь, но не пройти; звук глушит', style: { kind: 'window', move: true, sight: false, light: false, sound: true } },
 ]
 
 const PRESET_KEYS: (keyof WallStyle)[] = ['kind', 'move', 'sight', 'light', 'sound']
@@ -95,7 +95,8 @@ export function styleOf(kind: PaletteKind, x: MapWall | MapObject | MapToken): S
 export function styleOf(kind: PaletteKind, x: MapWall | MapObject | MapToken): Styles[PaletteKind] {
   if (kind === 'walls') {
     const w = x as MapWall
-    return { kind: w.kind, height_ft: w.height_ft, one_way: !!w.one_way, ...w.blocks }
+    // окно непроходимо по виду (так считает сервер), даже если в старой карте move=false
+    return { kind: w.kind, height_ft: w.height_ft, one_way: !!w.one_way, ...w.blocks, ...(w.kind === 'window' ? { move: true } : {}) }
   }
   if (kind === 'objects') {
     const o = x as MapObject
@@ -118,6 +119,7 @@ export function styledWall(w: MapWall, s: Partial<WallStyle>): MapWall {
     const isDoor = s.kind === 'door' || s.kind === 'secret'
     out.door = isDoor ? { ...(w.door ?? { open: false, locked: false }), secret: s.kind === 'secret' } : null
   }
+  if (out.kind === 'window') out.blocks.move = true // окно всегда мешает ходу
   return out
 }
 
