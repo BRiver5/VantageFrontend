@@ -38,6 +38,8 @@ export function FeatureModal({
               <input
                 type="checkbox"
                 checked={!openFeature.disabled}
+                // пока запрос движка в пути — не шлём второй
+                disabled={engine?.busy}
                 onChange={(e) => onToggleAbility(openFeature.grantId!, e.target.checked)}
               />
               <span className="cw-ftoggle-track" aria-hidden="true">
