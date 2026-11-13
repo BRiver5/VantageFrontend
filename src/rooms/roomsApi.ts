@@ -189,6 +189,8 @@ export const delayTurn = (id: string, combat: string, afterCombatantId?: string 
 /** Отметить потраченное вручную: владелец и мастер; surprised, hidden и прочее — только мастер */
 export const patchCombatant = (id: string, combat: string, combatantId: string, body: CombatantPatch) =>
   patch<CombatView>(cb(id, combat, `/combatants/${combatantId}`), body)
+/** Убрать участника из боя (мастер): герой или существо остаются в комнате и на карте */
+export const removeCombatant = (id: string, combat: string, combatantId: string) => del<CombatView>(cb(id, combat, `/combatants/${combatantId}`))
 /** Спасбросок концентрации: владелец и мастер */
 export const concentrationSave = (id: string, combat: string, combatantId: string) =>
   post<ConcentrationSave>(cb(id, combat, '/concentration'), { combatant_id: combatantId })

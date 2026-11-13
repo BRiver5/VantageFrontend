@@ -20,6 +20,9 @@ import { parsePing, pingColor, pingKindFor, userColor, type PingKind } from './p
 import { PAUSE_HINT, isPausedStatus } from '../rooms/pause'
 import { RulerHud } from './ruler/RulerHud'
 import { useRuler } from './ruler/useRuler'
+import { tokenAt as hitToken } from './render/hit'
+import { TokenHud } from './hud/TokenHud'
+import { useMapHud } from './hud/useMapHud'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -125,6 +128,24 @@ export function MapField({
     return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
   }, [map, combat, meUser, mine, units])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
+
+  // p1/hud: панель жетона (правый клик, долгое нажатие) и цели (T, Shift + клик, Shift + рамка)
+  const hud = useMapHud({
+    map,
+    isDm,
+    tokenAt: (p) => (map ? (hitToken(map, isDm, new Map(), p) ?? undefined) : undefined),
+    onOpenCard: onOpen,
+    onTakeOver: () => {
+      clearTimeout(press.current)
+      const dg = dragging.current
+      dragging.current = null
+      if (dg) setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== dg.id)))
+    },
+    // Shift + клик по пустому без протягивания: у мастера — пинг «сюда» (рамка целей — при протягивании)
+    onEmptyShiftClick: (p) => {
+      if (isDm) sendPing(p, 'pan')
+    },
+  })
 
   const flash = (text: string) => {
     setNote(text)
@@ -343,6 +364,7 @@ export function MapField({
       return true
     }
     if (ruler.pointer(kind, p, e)) return true
+    if (hud.handle(kind, p, e)) return true
     if (kind === 'down') {
       clearTimeout(press.current)
       // Alt+клик — «внимание», Shift+клик мастера — «сюда»
@@ -453,9 +475,10 @@ export function MapField({
   const byCombatant = (cid: string) => map.tokens.find((t) => t.combatant_id === cid)?.id
   const tokenChances = Object.fromEntries(Object.entries(chances ?? {}).map(([cid, ch]) => [byCombatant(cid), ch]).filter(([k]) => !!k))
   const pickedTokens = (picked ?? []).map(byCombatant).filter((x): x is string => !!x)
+  const hudToken = hud.hud ? map.tokens.find((t) => t.id === hud.hud!.tokenId && (isDm || !t.hidden)) : undefined
 
   return (
-    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`}>
+    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave}>
       <MapCanvas
         ref={canvas}
         map={map}
@@ -473,9 +496,12 @@ export function MapField({
           picked: pickedTokens,
           ghosts: Object.values(ghosts),
           ruler: ruler.overlay,
+          targets: hud.targets,
+          targetBox: hud.box,
         }}
         onPointer={onPointer}
         onToken={(t) => {
+          if (hud.tookTap()) return
           if (targeting && t.combatant_id) return onTarget?.(t.combatant_id)
           if (canMove(t)) return
           onOpen?.(t)
@@ -489,6 +515,7 @@ export function MapField({
       />
       {hoverCost != null && sel && <span className="mp-cost">{hoverCost} фт.</span>}
       {!aim && <RulerHud active={ruler.active} started={ruler.started} total={ruler.total} offset={ruler.offset} route={ruler.route} pending={ruler.pending} onToggle={ruler.toggle} onConfirm={ruler.confirm} onDismiss={ruler.dismiss} />}
+      {hud.hud && hudToken && <TokenHud key={hudToken.id} map={map} token={hudToken} anchor={hud.hud} targeted={hud.targets.includes(hudToken.id)} onClose={hud.closeHud} onOpenCard={onOpen} />}
       {aim && (
         <div className="mp-aimbar">
           <b>{aim.spell}</b>

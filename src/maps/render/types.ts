@@ -31,6 +31,10 @@ export interface MapOverlays {
   ghosts?: { polygon: Pt[]; color: string }[]
   /** линейка или маршрут перетаскивания с ценой и атаками по возможности */
   ruler?: RulerOverlay | null
+  /** p1/hud: мои цели (id жетонов) — прицел на жетоне */
+  targets?: readonly string[]
+  /** p1/hud: рамка выделения целей */
+  targetBox?: { a: Pt; b: Pt } | null
 }
 
 export interface MapViewer {

@@ -12,7 +12,7 @@
  * обработчики, написанные до реестра (Escape закрывал окно и с зажатым Shift).
  */
 
-export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor' | 'map-ruler'
+export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor' | 'map-ruler' | 'map-tokens'
 
 export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   general: 'Общее',
@@ -21,6 +21,8 @@ export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   kb: 'База знаний',
   'map-editor': 'Редактор карт',
   'map-ruler': 'Линейка и ход по карте',
+  // p1/hud: жетоны на карте стола
+  'map-tokens': 'Карта: жетоны и цели',
 }
 
 export interface KeyAction {
@@ -75,6 +77,9 @@ export const ACTIONS = [
   { id: 'ruler.upFine', label: 'Высота следующей точки: выше на 1 фут', category: 'map-ruler', defaults: ['Shift+E'] },
   { id: 'ruler.downFine', label: 'Высота следующей точки: ниже на 1 фут', category: 'map-ruler', defaults: ['Shift+Q'] },
   { id: 'ruler.cancel', label: 'Линейка: сбросить', category: 'map-ruler', defaults: ['Escape'] },
+  // p1/hud: цели и панель жетона на карте стола
+  { id: 'map.target.toggle', label: 'Цель: отметить жетон под курсором', category: 'map-tokens', defaults: ['T'] },
+  { id: 'map.target.clear', label: 'Цель: снять все отметки', category: 'map-tokens', defaults: ['Shift+T'] },
 ] as const satisfies readonly KeyAction[]
 
 export type ActionId = (typeof ACTIONS)[number]['id']
