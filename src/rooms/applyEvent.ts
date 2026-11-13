@@ -446,7 +446,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       }
       const parts = (a.targets ?? []).map((t) => {
         const dmg = t.damage.reduce((sum, d) => sum + (d.taken ?? d.amount ?? d.roll.total), 0)
-        const res = t.attack ? (t.crit ? 'крит' : t.hit ? 'попал' : 'промах') : t.save ? (t.saved ? 'спас' : 'провал') : ''
+        const res = t.attack ? `${t.crit ? 'крит' : t.hit ? 'попал' : 'промах'}${t.attack.high_ground ? ', с высоты' : ''}` : t.save ? (t.saved ? 'спас' : 'провал') : ''
         return `${unit(t.combatant_id)}${res ? ` (${res})` : ''}${dmg > 0 && (t.hit || !t.attack) ? ` −${dmg}` : ''}${t.healed ? ` +${t.healed}` : ''}`
       })
       const head = `${unit(a.actor_combatant_id)}: ${a.label || 'действие'}`

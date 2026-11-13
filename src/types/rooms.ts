@@ -480,7 +480,8 @@ export interface CastPreview {
   spell: CastPlan
   /** фигура на карте и кто под ней */
   aim?: AimInfo | null
-  targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number }[]
+  /** high_ground — преимущество за высоту по правилу карты, шанс уже с ним */
+  targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number; high_ground?: boolean }[]
 }
 
 export interface ConcentrationCheck {
@@ -512,7 +513,8 @@ export interface CombatTargetResult {
   hit: boolean
   crit: boolean
   saved: boolean
-  attack: RolledDice | null
+  /** high_ground — преимущество за высоту по правилу карты */
+  attack: (RolledDice & { high_ground?: boolean }) | null
   save: RolledDice | null
   damage: { roll: RolledDice; type: string | null; amount?: number; taken?: number | null; source?: string }[]
   healed: number | null
@@ -527,6 +529,12 @@ export interface CombatActionResult {
   kind: string
   label: string
   secret: boolean
+  /** дальняя атака (с дальностью или прицелом) или не оружие; нет у старых событий */
+  ranged?: boolean
+  /** виды урона из запроса — есть и при промахе */
+  damage_types?: string[]
+  /** явный VFX-пресет анимации */
+  vfx?: string
   targets: CombatTargetResult[]
 }
 

@@ -193,6 +193,8 @@ export interface MapZone {
   asset_id?: string | null
   /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
   locked?: boolean
+  /** «без погоды»: навес, пещера */
+  no_weather?: boolean
 }
 
 /** Блок сценария: op и поля по /scene-blocks */
@@ -290,7 +292,22 @@ export interface BattleMap {
   spawns?: SpawnCycle[]
   variables?: Record<string, unknown>
   audio?: { music: string[]; ambience: string[]; soundboard: string[]; volume: number }
-  rules?: { high_ground_advantage: boolean; pickup_costs: string }
+  rules?: { high_ground_advantage: boolean; high_ground_min_ft?: number; pickup_costs: string }
+  /** погода сцены: частицы поверх карты (нет — ясно) */
+  weather?: MapWeather
+  /** игроку: фигуры спрятанных зон «без погоды» */
+  weather_masks?: MapZone['shape'][]
+}
+
+export type WeatherKind = 'none' | 'rain' | 'snow' | 'fog' | 'ash' | 'embers' | 'leaves'
+export interface MapWeather {
+  kind: WeatherKind
+  /** 0..1 */
+  intensity: number
+  /** куда дует ветер: 0° — вправо, по часовой */
+  wind_deg: number
+  /** сила ветра 0..1 */
+  wind: number
 }
 
 /** Пакет конструктора: add / update / remove по видам */

@@ -354,6 +354,8 @@ describe('журнал', () => {
     expect(describeEvent(s, ev('combat.action', { ...action, secret: true }))?.text).toBe('Скрытое действие')
     const miss = { ...action, targets: [{ ...action.targets[0], hit: false }] }
     expect(describeEvent(s, ev('combat.action', miss))?.text).toBe('Арвен: Длинный меч → Гоблин (промах)')
+    const high = { ...action, targets: [{ ...action.targets[0], attack: { total: 18, high_ground: true } }] }
+    expect(describeEvent(s, ev('combat.action', high))?.text).toBe('Арвен: Длинный меч → Гоблин (попал, с высоты) −7')
   })
 
   it('describeEvent: ход, статус, отдых, предметы', () => {

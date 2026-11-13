@@ -26,6 +26,8 @@ import { TokenHud } from './hud/TokenHud'
 import { useMapHud } from './hud/useMapHud'
 import { onTokenFocus } from './focus'
 import { maskTokenLabels, tokenHealth, turnTokenId } from './partyOverlays'
+import { isAnimated, tokenLooks } from './tokenLooks'
+import { useAttackFx } from './useAttackFx'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -155,6 +157,10 @@ export function MapField({
   const shownMap = useMemo(() => (map ? maskTokenLabels(map, creatures ?? [], isDm) : null), [map, creatures, isDm])
   const health = useMemo(() => (map ? tokenHealth(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }, isDm) : {}), [map, characters, creatures, combat, isDm])
   const turnToken = map ? turnTokenId(map, combat ?? null) : null
+  // состояния на жетонах (невидим, горит, отравлен…) и анимация атак без map.vfx
+  const looks = useMemo(() => (map ? tokenLooks(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }) : {}), [map, characters, creatures, combat])
+  const looksLive = useMemo(() => Object.values(looks).some(isAnimated), [looks])
+  useAttackFx(canvas, map)
 
   // «Показать на карте» из панели отряда: камера на жетон, свой — выбрать
   const focusRef = useRef<(id: string) => void>(() => undefined)
@@ -509,6 +515,8 @@ export function MapField({
           targetBox: hud.box,
           health,
           turn: turnToken,
+          looks,
+          looksLive,
         }}
         onPointer={onPointer}
         onToken={(t) => {
