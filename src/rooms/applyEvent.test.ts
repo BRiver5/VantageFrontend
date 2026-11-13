@@ -98,6 +98,16 @@ describe('applyEvent: комната и участники', () => {
     expect(applyEvent(state(), ev('room.status', { status: 'active' })).room.status).toBe('active')
   })
 
+  it('room.status: пауза и продолжение', () => {
+    const paused = applyEvent(state({ room: { ...snapshot().room, status: 'active' } }), ev('room.status', { status: 'paused' }))
+    expect(paused.room.status).toBe('paused')
+    expect(describeEvent(paused, ev('room.status', { status: 'paused' }))?.text).toBe('Мастер поставил игру на паузу')
+    const resumed = applyEvent(paused, ev('room.status', { status: 'active' }, 12))
+    expect(resumed.room.status).toBe('active')
+    expect(describeEvent(resumed, ev('room.status', { status: 'active' }, 12))?.text).toBe('Статус комнаты: идёт игра')
+    expect(statusRu('paused')).toBe('пауза')
+  })
+
   it('member.requested добавляет заявку или обновляет существующую', () => {
     const s1 = applyEvent(state(), ev('member.requested', { user_id: 'u3', nickname: 'Ник', character_name: 'Гимли' }))
     expect(s1.members).toHaveLength(3)
@@ -351,7 +361,7 @@ describe('журнал', () => {
     const turn = { combatants: [{ id: 'a', card: card('ch1') }], current_combatant_id: 'a', round: 2 }
     expect(describeEvent(s, ev('combat.turn', turn))?.text).toBe('Ход: Арвен (раунд 2)')
     expect(describeEvent(s, ev('combat.turn', { ...turn, current_combatant_id: 'z' }))).toBeNull()
-    expect(describeEvent(s, ev('room.status', { status: 'paused' }))?.text).toBe('Статус комнаты: перерыв')
+    expect(describeEvent(s, ev('room.status', { status: 'paused' }))?.text).toBe('Мастер поставил игру на паузу')
     expect(describeEvent(s, ev('room.rest', { kind: 'long' }))?.text).toBe('Партия отдыхает: продолжительный отдых')
     expect(describeEvent(s, ev('room.rest', { kind: 'short' }))?.text).toBe('Партия делает короткий привал')
     expect(describeEvent(s, ev('item.claimed', { character_name: 'Гимли', name: 'Факел', quantity: 3 }))).toMatchObject({ who: 'Гимли', text: 'забирает Факел ×3 со стола' })

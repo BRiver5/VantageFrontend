@@ -62,6 +62,9 @@ export const ACTIONS = [
   { id: 'map.tool.terrain', label: 'Инструмент: рельеф', category: 'map-editor', defaults: ['H'] },
   { id: 'map.tool.zone', label: 'Инструмент: зона', category: 'map-editor', defaults: ['Z'] },
   { id: 'map.tool.item', label: 'Инструмент: предмет', category: 'map-editor', defaults: ['I'] },
+
+  // игровой стол: пауза (только мастер, не в поле ввода)
+  { id: 'room.pause', label: 'Пауза игры (мастер)', category: 'general', defaults: ['Space'] },
 ] as const satisfies readonly KeyAction[]
 
 export type ActionId = (typeof ACTIONS)[number]['id']

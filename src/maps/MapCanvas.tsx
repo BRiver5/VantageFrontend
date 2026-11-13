@@ -21,7 +21,10 @@ import { drawFloats } from './render/floats'
 import { doorAt, tokenAt } from './render/hit'
 import { drawCarriedItems, drawFloorItems } from './render/items'
 import { drawLightMarkers } from './render/lights'
-import { drawAim, drawDraft, drawGhosts, drawPath, drawPings, drawReach } from './render/overlays'
+import { drawAim, drawDraft, drawGhosts, drawPath, drawReach } from './render/overlays'
+import { drawPingEdges, drawPingMarkers } from './render/pings'
+import { pingLife } from './pings'
+import { isPingCalm, prefersReducedMotion } from './pingSettings'
 import { drawTokens } from './render/tokens'
 import { drawWalls } from './render/walls'
 import { drawZones } from './render/zones'
@@ -50,6 +53,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const dirty = useRef(true)
   const anim = useRef(new Map<string, { path: Pt[]; t0: number }>())
   const pings = useRef<Ping[]>([])
+  // плавный перелёт камеры к пингу «сюда»
+  const flight = useRef<{ from: { x: number; y: number; k: number }; to: Pt; k: number; t0: number } | null>(null)
   const fx = useRef<VfxEngine>(null as unknown as VfxEngine)
   fx.current ??= new VfxEngine()
   useEffect(() => () => fx.current.dispose(), [])
@@ -111,10 +116,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       cam.current.y = c.clientHeight / 2 - p.y * cam.current.k
       dirty.current = true
     },
-    ping: (p, color = '#f5d06a') => {
-      pings.current.push({ p, t0: performance.now(), color })
+    ping: (p, color = '#f5d06a', kind = 'basic') => {
+      pings.current.push({ p, t0: performance.now(), color, kind })
       dirty.current = true
     },
+    panTo: (p, zoom) => {
+      const v = cam.current
+      const k = zoom ? Math.max(0.15, Math.min(6, zoom)) : v.k
+      v.touched = true
+      flight.current = { from: { x: v.x, y: v.y, k: v.k }, to: p, k, t0: prefersReducedMotion() ? -Infinity : performance.now() }
+      dirty.current = true
+    },
+    zoom: () => cam.current.k,
     walk: (tokenId, path) => {
       if (path.length > 1) anim.current.set(tokenId, { path, t0: performance.now() })
       dirty.current = true
@@ -184,7 +197,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const c = canvas.current
       if (!c) return
       const zoneFx = props.current.map.zones.some((z) => z.enabled && z.vfx_preset)
-      const busy = zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
+      const busy = zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || !!flight.current || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
       const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
       if (!dirty.current && !busy && !flick) return
       dirty.current = false
@@ -204,6 +217,21 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (W > 0 && (cam.current.fitted.split(':')[0] !== m.id || (!cam.current.touched && cam.current.fitted !== fitKey))) {
         const k = Math.min(W / mapW, H / mapH) * 0.95
         cam.current = { k, x: (W - mapW * k) / 2, y: (H - mapH * k) / 2, fitted: fitKey, touched: cam.current.fitted.split(':')[0] === m.id && cam.current.touched }
+      }
+      // перелёт к пингу «сюда»: 600 мс с замедлением, при reduced-motion — сразу
+      const fl = flight.current
+      if (fl && W > 0) {
+        const s = Math.min(1, (now - fl.t0) / 600)
+        const e = 1 - (1 - s) ** 3
+        const k = fl.from.k + (fl.k - fl.from.k) * e
+        const cx0 = (W / 2 - fl.from.x) / fl.from.k
+        const cy0 = (H / 2 - fl.from.y) / fl.from.k
+        const cx = cx0 + (fl.to.x - cx0) * e
+        const cy = cy0 + (fl.to.y - cy0) * e
+        cam.current.k = k
+        cam.current.x = W / 2 - cx * k
+        cam.current.y = H / 2 - cy * k
+        if (s >= 1) flight.current = null
       }
       const ctx = c.getContext('2d')!
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -262,13 +290,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (ov.aim && ov.aim.polygon.length) drawAim(ctx, ov.aim, v)
 
       // пинги
-      pings.current = pings.current.filter((pg) => now - pg.t0 < 1400)
-      drawPings(ctx, pings.current, now, g, v)
+      const calm = isPingCalm()
+      pings.current = pings.current.filter((pg) => now - pg.t0 < pingLife(pg.kind ?? 'basic', calm))
+      drawPingMarkers(ctx, pings.current, now, v, calm)
       // частицы и свет эффектов
       fx.current.draw(ctx)
       floats.current = floats.current.filter((f) => (f.life += dt) < 1600)
       drawFloats(ctx, floats.current, g)
       ctx.restore()
+      // пинги вне экрана — стрелкой у края
+      drawPingEdges(ctx, pings.current, now, v, W, H, calm)
       fx.current.drawFlash(ctx, W, H)
     }
     raf = requestAnimationFrame(draw)
@@ -332,6 +363,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         const p = toMap(e)
         if (d && Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) d.moved = true
         if (d?.pan && d.moved) {
+          flight.current = null
           cam.current.x = d.cx + e.clientX - d.x
           cam.current.y = d.cy + e.clientY - d.y
           cam.current.touched = true

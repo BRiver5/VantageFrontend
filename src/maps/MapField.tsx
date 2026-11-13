@@ -16,6 +16,8 @@ import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
 import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
+import { parsePing, pingColor, pingKindFor, userColor, type PingKind } from './pings'
+import { PAUSE_HINT, isPausedStatus } from '../rooms/pause'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -72,6 +74,14 @@ export function MapField({
   const meUser = data?.me.user_id
   const mine = data?.me.room_character_id ?? null
   const combat = data?.combat
+  // пауза: игроку ход, двери и объекты закрыты (сервер всё равно ответит 423)
+  const frozen = !isDm && isPausedStatus(data?.room.status)
+  useEffect(() => {
+    if (!frozen) return
+    dragging.current = null
+    setSelected(null)
+    setReach(null)
+  }, [frozen])
 
   // мои существа по серверу: герой и призванные; обновляем после событий карты и боя
   const [units, setUnits] = useState<MyUnit[]>([])
@@ -182,7 +192,10 @@ export function MapField({
       return
     }
     if (msg.type === 'map.ping' && fromOther && p.map_id === map.id) {
-      canvas.current?.ping({ x: Number(p.x), y: Number(p.y) }, (p.color as string) || '#f5d06a')
+      const pg = parsePing(p)
+      if (!pg) return
+      canvas.current?.ping(pg.at, pingColor(pg.kind, pg.color ?? userColor(pg.userId)), pg.kind)
+      if (pg.kind === 'pan') canvas.current?.panTo(pg.at, pg.zoom)
       return
     }
     if (msg.type === 'map.aim' && fromOther && p.map_id === map.id) {
@@ -294,6 +307,13 @@ export function MapField({
 
   if (!map) return null
 
+  /** пинг: себе сразу, другим через сокет; «сюда» несёт масштаб мастера */
+  const sendPing = (p: Pt, kind: PingKind = 'basic') => {
+    const zoom = kind === 'pan' ? canvas.current?.zoom() : undefined
+    sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y), kind, ...(zoom ? { zoom: Math.round(zoom * 1000) / 1000 } : {}) })
+    canvas.current?.ping(p, pingColor(kind, userColor(meUser)), kind)
+  }
+
   const tokenAt = (p: Pt) => map.tokens.filter((t) => (isDm || !t.hidden) && Math.hypot(t.x - p.x, t.y - p.y) <= (t.size * map.grid.cell_px) / 2).sort((a, b) => a.size - b.size)[0]
   const onPointer = (kind: 'down' | 'move' | 'up', p: Pt, e: RPointerEvent): boolean | void => {
     if (aim) {
@@ -307,21 +327,27 @@ export function MapField({
     }
     if (kind === 'down') {
       clearTimeout(press.current)
+      // Alt+клик — «внимание», Shift+клик мастера — «сюда»
+      const special = e.button === 0 ? pingKindFor(e, isDm) : null
+      if (special) {
+        sendPing(p, special)
+        return true
+      }
       if (e.button === 2) {
-        sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y) })
-        canvas.current?.ping(p)
+        sendPing(p)
         return true
       }
       const t = tokenAt(p)
+      if (t && canMove(t) && !targeting && frozen) {
+        flash(PAUSE_HINT)
+        return true
+      }
       if (t && canMove(t) && !targeting) {
         dragging.current = { id: t.id, from: { x: t.x, y: t.y } }
         return true
       }
       // долгое нажатие — пинг
-      press.current = setTimeout(() => {
-        sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y) })
-        canvas.current?.ping(p)
-      }, 650)
+      press.current = setTimeout(() => sendPing(p), 600)
       return false
     }
     if (kind === 'move') {
@@ -433,6 +459,7 @@ export function MapField({
           onOpen?.(t)
         }}
         onDoor={(wallId) => {
+          if (frozen) return flash(PAUSE_HINT)
           const w = map.walls.find((x) => x.id === wallId)
           const me = myTokens[0]
           void doorAction(roomId, map.id, wallId, w?.door?.open ? 'close' : 'open', me?.id).catch((e) => flash(errText(e)))
@@ -532,6 +559,7 @@ export function MapField({
           ))}
         </ul>
       )}
+      {frozen && <p className="mp-note is-soft mp-paused-hint">{PAUSE_HINT}</p>}
       {!isDm && map.fog?.mode !== 'off' && !map.fog?.honest && myTokens.length === 0 && <p className="mp-note is-soft">Вашего героя нет на карте</p>}
     </div>
   )

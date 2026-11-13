@@ -14,6 +14,8 @@ import { RoomLog } from '../RoomLog'
 import { useRoom } from '../RoomProvider'
 import { statusRu } from '../applyEvent'
 import { Round } from './parts'
+import { PauseBadge, PauseButton } from './PauseControls'
+import { PingSettingsPanel } from './PingSettings'
 import { useKeybinding } from '../../input/useKeybinding'
 
 type Pop = 'party' | 'log' | 'settings' | 'chat' | null
@@ -85,9 +87,10 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
           {center ?? (
             <>
               <h1>{data.room.name}</h1>
-              {(data.room.status === 'paused' || data.room.status === 'closed') && <span>{statusRu(data.room.status)}</span>}
+              {data.room.status === 'closed' && <span>{statusRu(data.room.status)}</span>}
             </>
           )}
+          <PauseBadge />
           {offline ? (
             <em className="tb-offline" role="status">
               <WifiOff aria-hidden="true" /> связь потеряна, переподключаемся…
@@ -97,6 +100,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
           )}
         </div>
         <div className="tb-rounds">
+          <PauseButton />
           {onSheet && <Round icon={UserRound} label="Лист героя" onClick={onSheet} />}
           <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} />
           <Round icon={ScrollText} label="Журнал" on={pop === 'log'} onClick={() => toggle('log')} />
@@ -129,6 +133,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
               <LeavePanel />
             </>
           )}
+          <PingSettingsPanel isDm={isDm} />
         </Drawer>
       )}
 
