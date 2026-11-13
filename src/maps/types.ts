@@ -103,6 +103,30 @@ export interface MapLight {
   enabled: boolean
   /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
   locked?: boolean
+  /** источник тьмы: гасит свет и закрывает обзор */
+  negative?: boolean
+  /** горит, пока темнота сцены в диапазоне */
+  darkness_min?: number
+  darkness_max?: number
+  animation?: LightAnimation
+  /** 1..10 */
+  animation_speed?: number
+  /** 1..10 */
+  animation_intensity?: number
+  /** 0..1: насколько свет окрашивает сцену */
+  color_intensity?: number
+}
+
+export type LightAnimation = 'none' | 'torch' | 'pulse' | 'chroma' | 'fog' | 'sunburst'
+
+/** Окружение и темнота сцены 0..1 с переходом по времени сервера */
+export interface MapAmbient {
+  level: 'bright' | 'dim' | 'dark'
+  color: string | null
+  darkness?: number
+  darkness_from?: number
+  darkness_started_at?: string | null
+  darkness_duration_s?: number
 }
 
 export type VisionMode = 'normal' | 'darkvision' | 'blindsight' | 'truesight' | 'tremorsense'
@@ -253,11 +277,14 @@ export interface BattleMap {
   objects: MapObject[]
   walls: MapWall[]
   lights: MapLight[]
-  ambient: { level: 'bright' | 'dim' | 'dark'; color: string | null }
+  ambient: MapAmbient
   tokens: MapToken[]
   items: MapItem[]
   zones: MapZone[]
-  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean }
+  /** explored — только игроку при динамическом тумане: его исследованные клетки "col,row" */
+  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean; explored?: string[] }
+  /** время сервера в момент отправки (ISO) — для синхронного перехода темноты */
+  server_time?: string
   /** только мастеру */
   triggers?: MapTrigger[]
   spawns?: SpawnCycle[]

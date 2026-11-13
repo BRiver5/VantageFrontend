@@ -23,6 +23,11 @@ export const patchMap = (roomId: string, mapId: string, body: Partial<BattleMap>
 export const deleteMap = (roomId: string, mapId: string) => request<void>(r(roomId, `/${mapId}`), { method: 'DELETE', auth: true })
 /** Пакет конструктора: всё или ничего; 409 — карту изменили */
 export const editMap = (roomId: string, mapId: string, batch: EditBatch) => post<BattleMap>(r(roomId, `/${mapId}/edit`), batch)
+/** Темнота сцены 0..1: сразу (duration_s 0) или плавно — одинаково у всех */
+export const setDarkness = (roomId: string, mapId: string, darkness: number, durationS = 0) =>
+  post<BattleMap>(r(roomId, `/${mapId}/darkness`), { darkness, duration_s: durationS })
+/** Сбросить исследованный туман всех игроков */
+export const resetFog = (roomId: string, mapId: string) => post<{ ok: boolean; players: number }>(r(roomId, `/${mapId}/fog/reset`))
 /** Положить на стол: показать игрокам, создать токены героев и участников боя */
 export const activateMap = (roomId: string, mapId: string) => post<BattleMap>(r(roomId, `/${mapId}/activate`))
 
