@@ -15,21 +15,21 @@ export const snapCell = (g: Grid, p: Pt, w = 1, h = 1) => {
   return { x: cc.x + (w % 2 === 0 ? g.cell_px / 2 : 0), y: cc.y + (h % 2 === 0 ? g.cell_px / 2 : 0) }
 }
 
-/** что под курсором: свет, жетон, предмет, объект, стена, зона */
+/** что под курсором: свет, жетон, предмет, объект, стена, зона; закреплённое (locked) пропускаем */
 export const hitAt = (map: BattleMap, p: Pt): string | null => {
   const g = map.grid
   const near = g.cell_px * 0.3
-  const l = map.lights.find((x) => dist(x, p) < near)
+  const l = map.lights.find((x) => !x.locked && dist(x, p) < near)
   if (l) return l.id
-  const t = map.tokens.find((x) => dist(x, p) <= (x.size * g.cell_px) / 2)
+  const t = map.tokens.find((x) => !x.locked && dist(x, p) <= (x.size * g.cell_px) / 2)
   if (t) return t.id
-  const it = map.items.find((x) => !x.carried_by && dist(x, p) < near)
+  const it = map.items.find((x) => !x.locked && !x.carried_by && dist(x, p) < near)
   if (it) return it.id
-  const o = [...map.objects].reverse().find((x) => Math.abs(p.x - x.x) <= x.w / 2 && Math.abs(p.y - x.y) <= x.h / 2)
+  const o = [...map.objects].reverse().find((x) => !x.locked && Math.abs(p.x - x.x) <= x.w / 2 && Math.abs(p.y - x.y) <= x.h / 2)
   if (o) return o.id
-  const w = map.walls.map((x) => ({ x, d: segDist(p, x.a, x.b) })).filter((x) => x.d < near * 0.6).sort((a, b) => a.d - b.d)[0]
+  const w = map.walls.filter((x) => !x.locked).map((x) => ({ x, d: segDist(p, x.a, x.b) })).filter((x) => x.d < near * 0.6).sort((a, b) => a.d - b.d)[0]
   if (w) return w.x.id
-  const z = [...map.zones].reverse().find((x) => pointInPolygon(p, zonePoly(x, map)))
+  const z = [...map.zones].reverse().find((x) => !x.locked && pointInPolygon(p, zonePoly(x, map)))
   return z?.id ?? null
 }
 

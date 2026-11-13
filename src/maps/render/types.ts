@@ -40,6 +40,10 @@ export interface MapOverlays {
   health?: Record<string, HealthView>
   /** жетон того, чей сейчас ход */
   turn?: string | null
+  /** p2/editor: выбрано несколько объектов (id) */
+  multi?: readonly string[]
+  /** p2/editor: рамка выбора в конструкторе */
+  selectBox?: { a: Pt; b: Pt } | null
 }
 
 export interface MapViewer {
