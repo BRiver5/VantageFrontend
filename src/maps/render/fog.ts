@@ -17,9 +17,14 @@ export function drawDarkness(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement
   if (ambientDark > 0 || needFog) {
     if (!dark.current) dark.current = document.createElement('canvas')
     const d = dark.current
-    d.width = c.width
-    d.height = c.height
+    // размер меняем только при изменении: присваивание width/height пересоздаёт буфер
+    if (d.width !== c.width || d.height !== c.height) {
+      d.width = c.width
+      d.height = c.height
+    }
     const dx = d.getContext('2d')!
+    dx.setTransform(1, 0, 0, 1, 0, 0)
+    dx.clearRect(0, 0, d.width, d.height)
     dx.setTransform(dpr, 0, 0, dpr, 0, 0)
     dx.translate(v.x, v.y)
     dx.scale(v.k, v.k)
