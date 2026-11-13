@@ -27,6 +27,10 @@ export interface MapOverlays {
   reachItems?: string[]
   /** чужие шаблоны наведения: бледно */
   ghosts?: { polygon: Pt[]; color: string }[]
+  /** p1/hud: мои цели (id жетонов) — прицел на жетоне */
+  targets?: readonly string[]
+  /** p1/hud: рамка выделения целей */
+  targetBox?: { a: Pt; b: Pt } | null
 }
 
 export interface MapViewer {
