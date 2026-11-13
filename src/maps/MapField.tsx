@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { parsePortrait } from '../characters/portrait'
 import { useRoom, useRoomEvents } from '../rooms/RoomProvider'
 import { creatureArt } from '../rooms/table/parts'
+import { SceneLight } from './SceneLight'
 import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, moveToken, myUnits, patchMap, pickUp, type MyUnit } from './api'
 import { getAttribution, sfxFor, type AssetCredit } from './assets'
 import type { BattleMap, MapObject } from './types'
@@ -623,6 +624,7 @@ export function MapField({
         </div>
       )}
       {isDm && !aim && <DmMapTools map={map} roomId={roomId} onError={flash} onDone={flash} />}
+      {isDm && !aim && <SceneLight map={map} roomId={roomId} onError={flash} onDone={flash} />}
       {isDm && fired.length > 0 && (
         <ul className="mp-fired" aria-label="Сработавшие триггеры">
           {fired.map((f) => (

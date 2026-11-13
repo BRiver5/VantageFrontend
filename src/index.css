@@ -115,3 +115,4 @@
 @import './styles/components/ruler.css' layer(components);
 @import './styles/components/token-hud.css' layer(components);
 @import './styles/components/party.css' layer(components);
+@import './styles/components/scene-light.css' layer(components);
