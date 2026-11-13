@@ -4,11 +4,11 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { BookMarked, Library, Map as MapIcon, PenLine, Play, Square, Trash2, Upload, X } from 'lucide-react'
+import { BookMarked, FileInput, Library, Map as MapIcon, PenLine, Play, Square, Trash2, Upload, X } from 'lucide-react'
 import { ApiError, uploadMedia } from '../api'
 import { Img } from '../media'
 import { useRoom } from '../rooms/RoomProvider'
-import { activateMap, createMap, deleteMap, deleteScene, listMaps, listScenes, loadScene, patchMap, saveAsScene, type ScenePresetSummary } from './api'
+import { activateMap, createMap, deleteMap, deleteScene, importUvtt, listMaps, listScenes, loadScene, patchMap, saveAsScene, type ScenePresetSummary } from './api'
 import { MapEditor } from './MapEditor'
 import type { BattleMap } from './types'
 
@@ -133,6 +133,27 @@ export function MapsShelf() {
             <MapIcon aria-hidden="true" />
             <b>Пустая</b>
           </button>
+        </li>
+        <li>
+          <label className={`sc-map is-add${busy ? ' is-busy' : ''}`} title="Universal VTT из Dungeondraft, DungeonFog и других: картинка, стены, двери и свет">
+            <FileInput aria-hidden="true" />
+            <b>Импорт .dd2vtt</b>
+            <input
+              type="file"
+              accept=".dd2vtt,.uvtt,.df2vtt,application/json"
+              hidden
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                void act(async () => {
+                  const m = await importUvtt(roomId, f)
+                  setEditing(m.id)
+                })
+                e.target.value = ''
+              }}
+            />
+          </label>
         </li>
         <li>
           <button type="button" className="sc-map is-add" disabled={busy} onClick={() => setScenes(true)}>
