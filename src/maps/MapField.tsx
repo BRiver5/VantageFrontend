@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { parsePortrait } from '../characters/portrait'
 import { useRoom, useRoomEvents } from '../rooms/RoomProvider'
 import { creatureArt } from '../rooms/table/parts'
-import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, moveToken, myUnits, patchMap, pickUp, type MyUnit } from './api'
+import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, myUnits, patchMap, pickUp, type MyUnit } from './api'
 import { getAttribution, sfxFor, type AssetCredit } from './assets'
 import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
@@ -329,17 +329,6 @@ export function MapField({
       flash(errText(e))
     }
   }
-  const go = async (t: MapToken, to: Pt) => {
-    if (!map) return
-    try {
-      await moveToken(roomId, map.id, t.id, { to, mode: moveMode, ...(moveMode === 'fly' ? { elevation_ft: flyHeight } : {}) })
-      setReach(null)
-      setSelected(null)
-    } catch (e) {
-      flash(errText(e))
-    }
-  }
-
   // линейка и маршрут перетаскивания: точки, высота, цена и атаки по возможности
   const fieldRef = useRef<HTMLDivElement>(null)
   const ruler = useRuler({
@@ -471,7 +460,7 @@ export function MapField({
     if (selected && reach) {
       const t = map.tokens.find((x) => x.id === selected)
       const [c, r] = cellOf(map.grid, p)
-      if (t && reach.has(`${c},${r}`)) void go(t, cellCenter(map.grid, c, r))
+      if (t && reach.has(`${c},${r}`)) void ruler.moveTo(t, [c, r])
       else {
         setSelected(null)
         setReach(null)
