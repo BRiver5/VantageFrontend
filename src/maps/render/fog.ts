@@ -6,8 +6,23 @@
  * камерой — вызывающий потом закрывает его своим ctx.restore().
  */
 import { blockingSegments, pxPerFt, visibility } from '../geometry'
-import type { BattleMap, MapToken, Pt } from '../types'
+import type { BattleMap, MapLight, MapToken, Pt } from '../types'
 import type { MapViewer, View } from './types'
+
+/**
+ * Где источник света. Прикреплённый едет за жетоном: нарисованное положение,
+ * иначе положение из данных. Жетона в данных нет (игроку не прислали скрытый
+ * или невидимый жетон, либо жетон удалён) — свет не рисуем: сервер такой
+ * источник тоже не учитывает, а своё место источника устарело и выдало бы,
+ * где жетон стоял раньше.
+ */
+export function lightOrigin(m: BattleMap, l: MapLight, pos: Map<string, Pt>): Pt | null {
+  if (!l.attached_to) return { x: l.x, y: l.y }
+  const p = pos.get(l.attached_to)
+  if (p) return p
+  const t = m.tokens.find((x) => x.id === l.attached_to)
+  return t ? { x: t.x, y: t.y } : null
+}
 
 export function drawDarkness(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, dark: { current: HTMLCanvasElement | null }, m: BattleMap, vw: MapViewer, v: View, dpr: number, pos: Map<string, Pt>, now: number) {
   const g = m.grid
@@ -52,7 +67,8 @@ export function drawDarkness(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement
     // источники света
     const lightPolys: { pts: Pt[]; p: Pt; r: number }[] = []
     for (const l of m.lights.filter((l) => l.enabled)) {
-      const at = l.attached_to ? pos.get(l.attached_to) ?? { x: l.x, y: l.y } : { x: l.x, y: l.y }
+      const at = lightOrigin(m, l, pos)
+      if (!at) continue
       const f = l.flicker ? 1 + Math.sin(now / 90 + l.x) * 0.04 + Math.sin(now / 37) * 0.03 : 1
       const rb = l.bright_ft * ppf * f
       const rd = l.dim_ft * ppf * f
