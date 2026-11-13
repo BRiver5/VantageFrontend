@@ -98,14 +98,14 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       const k = e.key.toLowerCase()
       if ((e.ctrlKey || e.metaKey) && k === 'z') {
         e.preventDefault()
+        if (!map) return
         const from = e.shiftKey ? redo.current : undo.current
         const to = e.shiftKey ? undo.current : redo.current
         const prev = from.pop()
         if (prev) {
-          setMap((m) => {
-            if (m) to.push(m)
-            return prev
-          })
+          // стек меняем здесь, не в функции setMap: её React может вызвать дважды
+          to.push(map)
+          setMap(prev)
           setState('dirty')
         }
         return
@@ -128,7 +128,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     }
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
-  }, [draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
+  }, [map, draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
 
   const artOf = useCallback(
     (t: MapToken): string | null => {

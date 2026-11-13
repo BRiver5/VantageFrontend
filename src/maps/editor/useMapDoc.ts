@@ -31,7 +31,8 @@ export function useMapDoc(roomId: string, mapId: string) {
   const change = useCallback((fn: (m: BattleMap) => BattleMap) => {
     setMap((m) => {
       if (!m) return m
-      undo.current = [...undo.current.slice(-60), m]
+      // React может вызвать функцию дважды (StrictMode): одно состояние — одна запись в стеке
+      if (undo.current[undo.current.length - 1] !== m) undo.current = [...undo.current.slice(-60), m]
       redo.current = []
       return fn(m)
     })
