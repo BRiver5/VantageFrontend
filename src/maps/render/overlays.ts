@@ -1,6 +1,6 @@
-/** Подсказки поверх карты: досягаемость, путь, черновик, шаблоны наведения, пинги */
+/** Подсказки поверх карты: досягаемость, путь, черновик, шаблоны наведения (пинги — render/pings.ts) */
 import type { MapGrid } from '../types'
-import type { MapOverlays, Ping, View } from './types'
+import type { MapOverlays, View } from './types'
 
 /** досягаемые клетки */
 export function drawReach(ctx: CanvasRenderingContext2D, g: MapGrid, reach: Map<string, number>) {
@@ -77,22 +77,4 @@ export function drawAim(ctx: CanvasRenderingContext2D, aim: NonNullable<MapOverl
     ctx.fill()
   }
   ctx.restore()
-}
-
-/** пинги: расходящиеся кольца */
-export function drawPings(ctx: CanvasRenderingContext2D, pings: Ping[], now: number, g: MapGrid, v: View) {
-  for (const pg of pings) {
-    const f = (now - pg.t0) / 1400
-    ctx.save()
-    ctx.strokeStyle = pg.color
-    ctx.globalAlpha = 1 - f
-    ctx.lineWidth = 3 / v.k
-    for (const k of [0, 0.35]) {
-      const ff = Math.max(0, f - k)
-      ctx.beginPath()
-      ctx.arc(pg.p.x, pg.p.y, 6 + ff * g.cell_px * 1.6, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-    ctx.restore()
-  }
 }

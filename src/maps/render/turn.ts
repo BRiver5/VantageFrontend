@@ -1,12 +1,11 @@
 /**
  * Чей ход: золотое кольцо на земле вокруг жетона и медленно бегущие по нему
- * засечки. При «уменьшить движение» кольцо стоит на месте.
+ * засечки. При «уменьшить движение» кольцо стоит на месте (still — из
+ * prefersReducedMotion в pingSettings.ts).
  */
 import { cssVar } from '../../styles/palette'
 import type { MapGrid, MapToken, Pt } from '../types'
 import type { View } from './types'
-
-export const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 export function drawTurnRing(ctx: CanvasRenderingContext2D, t: MapToken, p: Pt, g: MapGrid, v: View, now: number, still: boolean) {
   const gold = cssVar('--gold-3', '#e3c46e')
