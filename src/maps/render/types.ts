@@ -1,4 +1,5 @@
 import type { MapVfx, Pt } from '../types'
+import type { PingKind } from '../pings'
 
 export interface MapOverlays {
   /** досягаемые клетки и их стоимость */
@@ -41,7 +42,11 @@ export interface MapCanvasHandle {
   /** экран → карта */
   toMap: (clientX: number, clientY: number) => Pt
   centerOn: (p: Pt) => void
-  ping: (p: Pt, color?: string) => void
+  ping: (p: Pt, color?: string, kind?: PingKind) => void
+  /** плавно перевести камеру в точку; zoom — масштаб камеры (как у мастера) */
+  panTo: (p: Pt, zoom?: number | null) => void
+  /** текущий масштаб камеры */
+  zoom: () => number
   vfx: (v: MapVfx, at: (combatantId: string) => Pt | null) => void
   /** разовый пресет в точке (зона легла, предмет упал) */
   effect: (presetId: string, p: Pt, size?: number) => void
@@ -61,6 +66,8 @@ export interface Ping {
   p: Pt
   t0: number
   color: string
+  /** вид пинга; нет — обычный */
+  kind?: PingKind
 }
 
 /** камера: сдвиг и масштаб */
