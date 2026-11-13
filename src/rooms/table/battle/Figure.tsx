@@ -24,6 +24,7 @@ export function Figure({
   onSurprise,
   onLegendary,
   chance,
+  busy = false,
 }: {
   c: CombatantView
   current: boolean
@@ -42,6 +43,8 @@ export function Figure({
   onLegendary?: (kind: 'action' | 'resistance', amount: number) => void
   /** предпросмотр заклинания: шанс попасть или провалить спасбросок */
   chance?: { chance: number; kind: 'attack' | 'save' | 'auto' }
+  /** идёт запрос боя: кнопки мастера не жмутся второй раз */
+  busy?: boolean
 }) {
   const { roomId, data } = useRoom()
   // внезапность действует только в первом раунде
@@ -98,12 +101,12 @@ export function Figure({
       <b className="bt-fig-name">{nameOf(c)}</b>
       {legend && (
         <span className="bt-legend">
-          <Pips n={legend.actions} left={legend.actionsLeft} kind="action" onSpend={onLegendary ? (a) => onLegendary('action', a) : undefined} />
-          <Pips n={legend.resist} left={legend.resistLeft} kind="resistance" onSpend={onLegendary ? (a) => onLegendary('resistance', a) : undefined} />
+          <Pips n={legend.actions} left={legend.actionsLeft} kind="action" disabled={busy} onSpend={onLegendary ? (a) => onLegendary('action', a) : undefined} />
+          <Pips n={legend.resist} left={legend.resistLeft} kind="resistance" disabled={busy} onSpend={onLegendary ? (a) => onLegendary('resistance', a) : undefined} />
         </span>
       )}
       {setup && isDm && onSurprise && (
-        <button type="button" className={`bt-fig-surprise${c.surprised ? ' is-on' : ''}`} onClick={onSurprise} title={c.surprised ? 'Застигнут врасплох — снять' : 'Застигнуть врасплох'} aria-pressed={!!c.surprised}>
+        <button type="button" className={`bt-fig-surprise${c.surprised ? ' is-on' : ''}`} disabled={busy} onClick={onSurprise} title={c.surprised ? 'Застигнут врасплох — снять' : 'Застигнуть врасплох'} aria-pressed={!!c.surprised}>
           !
         </button>
       )}
@@ -116,9 +119,10 @@ export function Figure({
             aria-label={`Инициатива: ${nameOf(c)}`}
             placeholder="—"
             value={initVal ?? c.initiative ?? ''}
+            disabled={busy}
             onChange={(e) => setInitVal(e.target.value)}
             onBlur={() => {
-              if (initVal != null && initVal !== '' && Number(initVal) !== c.initiative) onInit(Number(initVal))
+              if (!busy && initVal != null && initVal !== '' && Number(initVal) !== c.initiative) onInit(Number(initVal))
               setInitVal(null)
             }}
           />

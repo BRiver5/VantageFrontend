@@ -16,7 +16,7 @@ import { useKeybinding } from '../../input/useKeybinding'
 import { cellCenter, cellOf, pathPoints } from '../geometry'
 import type { RulerOverlay } from '../render/ruler'
 import type { BattleMap, MapToken, Pt } from '../types'
-import { moveAlong, previewRoute, type MoveMode, type Provoke, type RoutePreview } from './api'
+import { moveAlong, previewRoute, routeVerdict, type MoveMode, type Provoke, type RoutePreview } from './api'
 import { addWaypoint, elevationStep, feet, floorAt, measure, removeWaypoint, type Cell, type RulerPoint } from './math'
 
 export interface PendingMove {
@@ -161,36 +161,59 @@ export function useRuler({
     [map, roomId, onMoved, onError],
   )
 
-  /** Отпустили жетон: свежий предпросмотр, затем ход по его клеткам или вопрос про атаку по возможности */
+  /** Свежий предпросмотр, затем ход по его клеткам или вопрос про атаку по возможности */
+  const attempt = useCallback(
+    async (tokenId: string, body: ReturnType<typeof bodyOf>) => {
+      if (!map) return
+      const r = (await previewRoute(roomId, map.id, tokenId, body)).route
+      if (!r) return
+      const verdict = routeVerdict(r)
+      if (verdict === 'blocked') {
+        setRoute(null)
+        onError(r.reason ?? 'Туда не пройти')
+        return
+      }
+      const m = { tokenId, path: r.path, mode: body.mode, elevation_ft: body.elevation_ft }
+      if (verdict === 'ask') {
+        setRoute(r)
+        setPending({ ...m, provokes: r.provokes })
+        return
+      }
+      setRoute(null)
+      await send(m)
+    },
+    [map, roomId, onError, send],
+  )
+
+  /** Отпустили жетон */
   const dragDrop = useCallback(
     async (t: MapToken, p: Pt) => {
       if (!map || !drag) return
       const d = { ...drag, cursor: cellOf(map.grid, p) }
-      const body = bodyOf(d)
       seq.current++
       try {
-        const r = (await previewRoute(roomId, map.id, t.id, body)).route
-        if (!r) return
-        if (!r.valid) {
-          setRoute(null)
-          onError(r.reason ?? 'Туда не пройти')
-          return
-        }
-        const m = { tokenId: t.id, path: r.path, mode: body.mode, elevation_ft: body.elevation_ft }
-        if (r.provokes.length) {
-          setRoute(r)
-          setPending({ ...m, provokes: r.provokes })
-          return
-        }
-        setRoute(null)
-        await send(m)
+        await attempt(t.id, bodyOf(d))
       } catch (e) {
         onError(errText(e))
       } finally {
         setDrag(null)
       }
     },
-    [map, drag, bodyOf, roomId, onError, send],
+    [map, drag, bodyOf, attempt, onError],
+  )
+
+  /** Старый способ: выбрали жетон и нажали подсвеченную клетку — тот же вопрос про атаку по возможности */
+  const moveTo = useCallback(
+    async (t: MapToken, cell: Cell) => {
+      if (!map || drag) return
+      setPending(null)
+      try {
+        await attempt(t.id, bodyOf({ tokenId: t.id, waypoints: [], elevation: null, cursor: cell }))
+      } catch (e) {
+        onError(errText(e))
+      }
+    },
+    [map, drag, bodyOf, attempt, onError],
   )
 
   const confirm = useCallback(() => {
@@ -343,6 +366,7 @@ export function useRuler({
     dragMove,
     dragDrop,
     dragCancel,
+    moveTo,
     dragging: !!drag,
     /** высота цели при перетаскивании (для map.drag), null — не меняли */
     dragElevation: drag?.elevation ?? null,

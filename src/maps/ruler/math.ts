@@ -1,8 +1,11 @@
 /**
  * Линейка: расстояния по правилам сетки, как считает сервер
  * (app/maps/geometry.py, grid_distance_ft). Квадрат: диагональ 5 футов или
- * чередование «5-10» через весь путь; шестиугольники — шаги по гексам.
- * Перепад высоты — ещё одна ось той же метрики. Точки — клетки и высота.
+ * чередование «5-10» через весь путь. Перепад высоты — ещё одна ось той же
+ * метрики. Точки — клетки и высота.
+ *
+ * Сетка «hex» хранится, но сервер (движение, дистанции, области) и рисование
+ * считают любую сетку квадратной — линейка тоже, чтобы цифры совпадали.
  */
 import type { BattleMap, MapGrid } from '../types'
 
@@ -31,25 +34,13 @@ export function roundHalfEven(x: number): number {
   return f % 2 === 0 ? f : f + 1
 }
 
-/** Расстояние в шестиугольниках, раскладка «чётные строки слева» (odd-r) */
-export function hexSteps(a: Cell, b: Cell): number {
-  const cube = ([c, r]: Cell) => {
-    const x = c - (r - (r & 1)) / 2
-    return { x, z: r, y: -x - r }
-  }
-  const p = cube(a)
-  const q = cube(b)
-  return Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y), Math.abs(p.z - q.z))
-}
-
 /**
  * Один отрезок. parity — сколько диагоналей «5-10» уже было (нечётно — следующая стоит 10).
  * Возвращает футы и новую чётность.
  */
-export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: Pick<MapGrid, 'kind' | 'feet_per_cell' | 'diagonal'>, parity = 0): { ft: number; parity: number } {
+export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: Pick<MapGrid, 'feet_per_cell' | 'diagonal'>, parity = 0): { ft: number; parity: number } {
   const fpc = grid.feet_per_cell || 5
   const dz = roundHalfEven(Math.abs(dzFt) / fpc)
-  if (grid.kind === 'hex') return { ft: Math.max(hexSteps(a, b), dz) * fpc, parity }
   const steps = [Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), dz].sort((x, y) => y - x)
   if (grid.diagonal === '5-10') {
     const diag = steps[1]
@@ -59,7 +50,7 @@ export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: Pick<MapGrid, 'k
 }
 
 /** Отрезки и итог по точкам; чередование «5-10» идёт через весь путь */
-export function measure(points: RulerPoint[], grid: Pick<MapGrid, 'kind' | 'feet_per_cell' | 'diagonal'>): { segments: RulerSegment[]; total: number } {
+export function measure(points: RulerPoint[], grid: Pick<MapGrid, 'feet_per_cell' | 'diagonal'>): { segments: RulerSegment[]; total: number } {
   const segments: RulerSegment[] = []
   let total = 0
   let parity = 0

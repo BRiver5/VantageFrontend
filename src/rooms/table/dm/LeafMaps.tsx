@@ -18,9 +18,15 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
   const [sent, setSent] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const list = (items ?? []).filter((m) => !onlyQuick || m.quick_access)
-  const act = (fn: () => Promise<unknown>, after?: () => void) => {
+  // карта, по которой идёт запрос: её кнопки не жмутся второй раз
+  const [pending, setPending] = useState<string | null>(null)
+  const act = (id: string, fn: () => Promise<unknown>, after?: () => void) => {
+    if (pending) return
     setError(null)
-    fn().then(after, (e) => setError(errText(e)))
+    setPending(id)
+    fn()
+      .then(after, (e) => setError(errText(e)))
+      .finally(() => setPending(null))
   }
   return (
     <div className={onlyQuick ? '' : 'sc-two is-maps'}>
@@ -64,15 +70,15 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
                 {m.image_url ? <Img src={m.image_url} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}
                 <b>{m.name}</b>
                 <span className="sc-map-acts">
-                  <button type="button" className="tb-goldbtn" disabled={!m.image_url} onClick={() => act(() => showToAll(roomId, m.image_url ?? '', m.name), () => setSent(m.id))}>
+                  <button type="button" className="tb-goldbtn" disabled={!m.image_url || pending === m.id} onClick={() => act(m.id, () => showToAll(roomId, m.image_url ?? '', m.name), () => setSent(m.id))}>
                     <Presentation aria-hidden="true" /> {sent === m.id ? 'Показано' : 'Показать'}
                   </button>
                   {!onlyQuick && (
                     <>
-                      <button type="button" className={`sc-iconbtn${m.quick_access ? ' is-on' : ''}`} aria-pressed={m.quick_access} aria-label="Быстрый доступ" title="Быстрый доступ" onClick={() => act(() => patchMap(roomId, m.id, { quick_access: !m.quick_access }), () => void reload())}>
+                      <button type="button" className={`sc-iconbtn${m.quick_access ? ' is-on' : ''}`} aria-pressed={m.quick_access} aria-label="Быстрый доступ" title="Быстрый доступ" disabled={pending === m.id} onClick={() => act(m.id, () => patchMap(roomId, m.id, { quick_access: !m.quick_access }), () => void reload())}>
                         <Star aria-hidden="true" />
                       </button>
-                      <button type="button" className="sc-iconbtn is-danger" aria-label="Удалить" title="Удалить" onClick={() => confirm(`Удалить «${m.name}»?`) && act(() => deleteMap(roomId, m.id), () => void reload())}>
+                      <button type="button" className="sc-iconbtn is-danger" aria-label="Удалить" title="Удалить" disabled={pending === m.id} onClick={() => confirm(`Удалить «${m.name}»?`) && act(m.id, () => deleteMap(roomId, m.id), () => void reload())}>
                         <Trash2 aria-hidden="true" />
                       </button>
                     </>

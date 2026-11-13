@@ -10,6 +10,8 @@ export interface Provoke {
   name: string
   at_cell: [number, number]
   step: number
+  /** досягаемость врага, по которой считали (фт) */
+  reach_ft?: number
 }
 
 export interface RoutePreview {
@@ -37,3 +39,6 @@ export const previewRoute = (roomId: string, mapId: string, tokenId: string, bod
 /** Ход ровно по клеткам маршрута */
 export const moveAlong = (roomId: string, mapId: string, tokenId: string, body: { path: [number, number][]; mode?: MoveMode; elevation_ft?: number }) =>
   request<MoveResult & { provokes?: Provoke[] }>(base(roomId, mapId, tokenId), { method: 'POST', body: { mode: 'walk', ...body }, auth: true })
+
+/** Что делать с маршрутом перед ходом: не пройти, спросить про атаку по возможности или идти */
+export const routeVerdict = (r: RoutePreview): 'blocked' | 'ask' | 'go' => (!r.valid ? 'blocked' : r.provokes.length ? 'ask' : 'go')
