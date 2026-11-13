@@ -1,6 +1,6 @@
 /** Панель инструментов конструктора */
 import type { ReactNode } from 'react'
-import { Boxes, DoorOpen, Gem, Hand, Hexagon, Lightbulb, Mountain, PenLine, RectangleHorizontal, UserRound } from 'lucide-react'
+import { AudioLines, Boxes, DoorOpen, Gem, Hand, Hexagon, Lightbulb, MapPin, Mountain, PenLine, RectangleHorizontal, UserRound } from 'lucide-react'
 import type { Pt } from '../types'
 import type { Tool } from './types'
 
@@ -16,6 +16,9 @@ export function ToolBar({ tool, setTool, setDraft }: { tool: Tool; setTool: (t: 
     { id: 'zone', label: 'Зона', key: 'Z', icon: <Hexagon aria-hidden="true" /> },
     { id: 'token', label: 'Жетон', key: 'T', icon: <UserRound aria-hidden="true" /> },
     { id: 'item', label: 'Находка', key: 'I', icon: <Gem aria-hidden="true" /> },
+    // p2/layers: метки и звуки местности — свои слои, сохраняются сразу
+    { id: 'note', label: 'Метка', key: 'P', icon: <MapPin aria-hidden="true" /> },
+    { id: 'sound', label: 'Звук', key: 'A', icon: <AudioLines aria-hidden="true" /> },
   ]
   return (
     <nav className="me-tools" aria-label="Инструменты">

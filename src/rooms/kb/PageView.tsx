@@ -20,6 +20,7 @@ import { NoteConflict, norm, useKnowledge } from './context'
 import { iconOf } from './tree'
 import { ICONS } from './templates'
 import { Editor } from './Editor'
+import { PageMapChips } from '../../maps/notes/PageMapChips'
 
 /* ---------- страница ---------- */
 
@@ -202,6 +203,7 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
           <button type="button" className={`kb-chip${note.shared ? ' is-share' : ''}`} onClick={() => void kb.update(note.id, { shared: !note.shared })} title={note.shared ? 'Игроки видят эту страницу' : 'Открыть страницу партии'}>
             {note.shared ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />} {note.shared ? 'видят игроки' : 'показать партии'}
           </button>
+          <PageMapChips pageId={note.id} title={note.title} onClose={kb.close} />
           <button type="button" className="kb-chip is-quiet" onClick={() => setSide((v) => !v)} title="Связи и оглавление">
             <PanelRight aria-hidden="true" />
           </button>

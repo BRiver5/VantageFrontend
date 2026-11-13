@@ -35,6 +35,8 @@ import { drawTurnRing } from './render/turn'
 import { drawWalls } from './render/walls'
 import { drawZones } from './render/zones'
 import { WeatherLayer } from './render/weather'
+import { drawDrawingDraft, drawDrawings } from './render/drawings'
+import { drawNotes, drawSoundMarkers } from './render/notes'
 import type { FloatText, MapCanvasHandle, MapOverlays, MapViewer, Ping } from './render/types'
 
 export type { MapCanvasHandle, MapOverlays, MapViewer } from './render/types'
@@ -137,6 +139,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       dirty.current = true
     },
     zoom: () => cam.current.k,
+    center: () => {
+      const c = canvas.current
+      const v = cam.current
+      return c ? { x: (c.clientWidth / 2 - v.x) / v.k, y: (c.clientHeight / 2 - v.y) / v.k } : { x: 0, y: 0 }
+    },
     walk: (tokenId, path) => {
       if (path.length > 1) anim.current.set(tokenId, { path, t0: performance.now() })
       dirty.current = true
@@ -281,6 +288,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // зоны
       drawZones(ctx, m, vw.isDm, ov, v, fx.current, dt)
       fx.current.drawDecals(ctx)
+      // p2/layers: рисунки — над полом и зонами, под жетонами
+      if (ov.drawings?.length) drawDrawings(ctx, ov.drawings, v, vw.isDm && !vw.asPlayer, ov.layerSelected)
+      if (ov.drawingDraft) drawDrawingDraft(ctx, ov.drawingDraft.drawing, v, ov.drawingDraft.open, ov.drawingDraft.cursor)
 
       // досягаемые клетки
       if (ov.reach) drawReach(ctx, g, ov.reach)
@@ -315,6 +325,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (ov.targets?.length) drawTargets(ctx, seenTokens, pos, g, ov.targets, v)
       if (ov.targetBox) drawTargetBox(ctx, ov.targetBox, v)
       if (ov.health) drawHealth(ctx, seenTokens, pos, g, ov.health, v)
+      // p2/layers: метки под темнотой; звуки — значками мастеру
+      if (ov.notes?.length) drawNotes(ctx, ov.notes, v, { aboveFog: false, selected: ov.layerSelected, isDm: vw.isDm })
+      if (ov.sounds?.length || ov.listener) drawSoundMarkers(ctx, ov.sounds ?? [], pxPerFt(g), v, ov.layerSelected, ov.listener)
 
       // погода: над сценой, под темнотой; под крышами и в зонах «без погоды» её нет
       weather.current!.draw(ctx, m, v, W, H, dt, isPingCalm())
@@ -322,6 +335,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
       drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now, sights)
 
+      // p2/layers: «видна всегда» — поверх тумана
+      if (ov.notes?.length) drawNotes(ctx, ov.notes, v, { aboveFog: true, selected: ov.layerSelected, isDm: vw.isDm })
       // чужие шаблоны
       drawGhosts(ctx, ov.ghosts ?? [], v)
       // наведение

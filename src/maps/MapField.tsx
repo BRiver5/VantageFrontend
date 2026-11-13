@@ -29,6 +29,10 @@ import { maskTokenLabels, tokenHealth, turnTokenId } from './partyOverlays'
 import { isAnimated, tokenLooks } from './tokenLooks'
 import { useAttackFx } from './useAttackFx'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
+import { useFieldLayers } from './layers/useFieldLayers'
+import { DrawBar } from './drawings/DrawBar'
+import { MapSoundsPlayer } from './sounds/MapSoundsPlayer'
+import { NotePopup } from './notes/NotePopup'
 
 /** Что сейчас наводится */
 export interface AimSpec {
@@ -357,6 +361,8 @@ export function MapField({
     canvas.current?.ping({ x: t.x, y: t.y })
     if (canMove(t) && !aim && !targeting) void select(t)
   }
+  // p2/layers: метки, звуки местности, рисунки
+  const lay = useFieldLayers({ map, canvas, myTokens, selected, onError: flash })
 
   if (!map) return null
 
@@ -378,6 +384,7 @@ export function MapField({
       }
       return true
     }
+    if (lay.pointer(kind, p, e, !!dragging.current)) return true
     if (ruler.pointer(kind, p, e)) return true
     if (hud.handle(kind, p, e)) return true
     if (kind === 'down') {
@@ -493,7 +500,7 @@ export function MapField({
   const hudToken = hud.hud ? map.tokens.find((t) => t.id === hud.hud!.tokenId && (isDm || !t.hidden)) : undefined
 
   return (
-    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave}>
+    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave} onDragOver={lay.dragOver} onDrop={lay.drop}>
       <MapCanvas
         ref={canvas}
         map={shownMap ?? map}
@@ -517,6 +524,7 @@ export function MapField({
           turn: turnToken,
           looks,
           looksLive,
+          ...lay.overlays,
         }}
         onPointer={onPointer}
         onToken={(t) => {
@@ -595,6 +603,17 @@ export function MapField({
         </div>
       )}
       <Credits map={map} />
+      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isDm ? lay.togglePlayersDraw : undefined} />}
+      <MapSoundsPlayer map={map} sounds={lay.layers.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
+      {lay.popup && <NotePopup key={lay.popup.id} note={lay.popup} onClose={lay.closePopup} />}
+      {lay.placing && (
+        <p className="mp-note is-soft ly-placing">
+          Нажмите на карту, чтобы поставить метку «{lay.placing.title}»{' '}
+          <button type="button" className="ly-btn" onClick={lay.cancelPlacing}>
+            отмена
+          </button>
+        </p>
+      )}
       {objMenu && (
         <div className="mp-objmenu" role="dialog" aria-label={objMenu.name}>
           <b>{objMenu.name}</b>

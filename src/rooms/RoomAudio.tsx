@@ -149,6 +149,8 @@ export function RoomAudioPlayer() {
                   } catch {
                     /* приватный режим */
                   }
+                  // p2/layers: звуки местности тоже слушают «Громкость у меня»
+                  window.dispatchEvent(new Event('vantage-volume'))
                 }}
               />
             </span>

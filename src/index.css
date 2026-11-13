@@ -117,3 +117,4 @@
 @import './styles/components/party.css' layer(components);
 @import './styles/components/map-editor-palette.css' layer(components);
 @import './styles/components/scene-light.css' layer(components);
+@import './styles/components/map-layers.css' layer(components);
