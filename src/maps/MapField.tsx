@@ -23,6 +23,8 @@ import { useRuler } from './ruler/useRuler'
 import { tokenAt as hitToken } from './render/hit'
 import { TokenHud } from './hud/TokenHud'
 import { useMapHud } from './hud/useMapHud'
+import { onTokenFocus } from './focus'
+import { maskTokenLabels, tokenHealth, turnTokenId } from './partyOverlays'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -146,6 +148,16 @@ export function MapField({
       if (isDm) sendPing(p, 'pan')
     },
   })
+  // игроку — имена существ, которые ему открыты; здоровье под жетонами; кольцо хода
+  const characters = data?.characters
+  const creatures = data?.creatures
+  const shownMap = useMemo(() => (map ? maskTokenLabels(map, creatures ?? [], isDm) : null), [map, creatures, isDm])
+  const health = useMemo(() => (map ? tokenHealth(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }, isDm) : {}), [map, characters, creatures, combat, isDm])
+  const turnToken = map ? turnTokenId(map, combat ?? null) : null
+
+  // «Показать на карте» из панели отряда: камера на жетон, свой — выбрать
+  const focusRef = useRef<(id: string) => void>(() => undefined)
+  useEffect(() => onTokenFocus((id) => focusRef.current(id)), [])
 
   const flash = (text: string) => {
     setNote(text)
@@ -342,6 +354,13 @@ export function MapField({
       setSelected(null)
     },
   })
+  focusRef.current = (id) => {
+    const t = map?.tokens.find((x) => x.id === id)
+    if (!t || (!isDm && t.hidden)) return
+    canvas.current?.centerOn({ x: t.x, y: t.y })
+    canvas.current?.ping({ x: t.x, y: t.y })
+    if (canMove(t) && !aim && !targeting) void select(t)
+  }
 
   if (!map) return null
 
@@ -481,7 +500,7 @@ export function MapField({
     <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave}>
       <MapCanvas
         ref={canvas}
-        map={map}
+        map={shownMap ?? map}
         viewer={{ isDm, eyes: myTokens.map((t) => t.id) }}
         artOf={artOf}
         overlays={{
@@ -498,6 +517,8 @@ export function MapField({
           ruler: ruler.overlay,
           targets: hud.targets,
           targetBox: hud.box,
+          health,
+          turn: turnToken,
         }}
         onPointer={onPointer}
         onToken={(t) => {

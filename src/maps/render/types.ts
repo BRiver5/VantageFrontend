@@ -1,3 +1,4 @@
+import type { HealthView } from '../../rooms/health'
 import type { MapVfx, Pt } from '../types'
 import type { PingKind } from '../pings'
 import type { RulerOverlay } from './ruler'
@@ -35,6 +36,10 @@ export interface MapOverlays {
   targets?: readonly string[]
   /** p1/hud: рамка выделения целей */
   targetBox?: { a: Pt; b: Pt } | null
+  /** здоровье под жетонами: token_id → вид для зрителя (игроку о врагах — только состояние) */
+  health?: Record<string, HealthView>
+  /** жетон того, чей сейчас ход */
+  turn?: string | null
 }
 
 export interface MapViewer {

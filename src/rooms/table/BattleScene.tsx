@@ -6,7 +6,7 @@
  *
  * Кости бросает сервер; экран меняют только события.
  */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useRef, useState, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Dices, Flag, Hourglass, Plus, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
 import { playForcedRoll, type ForcedDie } from '../../dice/diceControl'
 import type { CombatActionResult, CombatantView, ConcentrationCheck, ConcentrationSave, SaveEndsResult } from '../../types/rooms'
@@ -43,8 +43,6 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const [lastAction, setLastAction] = useState<string | null>(null)
   const [cardOpen, setCardOpen] = useState<{ c: CombatantView; origin: Origin } | null>(null)
   const [adding, setAdding] = useState(false)
-  const [yourTurn, setYourTurn] = useState(false)
-  const prevTurn = useRef<string | null | undefined>(undefined)
   const [held, setHeld] = useState<Held>({})
   const actionQueue = useRef<Promise<void>>(Promise.resolve())
 
@@ -145,22 +143,12 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     actionQueue.current = actionQueue.current.then(() => playAction(res)).catch(() => undefined)
   })
 
-  // «Ваш ход!» — коротко, когда очередь дошла
+  // «Ваш ход» и «Ваш ход следующий» показывает rooms/party/TurnCues
   const current = combat?.current_combatant_id ?? null
   const myUnitId = combat?.combatants.find((c) => c.kind === 'character' && c.ref_id === mine)?.id
   // призванные игроком существа: ими он действует в их ход
   const meUser = data?.me.user_id
   const ruled = (c: CombatantView) => !!meUser && (c.controller_id === meUser || (!!c.creature && 'controller_id' in c.creature && c.creature.controller_id === meUser))
-  const active = combat?.status === 'active'
-  useEffect(() => {
-    if (prevTurn.current !== undefined && current !== prevTurn.current && active && current && current === myUnitId) {
-      setYourTurn(true)
-      const t = setTimeout(() => setYourTurn(false), 1600)
-      prevTurn.current = current
-      return () => clearTimeout(t)
-    }
-    prevTurn.current = current
-  }, [current, active, myUnitId])
 
   // чей лист нужен панели: у игрока — свой герой, у мастера — тот, чей ход
   const kitUnit = combat ? (isDm ? (combat.combatants.find((c) => c.id === current) ?? combat.combatants.find((c) => !c.defeated)) : combat.combatants.find((c) => c.id === myUnitId)) : undefined
@@ -406,11 +394,6 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
         />
       )}
       {adding && <AddUnits onClose={() => setAdding(false)} />}
-      {yourTurn && (
-        <div className="bt-yourturn" role="status">
-          Ваш ход
-        </div>
-      )}
 
       {cardOpen?.c.card && <HeroCard card={cardOpen.c.card} origin={cardOpen.origin} onClose={() => setCardOpen(null)} />}
       {cardOpen?.c.creature && <CreatureCard id={cardOpen.c.creature.id} origin={cardOpen.origin} onClose={() => setCardOpen(null)} />}

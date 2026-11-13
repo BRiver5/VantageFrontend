@@ -95,6 +95,8 @@ export interface CharacterCard {
   avatar_url: string | null
   level: number
   ac: number
+  /** пассивная Внимательность; у старых карточек появится при первом изменении */
+  passive_perception?: number | null
   hp: { current: number; max: number; temp: number }
   effects: string[]
   /** те же эффекты с id: для DELETE …/effects/{id} */

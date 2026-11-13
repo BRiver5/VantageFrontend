@@ -12,6 +12,8 @@ import { ChevronDown, DoorOpen, Monitor } from 'lucide-react'
 import { RotateGate } from '../characters/hud/HudChrome'
 import { useAppShell } from '../shell'
 import { ContentOverlay } from './Content'
+import { PartyHud } from './party/PartyHud'
+import { TurnCues } from './party/TurnCues'
 import { RoomHero } from './RoomCharacter'
 import { RoomDiceBridge } from './RoomDice'
 import { RoomProvider, useRoom } from './RoomProvider'
@@ -106,6 +108,8 @@ function Stage() {
       {inCombat ? <BattleScene onSheet={openSheet} /> : <TableScene onSheet={openSheet} />}
       <RoomClocks />
       <RoomAudioPlayer />
+      {!validHero && <PartyHud />}
+      <TurnCues />
       {isDm && <DmScreen />}
       {validHero && <SheetOver characterId={validHero} backTo={`/rooms/${roomId}`} />}
       {fx === 'intro' && <BattleIntro onDone={clearFx} />}

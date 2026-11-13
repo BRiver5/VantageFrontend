@@ -28,6 +28,8 @@ import { isPingCalm, prefersReducedMotion } from './pingSettings'
 import { drawRuler } from './render/ruler'
 import { drawTokens } from './render/tokens'
 import { drawTargetBox, drawTargets } from './render/targets'
+import { drawHealth } from './render/health'
+import { drawTurnRing } from './render/turn'
 import { drawWalls } from './render/walls'
 import { drawZones } from './render/zones'
 import type { FloatText, MapCanvasHandle, MapOverlays, MapViewer, Ping } from './render/types'
@@ -201,7 +203,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const zoneFx = props.current.map.zones.some((z) => z.enabled && z.vfx_preset)
       const busy = (props.current.overlays?.ruler?.threats.length ?? 0) > 0 || zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || !!flight.current || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
       const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
-      if (!dirty.current && !busy && !flick) return
+      // кольцо хода бежит по кругу, пока движение не отключено
+      const turning = !!props.current.overlays?.turn && !prefersReducedMotion()
+      if (!dirty.current && !busy && !flick && !turning) return
       dirty.current = false
       const { map: m, viewer: vw, overlays: ov = {}, artOf: art } = props.current
       const dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -281,10 +285,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const pos = new Map<string, Pt>()
       for (const t of tokens) pos.set(t.id, posOf(t, now))
       drawnPos.current = pos
+      const turnTk = ov.turn ? tokens.find((t) => t.id === ov.turn) : undefined
+      if (turnTk) drawTurnRing(ctx, turnTk, pos.get(turnTk.id)!, g, v, now, prefersReducedMotion())
       drawTokens(ctx, tokens, pos, g, ov, v, img, art)
       // p1/hud: цели игрока и рамка выделения
       if (ov.targets?.length) drawTargets(ctx, tokens, pos, g, ov.targets, v)
       if (ov.targetBox) drawTargetBox(ctx, ov.targetBox, v)
+      if (ov.health) drawHealth(ctx, tokens, pos, g, ov.health, v)
 
       // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
       drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now)
