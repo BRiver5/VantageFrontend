@@ -35,7 +35,7 @@ export function CardEffects({ target, title }: { target: EffectTargetRef; title:
           isDm
             ? (e) => {
                 setError(null)
-                ctl.remove(e).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Не получилось'))
+                return ctl.remove(e).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Не получилось'))
               }
             : undefined
         }
@@ -323,15 +323,19 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
         <button
           type="button"
           className="tb-linkbtn is-danger"
-          disabled={inCombat}
+          disabled={inCombat || busy}
           title={inCombat ? 'Нельзя убрать, пока идёт бой' : undefined}
           onClick={async () => {
-            if (!confirm(`Убрать «${c.display_name}» из комнаты?`)) return
+            if (busy || !confirm(`Убрать «${c.display_name}» из комнаты?`)) return
+            setBusy(true)
+            setError(null)
             try {
               await removeRoomCreature(roomId, c.id)
               onRemoved?.()
             } catch (e) {
               setError(errText(e))
+            } finally {
+              setBusy(false)
             }
           }}
         >

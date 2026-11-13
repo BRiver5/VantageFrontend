@@ -37,6 +37,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const [targets, setTargets] = useState<string[]>([])
   const [slot, setSlot] = useState<SlotPick | null>(null)
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [floaters, setFloaters] = useState<Record<string, Floater[]>>({})
   const [anims, setAnims] = useState<Record<string, string>>({})
@@ -171,6 +172,9 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   const trayActor = !isDm ? (ruledNow ?? myUnit) : actor
 
   const run = async (fn: () => Promise<unknown>) => {
+    // второй клик до перерисовки не шлёт запрос ещё раз
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     setError(null)
     try {
@@ -178,6 +182,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     } catch (e) {
       setError(errText(e))
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }
@@ -219,6 +224,7 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
       onSurprise={isDm ? () => void run(() => patchCombatant(roomId, combat.id, c.id, { surprised: !c.surprised })) : undefined}
       onLegendary={isDm && c.creature ? (kind, amount) => void run(() => spendLegendary(roomId, c.creature!.id, kind, amount)) : undefined}
       chance={chances[c.id]}
+      busy={busy}
     />
   )
   const myChecks = concChecks.filter((x) => isDm || x.character_id === mine)

@@ -142,6 +142,8 @@ export function LeafLoot() {
   const { items: equipment } = useCatalogList<Equipment>('equipment')
   const { items: magic } = useCatalogList<Item>('items')
   const tpl = useList<ScreenItemTemplate>(listTemplates)
+  // шаблон, который удаляем: второй щелчок не шлёт запрос ещё раз
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const list = useMemo<Pick[]>(() => {
     const needle = q.trim().toLocaleLowerCase('ru')
@@ -216,7 +218,14 @@ export function LeafLoot() {
                 type="button"
                 className="sc-tile-del"
                 aria-label={`Удалить «${p.name}»`}
-                onClick={() => confirm(`Удалить «${p.name}»?`) && void deleteTemplate(roomId, p.id).then(tpl.reload, (e) => setError(errText(e)))}
+                disabled={deleting === p.id}
+                onClick={() => {
+                  if (deleting || !confirm(`Удалить «${p.name}»?`)) return
+                  setDeleting(p.id)
+                  void deleteTemplate(roomId, p.id)
+                    .then(tpl.reload, (e) => setError(errText(e)))
+                    .finally(() => setDeleting(null))
+                }}
               >
                 <Trash2 aria-hidden="true" />
               </button>
