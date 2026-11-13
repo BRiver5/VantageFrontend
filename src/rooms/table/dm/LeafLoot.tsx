@@ -136,6 +136,8 @@ export function LeafLoot() {
   const [done, setDone] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [screenPick, setScreenPick] = useState<RoomItem | null>(null)
+  // предмет из-за ширмы уже отдаётся: второй щелчок получил бы 409
+  const [giving, setGiving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { items: equipment } = useCatalogList<Equipment>('equipment')
   const { items: magic } = useCatalogList<Item>('items')
@@ -245,12 +247,16 @@ export function LeafLoot() {
                   className="sc-mini"
                   title={c.name}
                   aria-label={`Отдать: ${c.name}`}
+                  disabled={giving}
                   onClick={() => {
+                    setGiving(true)
                     setError(null)
-                    claimItem(roomId, screenPick.id, c.id).then(
-                      () => setScreenPick(null),
-                      (e) => setError(errText(e)),
-                    )
+                    claimItem(roomId, screenPick.id, c.id)
+                      .then(
+                        () => setScreenPick(null),
+                        (e) => setError(errText(e)),
+                      )
+                      .finally(() => setGiving(false))
                   }}
                 >
                   <Hex raw={c.avatar_url} name={c.name} />

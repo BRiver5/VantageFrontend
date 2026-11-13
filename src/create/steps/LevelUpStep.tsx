@@ -309,8 +309,6 @@ export default function LevelUpStep({
     if (active + 1 < draft.levels.length) setCursor(active + 1)
   }
 
-  if (!choice) return null
-
   const hpValue = maxFirst ? hitDie : (choice.hpRoll ?? averageHitDie(hitDie))
 
   return (

@@ -143,7 +143,7 @@ export default function CharacterSheet({
       delete document.documentElement.dataset.hud
     }
   }, [hudMode])
-  const { dice, roller, rolls, clearRolls, critFor, rollD20, rollDamage, theater, setTheater } = useSheetRolls({
+  const { roller, rolls, clearRolls, critFor, rollD20, rollDamage, theater, setTheater } = useSheetRolls({
     sheet,
     stage,
     engine,
@@ -190,14 +190,14 @@ export default function CharacterSheet({
 
   /* ---------- карточки ---------- */
 
-  const abilitiesCard = <AbilitiesCard sheet={sheet} mod={mod} score={score} pb={pb} rollD20={rollD20} rolling={dice.rolling} />
+  const abilitiesCard = <AbilitiesCard sheet={sheet} mod={mod} score={score} pb={pb} rollD20={rollD20} rolling={roller.rolling} />
 
   const attackRow = (a: SheetAttack) => (
-    <AttackRow key={a.key} a={a} sheet={sheet} critFor={critFor} rollD20={rollD20} rollDamage={rollDamage} rolling={dice.rolling} />
+    <AttackRow key={a.key} a={a} sheet={sheet} critFor={critFor} rollD20={rollD20} rollDamage={rollDamage} rolling={roller.rolling} />
   )
 
   const spellAttackRow = spell.is_spellcaster && spell.spell_attack_bonus != null && (
-    <SpellAttackRow spell={spell} rollD20={rollD20} rolling={dice.rolling} />
+    <SpellAttackRow key="spell-attack" spell={spell} rollD20={rollD20} rolling={roller.rolling} />
   )
 
   const combatCard = (
@@ -239,7 +239,7 @@ export default function CharacterSheet({
       portrait={portrait}
       fallbackPortrait={fallbackPortrait}
       rollD20={rollD20}
-      rolling={dice.rolling}
+      rolling={roller.rolling}
     />
   )
 

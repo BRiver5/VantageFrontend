@@ -101,7 +101,13 @@ export function chatOf(msg: RoomEventMessage): ChatMessage | null {
 /** Добавить сообщения без повторов, по порядку seq */
 export function mergeChat(list: ChatMessage[], add: ChatMessage[]): ChatMessage[] {
   const known = new Set(list.map((m) => m.id))
-  const fresh = add.filter((m) => !known.has(m.id))
+  const fresh: ChatMessage[] = []
+  for (const m of add) {
+    // known пополняем по ходу: повторы внутри самого пакета тоже отсеиваются
+    if (known.has(m.id)) continue
+    known.add(m.id)
+    fresh.push(m)
+  }
   if (fresh.length === 0) return list
   const all = [...list, ...fresh].sort((a, b) => (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER))
   return all.length > CHAT_LIMIT ? all.slice(all.length - CHAT_LIMIT) : all
