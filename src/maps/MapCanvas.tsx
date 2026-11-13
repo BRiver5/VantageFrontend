@@ -249,8 +249,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       for (const t of tokens) pos.set(t.id, posOf(t, now))
       drawTokens(ctx, tokens, pos, g, ov, v, img, art)
 
-      // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры)
-      drawDarkness(ctx, c, dark, m, vw, v, dpr, pos, now)
+      // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
+      drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now)
 
       // чужие шаблоны
       drawGhosts(ctx, ov.ghosts ?? [], v)
