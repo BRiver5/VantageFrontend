@@ -22,6 +22,7 @@ import { doorAt, tokenAt } from './render/hit'
 import { drawCarriedItems, drawFloorItems } from './render/items'
 import { drawLightMarkers } from './render/lights'
 import { drawAim, drawDraft, drawGhosts, drawPath, drawReach } from './render/overlays'
+import { drawSelection } from './render/selection'
 import { drawPingEdges, drawPingMarkers } from './render/pings'
 import { pingLife } from './pings'
 import { isPingCalm, prefersReducedMotion } from './pingSettings'
@@ -280,6 +281,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // конструктор: источники света значками
       if (ov.editor) drawLightMarkers(ctx, m, ov, v)
       if (ov.draft && ov.draft.length) drawDraft(ctx, ov.draft, ov.closeDraft, v)
+      // p2/editor: выбор нескольких и рамка
+      if (ov.editor && (ov.multi?.length || ov.selectBox)) drawSelection(ctx, m, ov.multi ?? [], ov.selectBox, v)
 
       // жетоны
       const pos = new Map<string, Pt>()

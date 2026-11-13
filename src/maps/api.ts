@@ -11,6 +11,13 @@ export async function listMaps(roomId: string): Promise<BattleMap[]> {
 }
 export const getMap = (roomId: string, mapId: string) => request<BattleMap>(r(roomId, `/${mapId}`), { auth: true })
 export const createMap = (roomId: string, body: Partial<BattleMap>) => post<BattleMap>(r(roomId), body)
+/** Новая карта из Universal VTT (.dd2vtt, .uvtt): картинка, сетка, стены, двери, свет */
+export function importUvtt(roomId: string, file: File, name?: string) {
+  const form = new FormData()
+  form.append('file', file)
+  if (name) form.append('name', name)
+  return post<BattleMap>(r(roomId, '/import-uvtt'), form)
+}
 export const patchMap = (roomId: string, mapId: string, body: Partial<BattleMap>) =>
   request<BattleMap>(r(roomId, `/${mapId}`), { method: 'PATCH', body, auth: true })
 export const deleteMap = (roomId: string, mapId: string) => request<void>(r(roomId, `/${mapId}`), { method: 'DELETE', auth: true })

@@ -57,6 +57,8 @@ export interface MapObject {
   interactions?: MapInteraction[]
   state?: Record<string, unknown>
   hidden?: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 /** Действие на объекте: «Открыть», «Обыскать», «Потянуть рычаг». Игроку — без check и сценария */
@@ -82,6 +84,8 @@ export interface MapWall {
   blocks: { move: boolean; sight: boolean; light: boolean; sound: boolean }
   door?: { open: boolean; locked: boolean; lock_dc?: number | null; secret?: boolean } | null
   one_way?: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapLight {
@@ -97,6 +101,8 @@ export interface MapLight {
   flicker: boolean
   attached_to?: string | null
   enabled: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export type VisionMode = 'normal' | 'darkvision' | 'blindsight' | 'truesight' | 'tremorsense'
@@ -123,6 +129,8 @@ export interface MapToken {
   group?: string | null
   side?: 'party' | 'enemies' | 'neutral' | null
   light_id?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapItem {
@@ -137,6 +145,8 @@ export interface MapItem {
   container_object_id?: string | null
   asset_id?: string | null
   image_url?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapZone {
@@ -157,6 +167,8 @@ export interface MapZone {
   obscured?: 'none' | 'lightly' | 'heavily'
   duration_rounds?: number | null
   asset_id?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 /** Блок сценария: op и поля по /scene-blocks */

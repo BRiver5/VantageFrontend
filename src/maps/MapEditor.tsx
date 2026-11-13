@@ -9,9 +9,13 @@
  * Стена и зона — ломаная по углам клеток (Shift — свободно), двойной
  * клик или Enter заканчивает, Esc отменяет черновик. Ассет можно
  * перетащить из библиотеки прямо на холст.
+ *
+ * Выбор: клик, Shift+клик — добавить или убрать, Shift+рамка по пустому —
+ * несколько сразу. Палитра задаёт свойства новых стен (объектов, жетонов) и
+ * правит выбранное одним шагом отмены; список объектов сцены — слева.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as RDragEvent } from 'react'
-import { X } from 'lucide-react'
+import { List, Paintbrush, X } from 'lucide-react'
 import { addCreatures } from '../rooms/roomsApi'
 import { parsePortrait } from '../characters/portrait'
 import { useRoom } from '../rooms/RoomProvider'
@@ -26,12 +30,17 @@ import { assetPlacement, dragTo, duplicateNear, hitAt, nextStampNumber, paintTer
 import { EditorHeader } from './editor/EditorHeader'
 import { SIZE_CELLS, wallOf } from './editor/geometry'
 import { LightProps } from './editor/LightProps'
+import { paletteWall, withNewDefaults, type PaletteKind } from './editor/palette'
+import { PalettePanel } from './editor/PalettePanel'
+import { idsInBox, kindOf, removeIds, toggleId } from './editor/placeables'
+import { PlaceablesPanel } from './editor/PlaceablesPanel'
 import { SidePanel } from './editor/SidePanel'
 import { StampPanel } from './editor/StampPanel'
 import { TerrainBrush } from './editor/TerrainBrush'
 import { TokenProps } from './editor/TokenProps'
 import { ToolBar } from './editor/ToolBar'
 import { useMapDoc } from './editor/useMapDoc'
+import { usePalette } from './editor/usePalette'
 import { WallProps } from './editor/WallProps'
 import type { Brush, Stamp, Tool } from './editor/types'
 
@@ -40,7 +49,14 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const { map, setMap, undo, redo, state, setState, error, setError, change, save, patchProps } = useMapDoc(roomId, mapId)
   const [tool, setTool] = useState<Tool>('select')
   const [brush, setBrush] = useState<Brush>('up')
-  const [sel, setSel] = useState<string | null>(null)
+  // выбранное: один — свойства справа, несколько — палитра
+  const [picked, setPicked] = useState<string[]>([])
+  const sel = picked.length === 1 ? picked[0] : null
+  const setSel = useCallback((id: string | null) => setPicked(id ? [id] : []), [])
+  const [box, setBox] = useState<{ a: Pt; b: Pt } | null>(null)
+  const [showList, setShowList] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
+  const { palette, setPalette } = usePalette()
   const [draft, setDraft] = useState<Pt[]>([])
   const [hover, setHover] = useState<Pt | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -51,6 +67,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const [side, setSide] = useState<'map' | 'script'>('map')
   const canvas = useRef<MapCanvasHandle>(null)
   const drag = useRef<{ id: string; kind: 'token' | 'light' | 'item' | 'object'; from: Pt; moved: boolean } | null>(null)
+  /** Shift+клик по объекту: переключить в выборе на отпускании, если не тащили */
+  const toggle = useRef<{ id: string; from: Pt } | null>(null)
   const stroke = useRef<{ painted: Set<string>; add: boolean } | null>(null)
 
   const flash = (t: string) => {
@@ -68,28 +86,21 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       setTool('select')
     } else if (draft.length >= 2) {
       const kind: MapWall['kind'] = tool === 'door' ? 'door' : tool === 'window' ? 'window' : 'wall'
-      const segs = draft.slice(1).map((b, i) => wallOf(kind, draft[i], b))
+      // стена — по палитре, дверь и окно — своими инструментами
+      const segs = draft.slice(1).map((b, i) => (kind === 'wall' ? paletteWall(palette.walls, draft[i], b) : wallOf(kind, draft[i], b)))
       change((m) => ({ ...m, walls: [...m.walls, ...segs] }))
     }
     setDraft([])
-  }, [draft, tool, change])
+  }, [draft, tool, change, palette.walls, setSel])
 
-  const remove = useCallback(
-    (id: string) => {
-      change((m) => ({
-        ...m,
-        walls: m.walls.filter((w) => w.id !== id),
-        lights: m.lights.filter((l) => l.id !== id),
-        tokens: m.tokens.filter((t) => t.id !== id),
-        objects: m.objects.filter((o) => o.id !== id),
-        items: m.items.filter((i) => i.id !== id),
-        zones: m.zones.filter((z) => z.id !== id),
-        layers: m.layers.filter((l) => l.id !== id || l.kind === 'background'),
-      }))
-      setSel(null)
+  const removeMany = useCallback(
+    (ids: string[]) => {
+      change((m) => removeIds(m, ids))
+      setPicked([])
     },
     [change],
   )
+  const remove = useCallback((id: string) => removeMany([id]), [removeMany])
 
   // горячие клавиши
   useEffect(() => {
@@ -119,7 +130,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (k === 'escape') return draft.length ? setDraft([]) : setSel(null)
       if (k === 'enter') return finishDraft()
-      if ((k === 'delete' || k === 'backspace') && sel) return remove(sel)
+      if ((k === 'delete' || k === 'backspace') && picked.length) return removeMany(picked)
       const t = ({ v: 'select', w: 'wall', d: 'door', n: 'window', l: 'light', t: 'token', o: 'asset', h: 'terrain', z: 'zone', i: 'item' } as Record<string, Tool>)[k]
       if (t) {
         setTool(t)
@@ -128,7 +139,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     }
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
-  }, [map, draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
+  }, [map, draft, sel, picked, finishDraft, removeMany, setSel, change, undo, redo, setMap, setState])
 
   const artOf = useCallback(
     (t: MapToken): string | null => {
@@ -146,8 +157,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const lastClick = useRef(0)
   const viewer = useMemo(() => ({ isDm: !eyes, eyes: eyes ? [eyes] : [], asPlayer: !!eyes }), [eyes])
   const overlays = useMemo(
-    () => ({ editor: !eyes, heights: !eyes && (tool === 'terrain' || tool === 'asset'), selected: sel, draft: draft.length ? [...draft, ...(hover ? [hover] : [])] : null, closeDraft: tool === 'zone' }),
-    [eyes, tool, sel, draft, hover],
+    () => ({ editor: !eyes, heights: !eyes && (tool === 'terrain' || tool === 'asset'), selected: sel, multi: picked.length > 1 ? picked : undefined, selectBox: box, draft: draft.length ? [...draft, ...(hover ? [hover] : [])] : null, closeDraft: tool === 'zone' }),
+    [eyes, tool, sel, picked, box, draft, hover],
   )
   const creatureRefs = useMemo(
     () =>
@@ -173,7 +184,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   /** поставить ассет: по виду — пол, фон, жетон или объект */
   const placeAsset = (a: Asset, p: Pt) => {
     const placed = assetPlacement(g, a, p)
-    change(placed.apply)
+    change((m) => withNewDefaults(placed.apply(m), placed.select, palette))
     if (placed.select) setSel(placed.select)
   }
 
@@ -277,7 +288,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
             ([made]) => {
               if (!made) return
               const label = `${stamp.label} ${n}`
-              change((m) => ({ ...m, tokens: [...m.tokens, { id: uid('t'), creature_id: made.id, label, x: at.x, y: at.y, elevation_ft: 0, size, rotation: 0, vision_mode: 'normal', senses: {}, flying: false, hidden: stampHidden, side: 'enemies' }] }))
+              const id = uid('t')
+              change((m) => withNewDefaults({ ...m, tokens: [...m.tokens, { id, creature_id: made.id, label, x: at.x, y: at.y, elevation_ft: 0, size, rotation: 0, vision_mode: 'normal', senses: {}, flying: false, hidden: stampHidden, side: 'enemies' }] }, id, palette))
             },
             (err) => setError(errText(err)),
           )
@@ -299,15 +311,35 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
           hidden: !!stamp.creature_id && stampHidden,
           side: stamp.character_id ? 'party' : 'enemies',
         }
-        change((m) => ({ ...m, tokens: [...m.tokens, t] }))
+        change((m) => withNewDefaults({ ...m, tokens: [...m.tokens, t] }, t.id, palette))
       }
       return
+    }
+    // рамка выбора: Shift и тянуть по пустому
+    if (box) {
+      if (kind === 'move') setBox({ a: box.a, b: p })
+      if (kind === 'up') {
+        const ids = idsInBox(map, box.a, p)
+        setPicked((cur) => [...new Set([...cur, ...ids])])
+        setBox(null)
+      }
+      return
+    }
+    if (kind === 'up' && toggle.current) {
+      const tg = toggle.current
+      toggle.current = null
+      if (dist(tg.from, p) < 3) setPicked((cur) => toggleId(cur, tg.id))
     }
     // выбор и перетаскивание
     if (kind === 'down') {
       if (e.button !== 0) return false
       const id = hitAt(map, p)
-      setSel(id)
+      if (e.shiftKey && !id) {
+        setBox({ a: p, b: p })
+        return true
+      }
+      toggle.current = e.shiftKey && id ? { id, from: p } : null
+      if (!e.shiftKey) setSel(id)
       const what = !id
         ? null
         : map.tokens.some((t) => t.id === id)
@@ -363,7 +395,10 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const setWall = (patch: Partial<MapWall>) => change((m) => ({ ...m, walls: m.walls.map((w) => (w.id === sel ? { ...w, ...patch } : w)) }))
   const setLight = (patch: Partial<MapLight>) => change((m) => ({ ...m, lights: m.lights.map((l) => (l.id === sel ? { ...l, ...patch } : l)) }))
   const setToken = (patch: Partial<MapToken>) => change((m) => ({ ...m, tokens: m.tokens.map((t) => (t.id === sel ? { ...t, ...patch } : t)) }))
-  const tip = toolTip(tool, asset)
+  const tip = toolTip(tool, asset) ?? (tool === 'select' && picked.length > 1 ? `Выбрано: ${picked.length}. Shift+клик — убрать, Delete — удалить` : null)
+  // вкладка палитры: вид выбранного, иначе — стены
+  const firstKind = picked.length ? kindOf(map, picked[0]) : null
+  const paletteTab: PaletteKind = firstKind === 'objects' || firstKind === 'tokens' ? firstKind : 'walls'
 
   return (
     <div className={`me-shell${tool === 'asset' ? ' has-lib' : ''}`} role="dialog" aria-label={`Конструктор: ${map.name}`}>
@@ -371,7 +406,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
 
       <ToolBar tool={tool} setTool={setTool} setDraft={setDraft} />
 
-      <div className="me-canvas" onDragOver={(e) => e.dataTransfer.types.includes(ASSET_MIME) && e.preventDefault()} onDrop={onDrop}>
+      <div className={`me-canvas${showList ? ' has-outliner' : ''}`} onDragOver={(e) => e.dataTransfer.types.includes(ASSET_MIME) && e.preventDefault()} onDrop={onDrop}>
         <MapCanvas ref={canvas} map={map} viewer={viewer} artOf={artOf} overlays={overlays} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
         {(error || note) && (
           <p className="mp-note" role="alert">
@@ -380,6 +415,29 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         )}
         {tip && <p className="me-tip">{tip}</p>}
         {tool === 'terrain' && <TerrainBrush brush={brush} setBrush={setBrush} />}
+        <div className="me-float" role="group" aria-label="Панели конструктора">
+          <button type="button" className={showList ? 'is-on' : ''} aria-pressed={showList} title="Объекты сцены" onClick={() => setShowList((v) => !v)}>
+            <List aria-hidden="true" /> Список
+          </button>
+          <button type="button" className={showPalette ? 'is-on' : ''} aria-pressed={showPalette} title="Палитра: свойства новых и массовая правка" onClick={() => setShowPalette((v) => !v)}>
+            <Paintbrush aria-hidden="true" /> Палитра
+          </button>
+        </div>
+        {showList && (
+          <PlaceablesPanel
+            map={map}
+            picked={picked}
+            setPicked={setPicked}
+            change={change}
+            onCenter={(p) => canvas.current?.panTo(p)}
+            onOpen={(id) => {
+              setPicked([id])
+              setTool('select')
+              setShowPalette(false)
+            }}
+            onClose={() => setShowList(false)}
+          />
+        )}
       </div>
 
       {tool === 'asset' && <AssetLibrary picked={asset} onPick={setAsset} />}
@@ -392,9 +450,11 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         {selItem && <ItemProps item={selItem} map={map} onChange={(patch) => change((m) => ({ ...m, items: m.items.map((i) => (i.id === selItem.id ? { ...i, ...patch } : i)) }))} onRemove={() => remove(selItem.id)} />}
         {selZone && <ZoneProps key={selZone.id} zone={selZone} map={map} onChange={(patch) => change((m) => ({ ...m, zones: m.zones.map((z) => (z.id === selZone.id ? { ...z, ...patch } : z)) }))} onRemove={() => remove(selZone.id)} />}
 
+        {(showPalette || tool === 'wall' || picked.length > 1) && <PalettePanel key={paletteTab} map={map} picked={picked} palette={palette} setPalette={setPalette} change={change} flash={flash} initial={paletteTab} />}
+
         {tool === 'token' && <StampPanel data={data} stamp={stamp} setStamp={setStamp} stampHidden={stampHidden} setStampHidden={setStampHidden} flash={flash} />}
 
-        {!sel && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
+        {!picked.length && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
       </aside>
     </div>
   )
