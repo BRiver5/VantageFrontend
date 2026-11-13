@@ -74,6 +74,9 @@ export function ZoneProps({ zone, map, onChange, onRemove }: { zone: MapZone; ma
       <label className="me-check">
         <input type="checkbox" checked={!!zone.difficult_terrain} onChange={(e) => onChange({ difficult_terrain: e.target.checked })} /> сложная местность
       </label>
+      <label className="me-check" title="Навес, пещера: дождь и снег сюда не падают">
+        <input type="checkbox" checked={!!zone.no_weather} onChange={(e) => onChange({ no_weather: e.target.checked })} /> без погоды
+      </label>
       <label className="me-check">
         <input type="checkbox" checked={zone.visible_to_players} onChange={(e) => onChange({ visible_to_players: e.target.checked })} /> видна игрокам
       </label>

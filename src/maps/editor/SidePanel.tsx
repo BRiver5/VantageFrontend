@@ -8,6 +8,7 @@ import { GridFields } from './GridFields'
 import { imageSize } from './imageSize'
 import { SpawnsPanel } from './SpawnsPanel'
 import { TriggersPanel } from './TriggersPanel'
+import { WeatherFields } from './WeatherFields'
 import type { Change, PatchProps } from './types'
 
 type Props = {
@@ -115,15 +116,34 @@ export function SidePanel({ map, roomId, mapId, side, setSide, eyes, setEyes, cr
             )}
           </section>
           <section>
+            <h3>Погода</h3>
+            <WeatherFields weather={map.weather} onChange={(weather) => void patchProps({ weather })} />
+          </section>
+          <section>
             <h3>Правила</h3>
             <label>
               Поднять предмет в бою
-              <select value={map.rules?.pickup_costs ?? 'object'} onChange={(e) => void patchProps({ rules: { high_ground_advantage: map.rules?.high_ground_advantage ?? false, pickup_costs: e.target.value } })}>
+              <select value={map.rules?.pickup_costs ?? 'object'} onChange={(e) => void patchProps({ rules: { high_ground_advantage: map.rules?.high_ground_advantage ?? false, ...map.rules, pickup_costs: e.target.value } })}>
                 <option value="object">свободно</option>
                 <option value="bonus">бонусное действие</option>
                 <option value="action">действие</option>
               </select>
             </label>
+            <label className="me-check" title="Домашнее правило: кто выше цели на заданную высоту, атакует с преимуществом (рукопашная — по соседу внизу, дальняя — на любой дистанции)">
+              <input type="checkbox" checked={!!map.rules?.high_ground_advantage} onChange={(e) => void patchProps({ rules: { pickup_costs: 'object', ...map.rules, high_ground_advantage: e.target.checked } })} /> высота даёт преимущество
+            </label>
+            {map.rules?.high_ground_advantage && (
+              <label>
+                Выше цели хотя бы на, фт
+                <select value={map.rules.high_ground_min_ft ?? 10} onChange={(e) => void patchProps({ rules: { ...map.rules!, high_ground_min_ft: Number(e.target.value) } })}>
+                  {[5, 10, 15, 20].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </section>
           {heroTokens.length > 0 && (
             <section>
