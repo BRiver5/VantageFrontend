@@ -18,6 +18,7 @@ import { ELEMENT } from './render/constants'
 import { drawGrid, drawLayers, drawObjects, drawTerrain } from './render/background'
 import { drawDarkness } from './render/fog'
 import { drawFloats } from './render/floats'
+import { doorAt, tokenAt } from './render/hit'
 import { drawCarriedItems, drawFloorItems } from './render/items'
 import { drawLightMarkers } from './render/lights'
 import { drawAim, drawDraft, drawGhosts, drawPath, drawPings, drawReach } from './render/overlays'
@@ -57,6 +58,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   props.current = { map, viewer, overlays, artOf }
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean; pan: boolean } | null>(null)
   const pinch = useRef(new Map<number, Pt>())
+  // где жетоны нарисованы в последнем кадре — по ним попадание курсором
+  const drawnPos = useRef(new Map<string, Pt>())
 
   useEffect(() => {
     dirty.current = true
@@ -247,10 +250,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // жетоны
       const pos = new Map<string, Pt>()
       for (const t of tokens) pos.set(t.id, posOf(t, now))
+      drawnPos.current = pos
       drawTokens(ctx, tokens, pos, g, ov, v, img, art)
 
-      // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры)
-      drawDarkness(ctx, c, dark, m, vw, v, dpr, pos, now)
+      // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
+      drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now)
 
       // чужие шаблоны
       drawGhosts(ctx, ov.ghosts ?? [], v)
@@ -277,21 +281,6 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     const v = cam.current
     return { x: (e.clientX - r.left - v.x) / v.k, y: (e.clientY - r.top - v.y) / v.k }
   }
-  const tokenAt = (p: Pt): MapToken | null => {
-    const { map: m, viewer: vw } = props.current
-    const hits = m.tokens.filter((t) => (vw.isDm || !t.hidden) && Math.hypot(t.x - p.x, t.y - p.y) <= (t.size * m.grid.cell_px) / 2)
-    return hits.sort((a, b) => a.size - b.size)[0] ?? null
-  }
-  const doorAt = (p: Pt): string | null => {
-    const { map: m } = props.current
-    for (const w of m.walls) {
-      if (w.kind !== 'door') continue
-      const mid = { x: (w.a.x + w.b.x) / 2, y: (w.a.y + w.b.y) / 2 }
-      if (Math.hypot(mid.x - p.x, mid.y - p.y) < m.grid.cell_px * 0.4) return w.id
-    }
-    return null
-  }
-
   return (
     <canvas
       ref={canvas}
@@ -357,9 +346,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         drag.current = null
         const p = toMap(e)
         if (d?.pan && !d.moved) {
-          const door = doorAt(p)
+          const { map: m, viewer: vw } = props.current
+          const door = doorAt(m, vw.isDm, p)
           if (door && onDoor) return onDoor(door)
-          const t = tokenAt(p)
+          const t = tokenAt(m, vw.isDm, drawnPos.current, p)
           if (t && onToken) return onToken(t, e)
         }
         if (!d?.pan) onPointer?.('up', p, e)

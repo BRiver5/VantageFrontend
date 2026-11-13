@@ -22,7 +22,7 @@ import { cellOf, dist, snapToCorner } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
 import type { MapItem, MapLight, MapToken, MapWall, MapZone, Pt } from './types'
 import { errText, uid } from './editor/batch'
-import { assetPlacement, dragTo, duplicateNear, hitAt, paintTerrain, snapCell, toolTip } from './editor/edit'
+import { assetPlacement, dragTo, duplicateNear, hitAt, nextStampNumber, paintTerrain, snapCell, toolTip } from './editor/edit'
 import { EditorHeader } from './editor/EditorHeader'
 import { SIZE_CELLS, wallOf } from './editor/geometry'
 import { LightProps } from './editor/LightProps'
@@ -98,14 +98,14 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       const k = e.key.toLowerCase()
       if ((e.ctrlKey || e.metaKey) && k === 'z') {
         e.preventDefault()
+        if (!map) return
         const from = e.shiftKey ? redo.current : undo.current
         const to = e.shiftKey ? undo.current : redo.current
         const prev = from.pop()
         if (prev) {
-          setMap((m) => {
-            if (m) to.push(m)
-            return prev
-          })
+          // стек меняем здесь, не в функции setMap: её React может вызвать дважды
+          to.push(map)
+          setMap(prev)
           setState('dirty')
         }
         return
@@ -128,7 +128,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     }
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
-  }, [draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
+  }, [map, draft, sel, finishDraft, remove, change, undo, redo, setMap, setState])
 
   const artOf = useCallback(
     (t: MapToken): string | null => {
@@ -272,7 +272,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         if (stamp.creature_id && map.tokens.some((x) => x.creature_id === stamp.creature_id)) {
           if (!cr || !('snapshot' in cr)) return
           const base = cr as { catalog_ref?: string | null; snapshot: unknown; image_url?: string | null }
-          const n = map.tokens.filter((x) => x.label.startsWith(stamp.label)).length + 1
+          const n = nextStampNumber(map.tokens.map((x) => x.label), stamp.label)
           void addCreatures(roomId, base.catalog_ref ? { catalog_ref: base.catalog_ref, count: 1, on_screen_only: true } : ({ snapshot: base.snapshot, image_url: base.image_url ?? null, count: 1, on_screen_only: true } as Parameters<typeof addCreatures>[1])).then(
             ([made]) => {
               if (!made) return

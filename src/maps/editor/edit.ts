@@ -139,3 +139,17 @@ export const duplicateNear = (m: BattleMap, sel: string): BattleMap => {
   if (t) return { ...m, tokens: [...m.tokens, { ...t, id: uid('t'), x: t.x + shift, combatant_id: null }] }
   return m
 }
+
+/**
+ * Номер следующего жетона штампа: первый — «Гоблин», дальше «Гоблин 2», «Гоблин 3».
+ * Считаются только такие подписи («Гоблин-вожак» — другой штамп); номер — после
+ * наибольшего, чтобы удалённый из середины не дал повтор.
+ */
+export const nextStampNumber = (labels: string[], base: string): number => {
+  let top = 0
+  for (const l of labels) {
+    if (l === base) top = Math.max(top, 1)
+    else if (l.startsWith(`${base} `) && /^\d+$/.test(l.slice(base.length + 1))) top = Math.max(top, Number(l.slice(base.length + 1)))
+  }
+  return top + 1
+}

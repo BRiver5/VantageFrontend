@@ -31,7 +31,8 @@ export function useMapDoc(roomId: string, mapId: string) {
   const change = useCallback((fn: (m: BattleMap) => BattleMap) => {
     setMap((m) => {
       if (!m) return m
-      undo.current = [...undo.current.slice(-60), m]
+      // React может вызвать функцию дважды (StrictMode): одно состояние — одна запись в стеке
+      if (undo.current[undo.current.length - 1] !== m) undo.current = [...undo.current.slice(-60), m]
       redo.current = []
       return fn(m)
     })
@@ -67,10 +68,16 @@ export function useMapDoc(roomId: string, mapId: string) {
       setError(null)
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        const fresh = await getMap(roomId, mapId)
-        saved.current = fresh
-        setMap((m) => (m ? { ...applyBatch(fresh, diffBatch(base, m) ?? {}), terrain: m.terrain } : fresh))
-        setState('dirty')
+        try {
+          const fresh = await getMap(roomId, mapId)
+          saved.current = fresh
+          setMap((m) => (m ? { ...applyBatch(fresh, diffBatch(base, m) ?? {}), terrain: m.terrain } : fresh))
+          setState('dirty')
+        } catch (e2) {
+          // не перечитали — правки остаются, показываем ошибку
+          setState('error')
+          setError(errText(e2))
+        }
       } else {
         setState('error')
         setError(errText(e))

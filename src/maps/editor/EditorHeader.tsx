@@ -5,7 +5,8 @@ import type { PatchProps, SaveState } from './types'
 export function EditorHeader({ name, state, patchProps, save, onClose }: { name: string; state: SaveState; patchProps: PatchProps; save: () => Promise<void>; onClose: () => void }) {
   return (
     <header className="me-head">
-      <input className="me-name" defaultValue={name} aria-label="Название карты" onBlur={(e) => e.target.value.trim() && e.target.value !== name && void patchProps({ name: e.target.value.trim() })} />
+      {/* key: имя, пришедшее с сервера (например, после 409), пересоздаёт поле; пока печатают, name не меняется */}
+      <input key={name} className="me-name" defaultValue={name} aria-label="Название карты" onBlur={(e) => e.target.value.trim() && e.target.value !== name && void patchProps({ name: e.target.value.trim() })} />
       <span className={`me-state is-${state}`}>{{ saved: 'сохранено', dirty: 'есть правки', saving: 'сохраняем…', error: 'ошибка' }[state]}</span>
       <button type="button" className="tb-round" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }))} aria-label="Отменить" title="Отменить (Ctrl+Z)">
         <Undo2 aria-hidden="true" />
