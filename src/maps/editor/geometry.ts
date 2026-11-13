@@ -17,7 +17,7 @@ export const wallOf = (kind: MapWall['kind'], a: Pt, b: Pt): MapWall => ({
   kind,
   height_ft: 10,
   base_ft: 0,
-  blocks: { move: kind !== 'window', sight: kind !== 'window', light: kind !== 'window', sound: true },
+  blocks: { move: true, sight: kind !== 'window', light: kind !== 'window', sound: true },
   ...(kind === 'door' ? { door: { open: false, locked: false, secret: false } } : {}),
 })
 

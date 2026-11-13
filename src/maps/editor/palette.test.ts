@@ -89,6 +89,13 @@ describe('заготовки стен', () => {
     const solid = paletteWall(applyWallPreset(p, 'solid').walls, { x: 0, y: 0 }, { x: 1, y: 0 })
     expect(solid.door).toBeNull()
   })
+
+  it('окно: видно и светит насквозь, но мешает ходу — даже если ход сняли', () => {
+    const p = applyWallPreset(defaultPalette(), 'window')
+    expect(p.walls).toMatchObject({ kind: 'window', move: true, sight: false, light: false })
+    const w = paletteWall({ ...p.walls, move: false }, { x: 0, y: 0 }, { x: 50, y: 0 })
+    expect(w.blocks.move).toBe(true)
+  })
 })
 
 describe('Применить', () => {
@@ -135,7 +142,7 @@ describe('Клонировать и Сбросить', () => {
   it('клонирует первое выбранное своего вида и обнуляет тронутое', () => {
     const map = baseMap({ walls: [wall('a', { kind: 'window', blocks: { move: false, sight: false, light: false, sound: true }, one_way: true })] })
     const p = clonePalette(setPaletteField(defaultPalette(), 'walls', { height_ft: 99 }), map, ['a'], 'walls')!
-    expect(p.walls).toEqual({ kind: 'window', height_ft: 10, one_way: true, move: false, sight: false, light: false, sound: true })
+    expect(p.walls).toEqual({ kind: 'window', height_ft: 10, one_way: true, move: true, sight: false, light: false, sound: true })
     expect(p.touched.walls).toEqual([])
     expect(presetOf(p.walls)).toBe('window')
     expect(clonePalette(p, map, ['zzz'], 'walls')).toBeNull()
