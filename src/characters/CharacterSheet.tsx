@@ -197,7 +197,7 @@ export default function CharacterSheet({
   )
 
   const spellAttackRow = spell.is_spellcaster && spell.spell_attack_bonus != null && (
-    <SpellAttackRow spell={spell} rollD20={rollD20} rolling={roller.rolling} />
+    <SpellAttackRow key="spell-attack" spell={spell} rollD20={rollD20} rolling={roller.rolling} />
   )
 
   const combatCard = (
