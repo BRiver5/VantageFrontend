@@ -34,6 +34,9 @@ import { ToolBar } from './editor/ToolBar'
 import { useMapDoc } from './editor/useMapDoc'
 import { WallProps } from './editor/WallProps'
 import type { Brush, Stamp, Tool } from './editor/types'
+import { useLayerEditor } from './layers/useLayerEditor'
+import { NoteProps } from './notes/NoteProps'
+import { NewSoundProps, SoundProps } from './sounds/SoundProps'
 
 export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => void }) {
   const { roomId, data } = useRoom()
@@ -52,6 +55,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const canvas = useRef<MapCanvasHandle>(null)
   const drag = useRef<{ id: string; kind: 'token' | 'light' | 'item' | 'object'; from: Pt; moved: boolean } | null>(null)
   const stroke = useRef<{ painted: Set<string>; add: boolean } | null>(null)
+  // p2/layers: метки и звуки местности
+  const lay = useLayerEditor({ roomId, mapId, tool, canvas, onError: (t) => setError(t) })
 
   const flash = (t: string) => {
     setNote(t)
@@ -120,7 +125,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       if (k === 'escape') return draft.length ? setDraft([]) : setSel(null)
       if (k === 'enter') return finishDraft()
       if ((k === 'delete' || k === 'backspace') && sel) return remove(sel)
-      const t = ({ v: 'select', w: 'wall', d: 'door', n: 'window', l: 'light', t: 'token', o: 'asset', h: 'terrain', z: 'zone', i: 'item' } as Record<string, Tool>)[k]
+      const t = ({ v: 'select', w: 'wall', d: 'door', n: 'window', l: 'light', t: 'token', o: 'asset', h: 'terrain', z: 'zone', i: 'item', p: 'note', a: 'sound' } as Record<string, Tool>)[k]
       if (t) {
         setTool(t)
         setDraft([])
@@ -194,6 +199,11 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
 
   const onPointer = (kind: 'down' | 'move' | 'up', p: Pt, e: React.PointerEvent): boolean | void => {
     const free = e.shiftKey
+    const layered = lay.pointer(kind, p, e)
+    if (layered !== undefined) {
+      if (layered && kind === 'down') setSel(null)
+      return layered
+    }
     if (tool === 'wall' || tool === 'door' || tool === 'window' || tool === 'zone') {
       if (kind === 'move') {
         setHover(snap(p, free))
@@ -344,6 +354,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   }
 
   const onDrop = (e: RDragEvent) => {
+    if (lay.drop(e)) return
     const raw = e.dataTransfer.getData(ASSET_MIME)
     if (!raw || !canvas.current) return
     e.preventDefault()
@@ -363,7 +374,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const setWall = (patch: Partial<MapWall>) => change((m) => ({ ...m, walls: m.walls.map((w) => (w.id === sel ? { ...w, ...patch } : w)) }))
   const setLight = (patch: Partial<MapLight>) => change((m) => ({ ...m, lights: m.lights.map((l) => (l.id === sel ? { ...l, ...patch } : l)) }))
   const setToken = (patch: Partial<MapToken>) => change((m) => ({ ...m, tokens: m.tokens.map((t) => (t.id === sel ? { ...t, ...patch } : t)) }))
-  const tip = toolTip(tool, asset)
+  const tip = toolTip(tool, asset) ?? (tool === 'note' ? 'Клик — метка; страницу можно перетащить из базы знаний' : tool === 'sound' ? 'Клик — место звука, источник — в свойствах справа' : null)
 
   return (
     <div className={`me-shell${tool === 'asset' ? ' has-lib' : ''}`} role="dialog" aria-label={`Конструктор: ${map.name}`}>
@@ -371,8 +382,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
 
       <ToolBar tool={tool} setTool={setTool} setDraft={setDraft} />
 
-      <div className="me-canvas" onDragOver={(e) => e.dataTransfer.types.includes(ASSET_MIME) && e.preventDefault()} onDrop={onDrop}>
-        <MapCanvas ref={canvas} map={map} viewer={viewer} artOf={artOf} overlays={overlays} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
+      <div className="me-canvas" onDragOver={(e) => (e.dataTransfer.types.includes(ASSET_MIME) ? e.preventDefault() : lay.dragOver(e))} onDrop={onDrop}>
+        <MapCanvas ref={canvas} map={map} viewer={viewer} artOf={artOf} overlays={eyes ? { ...overlays, notes: lay.overlays.notes, drawings: lay.overlays.drawings } : { ...overlays, ...lay.overlays }} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
         {(error || note) && (
           <p className="mp-note" role="alert">
             {error ?? note}
@@ -392,9 +403,13 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         {selItem && <ItemProps item={selItem} map={map} onChange={(patch) => change((m) => ({ ...m, items: m.items.map((i) => (i.id === selItem.id ? { ...i, ...patch } : i)) }))} onRemove={() => remove(selItem.id)} />}
         {selZone && <ZoneProps key={selZone.id} zone={selZone} map={map} onChange={(patch) => change((m) => ({ ...m, zones: m.zones.map((z) => (z.id === selZone.id ? { ...z, ...patch } : z)) }))} onRemove={() => remove(selZone.id)} />}
 
+        {lay.note && <NoteProps key={lay.note.id} roomId={roomId} note={lay.note} onChange={(patch) => lay.note && lay.setNote(lay.note, patch)} onRemove={() => lay.note && lay.removeNote(lay.note)} />}
+        {lay.sound && <SoundProps key={lay.sound.id} sound={lay.sound} onChange={(patch) => lay.sound && lay.setSound(lay.sound, patch)} onRemove={() => lay.sound && lay.removeSound(lay.sound)} />}
+        {lay.pendingSound && <NewSoundProps onPick={(body) => void lay.addSound(body)} onCancel={lay.cancelSound} />}
+
         {tool === 'token' && <StampPanel data={data} stamp={stamp} setStamp={setStamp} stampHidden={stampHidden} setStampHidden={setStampHidden} flash={flash} />}
 
-        {!sel && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
+        {!sel && !lay.selected && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
       </aside>
     </div>
   )

@@ -6,6 +6,7 @@ import { createNote, deleteNote, listNotes, patchNote, patchNotesBatch } from '.
 import { errText } from '../table/parts'
 import { Ctx, type KnowledgeApi, NoteConflict } from './context'
 import { KnowledgeWorkspace } from './KnowledgeBase'
+import { onOpenKbPage } from '../../maps/notes/bus'
 
 export function KnowledgeProvider({ children }: { children: ReactNode }) {
   const { roomId } = useRoom()
@@ -99,6 +100,15 @@ export function KnowledgeProvider({ children }: { children: ReactNode }) {
       setCurrent((c) => (c === id ? null : c))
     },
     [roomId],
+  )
+  // клик по метке на карте открывает её страницу
+  useEffect(
+    () =>
+      onOpenKbPage((id) => {
+        setCurrent(id)
+        setOpen(true)
+      }),
+    [],
   )
   const value = useMemo<KnowledgeApi>(
     () => ({

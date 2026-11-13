@@ -1,6 +1,6 @@
 import type { BattleMap, EditKind } from '../types'
 
-export type Tool = 'select' | 'wall' | 'door' | 'window' | 'light' | 'token' | 'asset' | 'terrain' | 'zone' | 'item'
+export type Tool = 'select' | 'wall' | 'door' | 'window' | 'light' | 'token' | 'asset' | 'terrain' | 'zone' | 'item' | 'note' | 'sound'
 
 export type Brush = 'up' | 'down' | 'difficult' | 'water' | 'climbable'
 

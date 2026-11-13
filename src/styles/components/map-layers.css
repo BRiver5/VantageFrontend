@@ -1,0 +1,132 @@
+/* Слои карты: рисование, звуки местности, окно метки, свойства меток и звуков в конструкторе (p2/layers) */
+.ly-toggle {
+  position: absolute;
+  top: 80px;
+  right: 10px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--black-rgb) / 0.72);
+  color: var(--parchment);
+  cursor: pointer;
+  opacity: 0.75;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.ly-toggle svg { width: 16px; height: 16px; }
+.ly-toggle:hover, .ly-toggle:focus-visible { opacity: 1; }
+.ly-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ly-toggle.is-on { opacity: 1; color: var(--accent-strong); box-shadow: inset 0 0 0 1.5px var(--accent-strong), 0 0 12px rgb(var(--gold-3-rgb) / 0.35); }
+
+.ly-bar {
+  position: absolute;
+  top: 116px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(300px, calc(100% - 20px));
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(var(--black-rgb) / 0.86);
+  color: var(--parchment);
+  font-size: 12.5px;
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.3), 0 10px 30px rgb(var(--black-rgb) / 0.5);
+}
+.ly-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ly-style label { display: inline-flex; align-items: center; gap: 4px; }
+.ly-style input[type='color'], .ly-tints input[type='color'] { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.ly-range { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); }
+.ly-range input[type='range'] { width: 84px; accent-color: var(--accent); }
+.ly-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.ly-check input { accent-color: var(--accent); }
+
+.ly-tool, .ly-btn, .ly-sound-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  background: rgb(var(--white-rgb) / 0.06);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ly-tool { width: 30px; height: 30px; padding: 0; border-radius: 8px; }
+.ly-tool svg, .ly-btn svg, .ly-sound-btn svg, .ly-link svg { width: 15px; height: 15px; }
+.ly-btn { padding: 5px 10px; border-radius: 999px; }
+.ly-tool:hover, .ly-btn:hover:not(:disabled), .ly-sound-btn:hover { background: rgb(var(--white-rgb) / 0.12); }
+.ly-tool:focus-visible, .ly-btn:focus-visible, .ly-sound-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ly-tool.is-on, .ly-btn.is-on { background: rgb(var(--gold-2-rgb) / 0.3); color: var(--gold-4); box-shadow: inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.6); }
+.ly-tool.is-danger, .ly-btn.is-danger { color: var(--danger-soft); }
+.ly-btn:disabled { opacity: 0.45; cursor: default; }
+.ly-text { flex: 1; min-width: 0; padding: 5px 8px; border: 0; border-radius: 7px; background: rgb(var(--white-rgb) / 0.08); color: inherit; font: inherit; }
+.ly-text:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ly-hint { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+.ly-hint.is-err { color: var(--danger-soft); }
+.ly-link { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; color: var(--accent-strong); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+/* звуки местности: кнопка громкости внизу справа */
+.ly-sound { position: absolute; right: 10px; bottom: 54px; z-index: 4; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.ly-sound-btn { height: 30px; min-width: 30px; padding: 0 8px; border-radius: 999px; background: rgb(var(--black-rgb) / 0.72); color: var(--parchment); opacity: 0.7; box-shadow: inset 0 0 0 1px var(--border); }
+.ly-sound-btn.is-on { opacity: 1; color: #8fd3c7; }
+.ly-sound-btn.is-blocked { opacity: 1; color: var(--accent-strong); }
+.ly-sound-pop { order: -1; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: rgb(var(--black-rgb) / 0.86); color: var(--parchment); font-size: 12.5px; box-shadow: inset 0 0 0 1px var(--border); }
+
+/* окно метки */
+.ly-note {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100% - 32px));
+  max-height: min(70vh, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  border-radius: 14px;
+  background: var(--surface-1);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgb(var(--black-rgb) / 0.7), inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.35);
+  overflow: hidden;
+}
+.ly-note header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.ly-note header b { flex: 1; font-family: var(--font-display); font-size: 18px; color: var(--parchment); }
+.ly-note-glyph { font-size: 20px; }
+.ly-note-x { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.ly-note-x:hover { background: rgb(var(--white-rgb) / 0.08); }
+.ly-note-x svg { width: 16px; height: 16px; }
+.ly-note-body { padding: 12px 14px; overflow: auto; }
+.ly-note > .ly-hint { padding: 12px 14px; }
+.ly-placing { display: flex; align-items: center; gap: 8px; }
+
+/* свойства в конструкторе */
+.ly-props label:not(.me-check) { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.ly-props select, .ly-props input:not([type='checkbox']):not([type='color']):not([type='range']) { width: 100%; box-sizing: border-box; }
+.ly-props .ly-hint { margin-top: 6px; }
+.ly-icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; }
+.ly-icons button { height: 32px; padding: 0; border: 0; border-radius: 8px; background: rgb(var(--white-rgb) / 0.06); font-size: 17px; cursor: pointer; }
+.ly-icons button.is-on { background: rgb(var(--gold-2-rgb) / 0.3); box-shadow: inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.7); }
+.ly-tints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.ly-tints button { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgb(var(--black-rgb) / 0.5); }
+.ly-tints button.is-on { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--accent-strong); }
+.ly-source { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ly-source ul { display: flex; flex-direction: column; gap: 2px; max-height: 180px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.ly-source li button { width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: rgb(var(--white-rgb) / 0.04); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ly-source li button:hover { background: rgb(var(--white-rgb) / 0.1); }
+.ly-search { display: flex; flex-direction: row !important; align-items: center; gap: 6px; }
+.ly-search svg { width: 14px; height: 14px; flex: none; color: var(--text-muted); }
+.ly-upload { align-self: flex-start; }
+.ly-upload.is-busy { opacity: 0.6; pointer-events: none; }
+
+@media (max-width: 560px) {
+  .ly-bar { top: auto; bottom: 96px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ly-toggle, .ly-tool, .ly-btn { transition: none; }
+}
