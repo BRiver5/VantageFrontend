@@ -1,4 +1,5 @@
 import type { MapVfx, Pt } from '../types'
+import type { RulerOverlay } from './ruler'
 
 export interface MapOverlays {
   /** досягаемые клетки и их стоимость */
@@ -27,6 +28,8 @@ export interface MapOverlays {
   reachItems?: string[]
   /** чужие шаблоны наведения: бледно */
   ghosts?: { polygon: Pt[]; color: string }[]
+  /** линейка или маршрут перетаскивания с ценой и атаками по возможности */
+  ruler?: RulerOverlay | null
 }
 
 export interface MapViewer {
