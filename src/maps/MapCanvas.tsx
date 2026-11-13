@@ -16,7 +16,8 @@ import type { BattleMap, MapToken, Pt } from './types'
 
 import { ELEMENT } from './render/constants'
 import { drawGrid, drawLayers, drawObjects, drawTerrain } from './render/background'
-import { drawDarkness } from './render/fog'
+import { drawDarkness, eyeSights, inSight } from './render/fog'
+import { darknessAt, darknessMoving, lightsAnimating, serverNow } from './render/lighting'
 import { drawFloats } from './render/floats'
 import { doorAt, tokenAt } from './render/hit'
 import { drawCarriedItems, drawFloorItems } from './render/items'
@@ -202,7 +203,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (!c) return
       const zoneFx = props.current.map.zones.some((z) => z.enabled && z.vfx_preset)
       const busy = (props.current.overlays?.ruler?.threats.length ?? 0) > 0 || zoneFx || fx.current.busy || (props.current.overlays?.reachItems?.length ?? 0) > 0 || anim.current.size > 0 || pings.current.length > 0 || !!flight.current || floats.current.length > 0 || Object.keys(props.current.overlays?.drags ?? {}).length > 0
-      const flick = props.current.map.lights.some((l) => l.flicker && l.enabled)
+      // анимированный свет и переход темноты сцены — каждый кадр (в щадящем режиме свет стоит)
+      const amb = props.current.map.ambient
+      const sNow = serverNow()
+      const flick = darknessMoving(amb, sNow) || (!isPingCalm() && lightsAnimating(props.current.map.lights, darknessAt(amb, sNow)))
       // кольцо хода бежит по кругу, пока движение не отключено
       const turning = !!props.current.overlays?.turn && !prefersReducedMotion()
       if (!dirty.current && !busy && !flick && !turning) return
@@ -270,10 +274,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (ov.reach) drawReach(ctx, g, ov.reach)
       if (ov.path && ov.path.length > 1) drawPath(ctx, ov.path, v)
 
+      // туман игрока: чужие жетоны и предметы вне обзора своих жетонов не рисуем
+      const sights = eyeSights(m, vw, (t) => posOf(t, now))
+      const seenTokens = sights ? tokens.filter((t) => vw.eyes.includes(t.id) || inSight(sights, posOf(t, now))) : tokens
+      const seenIds = sights ? new Set(seenTokens.map((t) => t.id)) : null
+      const itemsMap = sights ? { ...m, items: m.items.filter((i) => (i.carried_by ? seenIds!.has(i.carried_by) : inSight(sights, i))) } : m
       // предметы на полу
-      drawFloorItems(ctx, m, vw.isDm, ov, v, now, img)
+      drawFloorItems(ctx, itemsMap, vw.isDm, ov, v, now, img)
       // предметы в руках призванных — у их жетонов
-      drawCarriedItems(ctx, m, vw.isDm, v, now, posOf)
+      drawCarriedItems(ctx, itemsMap, vw.isDm, v, now, posOf)
 
       // стены: мастеру и в конструкторе все, игроку — двери и окна
       drawWalls(ctx, m, vw.isDm, ov, v)
@@ -285,16 +294,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const pos = new Map<string, Pt>()
       for (const t of tokens) pos.set(t.id, posOf(t, now))
       drawnPos.current = pos
-      const turnTk = ov.turn ? tokens.find((t) => t.id === ov.turn) : undefined
+      const turnTk = ov.turn ? seenTokens.find((t) => t.id === ov.turn) : undefined
       if (turnTk) drawTurnRing(ctx, turnTk, pos.get(turnTk.id)!, g, v, now, prefersReducedMotion())
-      drawTokens(ctx, tokens, pos, g, ov, v, img, art)
+      drawTokens(ctx, seenTokens, pos, g, ov, v, img, art)
       // p1/hud: цели игрока и рамка выделения
-      if (ov.targets?.length) drawTargets(ctx, tokens, pos, g, ov.targets, v)
+      if (ov.targets?.length) drawTargets(ctx, seenTokens, pos, g, ov.targets, v)
       if (ov.targetBox) drawTargetBox(ctx, ov.targetBox, v)
-      if (ov.health) drawHealth(ctx, tokens, pos, g, ov.health, v)
+      if (ov.health) drawHealth(ctx, seenTokens, pos, g, ov.health, v)
 
       // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
-      drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now)
+      drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now, sights)
 
       // чужие шаблоны
       drawGhosts(ctx, ov.ghosts ?? [], v)
