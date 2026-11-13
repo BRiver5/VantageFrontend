@@ -16,6 +16,9 @@ import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
 import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
+import { tokenAt as hitToken } from './render/hit'
+import { TokenHud } from './hud/TokenHud'
+import { useMapHud } from './hud/useMapHud'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -113,6 +116,20 @@ export function MapField({
     return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
   }, [map, combat, meUser, mine, units])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
+
+  // p1/hud: панель жетона (правый клик, долгое нажатие) и цели (T, Shift + клик, Shift + рамка)
+  const hud = useMapHud({
+    map,
+    isDm,
+    tokenAt: (p) => (map ? (hitToken(map, isDm, new Map(), p) ?? undefined) : undefined),
+    onOpenCard: onOpen,
+    onTakeOver: () => {
+      clearTimeout(press.current)
+      const dg = dragging.current
+      dragging.current = null
+      if (dg) setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== dg.id)))
+    },
+  })
 
   const flash = (text: string) => {
     setNote(text)
@@ -305,6 +322,7 @@ export function MapField({
       }
       return true
     }
+    if (hud.handle(kind, p, e)) return true
     if (kind === 'down') {
       clearTimeout(press.current)
       if (e.button === 2) {
@@ -406,9 +424,10 @@ export function MapField({
   const byCombatant = (cid: string) => map.tokens.find((t) => t.combatant_id === cid)?.id
   const tokenChances = Object.fromEntries(Object.entries(chances ?? {}).map(([cid, ch]) => [byCombatant(cid), ch]).filter(([k]) => !!k))
   const pickedTokens = (picked ?? []).map(byCombatant).filter((x): x is string => !!x)
+  const hudToken = hud.hud ? map.tokens.find((t) => t.id === hud.hud!.tokenId && (isDm || !t.hidden)) : undefined
 
   return (
-    <div className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}`}>
+    <div className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}`} onPointerLeave={hud.leave}>
       <MapCanvas
         ref={canvas}
         map={map}
@@ -425,9 +444,12 @@ export function MapField({
           chances: tokenChances,
           picked: pickedTokens,
           ghosts: Object.values(ghosts),
+          targets: hud.targets,
+          targetBox: hud.box,
         }}
         onPointer={onPointer}
         onToken={(t) => {
+          if (hud.tookTap()) return
           if (targeting && t.combatant_id) return onTarget?.(t.combatant_id)
           if (canMove(t)) return
           onOpen?.(t)
@@ -439,6 +461,7 @@ export function MapField({
         }}
       />
       {hoverCost != null && sel && <span className="mp-cost">{hoverCost} фт.</span>}
+      {hud.hud && hudToken && <TokenHud key={hudToken.id} map={map} token={hudToken} anchor={hud.hud} targeted={hud.targets.includes(hudToken.id)} onClose={hud.closeHud} onOpenCard={onOpen} />}
       {aim && (
         <div className="mp-aimbar">
           <b>{aim.spell}</b>
