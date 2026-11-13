@@ -14,6 +14,7 @@ import { useRoom, useRoomEvents } from '../RoomProvider'
 import { beginCombat, concentrationSave, delayTurn, endCombat, nextTurn, patchCombatant, prevTurn as stepBack, revertCombatAction, rollInitiative, setInitiative, spendLegendary } from '../roomsApi'
 import { type ChanceMap, type MapAimSpec } from './SpellCast'
 import { MapField } from '../../maps/MapField'
+import { targetCombatants, targetStore } from '../../maps/hud/targets'
 import type { AimInfo, AimRequest } from '../../maps/types'
 import { CreatureCard, HeroCard } from './Cards'
 import { originOf, type Origin } from './parts'
@@ -200,6 +201,9 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   }
   const openCmd = (next: Cmd) => {
     setSlot(null)
+    // цели, отмеченные на карте (T, Shift + клик), сразу становятся целями действия
+    const marked = targetCombatants(data.activeMap?.tokens ?? [], targetStore.get()).filter((id) => byId.get(id) && !byId.get(id)!.defeated)
+    if (marked.length) setTargets((t) => (t.length ? t : marked))
     setCmd(next)
   }
   const onFigure = (c: CombatantView, origin: Origin) => {
