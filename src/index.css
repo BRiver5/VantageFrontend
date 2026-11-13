@@ -110,3 +110,5 @@
 @import './styles/reviews.css' layer(legacy);
 @import './styles/profile.css' layer(legacy);
 @import './styles/search.css' layer(legacy);
+
+@import './styles/components/pause-pings.css' layer(components);

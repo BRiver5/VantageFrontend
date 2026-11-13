@@ -459,7 +459,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
     case 'member.kicked':
       return { ...base, kind: 'member', who, text: 'исключён из комнаты' }
     case 'room.status':
-      return { ...base, kind: 'room', who, text: `Статус комнаты: ${statusRu(p.status)}` }
+      return { ...base, kind: 'room', who, text: p.status === 'paused' ? 'Мастер поставил игру на паузу' : `Статус комнаты: ${statusRu(p.status)}` }
     case 'character.updated':
       return p.label ? { ...base, kind: 'room', who: p.card?.name, text: String(p.label) } : null
     default:
@@ -468,7 +468,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
 }
 
 export const statusRu = (s: string): string =>
-  ({ lobby: 'сбор', active: 'идёт игра', paused: 'перерыв', closed: 'закрыта' })[s] ?? s
+  ({ lobby: 'сбор', active: 'идёт игра', paused: 'пауза', closed: 'закрыта' })[s] ?? s
 
 /** Добавить запись в журнал без дубликатов; старейшие обрезаем */
 export function pushLog(state: RoomData, entry: RoomLogEntry): RoomData {
