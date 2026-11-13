@@ -15,12 +15,12 @@ import { parsePortrait } from '../../characters/portrait'
 import type { AnyCreature, CharacterCard, HpBand, RoomItem } from '../../types/rooms'
 import { isFullCreature } from '../../types/rooms'
 import { Img } from '../../media'
+import { BAND_LABEL, BAND_RATIO } from '../health'
 
 /* ---------- данные ---------- */
 
-export const BAND_RU: Record<HpBand, string> = { healthy: 'здоров', bloodied: 'ранен', critical: 'при смерти', down: 'повержен' }
-/** Словом: заполнение до верха зоны, а не «примерно столько», иначе дуга намекала бы на точные хиты */
-const BAND_RATIO: Record<HpBand, number> = { healthy: 1, bloodied: 0.5, critical: 0.25, down: 0 }
+/** Состояние словом: Невредим / Ранен / При смерти / Повержен (rooms/health.ts) */
+export const BAND_RU: Record<HpBand, string> = BAND_LABEL
 
 export const SIZE_RU: Record<string, string> = { Tiny: 'крошечный', Small: 'маленький', Medium: 'средний', Large: 'большой', Huge: 'огромный', Gargantuan: 'громадный' }
 
@@ -210,7 +210,7 @@ export function Hex({
 
 /* ---------- сосуд хитов: для карточек вне боя ---------- */
 
-const BAND_WORD: Record<HpBand, string> = { healthy: 'бодр', bloodied: 'ранен', critical: 'при смерти', down: 'повержен' }
+const BAND_WORD: Record<HpBand, string> = BAND_LABEL
 const HEART = 'M12 21.3C5.2 15.6 1.5 12.2 1.5 7.9 1.5 4.6 4.1 2 7.3 2c1.9 0 3.6.9 4.7 2.3C13.1 2.9 14.8 2 16.7 2c3.2 0 5.8 2.6 5.8 5.9 0 4.3-3.7 7.7-10.5 13.4Z'
 
 /**

@@ -16,6 +16,8 @@ import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
 import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
+import { onTokenFocus } from './focus'
+import { maskTokenLabels, tokenHealth, turnTokenId } from './partyOverlays'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
 
 /** Что сейчас наводится */
@@ -113,6 +115,17 @@ export function MapField({
     return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
   }, [map, combat, meUser, mine, units])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
+
+  // игроку — имена существ, которые ему открыты; здоровье под жетонами; кольцо хода
+  const characters = data?.characters
+  const creatures = data?.creatures
+  const shownMap = useMemo(() => (map ? maskTokenLabels(map, creatures ?? [], isDm) : null), [map, creatures, isDm])
+  const health = useMemo(() => (map ? tokenHealth(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }, isDm) : {}), [map, characters, creatures, combat, isDm])
+  const turnToken = map ? turnTokenId(map, combat ?? null) : null
+
+  // «Показать на карте» из панели отряда: камера на жетон, свой — выбрать
+  const focusRef = useRef<(id: string) => void>(() => undefined)
+  useEffect(() => onTokenFocus((id) => focusRef.current(id)), [])
 
   const flash = (text: string) => {
     setNote(text)
@@ -292,6 +305,14 @@ export function MapField({
     }
   }
 
+  focusRef.current = (id) => {
+    const t = map?.tokens.find((x) => x.id === id)
+    if (!t || (!isDm && t.hidden)) return
+    canvas.current?.centerOn({ x: t.x, y: t.y })
+    canvas.current?.ping({ x: t.x, y: t.y })
+    if (canMove(t) && !aim && !targeting) void select(t)
+  }
+
   if (!map) return null
 
   const tokenAt = (p: Pt) => map.tokens.filter((t) => (isDm || !t.hidden) && Math.hypot(t.x - p.x, t.y - p.y) <= (t.size * map.grid.cell_px) / 2).sort((a, b) => a.size - b.size)[0]
@@ -411,7 +432,7 @@ export function MapField({
     <div className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}`}>
       <MapCanvas
         ref={canvas}
-        map={map}
+        map={shownMap ?? map}
         viewer={{ isDm, eyes: myTokens.map((t) => t.id) }}
         artOf={artOf}
         overlays={{
@@ -425,6 +446,8 @@ export function MapField({
           chances: tokenChances,
           picked: pickedTokens,
           ghosts: Object.values(ghosts),
+          health,
+          turn: turnToken,
         }}
         onPointer={onPointer}
         onToken={(t) => {

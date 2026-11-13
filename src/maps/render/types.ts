@@ -1,3 +1,4 @@
+import type { HealthView } from '../../rooms/health'
 import type { MapVfx, Pt } from '../types'
 
 export interface MapOverlays {
@@ -27,6 +28,10 @@ export interface MapOverlays {
   reachItems?: string[]
   /** чужие шаблоны наведения: бледно */
   ghosts?: { polygon: Pt[]; color: string }[]
+  /** здоровье под жетонами: token_id → вид для зрителя (игроку о врагах — только состояние) */
+  health?: Record<string, HealthView>
+  /** жетон того, чей сейчас ход */
+  turn?: string | null
 }
 
 export interface MapViewer {
