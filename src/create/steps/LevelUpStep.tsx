@@ -6,26 +6,8 @@
  * характеристик или черту, новые заклинания — и видит умения класса и
  * подкласса. Принятый уровень проигрывается сценами награды.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
-import {
-  Award,
-  BookOpen,
-  ChevronDown,
-  Search,
-  Check,
-  Dices,
-  Heart,
-  X,
-  Shield,
-  Sparkles,
-  Swords,
-  TrendingUp,
-} from 'lucide-react'
-import { realImage } from '../../api'
+import { useCallback, useMemo, useState } from 'react'
 import type { Feat, Spell, Subclass } from '../../api'
-import { DieImage, hitDieType } from '../../dice/diceAssets'
-import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
 import type { AbilityName } from '../../types/character'
 import { skillKeysFromNames } from '../../skills'
 import { normSpellName } from '../../spellIndex'
@@ -37,7 +19,6 @@ import {
   classSkillChoice,
   multiclassSkillCount,
   isPreparedCaster,
-  proficiencyBonus,
   spellSlotsAt,
   spellsKnownAt,
   subclassLevelFallback,
@@ -45,72 +26,26 @@ import {
 import { averageHitDie, finalScores, hitPointsForLevel } from '../deriveCharacter'
 import { emptyLevelChoice, type LevelChoice, type StepProps } from '../draft'
 import type { ClassBundle } from '../useClassBundle'
-import type { FeatureEntry } from '../../classArticle'
+import type { FeatureEntry } from '../../classArticleHtml'
 import { useDice } from '../../dice/diceControl'
 import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay'
 import { useCatalogList } from '../useCatalog'
-import { RichText } from '../../terms/terms'
-import { Constellation } from '../../characters/SpellBook'
-import { FeatPicker } from './FeatPicker'
-import { featureText } from '../featureText'
 import type { GrantedSpell } from '../grantedSpells'
-import { checkPrereq, type PrereqContext } from '../prereq'
-import { ChoiceModal, FactChip, ModalSection, MoreTab, StepHeader } from './ui'
-import { SpellDetails } from './SpellsStep'
-import { spellSchoolIcon } from '../../spellSchools'
-import { Img } from '../../media'
-
-const SKILL_BY_KEY = new Map(DEFAULT_SKILLS.map((s) => [s.key, s]))
-
-/** Сколько нового даёт уровень по сравнению с предыдущим */
-interface LevelRequirements {
-  skillsNeeded: number
-  skillOptions: string[]
-  needsSubclass: boolean
-  isAsi: boolean
-  cantripsNeeded: number
-  spellsNeeded: number
-  maxCircle: number
-  newSlots: { circle: number; count: number }[]
-  /** все ячейки на этом уровне и сколько их было до него */
-  slots: { circle: number; count: number; before: number }[]
-  classFeatures: FeatureEntry[]
-  subFeatures: FeatureEntry[]
-}
-
-/** Хиты уровня жетонами: [кость → значение] + [ТЕЛ ±n] = [итог] */
-function HpEquation({
-  die,
-  value,
-  conMod,
-  total,
-}: {
-  die: number
-  value: number
-  conMod: number
-  total: number
-}) {
-  return (
-    <div className="cw-hp-eq" aria-label={`${value} ${conMod >= 0 ? '+' : '−'} ${Math.abs(conMod)} = ${total} хитов`}>
-      <span className="cw-hp-token">
-        <DieImage type={hitDieType(die)} size={22} />
-        <b>{value}</b>
-        <i>к{die}</i>
-      </span>
-      <span className="cw-hp-op">{conMod >= 0 ? '+' : '−'}</span>
-      <span className="cw-hp-token">
-        <b>{Math.abs(conMod)}</b>
-        <i>ТЕЛ</i>
-      </span>
-      <span className="cw-hp-op">=</span>
-      <span className="cw-hp-token cw-hp-token--total">
-        <Heart aria-hidden="true" />
-        <b>{total}</b>
-        <i>хитов</i>
-      </span>
-    </div>
-  )
-}
+import type { PrereqContext } from '../prereq'
+import { StepHeader } from './ui'
+import type { LevelRequirements } from './levelup/LevelParts'
+import { AsiBlock } from './levelup/AsiBlock'
+import { FeaturesBlock } from './levelup/FeaturesBlock'
+import { GrantedBlock } from './levelup/GrantedBlock'
+import { HpBlock } from './levelup/HpBlock'
+import { LevelFooter } from './levelup/LevelFooter'
+import { LevelHero } from './levelup/LevelHero'
+import { LevelRoad } from './levelup/LevelRoad'
+import { MagicBlock } from './levelup/MagicBlock'
+import { SkillsBlock } from './levelup/SkillsBlock'
+import { SKILL_BY_KEY } from './levelup/skillByKey'
+import { SubclassBlock } from './levelup/SubclassBlock'
+import { SubclassModal } from './levelup/SubclassModal'
 
 /**
  * Повышение уровня у сохранённого героя: тот же шаг, но про один новый уровень
@@ -374,8 +309,6 @@ export default function LevelUpStep({
     if (active + 1 < draft.levels.length) setCursor(active + 1)
   }
 
-  if (!choice) return null
-
   const hpValue = maxFirst ? hitDie : (choice.hpRoll ?? averageHitDie(hitDie))
 
   return (
@@ -386,378 +319,43 @@ export default function LevelUpStep({
       />
 
       {/* дорога уровней: золото заливает линию до последнего принятого */}
-      {!opts.onlyLatest && (
-      <nav
-        className="cw-climb"
-        aria-label="Уровни"
-        style={
-          {
-            '--n': draft.levels.length,
-            '--fill': `${draft.levels.length > 1 ? (Math.min(doneCount, draft.levels.length - 1) / (draft.levels.length - 1)) * 100 : 0}%`,
-          } as CSSProperties
-        }
-      >
-        {draft.levels.length > 1 && <span className="cw-climb-line" aria-hidden="true" />}
-        {draft.levels.map((l, i) => (
-          <button
-            key={l.level}
-            type="button"
-            className={`cw-climb-node${l.level === level ? ' is-active' : ''}${l.done ? ' is-done' : ''}`}
-            onClick={() => setCursor(i)}
-            // вперёд через непройденные уровни не прыгаем — иначе порядок наград рассыплется
-            disabled={!l.done && nextPending !== -1 && i > nextPending}
-            title={`${l.level} уровень`}
-          >
-            <span className="cw-climb-hex">{l.done ? <Check aria-hidden="true" /> : l.level}</span>
-          </button>
-        ))}
-      </nav>
-      )}
+      {!opts.onlyLatest && <LevelRoad levels={draft.levels} level={level} doneCount={doneCount} nextPending={nextPending} setCursor={setCursor} />}
 
       <div className="cw-lvl">
-        <header className="cw-lvl-hero">
-          <span className="cw-path-medal cw-lvl-medal">
-            <span>
-              <b key={level}>{level}</b>
-              <i>уровень</i>
-            </span>
-          </span>
-          <div className="cw-lvl-title">
-            <b className="gold-text">{className}</b>
-            <span>
-              {opts.characterLevel ? `${opts.characterLevel} ур. героя · ` : ''}бонус мастерства +{proficiencyBonus(charLevel)}
-              {draft.subclass && level >= subclassLevel ? ` · ${draft.subclass.subclass_name}` : ''}
-            </span>
-          </div>
-          <span className="cw-lvl-die" title={`Кость хитов к${hitDie}`}>
-            <DieImage type={hitDieType(hitDie)} size={54} />
-            <i>к{hitDie}</i>
-          </span>
-          {choice.done && (
-            <span className="cw-level-done" aria-label="Уровень принят">
-              <Check aria-hidden="true" /> принят
-            </span>
-          )}
-        </header>
+        <LevelHero draft={draft} choice={choice} level={level} className={className} hitDie={hitDie} charLevel={charLevel} subclassLevel={subclassLevel} characterLevel={opts.characterLevel} />
 
         {/* ---------- хиты ---------- */}
-        <section className="cw-block">
-          <h4 className="cw-block-title">
-            <Heart aria-hidden="true" /> Хиты
-          </h4>
-          {maxFirst ? (
-            <>
-              <HpEquation die={hitDie} value={hitDie} conMod={conMod} total={hpGain} />
-              <p className="cw-block-note">Первый уровень всегда даёт максимум кости хитов.</p>
-            </>
-          ) : (
-            <div className="cw-hp-row">
-              <button
-                type="button"
-                className="cs-btn cw-roll-btn"
-                onClick={() => void rollHp()}
-                disabled={dice.rolling}
-              >
-                <Dices aria-hidden="true" />
-                {dice.rolling ? 'Кость катится…' : `Бросить 1к${hitDie}`}
-              </button>
-              <button
-                type="button"
-                className={`cs-btn cs-btn--ghost${choice.hpMode === 'average' ? ' is-active' : ''}`}
-                onClick={() => patchLevel({ hpMode: 'average', hpRoll: averageHitDie(hitDie) })}
-              >
-                Среднее ({averageHitDie(hitDie)})
-              </button>
-              <label className="cw-field cw-field--tiny">
-                <span>Своё значение</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={hitDie}
-                  value={choice.hpRoll ?? ''}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10)
-                    patchLevel({
-                      hpMode: 'manual',
-                      hpRoll: Number.isNaN(v) ? null : Math.max(1, Math.min(hitDie, v)),
-                    })
-                  }}
-                />
-              </label>
-              {choice.hpRoll != null ? (
-                <HpEquation die={hitDie} value={hpValue} conMod={conMod} total={hpGain} />
-              ) : (
-                <span className="cw-hp-total">бросьте кость или введите значение</span>
-              )}
-            </div>
-          )}
-          {diceError && <p className="auth-error">{diceError}</p>}
-        </section>
+        <HpBlock choice={choice} maxFirst={maxFirst} hitDie={hitDie} conMod={conMod} hpGain={hpGain} hpValue={hpValue} rolling={dice.rolling} rollHp={rollHp} diceError={diceError} patchLevel={patchLevel} />
 
         {/* ---------- навыки ---------- */}
-        {req.skillsNeeded > 0 && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <Award aria-hidden="true" /> Навыки — выберите {req.skillsNeeded}
-              <span className="cw-block-count">
-                {choice.skills.length} / {req.skillsNeeded}
-              </span>
-            </h4>
-            {backgroundSkills.size > 0 && (
-              <p className="cw-block-note">
-                Предыстория уже дала:{' '}
-                {[...backgroundSkills].map((k) => SKILL_BY_KEY.get(k)?.label ?? k).join(', ')}
-              </p>
-            )}
-            <div className="cw-pills">
-              {req.skillOptions.map((key) => {
-                const skill = SKILL_BY_KEY.get(key)
-                const on = choice.skills.includes(key)
-                const full = choice.skills.length >= req.skillsNeeded
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`cw-pill${on ? ' is-on' : ''}`}
-                    disabled={!on && full}
-                    onClick={() =>
-                      patchLevel({
-                        skills: on
-                          ? choice.skills.filter((s) => s !== key)
-                          : [...choice.skills, key],
-                      })
-                    }
-                  >
-                    {skill?.label ?? key}
-                    <i>{skill ? ABILITY_LABELS[skill.ability].abbr : ''}</i>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )}
+        {req.skillsNeeded > 0 && <SkillsBlock req={req} choice={choice} backgroundSkills={backgroundSkills} patchLevel={patchLevel} />}
 
         {/* ---------- подкласс ---------- */}
-        {req.needsSubclass && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <Shield aria-hidden="true" /> Подкласс
-            </h4>
-            <div className="cw-subclasses">
-              {bundle?.subs.map((sub: Subclass) => {
-                const art = realImage(sub.image_gallery)
-                const on = draft.subclass?.id === sub.id
-                return (
-                  <div key={sub.id} className="cw-pick-slot cw-pick-slot--sub">
-                    <button
-                      type="button"
-                      className={`cw-subclass${on ? ' is-on' : ''}`}
-                      onClick={() => update({ subclass: sub })}
-                      aria-pressed={on}
-                    >
-                      {art ? (
-                        <Img src={art} alt="" loading="lazy" className="cw-subclass-art" />
-                      ) : (
-                        <span className="cw-subclass-art cw-subclass-art--empty">
-                          <Shield aria-hidden="true" />
-                        </span>
-                      )}
-                      <span className="cw-subclass-name">{sub.subclass_name}</span>
-                      {sub.subclass_flavor && (
-                        <span className="cw-subclass-flavor">{sub.subclass_flavor}</span>
-                      )}
-                    </button>
-                    <MoreTab onClick={() => setSubDetails(sub)} />
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
+        {req.needsSubclass && <SubclassBlock draft={draft} update={update} bundle={bundle} setSubDetails={setSubDetails} />}
 
         {/* ---------- усиление характеристик или черта ---------- */}
-        {req.isAsi && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <TrendingUp aria-hidden="true" /> Усиление характеристик или черта
-            </h4>
-            <div className="cw-asi-modes">
-              <button
-                type="button"
-                className={`cs-btn cs-btn--ghost${choice.featName === null ? ' is-active' : ''}`}
-                onClick={() => patchLevel({ featName: null, featId: null })}
-              >
-                +2 к характеристикам
-              </button>
-              <button
-                type="button"
-                className={`cs-btn cs-btn--ghost${choice.featName !== null ? ' is-active' : ''}`}
-                onClick={() => patchLevel({ featName: '', featId: null, asi: {} })}
-              >
-                Взять черту
-              </button>
-            </div>
-
-            {choice.featName === null ? (
-              <>
-                <p className="cw-block-note">
-                  Распределите два очка: {asiSpent} / 2
-                </p>
-                <div className="cw-asi-grid">
-                  {ABILITY_KEYS.map((key) => {
-                    const added = choice.asi[key] ?? 0
-                    const current = scoresBefore[key]
-                    const capped = current + added >= 20
-                    return (
-                      <div key={key} className="cw-asi-cell">
-                        <span className="cw-asi-name">{ABILITY_LABELS[key].abbr}</span>
-                        <span className="cw-asi-value">
-                          {current}
-                          {added > 0 && <i className="gold-text">+{added}</i>}
-                        </span>
-                        <span className="cw-asi-buttons">
-                          <button
-                            type="button"
-                            aria-label={`Убрать очко из ${ABILITY_LABELS[key].label}`}
-                            disabled={added === 0}
-                            onClick={() =>
-                              patchLevel({ asi: { ...choice.asi, [key]: added - 1 } })
-                            }
-                          >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={`Добавить очко в ${ABILITY_LABELS[key].label}`}
-                            disabled={asiSpent >= 2 || capped}
-                            onClick={() =>
-                              patchLevel({ asi: { ...choice.asi, [key]: added + 1 } })
-                            }
-                          >
-                            +
-                          </button>
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            ) : (
-              <FeatPicker
-                feats={allFeats}
-                value={choice.featName}
-                onChange={(name) =>
-                  patchLevel({ featName: name, featId: allFeats.find((f) => f.feat_name === name)?.id ?? null })
-                }
-                check={(f) => checkPrereq(f.prerequisite, prereqContext)}
-              />
-            )}
-          </section>
-        )}
+        {req.isAsi && <AsiBlock choice={choice} asiSpent={asiSpent} scoresBefore={scoresBefore} allFeats={allFeats} prereqContext={prereqContext} patchLevel={patchLevel} />}
 
         {/* ---------- заклинания ---------- */}
         {kind !== 'none' && (req.newSlots.length > 0 || req.cantripsNeeded > 0 || req.spellsNeeded > 0) && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <Sparkles aria-hidden="true" /> Магия
-            </h4>
-
-            {req.newSlots.length > 0 && (
-              <div className="cw-slot-rail cw-slot-rail--levelup">
-                {req.slots.map((s) => (
-                  <Constellation
-                    key={s.circle}
-                    circle={s.circle}
-                    max={s.count}
-                    used={0}
-                    fresh={Math.max(0, s.count - s.before)}
-                    locked
-                  />
-                ))}
-              </div>
-            )}
-
-            {prepared && (
-              <p className="cw-block-note">
-                {className} готовит заклинания из всего списка — набор выберете на шаге «Заклинания».
-              </p>
-            )}
-
-            {req.cantripsNeeded > 0 && (
-              <SpellPicker
-                title={`Заговоры — выберите ${req.cantripsNeeded}`}
-                count={req.cantripsNeeded}
-                picked={choice.cantrips}
-                options={cantripOptions.filter((s) => !takenSpellIds.has(s.id))}
-                loading={spellsLoading}
-                onChange={(cantrips) => patchLevel({ cantrips })}
-              />
-            )}
-
-            {req.spellsNeeded > 0 && (
-              <SpellPicker
-                title={`Заклинания — выберите ${req.spellsNeeded}`}
-                count={req.spellsNeeded}
-                picked={choice.spells}
-                options={classSpells.filter(
-                  (s) =>
-                    s.spell_level >= 1 &&
-                    s.spell_level <= req.maxCircle &&
-                    !takenSpellIds.has(s.id),
-                )}
-                onChange={(spells) => patchLevel({ spells })}
-                loading={spellsLoading}
-              />
-            )}
-          </section>
+          <MagicBlock
+            req={req}
+            choice={choice}
+            className={className}
+            prepared={prepared}
+            cantripOptions={cantripOptions}
+            classSpells={classSpells}
+            takenSpellIds={takenSpellIds}
+            spellsLoading={spellsLoading}
+            patchLevel={patchLevel}
+          />
         )}
 
         {/* ---------- дарованные заклинания: от расы и подкласса ---------- */}
-        {grantedNow.length > 0 && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <Sparkles aria-hidden="true" /> Дарованные заклинания
-            </h4>
-            <div className="cw-granted">
-              {grantedNow.map((g) => (
-                <span key={g.spell.id} className={`cw-granted-item cw-granted-item--${g.origin}`}>
-                  <span className="cw-sp-circle">{g.spell.spell_level === 0 ? '◈' : g.spell.spell_level}</span>
-                  <span className="cw-granted-text">
-                    <b>{g.spell.spell_name}</b>
-                    <i>
-                      {g.origin === 'race'
-                        ? `доступно от расы${g.spell.spell_level === 0 ? ' · заговор' : ' · раз в продолжительный отдых'}`
-                        : `от подкласса «${g.from}» · всегда подготовлено`}
-                    </i>
-                  </span>
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
+        {grantedNow.length > 0 && <GrantedBlock grantedNow={grantedNow} />}
 
         {/* ---------- умения уровня ---------- */}
-        {(req.classFeatures.length > 0 || req.subFeatures.length > 0) && (
-          <section className="cw-block">
-            <h4 className="cw-block-title">
-              <Swords aria-hidden="true" /> Умения этого уровня
-            </h4>
-            <ul className="cw-features">
-              {req.classFeatures.map((f) => (
-                <li key={`c-${f.name}`} className="cw-feature">
-                  <b>{f.name}</b>
-                  <span>{featureText(f.html, f.name, className, 260)}</span>
-                </li>
-              ))}
-              {req.subFeatures.map((f) => (
-                <li key={`s-${f.name}`} className="cw-feature cw-feature--sub">
-                  <b>{f.name}</b>
-                  <span>{featureText(f.html, f.name, draft.subclass?.subclass_name ?? className, 260)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {(req.classFeatures.length > 0 || req.subFeatures.length > 0) && <FeaturesBlock req={req} draft={draft} className={className} />}
 
         {bundleLoading && <p className="cw-status">Читаем статью класса…</p>}
         {!bundleLoading && (bundle?.features.length ?? 0) === 0 && (
@@ -766,286 +364,23 @@ export default function LevelUpStep({
           </p>
         )}
 
-        <footer className="cw-level-foot">
-          {!levelReady && (
-            <span className="cw-foot-hint">
-              {!hpReady && 'Определите хиты. '}
-              {!skillsReady && 'Выберите навыки. '}
-              {!subclassReady && 'Выберите подкласс. '}
-              {!asiReady && 'Распределите усиление или выберите черту. '}
-              {(!cantripsReady || !spellsReady) && 'Выберите заклинания.'}
-            </span>
-          )}
-          <button
-            type="button"
-            className="auth-submit cw-accept"
-            onClick={acceptLevel}
-            disabled={!levelReady}
-          >
-            {choice.done ? 'Пересмотреть награды' : `Принять ${level} уровень`}
-          </button>
-        </footer>
+        <LevelFooter
+          levelReady={levelReady}
+          hpReady={hpReady}
+          skillsReady={skillsReady}
+          subclassReady={subclassReady}
+          asiReady={asiReady}
+          cantripsReady={cantripsReady}
+          spellsReady={spellsReady}
+          done={choice.done}
+          level={level}
+          acceptLevel={acceptLevel}
+        />
       </div>
 
-      {subDetails && (
-        <ChoiceModal
-          art={realImage(subDetails.image_gallery)}
-          icon={Shield}
-          title={subDetails.subclass_name}
-          selected={draft.subclass?.id === subDetails.id}
-          onChoose={() => {
-            update({ subclass: subDetails })
-            setSubDetails(null)
-          }}
-          onClose={closeSubDetails}
-          facts={
-            <>
-              {subDetails.level_available != null && (
-                <FactChip>с {subDetails.level_available} уровня</FactChip>
-              )}
-              {subDetails.is_caster && <FactChip>заклинатель</FactChip>}
-            </>
-          }
-        >
-          {subDetails.subclass_flavor && (
-            <p className="cw-dossier-desc">{subDetails.subclass_flavor}</p>
-          )}
-          {subDetails.description && (
-            <ModalSection title="Описание">
-              <RichText text={subDetails.description} />
-            </ModalSection>
-          )}
-        </ChoiceModal>
-      )}
+      {subDetails && <SubclassModal subDetails={subDetails} draft={draft} update={update} setSubDetails={setSubDetails} closeSubDetails={closeSubDetails} />}
 
       {scenes && <CelebrationOverlay scenes={scenes} onClose={closeScenes} />}
-    </div>
-  )
-}
-
-/** Значок школы магии, без него — искра */
-function SchoolFace({ school }: { school: string | null }) {
-  const src = spellSchoolIcon(school)
-  return src ? <Img src={src} alt="" draggable={false} /> : <Sparkles aria-hidden="true" />
-}
-
-const spellMeta = (s: Spell) =>
-  [s.spell_level === 0 ? 'заговор' : `${s.spell_level} круг`, s.school, s.casting_time, s.range].filter(Boolean).join(' · ')
-
-/**
- * Одно место под заклинание — выпадающее меню, как выбор оружия в снаряжении:
- * внутри поиск и полный список доступного. Меню рисуется в body и держится
- * под кнопкой (над ней, если внизу не хватает места).
- */
-function SpellSelect({
-  value,
-  options,
-  placeholder,
-  onChange,
-  onClear,
-  onDetails,
-  loading = false,
-}: {
-  value: Spell | null
-  options: Spell[]
-  loading?: boolean
-  placeholder: string
-  onChange: (s: Spell) => void
-  onClear: () => void
-  onDetails: (s: Spell) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [pos, setPos] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const popRef = useRef<HTMLDivElement>(null)
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е')
-    const list = q
-      ? options.filter((s) => s.spell_name.toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(q))
-      : options
-    return [...list].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
-  }, [options, query])
-
-  useLayoutEffect(() => {
-    if (!open || !btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const up = window.innerHeight - r.bottom < 380 && r.top > window.innerHeight - r.bottom
-    setPos({ top: up ? r.top - 6 : r.bottom + 6, left: r.left, width: Math.max(r.width, 340), up })
-  }, [open])
-
-  // закрытие: клик мимо, Escape, прокрутка страницы (меню привязано к кнопке)
-  useEffect(() => {
-    if (!open) return
-    const inside = (t: EventTarget | null) =>
-      t instanceof Node && (popRef.current?.contains(t) || btnRef.current?.contains(t))
-    const onDown = (e: MouseEvent) => {
-      if (!inside(e.target)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    const onScroll = (e: Event) => {
-      if (!inside(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    window.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', onScroll)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', onScroll)
-    }
-  }, [open])
-
-  return (
-    <span className="cw-spsel">
-      <button
-        ref={btnRef}
-        type="button"
-        className={`cw-gsel${value ? '' : ' is-empty'}${open ? ' is-open' : ''}`}
-        onClick={() => {
-          setQuery('')
-          setOpen((v) => !v)
-        }}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="cw-gsel-face cw-spsel-face">{value ? <SchoolFace school={value.school} /> : <b>?</b>}</span>
-        <span className="cw-gsel-text">
-          <b>{value?.spell_name ?? placeholder}</b>
-          <i>{value ? spellMeta(value) : loading ? 'загружаем список…' : `доступно: ${options.length}`}</i>
-        </span>
-        <ChevronDown className="cw-gsel-chevron" aria-hidden="true" />
-      </button>
-      {value && (
-        <span className="cw-spsel-tools">
-          <button type="button" onClick={() => onDetails(value)} title="Подробнее" aria-label="Подробнее">
-            <BookOpen aria-hidden="true" />
-          </button>
-          <button type="button" onClick={onClear} title="Очистить" aria-label="Очистить">
-            <X aria-hidden="true" />
-          </button>
-        </span>
-      )}
-
-      {open &&
-        pos &&
-        createPortal(
-          <div
-            ref={popRef}
-            className={`cw-gsel-pop cw-spsel-pop${pos.up ? ' is-up' : ''}`}
-            style={{
-              left: Math.min(pos.left, window.innerWidth - pos.width - 12),
-              width: pos.width,
-              ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }),
-            }}
-          >
-            <label className="cw-gsel-search">
-              <Search aria-hidden="true" />
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Найти заклинание…" aria-label="Найти заклинание" />
-            </label>
-            <div className="cw-gsel-list" role="listbox" aria-label={placeholder}>
-              {visible.map((s) => {
-                const on = s.id === value?.id
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    role="option"
-                    aria-selected={on}
-                    className={`cw-gsel-opt${on ? ' is-on' : ''}`}
-                    onClick={() => {
-                      onChange(s)
-                      setOpen(false)
-                    }}
-                  >
-                    <span className="cw-gsel-face cw-spsel-face">
-                      <SchoolFace school={s.school} />
-                    </span>
-                    <span className="cw-gsel-text">
-                      <b>{s.spell_name}</b>
-                      <i>{spellMeta(s)}</i>
-                    </span>
-                    <span className="cw-spsel-tags">
-                      {s.concentration && <em title="Концентрация">К</em>}
-                      {s.ritual && <em title="Ритуал">Р</em>}
-                    </span>
-                    {on && <Check className="cw-gsel-check" aria-hidden="true" />}
-                  </button>
-                )
-              })}
-              {visible.length === 0 && (
-                <p className="cw-gsel-empty">{loading ? 'Загружаем список заклинаний…' : query ? 'Ничего не нашлось' : 'Доступных заклинаний нет'}</p>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
-    </span>
-  )
-}
-
-/**
- * Выбор заклинаний уровня: столько выпадающих меню, сколько положено, — как
- * выбор оружия в снаряжении. Выбранное в одном меню из соседних пропадает.
- */
-function SpellPicker({
-  title,
-  count,
-  picked,
-  options,
-  onChange,
-  loading = false,
-}: {
-  title: string
-  count: number
-  picked: Spell[]
-  options: Spell[]
-  onChange: (next: Spell[]) => void
-  loading?: boolean
-}) {
-  const [details, setDetails] = useState<Spell | null>(null)
-  const closeDetails = useCallback(() => setDetails(null), [])
-  const label = title.startsWith('Заговор') ? 'Выберите заговор' : 'Выберите заклинание'
-
-  const setSlot = (n: number, s: Spell | null) => {
-    const next: (Spell | undefined)[] = Array.from({ length: count }, (_, i) => picked[i])
-    next[n] = s ?? undefined
-    onChange(next.filter((x): x is Spell => !!x))
-  }
-
-  return (
-    <div className="cw-spellpick">
-      <h5 className="cw-block-subtitle">
-        {title}
-        <span className="cw-block-count">
-          {picked.length} / {count}
-        </span>
-      </h5>
-      <div className="cw-spsel-list">
-        {Array.from({ length: count }, (_, n) => {
-          const value = picked[n] ?? null
-          // нельзя выбрать то же, что в соседнем меню
-          const taken = new Set(picked.filter((_, i) => i !== n).map((s) => s.id))
-          return (
-            <SpellSelect
-              key={n}
-              value={value}
-              options={options.filter((s) => !taken.has(s.id))}
-              placeholder={`${label}…`}
-              loading={loading}
-              onChange={(s) => setSlot(n, s)}
-              onClear={() => setSlot(n, null)}
-              onDetails={setDetails}
-            />
-          )
-        })}
-      </div>
-      {details && <SpellDetails spell={details} onClose={closeDetails} />}
     </div>
   )
 }

@@ -3,13 +3,13 @@
  * поиском, фильтрами (книга, характеристики, требования — как в разделе черт)
  * и карточками с картинками. Клик по карточке выбирает черту.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, BookOpen, Check, Lock, Repeat, Shield, Sparkles, X } from 'lucide-react'
 import { ABILITY_RU, descriptionPreview, realImage } from '../../api'
 import type { Feat } from '../../api'
 import { ABILITY_KEYS, ABILITY_LABELS } from '../../types/character'
-import { FeatDetailBody } from '../../pages/DetailPages'
+import { FeatDetailBody } from '../../pages/details/FeatDetail'
 import type { PrereqResult } from '../prereq'
 import { useBookMap } from '../useCatalog'
 import {
@@ -20,6 +20,7 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { Img } from '../../media'
+import { useKeybinding } from '../../input/useKeybinding'
 
 const featName = (f: Feat) => f.feat_name
 
@@ -170,15 +171,10 @@ function FeatCatalog({
   }, [picker.visible, check])
 
   // Escape из подробностей возвращает к списку, из списка — закрывает окно
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (detail && !initialDetail) setDetail(null)
-      else onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, detail, initialDetail])
+  useKeybinding('dialog.close', () => {
+    if (detail && !initialDetail) setDetail(null)
+    else onClose()
+  })
 
   const detailCheck = detail ? check(detail) : null
 

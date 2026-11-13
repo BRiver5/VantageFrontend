@@ -1,0 +1,443 @@
+/* ---------- Итог: лист героя в духе бестиария ---------- */
+
+.cw-sheet { gap: 18px; }
+
+/* шапка: портрет, кто это, полоса главных чисел */
+.cw-sheet-hero {
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  padding: 18px 22px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgb(var(--gold-3-rgb) / 0.1), transparent 55%) padding-box,
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-3-rgb) / 0.6), rgb(var(--silver-1-rgb) / 0.18) 45%, rgb(var(--gold-3-rgb) / 0.45)) border-box;
+}
+.cw-sheet-portrait {
+  position: relative;
+  flex: 0 0 150px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%, 0 14px);
+  background: radial-gradient(ellipse at 50% 80%, rgb(var(--gold-2-rgb) / 0.2), transparent 65%), linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-sheet-portrait > img { width: 100%; height: 100%; object-fit: cover; }
+.cw-sheet-portrait .cw-portrait { padding: 10px 6px 0; }
+.cw-sheet-portrait .cw-hero-align { width: 34px; height: calc(34px * var(--hex-aspect)); font-size: 0.78rem; top: 8px; right: 8px; }
+.cw-sheet-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cw-sheet-name {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+.cw-sheet-who { font-size: 1rem; color: var(--parchment); letter-spacing: 0.02em; }
+.cw-sheet-sub { font-size: 0.86rem; color: var(--text-dim); font-style: italic; }
+
+.cw-sheet-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+.cw-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 7px 16px 7px 12px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.26);
+  background: var(--hex-edge);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.cw-stat svg { grid-row: span 2; width: 18px; height: 18px; color: var(--gold-2); }
+.cw-stat b { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.05; color: var(--parchment); }
+.cw-stat i { font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.cw-stat--ac { --hex-edge: var(--gold-2); --hex-stroke: 1.5px; }
+.cw-stat--ac b { color: var(--gold-4); font-size: 1.45rem; }
+.cw-stat--hp svg { color: #e07070; }
+.cw-stat--hp b { font-size: 1.45rem; }
+.cw-stat--roll { cursor: pointer; transition: box-shadow 0.15s ease, translate 0.15s ease; }
+.cw-stat--roll:hover:not(:disabled) { --hex-edge: rgb(var(--gold-3-rgb) / 0.8); translate: 0 -1px; }
+
+/* сетка карточек: бой крупно слева, характеристики и навыки рядом */
+.cw-sheet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-auto-flow: row dense;
+  gap: 16px;
+}
+.cw-sheet-card { padding: 18px 20px 18px; }
+.cw-sheet-card .beast-card-title { margin-bottom: 12px; }
+.cw-sheet-aside {
+  order: 2;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--parchment);
+}
+.cw-sheet-card--combat { grid-row: span 2; }
+.cw-sheet-card--persona { grid-column: 1 / -1; }
+
+/* экономия хода — значки по типу действия */
+.cw-economy,
+.cw-class-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-class-actions { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgb(var(--silver-2-rgb) / 0.16); }
+.cw-eco,
+.cw-cact {
+  --eco: 228, 196, 110;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 3px 9px;
+  border-radius: 999px;
+  background: rgba(var(--eco), 0.1);
+  box-shadow: inset 0 0 0 1px rgba(var(--eco), 0.45);
+  color: rgb(var(--eco));
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.cw-eco svg,
+.cw-cact svg { width: 13px; height: 13px; fill: rgba(var(--eco), 0.25); }
+.cw-eco--bonus { --eco: 232, 161, 90; }
+.cw-eco--reaction { --eco: 127, 178, 232; }
+.cw-eco--free { --eco: 183, 156, 240; }
+.cw-eco--move { --eco: 133, 201, 143; }
+.cw-eco--extra { --eco: 228, 196, 110; font-weight: 700; }
+.cw-cact { color: var(--parchment); }
+
+/* атаки: имя, кнопки попадания и урона */
+.cw-attacks { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.cw-atk {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(36, 40, 50, 0.7), rgb(var(--bg-0-rgb) / 0.4));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.14);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+.cw-atk.is-crit {
+  background: linear-gradient(90deg, rgba(95, 174, 100, 0.22), rgb(var(--bg-0-rgb) / 0.4));
+  box-shadow: inset 0 0 0 1px rgba(133, 201, 143, 0.6), 0 0 14px rgba(95, 174, 100, 0.25);
+}
+.cw-atk-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: calc(34px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+}
+.cw-atk-icon svg { width: 16px; height: 16px; color: var(--gold-3); }
+.cw-atk--spell .cw-atk-icon svg { color: #b79cf0; }
+.cw-atk-name { display: flex; flex-direction: column; min-width: 0; }
+.cw-atk-name b { font-weight: 600; color: var(--parchment); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-atk-name i { font-style: normal; font-size: 0.74rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-atk-btns { display: flex; gap: 6px; }
+.cw-atk-btn {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 5px;
+  min-width: 76px;
+  padding: 4px 14px 4px 10px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
+  background: var(--hex-edge);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s ease, translate 0.15s ease;
+}
+.cw-atk-btn:hover:not(:disabled) { filter: brightness(1.15); translate: 0 -1px; }
+.cw-atk-btn svg { grid-row: span 2; width: 14px; height: 14px; }
+.cw-atk-btn b { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.05; }
+.cw-atk-btn i { font-style: normal; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.cw-atk-btn--hit { --hex-in: linear-gradient(180deg, var(--gold-3), var(--gold-2)); --hex-edge: var(--gold-1); color: var(--bg-0); }
+.cw-atk-btn--hit i { color: rgb(var(--bg-0-rgb) / 0.7); }
+.cw-atk-btn--dmg {
+  --hex-in: linear-gradient(180deg, rgba(160, 60, 52, 0.55), rgba(70, 24, 22, 0.85));
+  --hex-edge: rgba(224, 112, 112, 0.5);
+  color: #f3d2cd;
+}
+.cw-atk-btn--dmg i { color: rgba(243, 210, 205, 0.7); }
+.cw-atk.is-crit .cw-atk-btn--dmg { background: linear-gradient(180deg, #5fae64, #2e6b33); box-shadow: none; color: #f0fff0; }
+
+/* характеристики: проверка крупно, спасбросок под ней */
+.cw-abil-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cw-abil { display: flex; flex-direction: column; gap: 4px; }
+.cw-abil-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px 6px;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.26);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.cw-abil-check:hover:not(:disabled) { filter: brightness(1.18); }
+.cw-abil-check i { font-style: normal; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--gold-2); }
+.cw-abil-check b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; color: var(--parchment); }
+.cw-abil-check em { font-style: normal; font-size: 0.86rem; color: var(--gold-3); }
+.cw-abil-save {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgb(var(--bg-0-rgb) / 0.5);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.18);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.cw-abil-save b { color: var(--text); }
+.cw-abil.is-prof .cw-abil-save { box-shadow: inset 0 0 0 1px var(--gold-2); color: var(--gold-3); }
+.cw-abil.is-prof .cw-abil-save b { color: var(--gold-4); }
+.cw-abil-save:hover:not(:disabled) { color: var(--gold-4); }
+
+/* навыки: с владением — подсвечены */
+.cw-skill-buttons { gap: 6px; }
+.cw-skill-buttons .beast-skill { font-size: 0.84rem; padding: 3px 14px 3px 5px; gap: 8px; }
+.cw-skill-buttons .beast-skill-bonus { width: 30px; height: 22px; font-size: 0.82rem; }
+.cw-skill-buttons .beast-skill:not(.is-prof) .beast-skill-bonus { background: linear-gradient(180deg, var(--bg-3), var(--bg-1)); color: var(--text); box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.3); }
+.cw-skill-buttons .beast-skill:not(.is-prof) { opacity: 0.75; }
+
+/* инвентарь сеткой */
+.cw-inv-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cw-inv-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 55%, rgb(var(--gold-3-rgb) / 0.1), rgb(var(--bg-0-rgb) / 0.65) 70%);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22);
+}
+.cw-inv-cell.is-empty { background: rgb(var(--bg-0-rgb) / 0.35); box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.08); }
+.cw-inv-cell.is-equipped { box-shadow: inset 0 0 0 1.5px var(--gold-2), 0 0 8px rgb(var(--gold-3-rgb) / 0.2); }
+.cw-inv-cell img { max-width: 80%; max-height: 80%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+.cw-inv-cell > svg { width: 42%; height: 42%; color: rgb(var(--gold-2-rgb) / 0.5); }
+.cw-inv-qty {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 1px 2px #000;
+}
+.cw-inv-worn { position: absolute; left: 3px; top: 3px; width: 11px; height: 11px; color: var(--gold-3); }
+.cw-purse { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.cw-purse span { display: inline-flex; align-items: center; gap: 6px; }
+.cw-purse b { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); }
+
+/* магия */
+.cw-magic-stats { display: flex; gap: 8px; margin-bottom: 10px; }
+.cw-magic-stats span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  border-radius: 3px;
+  background: rgba(120, 90, 210, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(183, 156, 240, 0.35);
+}
+.cw-magic-stats b { font-family: var(--font-display); font-size: 1.3rem; color: #d9cbff; }
+.cw-magic-stats i { font-style: normal; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+.cw-slots { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; }
+.cw-slot { display: inline-flex; align-items: center; gap: 4px; }
+.cw-slot i { font-style: normal; font-family: var(--font-display); font-size: 0.85rem; color: #b79cf0; margin-right: 2px; }
+.cw-slot-gem {
+  width: 11px;
+  height: calc(11px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 40% 35%, #e6dbff, #8c6ee0);
+}
+.cw-spell-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.cw-spell-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 6px;
+  border-radius: 3px;
+  background: rgba(120, 90, 210, 0.1);
+  font-size: 0.82rem;
+}
+.cw-spell-chip i { font-style: normal; font-size: 0.72rem; color: #b79cf0; }
+
+/* умения — компактный список с цветной меткой источника */
+.cw-feat-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 3px 14px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cw-feat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 10px;
+  border-left: 2px solid var(--gold-1);
+  font-size: 0.86rem;
+}
+.cw-feat-line b { flex: 1; min-width: 0; font-weight: 600; color: var(--text); }
+.cw-feat-line i { font-style: normal; font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
+.cw-feat-line--subclass { border-left-color: #a58be6; }
+.cw-feat-line--subrace,
+.cw-feat-line--race { border-left-color: #85c98f; }
+.cw-feat-line--background { border-left-color: #7fb2e8; }
+.cw-feat-line--feat { border-left-color: #e8a15a; }
+
+/* владения и характер */
+.cw-profs { display: flex; flex-direction: column; gap: 8px; }
+.cw-profs dt { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-2); }
+.cw-profs dd { margin: 1px 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text); white-space: pre-line; }
+
+/* история бросков — закреплена справа внизу, над панелью шагов */
+.cw-rolllog {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 18px;
+  width: min(320px, calc(100vw - 36px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(18, 20, 26, 0.97), rgb(var(--bg-0-rgb) / 0.97)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-3-rgb) / 0.65), rgb(var(--silver-2-rgb) / 0.2) 50%, rgb(var(--gold-3-rgb) / 0.45)) border-box;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+body:has(.cw-foot) .cw-rolllog { bottom: 92px; }
+.cw-rolllog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.cw-rolllog-head > svg { width: 15px; height: 15px; }
+.cw-rolllog-head span { flex: 1; }
+.cw-rolllog-head button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.cw-rolllog-head button:hover { color: var(--gold-4); background: rgb(var(--gold-2-rgb) / 0.12); }
+.cw-rolllog-head button svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
+.cw-rolllog.is-collapsed .cw-rolllog-head button:last-child svg { transform: rotate(180deg); }
+/* последний бросок — крупно и с подсветкой появления */
+.cw-rolllog-last {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  padding: 10px 12px;
+  background: radial-gradient(ellipse at 100% 50%, rgb(var(--gold-3-rgb) / 0.16), transparent 60%);
+  animation: cw-rolllog-in 0.45s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.cw-rolllog-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-2); }
+.cw-rolllog-math { grid-row: 2; font-size: 0.84rem; color: var(--text-dim); }
+.cw-rolllog-math b { color: var(--text); }
+.cw-rolllog-last strong {
+  grid-row: span 2;
+  grid-column: 2;
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--gold-3);
+}
+.cw-rolllog-last.is-crit { background: radial-gradient(ellipse at 100% 50%, rgba(95, 174, 100, 0.28), transparent 65%); }
+.cw-rolllog-last.is-crit strong { color: #8fd194; text-shadow: 0 0 12px rgba(95, 174, 100, 0.6); }
+.cw-rolllog-last.is-fumble { background: radial-gradient(ellipse at 100% 50%, rgba(200, 90, 80, 0.26), transparent 65%); }
+.cw-rolllog-last.is-fumble strong { color: #ee8d82; }
+@keyframes cw-rolllog-in { from { opacity: 0; transform: translateX(16px); } }
+.cw-rolllog-list {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.1);
+  scrollbar-width: thin;
+}
+.cw-rolllog-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 12px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.cw-rolllog-list li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-rolllog-list li b { font-family: var(--font-display); color: var(--text); }
+.cw-rolllog-list li.is-crit b { color: #8fd194; }
+.cw-rolllog-list li.is-fumble b { color: #ee8d82; }
+
+/* умения — пункты кнопками, описание всплывает рядом */
+.cw-feat-line > button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: help;
+}
+.cw-feat-line > button:hover b,
+.cw-feat-line > button:focus-visible b { color: var(--gold-4); }
+.cw-hint-pop {
+  position: fixed;
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-3-rgb) / 0.7), rgb(var(--silver-2-rgb) / 0.2) 50%, rgb(var(--gold-3-rgb) / 0.5)) border-box;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  animation: cw-gsel-in 0.14s ease;
+  scrollbar-width: thin;
+}
+.cw-hint-pop b { font-family: var(--font-display); font-size: 1.05rem; }
+.cw-hint-pop i { font-style: normal; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+.cw-hint-pop p { margin-top: 6px; font-size: 0.88rem; line-height: 1.55; color: var(--text); white-space: pre-line; }
+
+/* инвентарь: клетки — кнопки, открывают предмет в панели */
+button.cw-inv-cell { font: inherit; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.15s ease; }
+button.cw-inv-cell:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 0 0 1.5px var(--gold-3); }
+button.cw-inv-cell:disabled { cursor: default; }
+

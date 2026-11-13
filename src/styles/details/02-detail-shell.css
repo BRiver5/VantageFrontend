@@ -1,0 +1,143 @@
+/* ============================================================
+   ДЕТАЛЬНЫЕ СТРАНИЦЫ (заклинание, существо, класс, раса, предмет)
+   ============================================================ */
+
+a.card-slot { text-decoration: none; color: inherit; }
+
+.tome-entry--link {
+  text-decoration: none;
+  color: var(--gold-3);
+  transition: color 0.15s ease, box-shadow 0.15s ease;
+}
+.tome-entry--link:hover {
+  color: var(--gold-4);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.7);
+}
+
+.tome-entry--btn {
+  transition: color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.tome-entry--btn:hover {
+  transform: translateY(-1px);
+}
+
+.tome-entry--btn:active {
+  transform: translateY(0);
+}
+
+.detail-title-row { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+.detail-title-row .hex-badge { width: 62px; height: 71px; }
+
+.detail-plate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* портреты существ/классов/рас — произвольных пропорций, поэтому рамка чуть шире книжной */
+  aspect-ratio: 3 / 4;
+  padding: 14px;
+}
+.detail-plate img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.detail-plate-fallback { width: 64px; height: 64px; stroke-width: 0.9; color: rgb(var(--gold-0-rgb) / 0.55); }
+/* у заклинаний и предметов часто нет арта — узкая пластина не нужна */
+.book-cover.detail-plate:has(.detail-plate-fallback) { aspect-ratio: 1; width: clamp(120px, 15vw, 170px); }
+
+/* ---------- Свечение редкости за артом предмета ---------- */
+/* тёмная пластина + радиальное свечение цвета редкости — предметы без фона
+   (с прозрачным PNG) будто светятся, а не лежат простым квадратом */
+.detail-plate--glow {
+  background:
+    radial-gradient(56% 52% at 50% 47%, var(--rarity-glow, rgba(176, 182, 191, 0.45)), transparent 72%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0)) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--rarity-edge, rgba(176, 182, 191, 0.4)),
+    inset 0 0 40px -6px var(--rarity-glow, transparent),
+    0 0 34px -8px var(--rarity-glow, transparent),
+    var(--shadow-deep) !important;
+}
+.detail-plate--glow .detail-plate-fallback { color: var(--rarity-edge, rgba(176, 182, 191, 0.6)); }
+
+.detail-plate--glow[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.42); --rarity-edge: rgba(176, 182, 191, 0.45); }
+.detail-plate--glow[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.5); --rarity-edge: rgba(63, 174, 90, 0.55); }
+.detail-plate--glow[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.5); --rarity-edge: rgba(59, 130, 246, 0.55); }
+.detail-plate--glow[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.55); --rarity-edge: rgba(168, 85, 247, 0.6); }
+.detail-plate--glow[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.58); --rarity-edge: rgba(245, 158, 11, 0.6); }
+.detail-plate--glow[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.6); --rarity-edge: rgba(222, 66, 54, 0.62); }
+
+/* ---------- Серое свечение от углов плашки — снаряжение (у него нет редкости,
+   поэтому вместо цветного пятна из центра — нейтральный отблеск по углам) ---------- */
+.detail-plate--corner-glow {
+  background:
+    radial-gradient(65% 65% at 4% 4%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 4%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 4% 96%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    radial-gradient(65% 65% at 96% 96%, rgb(var(--silver-3-rgb) / 0.32), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4),
+    inset 0 0 34px -10px rgb(var(--silver-3-rgb) / 0.3),
+    var(--shadow-deep) !important;
+}
+.detail-plate--corner-glow .detail-plate-fallback { color: rgb(var(--silver-3-rgb) / 0.55); }
+
+/* ---------- Превью вложенного содержимого — стопка мини-иконок в левом нижнем углу арта ---------- */
+.detail-plate-contents {
+  position: absolute;
+  z-index: 2;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+.detail-plate-contents-item {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: 0 0 0 1.5px var(--bg-0), inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4), 0 3px 8px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.detail-plate-contents-item:not(:first-child) { margin-left: -10px; }
+.detail-plate-contents-item img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.detail-plate-contents-item svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--silver-2); }
+.detail-plate-contents-more {
+  margin-left: 5px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--silver-3);
+}
+
+/* уменьшенный вариант — на маленьком арте в панели снаряжения */
+.detail-plate-contents--sm { left: 3px; bottom: 3px; }
+.detail-plate-contents--sm .detail-plate-contents-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--bg-0), inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.4), 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+.detail-plate-contents--sm .detail-plate-contents-item img { padding: 2px; }
+.detail-plate-contents--sm .detail-plate-contents-item:not(:first-child) { margin-left: -7px; }
+.detail-plate-contents--sm .detail-plate-contents-item svg { width: 10px; height: 10px; }
+.detail-plate-contents--sm .detail-plate-contents-more {
+  margin-left: 3px;
+  padding: 2px 4px;
+  font-size: 0.58rem;
+}
+

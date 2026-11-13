@@ -1,0 +1,291 @@
+/* ---------- карточки «из точки» ---------- */
+
+.tb-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--t) * 12);
+  background: rgba(8, 4, 1, 0.56);
+  animation: tb-fade 0.25s ease;
+  perspective: 1400px;
+  font-size: calc(var(--t) * 14);
+}
+.tb-layer.is-closing { animation: tb-fade-out 0.23s ease forwards; pointer-events: none; }
+@keyframes tb-fade-out { to { opacity: 0; } }
+
+.tb-emerge { position: relative; max-height: calc(100dvh - var(--t) * 24); animation: tb-em-paper 0.55s var(--spring) both; }
+.tb-emerge.is-flip { animation-name: tb-em-flip; animation-duration: 0.7s; animation-timing-function: cubic-bezier(0.25, 1.1, 0.4, 1); }
+.tb-emerge.is-map { animation-name: tb-em-map; animation-duration: 0.8s; animation-timing-function: cubic-bezier(0.25, 1.05, 0.4, 1); }
+.tb-emerge.is-object { animation-name: tb-em-object; animation-duration: 0.6s; }
+.tb-layer.is-closing .tb-emerge { animation: tb-em-out 0.23s ease-in forwards; }
+@keyframes tb-em-paper {
+  from { opacity: 0.2; transform: translate(var(--ox), var(--oy)) rotate(var(--or)) scale(0.26); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tb-em-flip {
+  0% { opacity: 0.2; transform: translate(var(--ox), var(--oy)) rotateY(-200deg) scale(0.18); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes tb-em-map {
+  0% { opacity: 0.2; transform: translate(var(--ox), var(--oy)) rotate(var(--or)) rotateX(62deg) scale(0.3); }
+  55% { opacity: 1; transform: translate(calc(var(--ox) * 0.08), calc(var(--oy) * 0.08)) rotate(calc(var(--or) * 0.2)) rotateX(26deg) scale(1.02); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes tb-em-object {
+  0% { opacity: 0; transform: translate(var(--ox), var(--oy)) scale(0.35); }
+  70% { opacity: 1; transform: translateY(calc(var(--t) * -8)) scale(1.03); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes tb-em-out { to { opacity: 0; transform: translate(var(--ox), var(--oy)) rotate(var(--or)) scale(0.26); } }
+
+.tb-layer button { font: inherit; }
+.tb-card-x {
+  position: absolute;
+  top: calc(var(--t) * 8);
+  right: calc(var(--t) * 8);
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: max(30px, calc(var(--t) * 34));
+  height: max(30px, calc(var(--t) * 34));
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(20, 12, 6, 0.55);
+  color: var(--parchment);
+  transition: transform 0.2s var(--spring), background 0.2s ease;
+}
+.tb-card-x:hover { background: rgba(20, 12, 6, 0.85); transform: rotate(90deg); }
+.tb-card-x svg { width: 55%; height: 55%; }
+
+/* лист напарника */
+.tb-herocard {
+  width: clamp(280px, calc(var(--t) * 400), 92vw);
+  padding: calc(var(--t) * 22);
+  overflow-y: auto;
+  box-shadow: 0 calc(var(--t) * 22) calc(var(--t) * 60) rgba(0, 0, 0, 0.75), inset 0 0 44px rgba(95, 60, 20, 0.4);
+}
+.tb-herocard header { display: flex; align-items: center; gap: calc(var(--t) * 14); --hex: calc(var(--t) * 92); }
+.tb-herocard h2 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: max(20px, calc(var(--t) * 30)); font-weight: 700; line-height: 1.05; }
+.tb-herocard header p { margin: 4px 0 0; color: var(--ink-soft); font-size: max(12px, calc(var(--t) * 13.5)); }
+.tb-herocard-vitals { position: relative; display: flex; align-items: center; justify-content: center; gap: calc(var(--t) * 16); margin-top: calc(var(--t) * 16); }
+.tb-herocard .bt-arc { --arc-ink: var(--ink); }
+.tb-herocard-vitals .bt-arc { width: calc(var(--t) * 250); }
+.tb-herocard-fx { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: calc(var(--t) * 14) 0 0; padding: 0; list-style: none; color: #5b2a78; font-size: max(12px, calc(var(--t) * 14)); font-style: italic; font-weight: 600; }
+.tb-herocard-calm { margin: calc(var(--t) * 14) 0 0; color: var(--ink-soft); font-size: max(12px, calc(var(--t) * 13)); font-style: italic; text-align: center; }
+.tb-herocard .tb-card-x { background: rgba(60, 38, 14, 0.25); color: var(--ink); }
+.tb-inkbtn { display: block; margin-top: calc(var(--t) * 16); color: var(--ink); font-family: var(--font-display); font-size: max(13px, calc(var(--t) * 15)); font-weight: 700; text-align: center; text-decoration: underline; text-underline-offset: 4px; }
+.tb-ac { position: relative; display: grid; place-items: center; width: max(40px, calc(var(--t) * 56)); height: max(40px, calc(var(--t) * 56)); color: var(--gold-2); flex: none; }
+.tb-ac svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: rgba(30, 18, 8, 0.85); stroke-width: 1.4; }
+.tb-ac b { position: relative; color: var(--gold-4); font-family: var(--font-display); font-size: max(14px, calc(var(--t) * 20)); font-weight: 700; }
+
+/* кнопки */
+.tb-goldbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--t) * 7);
+  min-height: max(36px, calc(var(--t) * 42));
+  padding: 0 calc(var(--t) * 22);
+  border: none;
+  cursor: pointer;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-1));
+  color: #1c1007;
+  font-family: var(--font-display);
+  font-size: max(13px, calc(var(--t) * 15));
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition: filter 0.2s ease, transform 0.2s var(--spring);
+}
+.tb-goldbtn svg { width: 1.1em; height: 1.1em; }
+.tb-goldbtn:hover:not(:disabled) { filter: brightness(1.14); transform: scale(1.04); }
+.tb-goldbtn:active:not(:disabled) { transform: scale(0.96); }
+.tb-goldbtn:disabled { filter: grayscale(0.7) brightness(0.65); cursor: default; }
+.tb-goldbtn.is-quiet { background: linear-gradient(180deg, #4a3321, #2a1a10); color: var(--gold-3); }
+.tb-linkbtn { display: inline-flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer; color: var(--gold-3); font: inherit; font-size: max(11px, calc(var(--t) * 12.5)); text-decoration: underline; text-underline-offset: 3px; }
+.tb-linkbtn svg { width: 1.15em; height: 1.15em; }
+.tb-linkbtn.is-on { color: var(--gold-4); }
+.tb-linkbtn.is-on svg { fill: currentColor; }
+.tb-linkbtn.is-danger { color: #eda69c; }
+.tb-linkbtn:disabled { opacity: 0.45; cursor: default; }
+.tb-err { display: block; color: #f4a99f; font-size: max(11px, calc(var(--t) * 12.5)); }
+.tb-hint { margin: 0; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 13)); font-style: italic; }
+
+/* переключатель из нескольких вариантов */
+.tb-tri { display: flex; gap: 2px; }
+.tb-tri button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: max(30px, calc(var(--t) * 32));
+  padding: 0 calc(var(--t) * 10);
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 225, 170, 0.07);
+  color: var(--text-dim);
+  font-size: max(11px, calc(var(--t) * 12.5));
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.tb-tri button svg { width: 1.1em; height: 1.1em; }
+.tb-tri button:first-child { border-radius: 8px 0 0 8px; }
+.tb-tri button:last-child { border-radius: 0 8px 8px 0; }
+.tb-tri button.is-on { background: linear-gradient(180deg, var(--gold-2), var(--gold-1)); color: #1c1007; font-weight: 700; }
+
+/* карта существа */
+.tb-tarot {
+  width: clamp(280px, calc(var(--t) * 370), 92vw);
+  height: min(calc(100dvh - var(--t) * 24), calc(var(--t) * 610));
+}
+.tb-tarot-in { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.65s cubic-bezier(0.3, 1.1, 0.4, 1); }
+.tb-tarot-in.is-back { transform: rotateY(180deg); }
+.tb-tarot-side {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  border-radius: calc(var(--t) * 14);
+  background: linear-gradient(180deg, #1f1610, #100a06);
+  box-shadow: inset 0 0 0 calc(var(--t) * 3) var(--gold-1), inset 0 0 0 calc(var(--t) * 5) #100a06, inset 0 0 0 calc(var(--t) * 6) rgb(var(--gold-2-rgb) / 0.45), 0 calc(var(--t) * 22) calc(var(--t) * 60) rgba(0, 0, 0, 0.8);
+}
+.tb-tarot-side.is-rear { transform: rotateY(180deg); }
+.tb-tarot > .tb-card-x { z-index: 8; }
+/* игрок: карта по содержимому; поворачивать её незачем */
+.tb-tarot.is-simple { height: auto; overflow-y: auto; }
+.tb-tarot.is-simple .tb-tarot-in { height: auto; transform-style: flat; }
+.tb-tarot.is-simple .tb-tarot-side { position: relative; backface-visibility: visible; }
+.tb-tarot.is-simple .tb-face { height: auto; }
+.tb-tarot.is-simple .tb-face-art { flex: none; height: min(calc(var(--t) * 290), 52dvh); }
+.tb-tarot.is-simple .tb-face-text { overflow: visible; }
+
+.tb-face { display: flex; flex-direction: column; height: 100%; padding: calc(var(--t) * 8); color: var(--text); }
+.tb-face-art { position: relative; flex: 0 0 46%; min-height: 0; overflow: hidden; border-radius: calc(var(--t) * 8) calc(var(--t) * 8) 0 0; background: radial-gradient(circle at 50% 40%, #3a2518, #120b06); }
+.tb-face-art img { width: 100%; height: 100%; object-fit: contain; }
+.tb-face-art .bt-sil { display: block; height: 100%; margin: auto; }
+.tb-face-shade { position: absolute; inset: 50% 0 0; background: linear-gradient(0deg, rgba(10, 6, 3, 0.95), transparent); }
+.tb-face-art h2 { position: absolute; left: calc(var(--t) * 14); right: calc(var(--t) * 70); bottom: calc(var(--t) * 10); margin: 0; color: var(--gold-4); font-family: var(--font-display); font-size: max(18px, calc(var(--t) * 25)); font-weight: 700; line-height: 1.05; text-shadow: 0 2px 6px #000; }
+.tb-face-art .tb-ac { position: absolute; right: calc(var(--t) * 10); bottom: calc(var(--t) * 8); }
+.tb-face-hp { flex: none; display: flex; justify-content: center; margin-top: calc(var(--t) * 4); }
+.tb-face-hp .bt-arc { width: calc(var(--t) * 210); }
+.tb-face-text { flex: 1; min-height: 0; overflow-y: auto; padding: calc(var(--t) * 2) calc(var(--t) * 10) calc(var(--t) * 6); scrollbar-width: thin; user-select: text; }
+.tb-face-meta { margin: 0 0 calc(var(--t) * 6); color: var(--gold-3); font-size: max(11px, calc(var(--t) * 12.5)); text-align: center; }
+.tb-face-fx { margin: 0 0 calc(var(--t) * 6); color: #d0a7ff; font-size: max(11px, calc(var(--t) * 12.5)); font-style: italic; text-align: center; }
+.tb-face-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 0 calc(var(--t) * 8); }
+.tb-face-stats div { display: flex; flex-direction: column; align-items: center; }
+.tb-face-stats dt { color: var(--gold-2); font-size: max(8px, calc(var(--t) * 10)); }
+.tb-face-stats dd { margin: 0; color: var(--parchment); font-family: var(--font-display); font-size: max(13px, calc(var(--t) * 17)); font-weight: 700; }
+.tb-face-acts { margin: 0; padding: 0; list-style: none; color: var(--text); font-size: max(11px, calc(var(--t) * 12.5)); line-height: 1.35; }
+.tb-face-acts li + li { margin-top: calc(var(--t) * 6); }
+.tb-face-acts b { color: var(--gold-3); }
+.tb-face-desc { margin: calc(var(--t) * 6) 0 0; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 12)); line-height: 1.35; }
+.tb-face-foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--t) * 8); padding: calc(var(--t) * 6) calc(var(--t) * 10) calc(var(--t) * 4); }
+.tb-face-state { display: inline-flex; align-items: center; gap: 5px; color: #9fdfb0; font-size: max(11px, calc(var(--t) * 12.5)); }
+.tb-face-state svg { width: 1.15em; height: 1.15em; }
+
+/* хиты мастером */
+.tb-hpctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: calc(var(--t) * 6); margin: calc(var(--t) * 6) 0 calc(var(--t) * 10); }
+.tb-hpctl input { width: calc(var(--t) * 74); min-height: max(30px, calc(var(--t) * 32)); padding: 0 6px; border: none; border-bottom: 1.5px solid var(--gold-2); background: transparent; color: var(--parchment); font: inherit; font-family: var(--font-display); font-size: max(14px, calc(var(--t) * 18)); text-align: center; }
+.tb-hpctl input::placeholder { color: var(--text-dim); font-size: 0.75em; }
+.tb-hpctl button { display: grid; place-items: center; width: max(30px, calc(var(--t) * 34)); height: max(30px, calc(var(--t) * 34)); border: none; border-radius: 50%; cursor: pointer; color: #fff; transition: transform 0.18s var(--spring), opacity 0.2s ease; }
+.tb-hpctl button svg { width: 58%; height: 58%; }
+.tb-hpctl button:disabled { opacity: 0.32; cursor: default; }
+.tb-hpctl button:hover:not(:disabled) { transform: scale(1.14); }
+.tb-hpctl .is-dmg { background: #a63a2d; }
+.tb-hpctl .is-heal { background: #2f8a50; }
+.tb-hpctl .is-temp { background: #2f6e96; }
+
+/* оборот карты: что видно игрокам */
+.tb-back { display: flex; flex-direction: column; gap: calc(var(--t) * 12); height: 100%; padding: calc(var(--t) * 26) calc(var(--t) * 22); overflow-y: auto; }
+.tb-back h3 { margin: 0; color: var(--gold-3); font-family: var(--font-display); font-size: max(18px, calc(var(--t) * 24)); font-weight: 700; }
+.tb-back-hint { margin: 0; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 12.5)); font-style: italic; }
+.tb-eyes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--t) * 4) calc(var(--t) * 12); margin: 0; padding: 0; list-style: none; }
+.tb-eyes button { display: flex; align-items: center; gap: calc(var(--t) * 8); width: 100%; min-height: max(30px, calc(var(--t) * 34)); border: none; background: none; cursor: pointer; color: var(--text-dim); font-size: max(11px, calc(var(--t) * 13.5)); text-align: left; transition: color 0.2s ease; }
+.tb-eyes svg { width: 1.3em; height: 1.3em; flex: none; }
+.tb-eyes .is-on { color: var(--gold-4); }
+.tb-eyes .is-on svg { color: #8fe0a6; }
+.tb-back-row { display: flex; flex-direction: column; gap: calc(var(--t) * 5); color: var(--text-dim); font-size: max(11px, calc(var(--t) * 12.5)); }
+.tb-back-row input { padding: 6px 2px; border: none; border-bottom: 1px solid var(--gold-1); background: none; color: var(--parchment); font: inherit; font-size: max(13px, calc(var(--t) * 15)); }
+.tb-back-foot { display: flex; flex-wrap: wrap; gap: calc(var(--t) * 12); margin-top: auto; }
+
+/* предмет в руках */
+.tb-lootcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(280px, calc(var(--t) * 420), 92vw);
+  padding: calc(var(--t) * 18) calc(var(--t) * 24) calc(var(--t) * 22);
+  overflow-y: auto;
+  border-radius: calc(var(--t) * 12);
+  background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(255, 196, 112, 0.2), transparent 70%), var(--leather);
+  box-shadow: inset 0 0 0 1px var(--gold-1), 0 calc(var(--t) * 22) calc(var(--t) * 60) rgba(0, 0, 0, 0.8);
+  color: var(--text);
+  text-align: center;
+}
+.tb-lootcard-art { display: grid; place-items: center; width: min(calc(var(--t) * 190), 38dvh); height: min(calc(var(--t) * 190), 38dvh); color: var(--gold-3); filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.7)); animation: tb-hover 3.4s ease-in-out infinite; }
+.tb-lootcard-art.is-magic { filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 22px rgba(180, 135, 255, 0.85)); }
+.tb-lootcard-art img { width: 100%; height: 100%; object-fit: contain; }
+.tb-lootcard-art svg { width: 60%; height: 60%; }
+@keyframes tb-hover { 50% { transform: translateY(calc(var(--t) * -8)) rotate(2deg); } }
+.tb-lootcard h2 { margin: calc(var(--t) * 6) 0 0; color: var(--gold-4); font-family: var(--font-display); font-size: max(20px, calc(var(--t) * 28)); font-weight: 700; line-height: 1.1; }
+.tb-lootcard h2 em { color: var(--parchment); font-style: normal; }
+.tb-lootcard-sub { margin: 2px 0 0; color: var(--gold-2); font-size: max(11px, calc(var(--t) * 13)); }
+.tb-lootcard-note { margin: 8px 0 0; color: var(--parchment); font-style: italic; }
+.tb-lootcard-text { display: -webkit-box; margin: calc(var(--t) * 10) 0 0; overflow: hidden; color: var(--text); font-size: max(11px, calc(var(--t) * 13)); line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 5; user-select: text; }
+.tb-lootcard-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--t) * 10); margin-top: calc(var(--t) * 16); }
+
+/* развёрнутая карта-заметка */
+.tb-mapopen {
+  width: min(calc(var(--t) * 560), 92vw);
+  height: calc(100dvh - var(--t) * 28);
+  background: url('/assets/table/map.jpg') center / cover;
+  box-shadow: 0 calc(var(--t) * 24) calc(var(--t) * 70) rgba(0, 0, 0, 0.85);
+}
+.tb-map-folds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 33.1%, rgba(60, 36, 12, 0.3) 33.3%, rgba(255, 240, 200, 0.2) 33.6%, transparent 33.9%),
+    linear-gradient(90deg, transparent 66.1%, rgba(60, 36, 12, 0.3) 66.3%, rgba(255, 240, 200, 0.2) 66.6%, transparent 66.9%),
+    linear-gradient(0deg, transparent 49.7%, rgba(60, 36, 12, 0.3) 50%, rgba(255, 240, 200, 0.2) 50.3%, transparent 50.6%);
+}
+.tb-mapopen .tb-card-x { top: calc(var(--t) * 22); right: calc(var(--t) * 22); background: rgba(60, 38, 14, 0.4); color: #fff3d8; }
+.tb-map-paper {
+  position: absolute;
+  inset: 5.5% 6.5%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--t) * 6);
+  padding: calc(var(--t) * 18) calc(var(--t) * 22);
+  background: rgba(236, 215, 172, 0.87);
+  box-shadow: 0 0 calc(var(--t) * 22) calc(var(--t) * 16) rgba(236, 215, 172, 0.87);
+  color: var(--ink);
+}
+.tb-map-paper h2 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: max(18px, calc(var(--t) * 28)); font-weight: 700; text-align: center; }
+.tb-map-paper textarea {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: repeating-linear-gradient(180deg, transparent 0 1.55em, rgba(70, 44, 16, 0.28) 1.55em calc(1.55em + 1px));
+  background-attachment: local;
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: max(13px, calc(var(--t) * 16));
+  font-style: italic;
+  line-height: calc(1.55em + 1px);
+  user-select: text;
+}
+.tb-map-paper textarea::placeholder { color: rgba(70, 44, 16, 0.55); }
+.tb-map-wait { margin: auto; font-style: italic; }
+.tb-map-state { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 1.2em; color: var(--ink-soft); font-size: max(10px, calc(var(--t) * 12)); font-style: italic; }
+.tb-map-state svg { width: 1.1em; height: 1.1em; }
+.tb-map-state.is-error { color: #8c2517; }
+

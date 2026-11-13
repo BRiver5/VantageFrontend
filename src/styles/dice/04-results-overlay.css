@@ -1,0 +1,558 @@
+/* ---------- Оверлей результатов ---------- */
+
+.dice-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  animation: dice-reveal-backdrop 0.4s ease forwards;
+}
+
+.dice-reveal-overlay.is-done {
+  cursor: pointer;
+}
+
+@keyframes dice-reveal-backdrop {
+  to { background: rgba(0, 0, 0, 0.78); }
+}
+
+/* золотая фирменная окантовка */
+.dice-reveal-frame {
+  position: absolute;
+  inset: clamp(14px, 3.5vw, 42px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dice-reveal-frame .corner { opacity: 0.92; }
+.dice-reveal-frame .corner--tl { top: 0; left: 0; }
+.dice-reveal-frame .corner--tr { top: 0; right: 0; }
+.dice-reveal-frame .corner--bl { bottom: 0; left: 0; }
+.dice-reveal-frame .corner--br { bottom: 0; right: 0; }
+
+.dice-reveal-edge {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.55;
+  background: var(--gold-grad-h);
+}
+
+.dice-reveal-edge--top,
+.dice-reveal-edge--bottom {
+  left: 56px;
+  right: 56px;
+  height: 1px;
+}
+
+.dice-reveal-edge--top { top: 10px; }
+.dice-reveal-edge--bottom { bottom: 10px; }
+
+.dice-reveal-edge--left,
+.dice-reveal-edge--right {
+  top: 56px;
+  bottom: 56px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold-3) 18%, var(--gold-4) 50%, var(--gold-3) 82%, transparent);
+}
+
+.dice-reveal-edge--left { left: 10px; }
+.dice-reveal-edge--right { right: 10px; }
+
+.dice-reveal-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vh, 36px);
+  max-width: min(92vw, 720px);
+  padding: 0 24px;
+}
+
+/* золотая надпись над результатом — без контейнера */
+.dice-reveal-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.4vw, 1.55rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  animation: dice-reveal-title-in 0.85s cubic-bezier(0.6, 0, 0.4, 1) backwards;
+}
+
+.dice-reveal-title--crit {
+  letter-spacing: 0.12em;
+}
+
+.dice-reveal-title--success {
+  filter: drop-shadow(0 0 18px rgb(var(--gold-3-rgb) / 0.45));
+}
+
+.dice-reveal-title--fail {
+  background: linear-gradient(180deg, var(--gold-4) 8%, var(--gold-3) 40%, #c07f3c 72%, #8a3a22 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(192, 127, 60, 0.4));
+}
+
+@keyframes dice-reveal-title-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-reveal-formula {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35em 0.5em;
+  padding: 0 8px;
+  font-family: var(--font-display);
+  cursor: default;
+}
+
+/* кнопка пропуска анимации */
+.dice-reveal-skip {
+  position: fixed;
+  bottom: clamp(28px, 6vh, 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 10px 28px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(var(--bg-2), var(--bg-2)) padding-box, var(--gold-grad) border-box;
+  border: 1.4px solid transparent;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  transition: color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
+  animation: dice-reveal-skip-in 0.35s ease 0.25s backwards;
+}
+
+.dice-reveal-skip:hover {
+  color: var(--gold-4);
+  filter: brightness(1.1);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+@keyframes dice-reveal-skip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.dice-reveal-value-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dice-reveal-burst {
+  position: absolute;
+  inset: -28px;
+  pointer-events: none;
+}
+
+.dice-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 14px;
+  margin: -7px -2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff8c8, #ff8c20);
+  transform: rotate(var(--spark-angle)) translateY(-18px);
+  opacity: 0;
+  animation: dice-spark-burst 0.55s ease-out forwards;
+}
+
+@keyframes dice-spark-burst {
+  0% { opacity: 1; transform: rotate(var(--spark-angle)) translateY(0) scaleY(0.3); }
+  60% { opacity: 0.9; transform: rotate(var(--spark-angle)) translateY(-22px) scaleY(1); }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateY(-36px) scaleY(0.2); }
+}
+
+.dice-reveal-flash {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 200, 80, 0.4) 40%, transparent 70%);
+  opacity: 0;
+  animation: dice-reveal-flash 0.35s ease-out forwards;
+}
+
+@keyframes dice-reveal-flash {
+  0% { opacity: 0; transform: scale(0.4); }
+  30% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+.dice-reveal-value {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 180, 60, 0.7), 0 0 48px rgba(255, 100, 20, 0.35);
+  animation: dice-reveal-value-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dice-reveal-value-in {
+  from { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* цвет крупной цифры в оверлее по результату (перебивает базовый золотой) */
+.dice-reveal-value.dice-crit-fail {
+  color: #cc8845;
+  text-shadow: 0 0 22px rgba(204, 136, 69, 0.65), 0 0 44px rgba(150, 80, 30, 0.3);
+}
+.dice-reveal-value.dice-crit-normal {
+  color: #dfe4ec;
+  text-shadow: 0 0 22px rgb(var(--silver-3-rgb) / 0.6), 0 0 44px rgba(140, 150, 165, 0.3);
+}
+.dice-reveal-value.dice-crit-success {
+  color: var(--gold-4);
+  text-shadow: 0 0 24px rgba(255, 200, 80, 0.7), 0 0 48px rgba(255, 140, 30, 0.35);
+}
+
+.dice-reveal-plus,
+.dice-reveal-equals {
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  animation: dice-reveal-plus-in 0.22s ease;
+}
+
+@keyframes dice-reveal-plus-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+.dice-reveal-equals-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  animation: dice-reveal-plus-in 0.3s ease;
+}
+
+.dice-reveal-total {
+  font-size: clamp(2.8rem, 10vw, 4rem);
+  font-weight: 700;
+  color: var(--gold-4);
+  text-shadow: 0 0 32px rgba(255, 200, 80, 0.8);
+}
+
+/* столкновение двух к20 — преимущество / помеха */
+.dice-clash-arena {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(92vw, 440px);
+  height: clamp(110px, 24vh, 160px);
+  padding: 24px;
+  font-family: var(--font-display);
+  cursor: default;
+  overflow: visible;
+}
+
+.dice-clash-value-wrap {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  will-change: transform, opacity, left, right;
+}
+
+.dice-clash-reveal-value,
+.dice-clash-arena .dice-reveal-value {
+  animation: none;
+}
+
+.dice-clash-value-wrap--left {
+  left: 8%;
+}
+
+.dice-clash-value-wrap--right {
+  right: 8%;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--left {
+  animation: dice-clash-enter-left 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+
+.dice-clash-arena--enter .dice-clash-value-wrap--right {
+  animation: dice-clash-enter-right 0.85s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+
+@keyframes dice-clash-enter-left {
+  from { left: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { left: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+@keyframes dice-clash-enter-right {
+  from { right: -12%; opacity: 0; transform: translateY(-50%) scale(0.55); }
+  to { right: 26%; opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--left {
+  animation: dice-clash-rush-left 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+.dice-clash-arena--clash .dice-clash-value-wrap--right {
+  animation: dice-clash-rush-right 0.44s cubic-bezier(0.55, 0, 0.9, 0.38) forwards;
+}
+
+@keyframes dice-clash-rush-left {
+  from { left: 26%; transform: translateY(-50%) scale(1); }
+  to { left: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+@keyframes dice-clash-rush-right {
+  from { right: 26%; transform: translateY(-50%) scale(1); }
+  to { right: 44%; transform: translateY(-50%) scale(1.08); }
+}
+
+.dice-clash-impact {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dice-clash-arena--clash .dice-clash-impact {
+  animation: dice-clash-impact-flash 0.44s ease forwards;
+}
+
+@keyframes dice-clash-impact-flash {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  45% {
+    opacity: 1;
+    transform: scale(1.8);
+    background: radial-gradient(circle, rgba(255, 248, 200, 0.95) 0%, rgba(255, 160, 60, 0.35) 45%, transparent 72%);
+  }
+}
+
+/* проигравшее число: трещина и падение двух половинок */
+.dice-clash-half {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-half--left {
+  clip-path: inset(0 50% 0 0);
+}
+
+.dice-clash-half--right {
+  clip-path: inset(0 0 0 50%);
+}
+
+.dice-clash-value-wrap.is-loser:not(.is-cracking) .dice-clash-half--right {
+  margin-left: 0;
+}
+
+.dice-clash-crack {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 115%;
+  margin: -57.5% 0 0 -1.5px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 240, 200, 0.95) 18%,
+    #fff 50%,
+    rgba(255, 200, 120, 0.9) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(255, 220, 140, 0.9), 0 0 24px rgba(255, 160, 60, 0.6);
+  transform: rotate(-8deg) scaleY(0);
+  animation: dice-clash-crack-in 0.22s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dice-clash-crack-in {
+  0% { transform: rotate(-8deg) scaleY(0); opacity: 0; }
+  60% { transform: rotate(-8deg) scaleY(1.15); opacity: 1; }
+  100% { transform: rotate(-8deg) scaleY(1); opacity: 0.85; }
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking {
+  left: 50% !important;
+  right: auto !important;
+  transform: translate(-50%, -50%);
+  animation: none;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--left {
+  animation: dice-clash-split-left 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+.dice-clash-value-wrap.is-loser.is-cracking .dice-clash-half--right {
+  animation: dice-clash-split-right 0.78s cubic-bezier(0.42, 0, 0.78, 0.55) 0.1s forwards;
+}
+
+@keyframes dice-clash-split-left {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% - 3px), -50%) rotate(-3deg); }
+  100% {
+    transform: translate(calc(-50% - 5px), calc(-50% + 155px)) rotate(-5deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dice-clash-split-right {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  10% { transform: translate(calc(-50% + 3px), -50%) rotate(3deg); }
+  100% {
+    transform: translate(calc(-50% + 5px), calc(-50% + 155px)) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  animation: dice-clash-winner-pop 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dice-clash-winner-pop {
+  0% { opacity: 1; transform: translateY(-50%); }
+  45% { transform: translate(-50%, -50%) scale(1.26); }
+  100% {
+    left: 50%;
+    right: auto;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
+
+.dice-clash-arena--resolve .is-winner,
+.dice-clash-arena--hold .is-winner {
+  left: 50%;
+  right: auto;
+}
+
+.dice-clash-arena--adv .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(78, 207, 122, 0.55));
+}
+
+.dice-clash-arena--dis .is-winner .dice-reveal-value {
+  filter: drop-shadow(0 0 18px rgba(224, 90, 74, 0.55));
+}
+
+.dice-clash-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130px;
+  height: 130px;
+  margin: -65px 0 0 -65px;
+  pointer-events: none;
+}
+
+.dice-clash-arena--static .dice-clash-value-wrap {
+  animation: none;
+}
+
+.dice-clash-arena--static .is-winner {
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.dice-clash-arena--static .is-loser {
+  display: none;
+}
+
+.dice-hist-clash-drop {
+  margin-left: 0.5em;
+  font-size: 0.84em;
+  color: var(--silver-4);
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+@media (max-width: 560px) {
+  .dice-dock { left: calc(var(--sidebar-w) + 10px); bottom: 14px; }
+  .dice-history-panel { width: min(196px, calc(100vw - 28px)); }
+  .dice-fab {
+    width: 72px;
+    height: calc(72px * var(--hex-aspect));
+  }
+  .dice-fab .die-fab-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .dice-close-btn {
+    width: 50px;
+    height: calc(50px * var(--hex-aspect));
+  }
+  .dice-roll-morph { min-width: 160px; height: 50px; font-size: 0.82rem; }
+  .dice-tray-wrap {
+    width: min(280px, calc(100vw - 28px));
+    max-height: 520px;
+    overflow: hidden;
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s ease,
+      visibility 0.45s ease,
+      max-height 0.45s ease,
+      margin 0.45s ease,
+      padding 0.45s ease,
+      border-width 0.45s ease;
+  }
+  .dice-tray-wrap--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    transform: translateY(10px);
+  }
+  .dice-d20-mod-outer--hidden-mobile {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    max-width: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  .dice-shape-icon-wrap { width: 40px; height: 40px; }
+  .dice-qty-btn { font-size: 1.25rem; }
+  .dice-qty-value { font-size: 1.15rem; min-width: 24px; }
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    z-index: 150;
+  }
+}
+

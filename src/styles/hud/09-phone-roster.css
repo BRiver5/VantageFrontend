@@ -1,0 +1,151 @@
+/* ---------- экран персонажей на телефоне: сетка портретов ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  .lobby {
+    min-height: 0;
+    padding-top: 10px;
+  }
+  .lobby-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+  }
+  .lobby-head .section-title {
+    flex: none;
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+  .lobby-sub {
+    margin: 0;
+    font-size: 0.8rem;
+    text-align: right;
+  }
+  .lobby-stage {
+    display: block;
+    margin: 10px 0 0;
+  }
+  .lobby-stage::before,
+  .lobby-stage::after { display: none; }
+  .lobby-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(108px, 30vw), 1fr));
+    align-items: start;
+    gap: 8px;
+    padding: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  /* сначала герои, затем свободное место: хватает одной плитки «+», без лишних рядов */
+  .lobby-row > .lobby-hero,
+  .lobby-row > .lobby-slot--main { order: 1; }
+  .lobby-row > .lobby-slot { order: 2; }
+  .lobby-row > .lobby-slot--main { order: 1; }
+  .lobby-row:has(.lobby-hero) > .lobby-slot:not(:last-child),
+  .lobby-row > .lobby-slot:has(~ .lobby-slot--main) { display: none; }
+
+  /* плитка: портрет в рамке со срезанными углами, имя и уровень поверх */
+  .lobby-hero,
+  .lobby-slot,
+  .lobby-slot--main {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+  .lobby {
+    --lobby-cut: 9px;
+    --lobby-pennant: var(--lobby-chamfer);
+  }
+  .lobby-hero-link {
+    height: 100%;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.5));
+  }
+  .lobby-hero-frame { padding: 1.5px; }
+  .lobby-hero-art { inset: 1.5px; }
+  .lobby-hero-art::after {
+    background: linear-gradient(180deg, transparent 42%, rgba(9, 10, 13, 0.82) 72%, rgb(9, 10, 13));
+  }
+  .lobby-hero-plate {
+    left: 7px;
+    right: 7px;
+    bottom: 6px;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 0;
+    clip-path: none;
+    background: none;
+    text-align: left;
+  }
+  .lobby-hero-name {
+    display: -webkit-box;
+    color: var(--gold-4);
+    font-size: 0.8rem;
+    line-height: 1.08;
+    letter-spacing: 0.01em;
+    white-space: normal;
+    text-shadow: 0 1px 4px #000;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .lobby-hero-meta {
+    width: 100%;
+    color: var(--text);
+    font-size: 0.64rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .lobby-hero-level {
+    top: 5px;
+    left: 5px;
+    bottom: auto;
+    width: 26px;
+    height: calc(26px * var(--hex-aspect));
+    transform: none;
+  }
+  .lobby-hero-level span { font-size: 0.8rem; }
+  .lobby-hero-vis {
+    top: 39px;
+    right: 9px;
+    left: auto;
+    width: 22px;
+    height: calc(22px * var(--hex-aspect));
+  }
+  .lobby-hero-del {
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+    border-radius: 50%;
+    clip-path: none;
+  }
+  .lobby-hero-del svg { width: 14px; height: 14px; }
+  .lobby-slot-inner { gap: 4px; }
+  .lobby-slot--main .lobby-slot-inner { gap: 6px; }
+  .lobby-slot--main svg { width: 28px; height: 28px; }
+  .lobby-slot-label { font-size: 0.66rem; letter-spacing: 0.06em; }
+  .lobby-actions { padding: 12px 0 6px; }
+  .lobby-start {
+    min-height: 44px;
+    padding: 9px 30px;
+    font-size: 0.9rem;
+  }
+}
+
+/* число на значке раздела комнаты (заявки, предметы на столе) */
+.ghud-rail-sign em {
+  position: absolute;
+  top: calc(var(--u) * -3);
+  right: calc(var(--u) * -5);
+  min-width: calc(var(--u) * 15);
+  padding: 0 calc(var(--u) * 3);
+  border-radius: 999px;
+  background: var(--gold-3);
+  color: var(--bg-0);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  font-weight: 700;
+  line-height: calc(var(--u) * 15);
+  text-align: center;
+}

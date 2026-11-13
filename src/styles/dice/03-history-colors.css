@@ -1,0 +1,179 @@
+/* ---------- История бросков — правый нижний угол ---------- */
+
+.dice-history-panel {
+  --dice-hist-card-h: 60px;
+  --dice-hist-gap: 8px;
+  --dice-hist-pad: 8px;
+  --dice-hist-dur: 1.2s;
+  position: relative;
+  width: min(272px, calc(100vw - 44px));
+  height: calc(3 * var(--dice-hist-card-h) + 2 * var(--dice-hist-gap) + 2 * var(--dice-hist-pad));
+  order: -1;
+  opacity: 0;
+  transform: translateX(-40px);
+  transition:
+    opacity var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.dice-history-panel.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.dice-history-panel.is-hiding {
+  opacity: 0;
+  transform: translateX(-56px);
+  pointer-events: none;
+}
+
+@media (min-width: 561px) {
+  .dice-history-panel {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    order: unset;
+    transform: translateX(40px);
+  }
+
+  .dice-history-panel.is-visible {
+    transform: translateX(0);
+  }
+
+  .dice-history-panel.is-hiding {
+    transform: translateX(56px);
+  }
+}
+
+.dice-history-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dice-hist-gap);
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--dice-hist-pad) 2px var(--dice-hist-pad);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dice-history-spacer {
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.dice-history-panel:hover .dice-history-scroll,
+.dice-history-panel:focus-within .dice-history-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.45) transparent;
+}
+
+.dice-history-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.dice-history-panel:hover .dice-history-scroll::-webkit-scrollbar,
+.dice-history-panel:focus-within .dice-history-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.dice-history-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--silver-2-rgb) / 0.45);
+  border-radius: 2px;
+}
+
+/* вытянутый гекс — как кнопка «Играть» */
+.dice-history-card {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-height: var(--dice-hist-card-h);
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  padding: 2px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+  will-change: transform;
+}
+
+.dice-history-card-inner {
+  box-sizing: border-box;
+  min-height: calc(var(--dice-hist-card-h) - 4px);
+  padding: 7px 22px 8px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dice-history-card.is-shifting {
+  transition: transform var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dice-history-card.is-entering {
+  animation: dice-history-enter var(--dice-hist-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dice-history-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dice-hist-card-h) + var(--dice-hist-gap)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dice-history-formula {
+  margin: 0 0 3px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-history-result {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-history-result .dice-crit-fail { color: #c07f3c; }
+.dice-history-result .dice-crit-normal { color: var(--silver-3); }
+.dice-history-result .dice-crit-success { color: var(--gold-4); }
+
+.dice-hist-op {
+  color: rgb(var(--silver-3-rgb) / 0.7);
+  font-weight: 500;
+}
+.dice-hist-total {
+  color: var(--gold-4);
+  font-weight: 700;
+}
+
+/* ---------- Цвет цифры по результату (крит-провал/успех) ---------- */
+/* минимум (1) — бронза, максимум грани — золото, всё между — серебро */
+.dice-crit-fail { color: #c07f3c; }
+.dice-crit-normal { color: var(--silver-3); }
+.dice-crit-success { color: var(--gold-3); }
+
+.dice-formula-error {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #c96e5a;
+  text-align: left;
+  max-width: min(520px, calc(100vw - 44px));
+}
+

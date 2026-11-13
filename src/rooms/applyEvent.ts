@@ -101,7 +101,13 @@ export function chatOf(msg: RoomEventMessage): ChatMessage | null {
 /** Добавить сообщения без повторов, по порядку seq */
 export function mergeChat(list: ChatMessage[], add: ChatMessage[]): ChatMessage[] {
   const known = new Set(list.map((m) => m.id))
-  const fresh = add.filter((m) => !known.has(m.id))
+  const fresh: ChatMessage[] = []
+  for (const m of add) {
+    // known пополняем по ходу: повторы внутри самого пакета тоже отсеиваются
+    if (known.has(m.id)) continue
+    known.add(m.id)
+    fresh.push(m)
+  }
   if (fresh.length === 0) return list
   const all = [...list, ...fresh].sort((a, b) => (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER))
   return all.length > CHAT_LIMIT ? all.slice(all.length - CHAT_LIMIT) : all
@@ -440,7 +446,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       }
       const parts = (a.targets ?? []).map((t) => {
         const dmg = t.damage.reduce((sum, d) => sum + (d.taken ?? d.amount ?? d.roll.total), 0)
-        const res = t.attack ? (t.crit ? 'крит' : t.hit ? 'попал' : 'промах') : t.save ? (t.saved ? 'спас' : 'провал') : ''
+        const res = t.attack ? `${t.crit ? 'крит' : t.hit ? 'попал' : 'промах'}${t.attack.high_ground ? ', с высоты' : ''}` : t.save ? (t.saved ? 'спас' : 'провал') : ''
         return `${unit(t.combatant_id)}${res ? ` (${res})` : ''}${dmg > 0 && (t.hit || !t.attack) ? ` −${dmg}` : ''}${t.healed ? ` +${t.healed}` : ''}`
       })
       const head = `${unit(a.actor_combatant_id)}: ${a.label || 'действие'}`
@@ -453,7 +459,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
     case 'member.kicked':
       return { ...base, kind: 'member', who, text: 'исключён из комнаты' }
     case 'room.status':
-      return { ...base, kind: 'room', who, text: `Статус комнаты: ${statusRu(p.status)}` }
+      return { ...base, kind: 'room', who, text: p.status === 'paused' ? 'Мастер поставил игру на паузу' : `Статус комнаты: ${statusRu(p.status)}` }
     case 'character.updated':
       return p.label ? { ...base, kind: 'room', who: p.card?.name, text: String(p.label) } : null
     default:
@@ -462,7 +468,7 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
 }
 
 export const statusRu = (s: string): string =>
-  ({ lobby: 'сбор', active: 'идёт игра', paused: 'перерыв', closed: 'закрыта' })[s] ?? s
+  ({ lobby: 'сбор', active: 'идёт игра', paused: 'пауза', closed: 'закрыта' })[s] ?? s
 
 /** Добавить запись в журнал без дубликатов; старейшие обрезаем */
 export function pushLog(state: RoomData, entry: RoomLogEntry): RoomData {

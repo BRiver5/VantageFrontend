@@ -1,0 +1,196 @@
+/* ---------- Выбор уровня: дорога героя ---------- */
+
+.cw-path-step { gap: 26px; }
+
+/* медальон выбранного уровня и название ступени */
+.cw-path-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.cw-path-medal {
+  display: grid;
+  place-items: center;
+  width: 118px;
+  height: calc(118px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  filter: drop-shadow(0 0 22px rgb(var(--gold-3-rgb) / 0.35));
+}
+.cw-path-medal > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  clip-path: var(--hex-point);
+  background: radial-gradient(circle at 50% 38%, var(--bg-3), var(--bg-0) 78%);
+}
+.cw-path-medal b {
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gold-4);
+  animation: cw-path-pop 0.35s ease;
+}
+.cw-path-medal i {
+  font-style: normal;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+@keyframes cw-path-pop { from { transform: scale(0.6); opacity: 0; } }
+.cw-path-tier { display: flex; flex-direction: column; gap: 3px; max-width: 360px; }
+.cw-path-tier-roman {
+  font-size: 0.74rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cw-path-tier b {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  letter-spacing: 0.06em;
+}
+.cw-path-tier i { font-style: italic; color: var(--text-dim); font-size: 0.92rem; }
+
+/* дорога: полосы ступеней, узлы и вехи */
+.cw-path {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: thin;
+}
+.cw-path-tiers,
+.cw-path-track {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  min-width: 760px;
+}
+.cw-path-tierband {
+  margin: 0 3px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgb(var(--silver-2-rgb) / 0.18);
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.cw-path-tierband.is-current { color: var(--gold-3); border-bottom-color: var(--gold-2); }
+
+.cw-path-track { position: relative; padding-top: 4px; }
+/* линия от центра первого узла до центра последнего; золото — до выбранного */
+.cw-path-line {
+  position: absolute;
+  top: calc(4px + 20px * var(--hex-aspect));
+  left: 2.5%;
+  right: 2.5%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--gold-2) 0 var(--fill),
+    rgb(var(--silver-2-rgb) / 0.18) var(--fill) 100%
+  );
+  box-shadow: 0 0 10px rgb(var(--gold-3-rgb) / 0.18);
+  transition: background 0.25s ease;
+}
+.cw-path-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.cw-path-hex {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: calc(40px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.25);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--silver-2);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.2s ease, color 0.2s ease;
+}
+.cw-path-hex:hover { transform: translateY(-3px); color: var(--gold-3); }
+.cw-path-node.is-passed .cw-path-hex {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-0));
+  color: var(--gold-4);
+}
+.cw-path-node.is-active .cw-path-hex {
+  transform: scale(1.18);
+  background: linear-gradient(180deg, var(--gold-4), var(--gold-2));
+  color: var(--bg-0);
+  filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.6));
+}
+
+/* вехи: у каждой свой цвет; впереди — приглушены */
+.cw-path-marks { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 18px; }
+.cw-path-mark { display: grid; place-items: center; opacity: 0.35; transition: opacity 0.2s ease; }
+.cw-path-node.is-passed .cw-path-mark,
+.cw-path-node.is-active .cw-path-mark { opacity: 1; }
+.cw-path-mark svg,
+.cw-path-legend svg { width: 15px; height: 15px; }
+.cw-path-mark--sub { color: #9fb6e0; }
+.cw-path-mark--asi { color: var(--gold-3); }
+.cw-path-mark--spell { color: #b79cf0; }
+.cw-path-mark--pb { color: #85c98f; }
+
+.cw-path-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  font-size: 0.8rem;
+}
+.cw-path-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* сводка строкой с разделителями */
+.cw-path-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cw-path-stats > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 22px;
+}
+.cw-path-stats > span + span { border-left: 1px solid rgb(var(--gold-2-rgb) / 0.25); }
+.cw-path-stats b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--parchment);
+}
+.cw-path-stats i {
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cw-path-stats > span.is-off b { color: var(--text-dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-path-medal b { animation: none; }
+}
+

@@ -1,52 +1,63 @@
-# React + TypeScript + Vite
+# Vantage
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Фронтенд Vantage — виртуального стола для D&D 5e на русском: справочник
+(классы, расы, заклинания, существа, предметы), создание и лист персонажа,
+игровые комнаты с боем, боевыми картами, чатом, базой знаний мастера и 3D-кубиками.
 
-Currently, two official plugins are available:
+Стек: React 19, TypeScript 6, Vite 8, React Router 7, Vitest, oxlint.
+3D-кубики — `@3d-dice/dice-box`. Бэкенд — Vantage API; в dev и preview
+запросы `/api` (включая WebSocket комнат) идут через прокси Vite, в проде —
+через rewrites в `vercel.json`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Скрипты
 
-## React Compiler
+| Команда | Что делает |
+| --- | --- |
+| `npm run dev` | dev-сервер Vite. `API_TARGET=http://localhost:8000 npm run dev` — другой адрес API |
+| `npm run build` | проверка типов (`tsc -b`) и сборка в `dist/` |
+| `npm run preview` | раздать собранный `dist/` |
+| `npm run lint` | oxlint |
+| `npm run test` | юнит-тесты Vitest (`src/**/*.test.ts`, среда node, без сети) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Структура `src/`
 
-## Expanding the Oxlint configuration
+| Папка / файл | Что там |
+| --- | --- |
+| `main.tsx`, `App.tsx`, `shell/` | точка входа, маршруты, оболочка приложения |
+| `api/`, `api.ts` | HTTP-клиент и запросы к Vantage API |
+| `auth/` | вход, токен, контекст пользователя |
+| `pages/` | страницы справочника и профиля (`catalog/`, `details/`, `home/`) |
+| `characters/` | лист персонажа, HUD, редактор листа |
+| `create/` | мастер создания персонажа и повышения уровня |
+| `rooms/` | игровые комнаты: состояние и события (`applyEvent.ts`), стол и бой (`table/`), база знаний (`kb/`), чат |
+| `maps/` | боевые карты: геометрия, отрисовка, конструктор (`editor/`) |
+| `dice/` | 3D-кубики и броски |
+| `input/` | реестр горячих клавиш (`keybindings.ts`) и хук `useKeybinding` |
+| `search/` | глобальный поиск (Ctrl+K, `/`) |
+| `types/` | типы данных API |
+| `styles/` | стили (см. ниже) |
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Тесты лежат рядом с кодом: `foo.ts` → `foo.test.ts`.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+> Windows: запускайте тесты из пути с заглавной буквой диска (`D:\…`). Если
+> терминал открыт как `d:\…`, Vitest грузится дважды и падает с
+> «failed to find the runner».
+
+## Стили
+
+`src/index.css` — единственная точка входа. Каскад задан слоями:
+
+```css
+@layer tokens, reset, legacy, layout, components, pages, utilities;
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Правило из более позднего слоя побеждает правило из раннего независимо от
+специфичности (у `!important` порядок обратный).
 
-
-## Комнаты (совместная игра)
-
-Раздел `/rooms`: мастер создаёт комнату, игроки входят по коду со своим персонажем, всё обновляется по WebSocket.
-
-Переменные окружения (`.env`, в Vercel — Project Settings → Environment Variables):
-
-| Переменная | Назначение |
-| --- | --- |
-| `VITE_API_BASE` | Адрес REST API, если он не на том же домене. |
-| `VITE_WS_BASE` | База WebSocket, например `wss://api.example.com/api`. Vercel не проксирует WebSocket, поэтому в проде указывайте адрес бэкенда напрямую. Если не задана, берётся адрес страницы (`ws(s)://<host>/api`), а в dev это работает через прокси Vite (`ws: true`). |
-| `VITE_DICE_TEST_HOOK` | `1` — оставить в продакшен-сборке тестовый вызов `window.__playForcedRoll` (нужен только для автотестов костей). |
-| `API_TARGET` | Только dev: куда Vite проксирует `/api` (по умолчанию боевой бэкенд). Удобно для мок-сервера: `API_TARGET=http://localhost:5300 npm run dev`. |
-
-Заметки по устройству:
-
-- Состояние комнаты строится из снимка `GET /rooms/{id}/state` и событий сокета (`src/rooms/applyEvent.ts`). Ответы REST экран не меняют — только события.
-- Кубики в комнате бросает сервер; 3D-кости у всех ложатся на присланные значения (`src/dice/forcedFaces.ts`: библиотека не умеет задавать грань, поэтому после остановки кубик доворачивается до нужной грани).
-- Ширма и дашборд мастера рассчитаны на компьютер; игроки могут играть и с телефона (горизонтально).
+- `src/styles/tokens.css` — дизайн-токены (палитра, семантические цвета, шкалы отступов, радиусов, слоёв и длительностей), слой `tokens`.
+- Исторические стили — слой `legacy`. Большие файлы разбиты по областям:
+  `src/styles/<область>/NN-*.css` (например, `styles/catalog/01-shell.css`).
+  Внутри слоя работает обычный каскад, поэтому порядок импортов в `index.css`
+  важен — не переставлять.
+- Файлы переносятся из `legacy` в смысловые слои (`layout`, `components`,
+  `pages`, `utilities`) по одному, со сверкой скриншотов.

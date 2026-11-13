@@ -1,0 +1,90 @@
+/* ---------- свой лист ---------- */
+
+.tb-scene .tb-mysheet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  z-index: 14;
+  width: calc(var(--t) * 300);
+  height: calc(var(--t) * 142);
+  translate: -50% 0;
+}
+.tb-mysheet-paper {
+  position: absolute;
+  top: calc(var(--t) * 52);
+  left: 0;
+  width: 100%;
+  height: calc(var(--t) * 340);
+  padding: calc(var(--t) * 12) calc(var(--t) * 22);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  box-shadow: 0 calc(var(--t) * -4) calc(var(--t) * 18) rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(95, 60, 20, 0.35);
+  transform: rotate(-1.2deg);
+  transition: transform 0.35s var(--spring);
+}
+.tb-mysheet-paper::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--t) * 44) calc(var(--t) * 22) 0;
+  background: repeating-linear-gradient(180deg, transparent 0 calc(var(--t) * 13), rgba(70, 44, 16, 0.3) calc(var(--t) * 13) calc(var(--t) * 14));
+}
+.tb-mysheet-paper i, .tb-mysheet-paper u { overflow: hidden; color: var(--ink); text-decoration: none; white-space: nowrap; text-overflow: ellipsis; }
+.tb-mysheet-paper i { max-width: 34%; font-family: var(--font-display); font-size: max(11px, calc(var(--t) * 16)); font-style: normal; font-weight: 700; }
+.tb-mysheet-paper u { font-size: max(9px, calc(var(--t) * 12)); color: var(--ink-soft); }
+.tb-scene .tb-mysheet:hover .tb-mysheet-paper, .tb-scene .tb-mysheet:focus-visible .tb-mysheet-paper { transform: translateY(calc(var(--t) * -16)) rotate(0deg); }
+.tb-mysheet-token { position: absolute; top: calc(var(--t) * 2); left: 50%; display: flex; flex-direction: column; align-items: center; translate: -50% 0; --hex: calc(var(--t) * 86); transition: transform 0.3s var(--spring); }
+.tb-scene .tb-mysheet:hover .tb-mysheet-token { transform: translateY(calc(var(--t) * -16)) scale(1.05); }
+.tb-mysheet-token > b { margin-top: calc(var(--t) * -2); color: var(--ink); font-family: var(--font-display); font-size: max(13px, calc(var(--t) * 20)); font-weight: 700; line-height: 1; }
+.tb-mysheet-token > b i { color: var(--ink-soft); font-size: 0.7em; font-style: normal; }
+
+/* ---------- мешок ---------- */
+
+.tb-sack {
+  position: absolute;
+  bottom: 0;
+  left: calc(50% + var(--t) * 118);
+  z-index: 16;
+  width: calc(var(--t) * 132);
+  transform: translateY(112%);
+  transition: transform 0.5s var(--spring);
+  pointer-events: none;
+  filter: drop-shadow(0 calc(var(--t) * -2) calc(var(--t) * 10) rgba(0, 0, 0, 0.7));
+}
+.tb-sack svg { display: block; width: 100%; transform-origin: 50% 100%; }
+.tb-sack.is-up { transform: translateY(32%); }
+.tb-sack.is-gulp svg { animation: tb-gulp 0.48s ease; }
+.tb-sack-mouth { position: absolute; top: 7%; left: 24%; width: 52%; height: 10%; }
+@keyframes tb-gulp {
+  0% { transform: scale(1, 1); }
+  28% { transform: scale(1.14, 0.84); }
+  62% { transform: scale(0.94, 1.08); }
+  100% { transform: scale(1, 1); }
+}
+
+/* ---------- карта с заметками ---------- */
+
+.tb-scene .tb-mapcorner {
+  position: absolute;
+  right: calc(var(--t) * -42);
+  bottom: calc(var(--t) * -128);
+  z-index: 12;
+  width: calc(var(--t) * 190);
+  height: calc(var(--t) * 300);
+  transform: rotate(-17deg);
+  transition: transform 0.35s var(--spring);
+}
+.tb-mapcorner span {
+  position: absolute;
+  inset: 0;
+  background: url('/assets/table/map.jpg') center top / cover;
+  box-shadow: calc(var(--t) * -4) calc(var(--t) * -4) calc(var(--t) * 16) rgba(0, 0, 0, 0.62);
+}
+.tb-mapcorner span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 49.5%, rgba(70, 44, 16, 0.25) 50%, transparent 50.5%), linear-gradient(0deg, transparent 66%, rgba(70, 44, 16, 0.22) 66.4%, transparent 66.8%);
+}
+.tb-scene .tb-mapcorner:hover, .tb-scene .tb-mapcorner:focus-visible { transform: translate(calc(var(--t) * -14), calc(var(--t) * -26)) rotate(-11deg); }
+

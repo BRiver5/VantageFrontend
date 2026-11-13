@@ -11,11 +11,23 @@ export async function listMaps(roomId: string): Promise<BattleMap[]> {
 }
 export const getMap = (roomId: string, mapId: string) => request<BattleMap>(r(roomId, `/${mapId}`), { auth: true })
 export const createMap = (roomId: string, body: Partial<BattleMap>) => post<BattleMap>(r(roomId), body)
+/** Новая карта из Universal VTT (.dd2vtt, .uvtt): картинка, сетка, стены, двери, свет */
+export function importUvtt(roomId: string, file: File, name?: string) {
+  const form = new FormData()
+  form.append('file', file)
+  if (name) form.append('name', name)
+  return post<BattleMap>(r(roomId, '/import-uvtt'), form)
+}
 export const patchMap = (roomId: string, mapId: string, body: Partial<BattleMap>) =>
   request<BattleMap>(r(roomId, `/${mapId}`), { method: 'PATCH', body, auth: true })
 export const deleteMap = (roomId: string, mapId: string) => request<void>(r(roomId, `/${mapId}`), { method: 'DELETE', auth: true })
 /** Пакет конструктора: всё или ничего; 409 — карту изменили */
 export const editMap = (roomId: string, mapId: string, batch: EditBatch) => post<BattleMap>(r(roomId, `/${mapId}/edit`), batch)
+/** Темнота сцены 0..1: сразу (duration_s 0) или плавно — одинаково у всех */
+export const setDarkness = (roomId: string, mapId: string, darkness: number, durationS = 0) =>
+  post<BattleMap>(r(roomId, `/${mapId}/darkness`), { darkness, duration_s: durationS })
+/** Сбросить исследованный туман всех игроков */
+export const resetFog = (roomId: string, mapId: string) => post<{ ok: boolean; players: number }>(r(roomId, `/${mapId}/fog/reset`))
 /** Положить на стол: показать игрокам, создать токены героев и участников боя */
 export const activateMap = (roomId: string, mapId: string) => post<BattleMap>(r(roomId, `/${mapId}/activate`))
 

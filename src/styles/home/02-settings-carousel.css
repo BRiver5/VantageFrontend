@@ -1,0 +1,282 @@
+/* ============================================================
+   КАРУСЕЛЬ СЕТТИНГОВ
+   ============================================================ */
+
+.carousel-shell { position: relative; }
+
+.carousel {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 26px 6px 30px;
+  scrollbar-width: none;
+}
+.carousel::-webkit-scrollbar { display: none; }
+
+.setting-card {
+  position: relative;
+  scroll-snap-align: center;
+  /* вертикальный баннер 1:2 */
+  flex: 0 0 clamp(230px, 25vw, 290px);
+  aspect-ratio: 1 / 2;
+  padding: 1.4px;
+  background: linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.25) 40%, rgb(var(--silver-1-rgb) / 0.7));
+  clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
+  transition: transform 0.28s ease, filter 0.28s ease;
+  text-align: left;
+}
+
+.setting-card-inner {
+  position: relative;
+  height: 100%;
+  clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
+  padding: 24px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  background:
+    radial-gradient(140% 60% at 50% -12%, var(--accent, rgba(110, 70, 180, 0.4)), transparent 60%),
+    radial-gradient(140% 50% at 50% 112%, rgba(0, 0, 0, 0.55), transparent 60%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  overflow: hidden;
+}
+
+/* арт мира за содержимым баннера */
+.setting-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 18%;
+  /* лёгкий multiply глушит белые поля миниатюр, но не затемняет арт в ноль */
+  background-color: #a6aab2;
+  background-blend-mode: multiply;
+  filter: saturate(0.92) contrast(1.03);
+}
+.setting-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--bg-0-rgb) / 0.5) 0%,
+    rgb(var(--bg-0-rgb) / 0.68) 34%,
+    rgb(var(--bg-0-rgb) / 0.93) 58%,
+    rgb(var(--bg-0-rgb) / 0.98) 100%
+  );
+}
+/* содержимое баннера — поверх арта */
+.setting-card-inner > :not(.setting-art) { position: relative; z-index: 1; }
+
+/* ссылка на детальную страницу мира */
+.setting-open {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 20px;
+  clip-path: var(--hex-chip);
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.5);
+  background: var(--hex-edge);
+  color: var(--gold-3);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.2s ease, filter 0.2s ease;
+}
+.setting-open:hover { color: var(--gold-4); filter: brightness(1.3) drop-shadow(0 0 8px rgb(var(--silver-3-rgb) / 0.45)); }
+
+/* гексагональная печать с инициалом мира */
+.setting-seal {
+  display: block;
+  width: 84px;
+  height: 96px;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.6px;
+  margin: 12px auto 4px;
+  flex-shrink: 0;
+}
+
+.setting-seal-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  background:
+    radial-gradient(90% 90% at 50% 0%, rgb(var(--silver-4-rgb) / 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.4rem;
+  background-clip: padding-box;
+  color: var(--gold-3);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+/* гексагональная «печать» на фоне баннера */
+.setting-card-inner::before {
+  content: '';
+  position: absolute;
+  right: -44px;
+  bottom: -58px;
+  width: 170px;
+  height: 190px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(160deg, rgb(var(--silver-3-rgb) / 0.16), rgb(var(--silver-3-rgb) / 0.02));
+  pointer-events: none;
+}
+
+.setting-card:hover { transform: translateY(-4px); filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.5)) brightness(1.08); }
+
+.setting-card.is-active {
+  background: var(--silver-grad);
+  filter: drop-shadow(0 0 20px rgb(var(--silver-3-rgb) / 0.45)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
+  transform: translateY(-4px);
+}
+
+.setting-kicker {
+  align-self: stretch;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-kicker::before,
+.setting-kicker::after { content: ''; height: 1px; flex: 1; }
+.setting-kicker::after { background: linear-gradient(90deg, var(--silver-1), transparent); }
+.setting-kicker::before { background: linear-gradient(270deg, var(--silver-1), transparent); }
+
+.setting-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.42rem;
+  letter-spacing: 0.05em;
+  line-height: 1.14;
+  color: var(--parchment);
+}
+
+.setting-name-en {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.94rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+}
+
+.setting-desc {
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.setting-meta {
+  margin-top: auto;
+  padding-top: 10px;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.setting-meta svg { width: 15px; height: 15px; stroke-width: 1.6; }
+
+/* стрелки карусели — гексагоны */
+.car-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 46px;
+  height: 52px;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 1.4px;
+  transition: filter 0.2s ease, opacity 0.28s ease;
+}
+/* докрутили до края — стрелка гаснет и не кликается */
+.car-arrow.is-disabled {
+  opacity: 0.18;
+  pointer-events: none;
+}
+.car-arrow span {
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  color: var(--gold-3);
+}
+.car-arrow svg { width: 20px; height: 20px; }
+.car-arrow:hover { filter: brightness(1.3) drop-shadow(0 0 12px rgb(var(--silver-3-rgb) / 0.45)); }
+.car-arrow--left { left: -12px; }
+.car-arrow--right { right: -12px; }
+
+/* заглушка поиска миров (реализуем позже) */
+.setting-search-bar { display: flex; justify-content: center; margin: 2px 0 22px; }
+.setting-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  width: clamp(240px, 44vw, 440px);
+  cursor: text;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.55), rgb(var(--silver-2-rgb) / 0.2) 40%, rgb(var(--silver-2-rgb) / 0.55)) border-box;
+}
+.setting-search svg { width: 17px; height: 17px; color: var(--gold-2); flex-shrink: 0; }
+.setting-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  letter-spacing: 0.03em;
+}
+.setting-search input::placeholder { color: var(--text-dim); font-style: italic; }
+.setting-search:focus-within { background: linear-gradient(var(--bg-1), var(--bg-1)) padding-box, linear-gradient(160deg, var(--gold-3), rgb(var(--gold-2-rgb) / 0.35) 40%, var(--gold-3)) border-box; }
+.setting-search-count { flex-shrink: 0; color: var(--gold-3); font-size: 0.78rem; font-style: italic; }
+.soon-badge {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+  padding: 3px 9px;
+  clip-path: var(--hex-chip);
+  --hex-in: rgb(var(--gold-2-rgb) / 0.14);
+  --hex-edge: rgb(var(--gold-2-rgb) / 0.4);
+  background: var(--hex-edge);
+}
+

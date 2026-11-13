@@ -1,0 +1,182 @@
+/* ============================================================
+   ЭКРАН ГЕРОЯ НА ТЕЛЕФОНЕ — в духе мобильных RPG
+   Размеры идут от --u: так одна раскладка подходит и маленьким
+   телефонам, и большим. Весь файл работает только при data-hud,
+   поэтому на десктопе ничего не меняет.
+   ============================================================ */
+
+:root[data-hud='sheet'] {
+  --u: clamp(0.76px, min(calc(100vh / 390), calc(100vw / 760)), 1.3px);
+  --rail: calc(var(--u) * 64);
+  --head: calc(var(--u) * 50);
+}
+
+@supports (height: 100dvh) {
+  :root[data-hud='sheet'] {
+    --u: clamp(0.76px, min(calc(100dvh / 390), calc(100dvw / 760)), 1.3px);
+  }
+}
+
+/* анимация появления страницы оставляет transform: fixed считался бы от неё */
+[data-hud='sheet'] .page-routes {
+  animation: none !important;
+  transform: none !important;
+}
+
+.ghud {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail);
+  grid-template-rows: var(--head) minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--text);
+  font-size: calc(var(--u) * 13);
+  background:
+    radial-gradient(ellipse 58% 90% at 46% 62%, rgb(var(--gold-2-rgb) / 0.13), transparent 70%),
+    linear-gradient(180deg, #14161b, #0b0c0f);
+}
+.ghud button { font: inherit; color: inherit; }
+.ghud-world {
+  position: absolute;
+  inset: 0;
+  background-position: center 30%;
+  background-size: cover;
+  opacity: 0.42;
+  filter: saturate(0.85) brightness(0.72);
+  pointer-events: none;
+}
+.ghud-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(9, 10, 13, 0.82) 0%, transparent 34%, transparent 58%, rgba(9, 10, 13, 0.88) 100%),
+    linear-gradient(180deg, rgba(9, 10, 13, 0.72) 0%, transparent 22%, transparent 76%, rgba(9, 10, 13, 0.7) 100%);
+  pointer-events: none;
+}
+
+/* ---------- шапка ---------- */
+
+.ghud-head {
+  position: relative;
+  z-index: 5;
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 8);
+  min-width: 0;
+  padding: calc(var(--u) * 3) calc(var(--u) * 8);
+}
+.ghud-who {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 8);
+  min-width: 0;
+}
+.ghud-level {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 32);
+  height: calc(var(--u) * 32 * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+}
+.ghud-level b {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 3px);
+  height: calc(100% - 3px);
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  color: var(--gold-4);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 15);
+  font-weight: 700;
+}
+.ghud-who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+.ghud-who-text b {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 17);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ghud-who-text i {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: calc(var(--u) * 11);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ghud-rounds {
+  flex: none;
+  display: flex;
+  gap: calc(var(--u) * 2);
+}
+.ghud-round {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  width: calc(var(--u) * 46);
+  padding: 0;
+  background: none;
+}
+.ghud-round-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 32);
+  height: calc(var(--u) * 32);
+  border-radius: 50%;
+  color: var(--gold-3);
+  background: radial-gradient(circle at 50% 35%, #2a2e37, #101216 72%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--gold-2) 62%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.55);
+  transition: box-shadow 0.18s ease, color 0.18s ease;
+}
+.ghud-round-ring svg { width: calc(var(--u) * 16); height: calc(var(--u) * 16); }
+.ghud-round-ring em {
+  position: absolute;
+  top: calc(var(--u) * -3);
+  right: calc(var(--u) * -5);
+  min-width: calc(var(--u) * 15);
+  padding: 0 calc(var(--u) * 3);
+  border-radius: 999px;
+  background: var(--gold-3);
+  color: var(--bg-0);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  font-weight: 700;
+  line-height: calc(var(--u) * 15);
+  text-align: center;
+}
+.ghud-round > i {
+  color: var(--text-dim);
+  font-size: calc(var(--u) * 10);
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ghud-round.is-on .ghud-round-ring { color: var(--gold-4); box-shadow: inset 0 0 0 1.5px var(--gold-4), 0 0 12px rgb(var(--gold-3-rgb) / 0.4); }
+.ghud-round.is-on > i { color: var(--gold-4); }
+.ghud-round.is-alert .ghud-round-ring { animation: ghud-pulse 1.8s ease-in-out infinite; }
+.ghud-round.is-alert .ghud-round-ring em { background: #e0574b; color: #fff; }
+@keyframes ghud-pulse {
+  50% { box-shadow: inset 0 0 0 1.5px #e0574b, 0 0 14px rgba(224, 87, 75, 0.65); }
+}
+

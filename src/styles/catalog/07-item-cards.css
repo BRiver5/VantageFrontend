@@ -1,0 +1,283 @@
+/* ---------- Карточка предмета в сетке: арт со свечением редкости ---------- */
+.card--item {
+  gap: 8px;
+  --rarity-glow: rgba(176, 182, 191, 0.5);
+  --rarity-text: #c5c9d0;
+}
+/* Колонка сетки может сжиматься уже самого длинного слова: иначе на средних
+   ширинах «Адамантиновый» распирает карточку и она налезает на соседнюю.
+   Длинные слова переносятся по слогам, редкость — отдельной строкой. */
+.card-grid:has(.card--item) .card-slot,
+.card-grid:has(.card--equipment) .card-slot { min-width: 0; }
+.card--item, .card--equipment { min-width: 0; }
+.card--item .item-card-info { min-width: 0; }
+.card--item .card-name,
+.card--equipment .card-name {
+  overflow-wrap: break-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.card--item .card-kicker { overflow-wrap: break-word; hyphens: auto; }
+/* заголовок подстраивается под ширину карточки: длинное слово влезает целиком,
+   а не рвётся посередине («Адамантинови-й») */
+.card--item { container-type: inline-size; }
+.card--item .card-name { font-size: clamp(0.95rem, 9.4cqi, 1.24rem); }
+.card--item .card-name .item-rarity { display: block; margin: 0 0 2px; font-size: 0.82em; letter-spacing: 0.04em; }
+.card--item[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.5); --rarity-text: #c5c9d0; }
+.card--item[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.6); --rarity-text: #6ecf86; }
+.card--item[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.6); --rarity-text: #7eb0ff; }
+.card--item[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.62); --rarity-text: #c084fc; }
+.card--item[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.64); --rarity-text: #f0c14a; }
+.card--item[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.64); --rarity-text: #e07068; }
+
+.item-card-source {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-decoration: none;
+}
+.item-card-source:hover {
+  color: var(--silver-3);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.item-card-source svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.card-name .item-rarity {
+  font-style: normal;
+  font-weight: 600;
+  margin-right: 0.38em;
+  color: var(--rarity-text, var(--gold-3));
+}
+
+/* цена: миниатюра монеты той валюты, в которой указана сумма */
+.price-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--gold-4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.price-mark img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.price-mark b { font-weight: 700; }
+
+.card > .price-mark {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.price-mark--hero {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  z-index: 2;
+  font-size: 1.12rem;
+}
+.price-mark--hero img { width: 22px; height: 22px; }
+
+.price-mark--plate {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+}
+
+.price-mark--inline {
+  text-shadow: none;
+  font-size: 0.86rem;
+  color: var(--gold-3);
+}
+.price-mark--inline img { width: 16px; height: 16px; }
+
+/* подпись карточки — отдельным блоком: она летит в заголовок как один объект */
+.item-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-card-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0 6px;
+}
+.item-card-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 138%;
+  height: 128%;
+  transform: translate(-50%, -50%);
+  /* крупнее и мягче: шире пятно, плавный спад и сильное размытие */
+  background: radial-gradient(50% 48% at 50% 50%, var(--rarity-glow), transparent 76%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+.item-card-art img {
+  position: relative;
+  z-index: 1;
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 16px rgba(0, 0, 0, 0.62));
+  transition: transform 0.25s ease;
+}
+.card--item:hover .item-card-art img { transform: scale(1.07); }
+.item-card-fallback {
+  position: relative;
+  z-index: 1;
+  width: 32%;
+  height: 32%;
+  color: var(--rarity-glow);
+  stroke-width: 0.9;
+}
+
+.card-head { display: flex; align-items: center; gap: 14px; }
+
+.card-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.24rem;
+  letter-spacing: 0.04em;
+  color: var(--parchment);
+  line-height: 1.15;
+}
+
+.card-kicker {
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Рамка-«паспарту»: фото всегда целиком видно и отцентровано (object-fit: contain),
+   независимо от исходных пропорций — работает и для будущих картинок без правок. */
+.card-img {
+  aspect-ratio: 4 / 5;
+  margin: 2px 0;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #cfc0a2, #b8a887);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-0-rgb) / 0.55), inset 0 0 26px rgba(60, 44, 16, 0.3);
+  overflow: hidden;
+}
+.card-img img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  /* contain — портреты произвольных пропорций видны целиком и отцентрованы, без обрезки */
+  object-fit: contain;
+  object-position: center;
+}
+.card-img-fallback { width: 52px; height: 52px; stroke-width: 1; color: rgb(var(--gold-0-rgb) / 0.55); }
+
+.card-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  clip-path: var(--hex-chip);
+  padding: 5px 18px;
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.28);
+  background: var(--hex-edge);
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip svg { width: 14px; height: 14px; stroke-width: 1.6; color: var(--gold-2); flex-shrink: 0; }
+.chip .die-chip-icon { width: 14px; height: 14px; }
+
+/* бейдж книги-источника — аббревиатура, полное название всплывает через title */
+.source-chip {
+  --hex-in: linear-gradient(180deg, rgb(var(--silver-3-rgb) / 0.14), var(--bg-1) 60%);
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.5);
+  color: var(--gold-3);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: help;
+}
+.source-chip svg { color: var(--gold-3); }
+
+/* редкость предметов */
+.chip[data-rarity='common'] { color: #b6bcc4; }
+.chip[data-rarity='common'] svg { color: #9aa0a6; }
+.chip[data-rarity='uncommon'] { color: #8fd194; }
+.chip[data-rarity='uncommon'] svg { color: #5fae64; }
+.chip[data-rarity='rare'] { color: #8fc0e8; }
+.chip[data-rarity='rare'] svg { color: #5a9bd4; }
+.chip[data-rarity='very-rare'] { color: #c9a3ec; }
+.chip[data-rarity='very-rare'] svg { color: #a06ad4; }
+.chip[data-rarity='legendary'] { color: #f0b46a; }
+.chip[data-rarity='legendary'] svg { color: #e08b3e; }
+.chip[data-rarity='artifact'] { color: #ee8d82; }
+.chip[data-rarity='artifact'] svg { color: #c85a50; }
+
+.card-desc {
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-desc:empty { display: none; }
+
+.card-foot {
+  margin-top: auto;
+  padding-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--text-dim);
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.2);
+}
+.card-foot svg { width: 13px; height: 13px; color: var(--gold-1); flex-shrink: 0; }
+

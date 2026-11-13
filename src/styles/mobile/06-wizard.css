@@ -1,0 +1,265 @@
+/* ---------- мастер: уровень и итог ---------- */
+
+.cw-rtabs { display: none; }
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* шапка мастера: назад и название в одну строку, шаги и разделитель плотнее */
+  .cw { padding-top: 4px; }
+  .cw-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 2px 8px;
+    margin-bottom: 4px;
+  }
+  .cw-top .back-link {
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+  .cw-top .back-link svg { width: 14px; height: 14px; }
+  .cw-title {
+    gap: 6px;
+    justify-content: flex-end;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.86rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .cw-title svg { width: 16px; height: 16px; }
+  .cw-top .cw-rail { grid-column: 1 / -1; margin: 4px 0 0; }
+  .cw > .divider,
+  .cw-top + .divider { margin: 4px auto 6px; }
+  .cw-step-head .cw-step-title { font-size: 1.15rem; line-height: 1.15; }
+  .cw-step { gap: 10px; }
+
+  .cw-path-step { gap: 12px; }
+
+  .cw-path-hero {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 14px;
+    text-align: left;
+  }
+  .cw-path-medal {
+    flex: none;
+    width: 74px;
+    height: calc(74px * var(--hex-aspect));
+  }
+  .cw-path-medal b { font-size: 1.7rem; }
+  .cw-path-medal i { font-size: 0.56rem; letter-spacing: 0.04em; }
+  .cw-path-tier { align-items: flex-start; min-width: 0; text-align: left; }
+  .cw-path-tier b { font-size: 1.1rem; }
+  .cw-path-tier i { font-size: 0.82rem; line-height: 1.25; }
+
+  /* уровни рядами по ступеням: все 20 видны сразу, без прокрутки вбок */
+  .cw-path-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cw-path-row h4 {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0 0 3px;
+    color: var(--text-dim);
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .cw-path-row.is-current h4 { color: var(--gold-3); }
+  .cw-path-row-nodes {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .cw-path-row .cw-path-node { gap: 2px; }
+  .cw-path-row .cw-path-hex {
+    width: min(42px, 12.5vw);
+    height: calc(min(42px, 12.5vw) * var(--hex-aspect));
+    font-size: 0.95rem;
+  }
+  .cw-path-row .cw-path-node.is-active .cw-path-hex { transform: scale(1.1); }
+  .cw-path-row .cw-path-marks {
+    flex-direction: row;
+    justify-content: center;
+    gap: 2px;
+    min-height: 13px;
+  }
+  .cw-path-row .cw-path-mark svg { width: 12px; height: 12px; }
+  .cw-path-legend {
+    justify-content: flex-start;
+    gap: 3px 12px;
+    font-size: 0.72rem;
+  }
+  .cw-path-legend svg { width: 12px; height: 12px; }
+
+  .cw-path-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(30%, 1fr));
+    gap: 6px;
+  }
+  .cw-path-stats > span,
+  .cw-path-stats > span + span {
+    min-width: 0;
+    padding: 2px;
+    border: none;
+    text-align: center;
+  }
+  .cw-path-stats b { font-size: 1.15rem; line-height: 1.1; }
+  .cw-path-stats i {
+    font-size: 0.62rem;
+    letter-spacing: 0;
+    line-height: 1.15;
+    text-transform: none;
+  }
+
+  /* итог: шапка рядом с портретом и разделы вкладками */
+  .cw-sheet:not(.is-paged) .cw-step-lead { font-size: 0.8rem; line-height: 1.25; }
+  .cw-sheet-hero {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 10px;
+  }
+  .cw-sheet-portrait {
+    grid-row: 1 / span 3;
+    width: 84px;
+    margin: 0;
+  }
+  .cw-sheet-portrait .cw-hero-align {
+    top: 3px;
+    right: 3px;
+    width: 26px;
+    height: calc(26px * var(--hex-aspect));
+    font-size: 0.66rem;
+  }
+  .cw-sheet-id { display: contents; }
+  .cw-sheet-name {
+    grid-column: 2;
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.1;
+    text-align: left;
+  }
+  .cw-sheet-who,
+  .cw-sheet-sub {
+    grid-column: 2;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    text-align: left;
+  }
+  .cw-sheet-stats {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 8px;
+  }
+  .cw-sheet-stats .cw-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    padding: 2px 0;
+    clip-path: none;
+    background: none;
+    text-align: center;
+  }
+  .cw-sheet-stats .cw-stat::before,
+  .cw-sheet-stats .cw-stat::after { display: none; }
+  .cw-sheet-stats .cw-stat svg { width: 13px; height: 13px; }
+  .cw-sheet-stats .cw-stat b { font-size: 0.95rem; line-height: 1.15; white-space: nowrap; }
+  .cw-sheet-stats .cw-stat i {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 0.56rem;
+    letter-spacing: 0;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .cw-rtabs {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    margin-top: 8px;
+    background: rgb(15, 16, 20);
+    box-shadow: inset 0 -1px 0 rgb(var(--gold-2-rgb) / 0.35);
+  }
+  .cw-rtabs button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    min-height: 46px;
+    padding: 2px 0;
+    color: var(--text-dim);
+    font-size: 0.64rem;
+  }
+  .cw-rtabs svg { width: 17px; height: 17px; color: var(--gold-2); }
+  .cw-rtabs button.is-on {
+    color: var(--gold-4);
+    background: linear-gradient(0deg, rgb(var(--gold-2-rgb) / 0.2), transparent);
+    box-shadow: inset 0 -2px 0 var(--gold-3);
+  }
+  .cw-rtabs button.is-on svg { color: var(--gold-4); }
+  .cw-rtabs span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cw-rpane { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .cw-rpane .beast-card { padding: 10px; }
+  .cw-rpane .cw-abil-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .cw-rpane .cw-wpn { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; }
+  .cw-rpane .beast-card > .corner { display: none; }
+  .cw-rpane .cw-wpn { align-items: center; padding: 6px 8px; }
+  .cw-rpane .cw-wpn-body b { font-size: 0.86rem; line-height: 1.15; white-space: normal; }
+  .cw-rpane .cw-wpn-body i { font-size: 0.68rem; }
+  .cw-rpane .cw-wpn-dice {
+    grid-column: auto;
+    grid-row: auto;
+    justify-content: flex-end;
+    width: auto;
+    gap: 0;
+  }
+  .cw-rpane .cw-die { width: 52px; }
+  .cw-rpane .cw-die > i { left: 0; right: 0; font-size: 0.56rem; letter-spacing: 0; text-transform: none; }
+  /* значок оружия — шестигранник, как на экране героя */
+  .cw-rpane .cw-wpn-art {
+    position: relative;
+    isolation: isolate;
+    width: 38px;
+    height: calc(38px * var(--hex-aspect));
+    clip-path: var(--hex-point);
+    background: var(--gold-grad);
+    box-shadow: none;
+  }
+  .cw-rpane .cw-wpn-art::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 1.5px;
+    clip-path: var(--hex-point);
+    background: radial-gradient(circle at 50% 40%, #2d313b, #101216 76%);
+  }
+  .cw-rpane .cw-wpn-art img { max-width: 76%; max-height: 76%; }
+  .cw-rpane .cw-wpn-art svg { width: 18px; height: 18px; }
+}
+

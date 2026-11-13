@@ -1,0 +1,64 @@
+/* ============================================================
+   ДЕТАЛЬНАЯ ПРЕДМЕТА — центрированный герой без рамки,
+   крупный арт со свечением редкости сзади и снизу
+   ============================================================ */
+.item-page { max-width: 880px; margin: 0 auto; }
+
+.item-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: clamp(24px, 5vw, 56px) 0 clamp(14px, 3vw, 32px);
+  --rarity-glow: rgba(176, 182, 191, 0.34);
+}
+.item-hero[data-rarity='common'] { --rarity-glow: rgba(176, 182, 191, 0.32); }
+.item-hero[data-rarity='uncommon'] { --rarity-glow: rgba(63, 174, 90, 0.36); }
+.item-hero[data-rarity='rare'] { --rarity-glow: rgba(59, 130, 246, 0.36); }
+.item-hero[data-rarity='very-rare'] { --rarity-glow: rgba(168, 85, 247, 0.38); }
+.item-hero[data-rarity='legendary'] { --rarity-glow: rgba(245, 158, 11, 0.4); }
+.item-hero[data-rarity='artifact'] { --rarity-glow: rgba(222, 66, 54, 0.4); }
+
+.item-hero > * { position: relative; z-index: 1; }
+.item-hero > .price-mark { position: absolute; z-index: 2; }
+
+.item-art {
+  position: relative;
+  width: min(360px, 62vw);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* свечение редкости за артом — мягкое, без выбеливания фона */
+.item-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 210%;
+  height: 210%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, var(--rarity-glow) 0%, transparent 68%);
+  opacity: 0.55;
+  filter: blur(14px);
+}
+.item-art img {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+}
+.item-art-fallback { position: relative; z-index: 1; width: 42%; height: 42%; color: var(--rarity-glow); stroke-width: 0.8; }
+
+.item-kicker { margin-top: 10px; }
+.item-title { margin-top: 6px; font-size: clamp(1.8rem, 4vw, 2.9rem); }
+.item-hero .setting-name-en { margin-top: 6px; }
+.item-chips { justify-content: center; margin-top: 14px; }
+
+.item-body { max-width: 760px; margin: 0 auto; }
+

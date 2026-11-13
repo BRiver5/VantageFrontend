@@ -9,13 +9,16 @@ import { RoomClocks } from './Clocks'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, DoorOpen, Monitor } from 'lucide-react'
-import { RotateGate } from '../characters/GameHud'
+import { RotateGate } from '../characters/hud/HudChrome'
 import { useAppShell } from '../shell'
 import { ContentOverlay } from './Content'
+import { PartyHud } from './party/PartyHud'
+import { TurnCues } from './party/TurnCues'
 import { RoomHero } from './RoomCharacter'
 import { RoomDiceBridge } from './RoomDice'
 import { RoomProvider, useRoom } from './RoomProvider'
-import { BattleIntro, BattleOutro, BattleScene } from './table/BattleScene'
+import { BattleScene } from './table/BattleScene'
+import { BattleIntro, BattleOutro } from './table/battle/BattleCurtains'
 import { DmScreen } from './table/DmScreen'
 import { TableScene } from './table/TableScene'
 
@@ -105,6 +108,8 @@ function Stage() {
       {inCombat ? <BattleScene onSheet={openSheet} /> : <TableScene onSheet={openSheet} />}
       <RoomClocks />
       <RoomAudioPlayer />
+      {!validHero && <PartyHud />}
+      <TurnCues />
       {isDm && <DmScreen />}
       {validHero && <SheetOver characterId={validHero} backTo={`/rooms/${roomId}`} />}
       {fx === 'intro' && <BattleIntro onDone={clearFx} />}

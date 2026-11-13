@@ -18,6 +18,8 @@ export interface RoomSettings {
   allow_player_rolls_hidden: boolean
   /** пока ни на что не влияет: видимость хитов задаётся у каждого существа */
   show_enemy_hp: HpVisibility
+  /** p2/layers: «Игроки могут рисовать» на карте */
+  players_can_draw?: boolean
 }
 
 /** Задел под музыку: эндпоинтов пока нет */
@@ -95,6 +97,8 @@ export interface CharacterCard {
   avatar_url: string | null
   level: number
   ac: number
+  /** пассивная Внимательность; у старых карточек появится при первом изменении */
+  passive_perception?: number | null
   hp: { current: number; max: number; temp: number }
   effects: string[]
   /** те же эффекты с id: для DELETE …/effects/{id} */
@@ -478,7 +482,8 @@ export interface CastPreview {
   spell: CastPlan
   /** фигура на карте и кто под ней */
   aim?: AimInfo | null
-  targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number }[]
+  /** high_ground — преимущество за высоту по правилу карты, шанс уже с ним */
+  targets: { combatant_id: string; kind: 'attack' | 'save' | 'auto'; chance: number; ac?: number; high_ground?: boolean }[]
 }
 
 export interface ConcentrationCheck {
@@ -510,7 +515,8 @@ export interface CombatTargetResult {
   hit: boolean
   crit: boolean
   saved: boolean
-  attack: RolledDice | null
+  /** high_ground — преимущество за высоту по правилу карты */
+  attack: (RolledDice & { high_ground?: boolean }) | null
   save: RolledDice | null
   damage: { roll: RolledDice; type: string | null; amount?: number; taken?: number | null; source?: string }[]
   healed: number | null
@@ -525,6 +531,12 @@ export interface CombatActionResult {
   kind: string
   label: string
   secret: boolean
+  /** дальняя атака (с дальностью или прицелом) или не оружие; нет у старых событий */
+  ranged?: boolean
+  /** виды урона из запроса — есть и при промахе */
+  damage_types?: string[]
+  /** явный VFX-пресет анимации */
+  vfx?: string
   targets: CombatTargetResult[]
 }
 

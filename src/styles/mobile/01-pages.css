@@ -1,0 +1,312 @@
+/* ============================================================
+   МОБИЛЬНАЯ КОМПОНОВКА СТРАНИЦ
+   Только внутри медиазапроса оболочки: десктоп этот файл не затрагивает.
+   Лист персонажа и лобби здесь намеренно не настраиваются.
+   ============================================================ */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* сайдбар скрыт — его ширина не должна участвовать в расчётах */
+  :root,
+  :root[data-sidebar] { --sidebar-w: 0px; }
+
+  /* ---------- широкие каталоги и герои ---------- */
+
+  .catalog--wide {
+    width: 100%;
+    margin-left: 0;
+  }
+  .card-grid:has(.card--item) .card-slot { min-width: 0; }
+  .card--item {
+    width: 100%;
+    min-width: 0;
+    overflow: clip;
+  }
+  .card--item .item-card-art,
+  .card--item .item-card-info { width: 100%; }
+  .card--item .card-name {
+    font-size: 0.86rem;
+    overflow-wrap: break-word;
+  }
+  .card--item .item-rarity { display: block; }
+
+  .book-page img { max-width: 100%; }
+  /* фон мира идёт на всю ширину экрана, лишнее режем по краю страницы, а не колонки */
+  .page:has(.beast-world),
+  .page:has(.world-hero:not(.world-hero--plain)) { overflow-x: clip; }
+
+  /* ---------- шапка каталога ---------- */
+
+  .catalog { padding-top: 16px; }
+  .catalog .section-head { margin-bottom: 8px; }
+  .catalog .section-sub { margin-top: 2px; font-size: 0.8rem; }
+
+  .catalog .quest-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .catalog .quest-input {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+  }
+  .catalog .quest-input input {
+    min-width: 0;
+    text-overflow: ellipsis;
+    font-size: 0.92rem;
+  }
+  .catalog .quest-bar:not(:has(.quest-filter)) .quest-input { grid-column: 1 / -1; }
+  .catalog .quest-total {
+    grid-column: 1 / -1;
+    justify-self: center;
+    font-size: 0.78rem;
+  }
+
+  /* сортировка — одна прокручиваемая строка */
+  .catalog .sort-bar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 6px;
+    margin: 6px -12px 0;
+    padding: 2px 12px 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .catalog .sort-bar::-webkit-scrollbar { display: none; }
+  .catalog .sort-label,
+  .catalog .sort-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .catalog .sort-label { font-size: 0.72rem; }
+  .catalog .sort-btn { min-height: 38px; }
+
+  /* фильтры — нижняя шторка вместо выпадающего блока */
+  .quest-filter-panel,
+  .rec-tools .quest-filter-panel {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: var(--app-tabbar-h);
+    z-index: 150;
+    width: auto;
+    max-height: 70dvh;
+    transform: none;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.55);
+    animation: mobile-sheet-up 0.2s ease;
+  }
+  html:has(.cw-foot) .quest-filter-panel { bottom: 0; }
+  /* анимация появления страницы оставляет transform, и fixed считался бы от неё */
+  .page-routes:has(.quest-filter-panel) {
+    animation: none !important;
+    transform: none !important;
+  }
+  .quest-filter-panel .rec-filter { min-height: 38px; }
+
+  /* ---------- сетки карточек ---------- */
+
+  /* портретные карточки: показатели строками, чтобы значения не обрезались */
+  :is(.catalog, .cw-catalog-grid) .race-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  :is(.catalog, .cw-catalog-grid) .race-rail-cell {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: none;
+    text-align: left;
+  }
+  :is(.catalog, .cw-catalog-grid) .race-rail-cell + .race-rail-cell { border: none; }
+  :is(.catalog, .cw-catalog-grid) .race-rail-cell i {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: hidden;
+    font-size: 0.68rem;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :is(.catalog, .cw-catalog-grid) .race-rail-cell b {
+    grid-column: 3;
+    grid-row: 1;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* заклинания и черты — один столбец */
+  .catalog .card-grid:has(.card--spell),
+  .catalog .card-grid:has(.card--feat) { grid-template-columns: minmax(0, 1fr); }
+
+  .catalog .card--spell .card-chips { flex-wrap: wrap; }
+  .catalog .card--spell .card-name { overflow-wrap: anywhere; }
+
+  /* черта и предыстория — компактная горизонтальная карточка */
+  .catalog .card.card--feat {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    min-height: 0;
+    padding: 0;
+  }
+  .catalog .card--feat .feat-card-art {
+    position: relative;
+    inset: auto;
+    width: 104px;
+    height: 100%;
+    min-height: 132px;
+  }
+  .catalog .card--feat .feat-card-body {
+    position: relative;
+    min-width: 0;
+    padding: 10px 12px;
+    margin: 0;
+  }
+
+  .catalog .card.card--bg {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: start;
+    padding: 12px;
+    --bg-hex-w: 76px;
+  }
+  .catalog .card--bg .bg-card-hex {
+    position: relative;
+    inset: auto;
+    margin: 0;
+    transform: none;
+  }
+  .catalog .card--bg .bg-card-body {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .catalog .bg-card-head {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .catalog .bg-card-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 0.82rem;
+  }
+  .catalog .bg-card-foot {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .catalog .bg-card-go { margin-left: auto; }
+
+  /* ---------- главная ---------- */
+
+  .hero { padding-top: 12px; }
+  .play-wrap { margin-top: 12px; }
+  .play-hint { font-size: 0.72rem; }
+
+  .loot-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .loot-chip {
+    width: 100%;
+    justify-content: flex-start;
+    padding-inline: 16px 10px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .hex-title {
+    font-size: 0.68rem;
+    line-height: 1.15;
+  }
+
+  /* ---------- страницы записей ---------- */
+
+  .back-link { min-height: 40px; }
+
+  /* арт героя страницы: около половины экрана вместо целого */
+  .class-detail-stage { min-height: clamp(320px, 50dvh, 460px); }
+  .race-detail-stage { min-height: clamp(300px, 46dvh, 420px); }
+
+  .race-facts,
+  .bg-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* стартовое снаряжение: базис 260px в колонке превращался в пустую высоту */
+  .se-option-col { flex: 0 0 auto; }
+
+  .book-hero-inner { flex-direction: column; align-items: center; }
+  .book-meta { max-width: 100%; }
+
+  /* ---------- мастер создания героя ---------- */
+
+  .cw-foot-inner {
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .cw-foot-hint {
+    min-width: 0;
+    font-size: 0.74rem;
+  }
+  /* шаги мастера — одним рядом */
+  .cw-rail {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 2px;
+    margin-top: 10px;
+  }
+  /* подписи шагов на телефоне не помещаются ни в каком положении: название есть в заголовке шага */
+  .cw-rail-label { display: none; }
+  .cw-rail-step {
+    flex: none;
+    min-width: 0;
+    padding: 0;
+  }
+  .cw-rail-hex {
+    width: min(28px, 8vw);
+    height: calc(min(28px, 8vw) * var(--hex-aspect));
+    font-size: 0.82rem;
+  }
+
+  /* карточки рас — два столбца вместо огромного одного */
+  .cw-catalog-grid {
+    gap: 26px 10px;
+    overflow-x: clip;
+  }
+  .cw-catalog-grid > * {
+    flex: 0 0 calc(50% - 5px);
+    min-width: 0;
+    max-width: calc(50% - 5px);
+  }
+  .cw-race-tree-root > .cw-pick-slot--catalog { width: 100%; }
+
+  /* ---------- кнопка кубика вне листа ---------- */
+
+  html:not([data-hud='sheet']) .dice-fab {
+    width: 44px;
+    height: calc(44px * var(--hex-aspect));
+  }
+  html:not([data-hud='sheet']) .dice-fab .die-fab-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .dice-dock { transition: opacity 0.2s ease, transform 0.2s ease; }
+  html:has(.quest-filter-panel) .dice-dock {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+

@@ -136,14 +136,26 @@ export function EffectSigils({ effects, size = 'md', onPick }: { effects: ShownE
 }
 
 /** Список состояний в карточке: печать + название + подсказка правила; у мастера — снять */
-export function EffectList({ effects, onRemove, onAdd }: { effects: ShownEffect[]; onRemove?: (e: ShownEffect) => void; onAdd?: () => void }) {
+export function EffectList({ effects, onRemove, onAdd }: { effects: ShownEffect[]; onRemove?: (e: ShownEffect) => void | Promise<unknown>; onAdd?: () => void }) {
+  // снимаем эффект — его крестик не жмётся второй раз, пока сервер не ответил
+  const [removing, setRemoving] = useState<string | null>(null)
+  const remove = (e: ShownEffect, key: string) => {
+    if (!onRemove || removing) return
+    const pending = onRemove(e)
+    if (!pending) return
+    setRemoving(key)
+    void Promise.resolve(pending)
+      .catch(() => undefined)
+      .finally(() => setRemoving(null))
+  }
   return (
     <div className="fx-list">
       {effects.length === 0 && !onAdd && <p className="fx-calm">Ни состояний, ни эффектов</p>}
       {effects.map((e, i) => {
         const Icon = e.def.icon
+        const key = `${e.label}-${i}`
         return (
-          <div key={`${e.label}-${i}`} className={`fx-row is-${e.def.key}`}>
+          <div key={key} className={`fx-row is-${e.def.key}`}>
             <span className="fx-seal">
               <Icon aria-hidden="true" />
             </span>
@@ -157,7 +169,7 @@ export function EffectList({ effects, onRemove, onAdd }: { effects: ShownEffect[
               )}
             </span>
             {onRemove && (
-              <button type="button" className="fx-off" onClick={() => onRemove(e)} aria-label={`Снять: ${e.title}`} title="Снять">
+              <button type="button" className="fx-off" disabled={removing === key} onClick={() => remove(e, key)} aria-label={`Снять: ${e.title}`} title="Снять">
                 <X aria-hidden="true" />
               </button>
             )}

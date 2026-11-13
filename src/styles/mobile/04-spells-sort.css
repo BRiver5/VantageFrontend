@@ -1,0 +1,222 @@
+/* ---------- заклинания на телефоне ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* карточка: крупный круг, название и школа, знак школы фоном */
+  .catalog .card-grid:has(.card--spell) { gap: 8px; }
+  .catalog .card.card--spell {
+    justify-content: center;
+    min-height: 84px;
+    padding: 8px 12px;
+  }
+  .catalog .card--spell .card-chips,
+  .catalog .card--spell .card-foot,
+  .catalog .card--spell .card-desc { display: none; }
+  .catalog .card--spell .card-head { gap: 12px; }
+  .catalog .card--spell .hex-badge {
+    width: 58px;
+    height: 66px;
+  }
+  .catalog .card--spell .hex-badge-inner b { font-size: 1.85rem; }
+  .catalog .card--spell .hex-badge-inner i {
+    margin-top: 1px;
+    font-size: 0.54rem;
+    letter-spacing: 0.04em;
+  }
+  .catalog .card--spell .card-name {
+    display: block;
+    font-size: 1.04rem;
+    line-height: 1.2;
+    overflow-wrap: break-word;
+  }
+  .catalog .card--spell .card-kicker {
+    font-size: 0.74rem;
+    white-space: normal;
+  }
+  .catalog .card--spell .spell-school-mark {
+    top: 50%;
+    right: 2%;
+    bottom: auto;
+    height: 130%;
+    max-height: none;
+    max-width: 50%;
+    opacity: 0.2;
+    transform: translateY(-50%);
+  }
+
+  /* страница: знак школы фоном всей шапки вместо отдельной картинки */
+  .book-hero--deco {
+    display: block;
+    min-height: 120px;
+    margin-top: 4px;
+    padding: 14px;
+  }
+  .book-hero--deco .detail-school-cover { display: none; }
+  .book-hero--deco .spell-school-mark {
+    top: 50%;
+    right: -4%;
+    bottom: auto;
+    height: 150%;
+    max-width: 62%;
+    opacity: 0.3;
+    transform: translateY(-50%);
+  }
+  .book-hero--deco .book-meta { min-width: 0; }
+  .book-hero--deco .setting-kicker { font-size: 0.7rem; }
+  .book-hero--deco .detail-title-row {
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .book-hero--deco .hex-badge {
+    width: 58px;
+    height: 66px;
+  }
+  .book-hero--deco .hex-badge-inner b { font-size: 1.85rem; }
+  .book-hero--deco .hex-badge-inner i { font-size: 0.54rem; letter-spacing: 0.04em; }
+  .book-hero--deco .book-title {
+    margin: 0;
+    font-size: 1.3rem;
+    letter-spacing: 0.04em;
+    overflow-wrap: break-word;
+  }
+  .book-hero--deco .card-chips {
+    gap: 4px;
+    margin-top: 10px !important;
+  }
+  .book-hero--deco .chip { font-size: 0.74rem; }
+  .book-hero--deco + .divider { margin: 10px auto; }
+
+  /* параметры — подписанная сетка вместо плашек */
+  .spell-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 0 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+  }
+  .spell-facts dt {
+    color: var(--gold-2);
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .spell-facts dd {
+    margin: 0;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.25;
+  }
+  .book-page:has(.spell-facts) .detail-note { font-size: 0.82rem; }
+
+  /* «кому доступно» — строка через запятую, а не россыпь плашек */
+  .spell-access {
+    display: block;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+  .spell-access .chip {
+    display: inline;
+    padding: 0;
+    clip-path: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: 0;
+  }
+  .spell-access .chip::before { display: none; }
+  .spell-access .chip::after {
+    content: ', ';
+    position: static;
+    clip-path: none;
+    background: none;
+  }
+  .spell-access .chip:last-child::after { content: none; }
+  .spell-access .chip svg { display: none; }
+}
+
+/* ---------- меню сортировки на телефоне ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* ряд под поиском: слева счётчик, справа кнопка сортировки */
+  .catalog .quest-bar:has(.sort-menu) .quest-total {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    padding-left: 2px;
+  }
+  .sort-menu {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: stretch;
+  }
+  .catalog .quest-bar:not(:has(.quest-filter)) .sort-menu { justify-self: end; }
+  .sort-menu-btn {
+    justify-content: center;
+    width: 100%;
+    min-height: 38px;
+    padding: 6px 16px;
+    font-size: 0.84rem;
+    white-space: nowrap;
+  }
+  .sort-sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 149;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .sort-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--app-tabbar-h);
+    z-index: 150;
+    padding: 12px 16px 14px;
+    text-align: left;
+    background: linear-gradient(180deg, rgb(var(--bg-1-rgb)), rgb(var(--bg-0-rgb)));
+    border-top: 1px solid color-mix(in srgb, var(--gold-1) 50%, transparent);
+    animation: mobile-sheet-up 0.2s ease;
+  }
+  .sort-sheet-title {
+    margin-bottom: 6px;
+    color: var(--gold-3);
+    font-family: var(--font-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .sort-sheet-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 4px;
+    color: var(--text);
+    font-size: 0.95rem;
+    text-align: left;
+    border-top: 1px solid rgb(var(--silver-2-rgb) / 0.12);
+  }
+  .sort-sheet-row svg {
+    flex: none;
+    width: 17px;
+    height: 17px;
+    color: var(--gold-2);
+  }
+  .sort-sheet-row span { flex: 1; }
+  .sort-sheet-row.is-on { color: var(--gold-4); }
+  .sort-sheet-row .sort-sheet-check { color: var(--gold-4); }
+  .page-routes:has(.sort-sheet) {
+    animation: none !important;
+    transform: none !important;
+  }
+  html:has(.sort-sheet) .dice-dock {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+

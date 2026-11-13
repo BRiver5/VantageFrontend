@@ -1,0 +1,315 @@
+/* ---------- Конструктор «Мультикласс» ---------- */
+/* пока окно мультикласса открыто, шапка сайта (и её выпадающий свиток «Классы»)
+   должна быть НАД оверлеем (z-index 200), иначе свиток раскрывается под окном */
+:root[data-mc-open] .sidebar-wrap { z-index: 210; }
+
+.mc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  background: rgba(6, 7, 9, 0.72);
+  backdrop-filter: blur(6px);
+  animation: mc-fade 0.18s ease;
+}
+@keyframes mc-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* окно на всё пространство: шапка и селекты закреплены, способности скроллятся */
+.mc-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-1);
+  border-top: 1px solid transparent;
+  border-image: var(--gold-grad-h) 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  animation: mc-rise 0.2s ease;
+}
+@keyframes mc-rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.mc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 14px clamp(16px, 4vw, 24px);
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.28);
+}
+/* кнопка «назад» в шапке окна — точь-в-точь общесайтовый .back-link, без нижнего отступа */
+.mc-back { margin: 0; }
+
+.mc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+.mc-title svg { width: 20px; height: 20px; }
+.mc-total {
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+}
+.mc-close {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 6px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.mc-close:hover { color: var(--gold-3); }
+.mc-close svg { width: 20px; height: 20px; }
+
+.mc-slots {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  padding: 12px clamp(16px, 4vw, 24px) 14px;
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.2);
+}
+.mc-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.mc-field--lvl { flex: 0 0 74px; min-width: 74px; }
+.mc-field > span {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.mc-field select {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.mc-field select:hover:not(:disabled) { border-color: var(--gold-1); }
+.mc-field select:focus { outline: none; border-color: var(--gold-2); }
+.mc-field select:disabled { opacity: 0.5; cursor: default; }
+.mc-remove {
+  display: inline-flex;
+  padding: 7px;
+  color: var(--text-dim);
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mc-remove:hover { color: #d98a7a; border-color: #7a3b32; }
+.mc-remove svg { width: 16px; height: 16px; }
+.mc-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px 14px;
+  color: var(--gold-3);
+  background: transparent;
+  border: 1px dashed rgb(var(--gold-2-rgb) / 0.5);
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mc-add:hover { background: rgb(var(--gold-2-rgb) / 0.12); }
+.mc-add svg { width: 16px; height: 16px; }
+
+.mc-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px clamp(16px, 4vw, 40px) 32px;
+}
+/* контент способностей ограничиваем по ширине для читаемости на широком экране */
+.mc-body > .class-article,
+.mc-body > .mc-hint { max-width: 900px; margin-inline: auto; }
+.mc-hint,
+.mc-empty {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  padding: 14px 0;
+}
+.mc-empty { padding: 4px 0 10px; font-style: italic; }
+
+/* Заголовок вставленной секции умений подкласса + кнопка «убрать» */
+.subclass-inject-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.class-detail-die {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 44%;
+  width: min(400px, 44vw);
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.5));
+}
+
+.class-detail-portrait {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 12%;
+  width: min(640px, 86vw);
+  height: 92%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.class-detail-portrait > img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55));
+}
+
+.class-detail-fallback {
+  width: 36%;
+  height: 36%;
+  color: rgb(var(--gold-2-rgb) / 0.45);
+  stroke-width: 0.85;
+  align-self: center;
+  margin: auto;
+}
+
+/* мягкий радиант за персонажем: заклинатель — розово-фиолетовый, воин — тёплый красный */
+.class-detail-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 46%;
+  width: min(720px, 92vw);
+  height: min(720px, 92vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(8px);
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(196, 70, 58, 0.38) 0%,
+    rgba(150, 48, 42, 0.2) 34%,
+    rgba(90, 28, 36, 0.08) 58%,
+    transparent 72%
+  );
+}
+.class-detail-hero.is-caster .class-detail-aura {
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(210, 120, 220, 0.4) 0%,
+    rgba(150, 80, 210, 0.22) 36%,
+    rgba(90, 50, 160, 0.1) 58%,
+    transparent 72%
+  );
+}
+
+.class-detail-meta {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(480px, calc(100% - 24px));
+  margin: 0 auto;
+  text-align: center;
+}
+
+.class-detail-name-plate {
+  position: relative;
+  z-index: 6;
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  margin: 0;
+  padding: 15px 44px;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.2vw, 2.05rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  line-height: 1.12;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 28px rgb(var(--gold-2-rgb) / 0.12);
+}
+.class-detail-name-plate::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: var(--hex-wide);
+  background: linear-gradient(168deg, rgba(40, 44, 56, 0.98), rgba(14, 16, 22, 0.99));
+  z-index: -1;
+}
+
+.class-detail-chips {
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .class-detail-stage {
+    min-height: clamp(420px, 72vh, 580px);
+  }
+  .class-detail-die {
+    width: min(320px, 62vw);
+  }
+  .class-detail-portrait {
+    width: min(100%, 94vw);
+    height: 88%;
+  }
+  .class-detail-name-plate {
+    padding: 13px 30px;
+    font-size: 1.35rem;
+  }
+}
+

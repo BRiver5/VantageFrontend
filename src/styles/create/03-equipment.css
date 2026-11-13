@@ -1,0 +1,349 @@
+/* ---------- Шаг «Снаряжение» ---------- */
+
+.cw-gear-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.cw-gear-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  min-width: 150px;
+  padding: 10px 26px;
+  clip-path: var(--hex-wide-blunt);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22);
+}
+.cw-gear-stat svg { grid-row: span 2; width: 22px; height: 22px; color: var(--gold-2); }
+.cw-gear-stat b {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--parchment);
+  line-height: 1.1;
+}
+.cw-gear-stat i {
+  font-style: normal;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.cw-gear-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cw-gear-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.25);
+}
+
+.cw-gear-grant { display: flex; flex-direction: column; gap: 8px; }
+.cw-gear-label { color: var(--silver-2); font-size: 0.86rem; font-style: italic; }
+
+.cw-gear-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+.cw-gear-or {
+  align-self: center;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* вариант — угловатая карточка; выбранный в золотой рамке */
+.cw-gear-option {
+  --cut: 12px;
+  --chamfer: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+  display: flex;
+  padding: 1px;
+  clip-path: var(--chamfer);
+  background: linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.4), rgb(var(--silver-2-rgb) / 0.1) 50%, rgb(var(--silver-2-rgb) / 0.34));
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+/* внешний слой — рамка, внутренний — тёмный фон с тем же срезом углов */
+.cw-gear-option-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  clip-path: var(--chamfer);
+  background: linear-gradient(180deg, rgba(28, 32, 42, 0.96), rgba(14, 16, 22, 0.98));
+}
+.cw-gear-option-btn {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.cw-gear-option-btn { cursor: pointer; }
+.cw-gear-grant.is-choice .cw-gear-option:not(.is-active) { opacity: 0.6; }
+.cw-gear-grant.is-choice .cw-gear-option:not(.is-active):hover { opacity: 0.9; }
+.cw-gear-grant.is-choice .cw-gear-option.is-active {
+  background: var(--gold-grad);
+}
+.cw-gear-grant.is-choice .cw-gear-option.is-active .cw-gear-option-inner {
+  background:
+    radial-gradient(ellipse at 50% 120%, rgb(var(--gold-2-rgb) / 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(28, 32, 42, 0.96), rgba(14, 16, 22, 0.98));
+}
+
+.cw-gear-marker {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: calc(30px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--gold-3);
+}
+.cw-gear-option.is-active .cw-gear-marker {
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+  color: var(--bg-0);
+}
+
+.cw-gear-items { display: flex; flex-wrap: wrap; gap: 10px; }
+.cw-gear-note {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* плитка предмета: картинка на подсвеченной «подставке», подпись под ней */
+.cw-gear-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 96px;
+  text-align: center;
+}
+.cw-gear-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 50% 58%, rgb(var(--gold-3-rgb) / 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(36, 40, 50, 0.9), rgb(var(--bg-0-rgb) / 0.9));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22), 0 6px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease;
+}
+.cw-gear-option.is-active .cw-gear-face { box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.45), 0 6px 14px rgba(0, 0, 0, 0.35); }
+.cw-gear-tile:hover .cw-gear-face { transform: translateY(-2px); }
+.cw-gear-face img {
+  max-width: 62px;
+  max-height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+.cw-gear-face svg { width: 30px; height: 30px; color: rgb(var(--gold-2-rgb) / 0.55); }
+.cw-gear-face b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--gold-3);
+}
+.cw-gear-tile.is-open .cw-gear-face {
+  background: rgb(var(--bg-0-rgb) / 0.5);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--gold-2-rgb) / 0.5);
+}
+.cw-gear-qty {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5);
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold-4);
+}
+/* монеты внутри предмета (кошель с 15 зм) — бейдж с картинкой монеты */
+.cw-gear-purse {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px 2px 3px;
+  border-radius: 999px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.55);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--gold-4);
+}
+.cw-gear-name {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* кошель в сводке: золотая монета вместо значка и монеты по валютам */
+.cw-gear-stat--purse img:first-child { grid-row: span 2; }
+.cw-gear-coins { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.cw-gear-coins span { display: inline-flex; align-items: center; gap: 4px; }
+
+.cw-gear-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+/* кнопка выбора предмета: картинка + название + урон/КД */
+.cw-gsel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.45);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.cw-gsel:hover,
+.cw-gsel.is-open { border-color: var(--gold-3); box-shadow: 0 0 0 3px rgb(var(--gold-2-rgb) / 0.12); }
+.cw-gsel.is-empty { border-style: dashed; }
+.cw-gsel.is-empty .cw-gsel-text b { color: var(--gold-3); }
+.cw-gsel-face {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+  background: radial-gradient(circle at 50% 58%, rgb(var(--gold-3-rgb) / 0.14), rgb(var(--bg-0-rgb) / 0.7) 70%);
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.18);
+}
+.cw-gsel-face img { max-width: 36px; max-height: 36px; object-fit: contain; }
+.cw-gsel-face svg { width: 20px; height: 20px; color: rgb(var(--gold-2-rgb) / 0.6); }
+.cw-gsel-face b { font-family: var(--font-display); color: var(--gold-3); }
+.cw-gsel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-gsel-text b {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cw-gsel-text i { font-style: normal; font-size: 0.76rem; color: var(--text-dim); }
+.cw-gsel-chevron { width: 16px; height: 16px; color: var(--gold-2); transition: transform 0.18s ease; }
+.cw-gsel.is-open .cw-gsel-chevron { transform: rotate(180deg); }
+
+/* выпадающее меню — в body, над всем, кроме попапов */
+.cw-gsel-pop {
+  position: fixed;
+  z-index: 190;
+  display: flex;
+  flex-direction: column;
+  max-height: min(360px, 60vh);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-3-rgb) / 0.7), rgb(var(--silver-2-rgb) / 0.2) 45%, rgb(var(--gold-3-rgb) / 0.5)) border-box;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  animation: cw-gsel-in 0.16s ease;
+}
+.cw-gsel-pop.is-up { animation-name: cw-gsel-in-up; }
+@keyframes cw-gsel-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes cw-gsel-in-up { from { opacity: 0; transform: translateY(6px); } }
+.cw-gsel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+}
+.cw-gsel-search svg { width: 15px; height: 15px; color: var(--gold-2); }
+.cw-gsel-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.cw-gsel-search input:focus { outline: none; }
+.cw-gsel-list {
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.3) transparent;
+}
+.cw-gsel-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 8px 5px 5px;
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cw-gsel-opt:hover,
+.cw-gsel-opt:focus-visible { background: rgb(var(--gold-2-rgb) / 0.12); outline: none; }
+.cw-gsel-opt.is-on { background: rgb(var(--gold-2-rgb) / 0.18); }
+.cw-gsel-opt.is-on .cw-gsel-text b { color: var(--gold-4); }
+.cw-gsel-price { flex-shrink: 0; font-size: 0.8rem; }
+.cw-gsel-check { width: 16px; height: 16px; color: var(--gold-3); flex-shrink: 0; }
+.cw-gsel-empty { padding: 12px; text-align: center; color: var(--text-dim); font-style: italic; }
+
+.cw-gear-fallback {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+@media (max-width: 720px) {
+  .cw-gear-options { flex-direction: column; }
+  .cw-gear-or { align-self: flex-start; }
+  .cw-gear-stat { min-width: 0; flex: 1 1 40%; padding: 8px 20px; }
+}
+

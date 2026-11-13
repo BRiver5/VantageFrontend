@@ -1,0 +1,73 @@
+/* ---------- подробный вид предмета на телефоне ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* колонки на всю ширину: при flex-start ширину задавало содержимое */
+  .item-tube { align-items: stretch; }
+  .item-tube-main,
+  .item-tube-recs { min-width: 0; max-width: 100%; }
+  .tube-comment-input { min-width: 0; }
+  .tube-comment-input input {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 0;
+  }
+  .tube-comment-input .soon-badge { flex: none; }
+  .tube-rate {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    min-width: 0;
+  }
+  .parchment-scroll-title-text {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+  }
+
+  /* лента: картинка начинается ровно от отступа страницы */
+  .rec-card { margin-left: 82px; }
+  .rec-thumb { left: -82px; }
+}
+
+/* ---------- кнопка кубика: смахивание за край ---------- */
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  /* вертикальная прокрутка с кнопки работает, горизонтальный жест — наш */
+  .dice-fab { touch-action: pan-y; }
+  .dice-fab.is-dragging { transition: none; }
+  .dice-stash-tab {
+    position: fixed;
+    right: 0;
+    bottom: calc(var(--app-tabbar-h) + 14px);
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 52px;
+    color: var(--gold-3);
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+    border: 1px solid color-mix(in srgb, var(--gold-1) 55%, transparent);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    touch-action: pan-y;
+    animation: dice-tab-in 0.2s ease;
+  }
+  html:has(.cw-foot) .dice-stash-tab { bottom: 98px; }
+  .dice-stash-tab::after {
+    /* зона нажатия больше видимой части */
+    content: '';
+    position: absolute;
+    inset: -8px 0 -8px -14px;
+  }
+  .dice-stash-tab svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@keyframes dice-tab-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+

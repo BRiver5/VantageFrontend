@@ -1,0 +1,249 @@
+/* ============================================================
+   СТРАНИЦЫ КАТАЛОГА (классы, расы, заклинания, бестиарий, предметы)
+   ============================================================ */
+
+a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; color: inherit; }
+
+.catalog { padding-top: clamp(30px, 5vw, 54px); }
+
+/* Раздел шире обычной колонки (1280): выходим за неё симметрично в пределах
+   области контента (viewport минус сайдбар). Запас шире 34px — иначе 100vw +
+   портреты/карточки чуть вылезают и появляется горизонтальный скролл. */
+.catalog--wide {
+  width: min(calc(100vw - var(--sidebar-w) - 72px), 1520px);
+  margin-left: calc((100% - min(calc(100vw - var(--sidebar-w) - 72px), 1520px)) / 2);
+}
+
+/* поиск по архиву */
+.quest-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 30px 0 8px;
+}
+
+/* строка поиска — оклад: градиентная рамка, золотые уголки, свечение в фокусе */
+.quest-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  width: clamp(240px, 40vw, 400px);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.7), rgb(var(--silver-2-rgb) / 0.25) 40%, rgb(var(--silver-2-rgb) / 0.7)) border-box;
+  transition: box-shadow 0.18s ease;
+}
+.quest-input > svg { width: 18px; height: 18px; color: var(--gold-2); flex-shrink: 0; }
+
+/* уголки-оклад — общий приём с карточками */
+.quest-input::before,
+.quest-input::after,
+.rec-search::before,
+.rec-search::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--gold-2);
+  border-style: solid;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.quest-input::before,
+.rec-search::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.quest-input::after,
+.rec-search::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+.quest-input:focus-within,
+.rec-search:focus-within {
+  box-shadow: 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5), 0 0 18px -4px rgb(var(--gold-2-rgb) / 0.45);
+}
+.quest-input:focus-within::before,
+.quest-input:focus-within::after,
+.rec-search:focus-within::before,
+.rec-search:focus-within::after { opacity: 1; }
+.quest-input input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+}
+.quest-input input::placeholder { color: var(--text-dim); font-style: italic; }
+
+.quest-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.quest-clear svg { width: 14px; height: 14px; color: currentColor; }
+.quest-clear:hover { color: var(--gold-3); }
+
+/* кнопка «Фильтры» с выпадающим меню в шапке каталога */
+/* z-index: карточки с view-transition-name образуют слои — без этого меню
+   фильтров перекрывается предметами и в сетке, и в ленте обзора */
+.quest-filter { position: relative; z-index: 40; }
+.quest-filter-btn { height: 100%; padding: 9px 16px; }
+
+/* в общем меню каталога кнопка крупнее — под стать строке поиска */
+.quest-bar .quest-filter-btn {
+  padding: 12px 26px;
+  font-size: 1.02rem;
+  letter-spacing: 0.06em;
+}
+.quest-bar .quest-filter-btn svg { width: 19px; height: 19px; }
+.quest-bar .rec-filter-count { min-width: 18px; height: 18px; font-size: 0.72rem; }
+
+.quest-filter-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(560px, calc(100vw - 40px));
+  /* книг много — меню не должно уезжать за экран */
+  max-height: min(68vh, 560px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--silver-2-rgb) / 0.3) transparent;
+  padding: 16px 18px 18px;
+  text-align: left;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.55), rgb(var(--silver-1-rgb) / 0.22) 55%, rgb(var(--gold-2-rgb) / 0.55)) border-box;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.62);
+  animation: quest-filter-drop 0.26s cubic-bezier(0.33, 1, 0.35, 1);
+}
+
+.quest-filter-group + .quest-filter-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+}
+
+.quest-filter-group-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+/* вариант без цветной точки (настройка, книга, цена) */
+.rec-filter--plain::before { display: none; }
+
+.quest-total {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+/* панель сортировки — переключаемые гекс-чипы под поиском */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 16px 0 6px;
+}
+
+.sort-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-right: 2px;
+}
+
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  clip-path: var(--hex-chip);
+  padding: 7px 20px;
+  --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  --hex-edge: rgb(var(--silver-2-rgb) / 0.3);
+  background: var(--hex-edge);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.sort-btn svg { width: 15px; height: 15px; stroke-width: 1.6; color: var(--gold-2); flex-shrink: 0; }
+.sort-btn:hover { color: var(--text); --hex-edge: rgb(var(--silver-2-rgb) / 0.55); }
+.sort-btn.is-active {
+  color: var(--gold-4);
+  --hex-in:
+    linear-gradient(180deg, rgb(var(--silver-4-rgb) / 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  --hex-edge: rgb(var(--silver-3-rgb) / 0.6);
+}
+.sort-btn.is-active svg { color: var(--gold-4); }
+
+/* сетка карточек */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+  transition: opacity 0.2s ease;
+}
+.card-grid[data-loading] { opacity: 0.4; pointer-events: none; }
+
+.card-slot { display: flex; }
+
+.card {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.8), rgb(var(--silver-1-rgb) / 0.22) 38%, rgb(var(--silver-1-rgb) / 0.22) 62%, rgb(var(--silver-1-rgb) / 0.8)) border-box;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgb(var(--silver-3-rgb) / 0.16);
+}
+
+/* срезанные уголки как у оклада */
+.card::before,
+.card::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--silver-2);
+  border-style: solid;
+  opacity: 0.8;
+}
+.card::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.card::after { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+

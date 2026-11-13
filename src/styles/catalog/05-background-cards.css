@@ -1,0 +1,279 @@
+/* ---------- Карточка предыстории: горизонтальная, гекс слева ---------- */
+.card-grid:has(.card--bg) {
+  --bg-card-h: 188px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  box-sizing: border-box;
+}
+.card-grid:has(.card--bg) .card-slot {
+  /* мнимое место слева = половина гекса, чтобы выступ не наезжал на соседа */
+  overflow: visible;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: calc(var(--bg-hex-w) / 2);
+}
+
+.card.card--bg {
+  --bg-card-h: 188px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  height: var(--bg-card-h);
+  min-height: var(--bg-card-h);
+  padding: 12px 14px 12px calc(var(--bg-hex-w) / 2 + 18px);
+  overflow: visible;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgba(28, 31, 38, 0.96), rgba(16, 18, 22, 0.98)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-2-rgb) / 0.7), rgb(var(--silver-1-rgb) / 0.2) 40%, rgb(var(--silver-1-rgb) / 0.2) 60%, rgb(var(--silver-2-rgb) / 0.7)) border-box;
+}
+.card.card--bg:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgb(var(--silver-3-rgb) / 0.14);
+}
+.card.card--bg:hover .bg-card-hex {
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 14px rgb(var(--silver-3-rgb) / 0.28));
+}
+.card.card--bg:hover .bg-card-go {
+  color: var(--gold-3);
+}
+
+.bg-card-hex {
+  position: absolute;
+  left: calc(var(--bg-hex-w) / -2);
+  top: 0;
+  width: var(--bg-hex-w);
+  height: 100%;
+  clip-path: var(--hex-point);
+  background: var(--silver-grad);
+  padding: 2.2px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
+  transition: filter 0.22s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+.bg-card-hex-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: var(--hex-point);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.bg-card-hex-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+.bg-card-hex-fallback {
+  position: absolute;
+  inset: 28%;
+  width: 44%;
+  height: 44%;
+  color: rgb(var(--gold-3-rgb) / 0.32);
+  stroke-width: 1.2;
+}
+
+.bg-card-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+}
+.bg-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.bg-card-head .card-name {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 1.22rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bg-card-head .source-chip {
+  flex-shrink: 0;
+}
+.bg-card-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.bg-card-skills {
+  gap: 5px;
+  margin: 0;
+}
+.bg-card-skills .chip {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+.bg-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  min-width: 0;
+}
+.bg-card-go {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+  transition: color 0.2s ease;
+}
+.bg-card-go svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ряд квадратиков снаряжения на карточке предыстории */
+.eq-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.eq-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.35);
+}
+.eq-icon-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 6px;
+}
+.eq-icon-face--empty,
+.eq-icon-face--choice {
+  display: grid;
+  place-items: center;
+}
+.eq-icon-face--empty svg {
+  width: 18px;
+  height: 18px;
+  color: rgb(var(--gold-3-rgb) / 0.42);
+  stroke-width: 1.4;
+}
+.eq-icon-face--choice {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-3);
+  background: linear-gradient(180deg, rgba(28, 24, 15, 0.95), rgba(11, 10, 8, 0.98));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+}
+.eq-icon-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 4px 1px 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgb(var(--gold-3-rgb) / 0.45);
+  z-index: 1;
+}
+.eq-icon-badge img,
+.eq-icon-badge-fallback {
+  width: 14px;
+  height: 14px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.eq-icon-badge-fallback {
+  color: var(--gold-3);
+  stroke-width: 1.6;
+}
+.eq-icon-badge b {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--gold-4);
+  line-height: 1;
+}
+.eq-icon--more {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: linear-gradient(180deg, rgb(var(--bg-3-rgb) / 0.95), rgba(18, 20, 24, 0.98));
+}
+
+/* ряд плашек характеристик на карточке черты (вместо снаряжения у предыстории) */
+.fa-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.fa-tile {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.35);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver-3);
+}
+.fa-tile b {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--parchment);
+}
+

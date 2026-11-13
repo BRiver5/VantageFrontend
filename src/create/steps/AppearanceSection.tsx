@@ -6,7 +6,8 @@
 import { useState, type CSSProperties } from 'react'
 import { ChevronDown, UserRound } from 'lucide-react'
 import { realImage } from '../../api'
-import { HeightChart, fmtM, raceAverageHeight, sizeHeightRange } from '../../creatureSheet'
+import { HeightChart } from '../../creature/HeightChart'
+import { fmtM, raceAverageHeight, sizeHeightRange } from '../../creature/height'
 import type { StepProps } from '../draft'
 
 const GENDERS = ['Мужской', 'Женский']

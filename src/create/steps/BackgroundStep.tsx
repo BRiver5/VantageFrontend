@@ -7,7 +7,7 @@ import { Check, Landmark, Star } from 'lucide-react'
 import { realImage } from '../../api'
 import type { Background } from '../../api'
 import { EquipmentIconRow } from '../../pages/StartingEquipment'
-import { BackgroundDetailBody } from '../../pages/DetailPages'
+import { BackgroundDetailBody } from '../../pages/details/BackgroundDetail'
 import type { StepProps } from '../draft'
 import {
   ChoiceModal,

@@ -1,0 +1,98 @@
+/* ============================================================
+   ГЕРОЙ + КНОПКА «ИГРАТЬ» (вытянутый гексагон)
+   ============================================================ */
+
+.hero {
+  text-align: center;
+  padding: clamp(40px, 7vw, 84px) 0 0;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.1rem, 5.4vw, 3.8rem);
+  letter-spacing: 0.16em;
+  line-height: 1.12;
+  text-transform: uppercase;
+}
+
+.hero-sub {
+  margin: 14px auto 0;
+  max-width: 620px;
+  color: var(--text-dim);
+  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.play-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(30px, 4.5vw, 48px);
+}
+
+.play-btn {
+  position: relative;
+  clip-path: var(--hex-wide);
+  background: var(--silver-grad);
+  padding: 2px;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgb(var(--silver-3-rgb) / 0.28));
+  transition: filter 0.3s ease, transform 0.2s ease;
+}
+
+.play-btn-inner {
+  position: relative;
+  clip-path: var(--hex-wide);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: clamp(280px, 40vw, 420px);
+  padding: 20px 72px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 160% at 50% -30%, rgba(154, 110, 34, 0.5), transparent 55%),
+    linear-gradient(180deg, #2e333d 0%, var(--bg-2) 55%, #121419 100%);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 2.4vw, 1.72rem);
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-transform: uppercase;
+}
+
+.play-btn-inner svg { width: 26px; height: 26px; stroke-width: 1.6; color: var(--gold-3); }
+.play-btn-inner .die-play-icon { width: 26px; height: 26px; }
+
+/* блуждающий блик по кнопке */
+.play-btn-inner::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  width: 46px;
+  left: -80px;
+  background: linear-gradient(100deg, transparent, rgb(var(--silver-4-rgb) / 0.28), transparent);
+  transform: skewX(-22deg);
+  animation: sheen 4.2s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  0%, 55% { left: -90px; }
+  85%, 100% { left: calc(100% + 40px); }
+}
+
+.play-btn:hover { filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 34px rgb(var(--silver-3-rgb) / 0.5)) brightness(1.12); transform: translateY(-2px) scale(1.012); }
+.play-btn:active { transform: translateY(0) scale(0.995); }
+
+.play-hint {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+

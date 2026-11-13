@@ -1,0 +1,80 @@
+/* ============================================================
+   Оболочка каталог ⇄ деталь (классы): короткий fade + лёгкий подъём.
+   Без shared-element морфа и разлёта карточек.
+   ============================================================ */
+@keyframes shell-out {
+  to { opacity: 0; filter: blur(3px); }
+}
+@keyframes shell-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+html[data-nav='1']::view-transition-old(root) {
+  animation: shell-out 0.28s ease both;
+}
+html[data-nav='1']::view-transition-new(root) {
+  animation: shell-in 0.4s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+/* подкласс: обложка соты ⇄ деталь (отдельный морф, не оболочка классов) */
+::view-transition-group(subclass-hero-img) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+::view-transition-old(subclass-hero-img) {
+  animation: none;
+  opacity: 0;
+  mix-blend-mode: normal;
+}
+::view-transition-new(subclass-hero-img) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+/* расы (heroNav): разлёт соседних карточек */
+@keyframes cardfly-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-115vw); }
+}
+@keyframes cardfly-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(115vw); }
+}
+::view-transition-group(class-hero-img),
+::view-transition-group(class-hero-title),
+::view-transition-group(class-hero-die) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+::view-transition-old(class-hero-img),
+::view-transition-old(class-hero-title),
+::view-transition-old(class-hero-die) {
+  animation: none;
+  opacity: 0;
+  mix-blend-mode: normal;
+}
+::view-transition-new(class-hero-img),
+::view-transition-new(class-hero-title),
+::view-transition-new(class-hero-die) {
+  animation: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+::view-transition-old(fly-l-0), ::view-transition-old(fly-l-1), ::view-transition-old(fly-l-2),
+::view-transition-old(fly-l-3), ::view-transition-old(fly-l-4), ::view-transition-old(fly-l-5),
+::view-transition-old(fly-l-6), ::view-transition-old(fly-l-7), ::view-transition-old(fly-l-8),
+::view-transition-old(fly-l-9), ::view-transition-old(fly-l-10), ::view-transition-old(fly-l-11),
+::view-transition-old(fly-l-12), ::view-transition-old(fly-l-13), ::view-transition-old(fly-l-14),
+::view-transition-old(fly-l-15) {
+  animation: cardfly-left 0.9s cubic-bezier(0.33, 0.05, 0.35, 1) both;
+}
+::view-transition-old(fly-r-0), ::view-transition-old(fly-r-1), ::view-transition-old(fly-r-2),
+::view-transition-old(fly-r-3), ::view-transition-old(fly-r-4), ::view-transition-old(fly-r-5),
+::view-transition-old(fly-r-6), ::view-transition-old(fly-r-7), ::view-transition-old(fly-r-8),
+::view-transition-old(fly-r-9), ::view-transition-old(fly-r-10), ::view-transition-old(fly-r-11),
+::view-transition-old(fly-r-12), ::view-transition-old(fly-r-13), ::view-transition-old(fly-r-14),
+::view-transition-old(fly-r-15) {
+  animation: cardfly-right 0.9s cubic-bezier(0.33, 0.05, 0.35, 1) both;
+}
+

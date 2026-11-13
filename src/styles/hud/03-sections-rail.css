@@ -1,0 +1,122 @@
+/* ---------- панель разделов справа ---------- */
+
+.ghud-rail {
+  position: relative;
+  z-index: 30;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  background: linear-gradient(90deg, rgb(var(--bg-0-rgb) / 0.72), rgb(var(--bg-1-rgb) / 0.97));
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--gold-1) 45%, transparent);
+}
+.ghud-rail button {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 2);
+  min-height: 0;
+  padding: 0;
+  background: none;
+  color: var(--text-dim);
+}
+.ghud-rail-sign {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 34);
+  height: calc(var(--u) * 34 * var(--hex-aspect) * 0.92);
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.26), rgb(var(--gold-2-rgb) / 0.06));
+  color: var(--gold-3);
+}
+.ghud-rail-sign svg { width: calc(var(--u) * 17); height: calc(var(--u) * 17); }
+.ghud-rail button > i {
+  font-size: calc(var(--u) * 10.5);
+  font-style: normal;
+  line-height: 1;
+}
+.ghud-rail button.is-on { color: var(--gold-4); }
+.ghud-rail button.is-on::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 2px;
+  background: var(--gold-4);
+  box-shadow: 0 0 8px var(--gold-3);
+}
+.ghud-rail button.is-on .ghud-rail-sign {
+  background: var(--gold-grad);
+  color: var(--bg-0);
+}
+
+/* ---------- кнопка кубиков ---------- */
+
+[data-hud='sheet'] .dice-dock {
+  left: auto;
+  right: calc(var(--rail) + var(--u) * 12);
+  bottom: calc(var(--u) * 8);
+  align-items: flex-end;
+}
+[data-hud='sheet'] .dice-fab {
+  width: calc(var(--u) * 48);
+  height: calc(var(--u) * 48 * var(--hex-aspect));
+}
+[data-hud='sheet'] .dice-fab .die-fab-icon {
+  width: calc(var(--u) * 26) !important;
+  height: calc(var(--u) * 26) !important;
+}
+[data-hud='sheet'] .dice-stash-tab {
+  right: var(--rail);
+  bottom: calc(var(--u) * 10);
+}
+/* панель кубиков — в два столбца, иначе не помещается по высоте */
+[data-hud='sheet'] .dice-tray-wrap {
+  width: min(calc(var(--u) * 470), calc(100vw - var(--rail) - 80px));
+  max-height: calc(100dvh - var(--u) * 78);
+  padding: calc(var(--u) * 8) calc(var(--u) * 10);
+  overflow-y: auto;
+}
+[data-hud='sheet'] .dice-tray-head { margin-bottom: calc(var(--u) * 4); }
+[data-hud='sheet'] .dice-tray {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--u) * 3) calc(var(--u) * 14);
+}
+[data-hud='sheet'] .dice-tray-row {
+  min-height: 0;
+  padding: calc(var(--u) * 2) 0;
+  gap: calc(var(--u) * 6);
+  border: none;
+}
+[data-hud='sheet'] .dice-shape-icon-wrap {
+  width: calc(var(--u) * 34);
+  height: calc(var(--u) * 34);
+}
+[data-hud='sheet'] .dice-qty-btn {
+  width: calc(var(--u) * 34);
+  height: calc(var(--u) * 34 * var(--hex-aspect));
+}
+[data-hud='sheet'] .dice-roll-morph { height: calc(var(--u) * 46); }
+[data-hud='sheet'] .dice-close-btn {
+  width: calc(var(--u) * 46);
+  height: calc(var(--u) * 46 * var(--hex-aspect));
+}
+[data-hud='sheet'] .dice-dock { gap: calc(var(--u) * 6); }
+
+/* в окне и в просьбе повернуть экран кнопка только мешает */
+html:has(.hud-win) .dice-dock:not(.is-open),
+html:has(.hud-pop) .dice-dock:not(.is-open),
+html:has(.hud-hp) .dice-dock:not(.is-open),
+html:has(.hud-menu) .dice-dock:not(.is-open),
+html[data-rotate] .dice-dock {
+  opacity: 0;
+  pointer-events: none;
+}
+

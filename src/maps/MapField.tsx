@@ -10,13 +10,29 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { parsePortrait } from '../characters/portrait'
 import { useRoom, useRoomEvents } from '../rooms/RoomProvider'
 import { creatureArt } from '../rooms/table/parts'
-import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, moveToken, myUnits, patchMap, pickUp, type MyUnit } from './api'
+import { SceneLight } from './SceneLight'
+import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePreview, myUnits, patchMap, pickUp, type MyUnit } from './api'
 import { getAttribution, sfxFor, type AssetCredit } from './assets'
 import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
-import { angleTo, areaPolygon, cellCenter, cellOf, dist, pxPerFt } from './geometry'
-import { MapCanvas, pathPoints, type MapCanvasHandle } from './MapCanvas'
+import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
+import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
+import { parsePing, pingColor, pingKindFor, userColor, type PingKind } from './pings'
+import { PAUSE_HINT, isPausedStatus } from '../rooms/pause'
+import { RulerHud } from './ruler/RulerHud'
+import { useRuler } from './ruler/useRuler'
+import { tokenAt as hitToken } from './render/hit'
+import { TokenHud } from './hud/TokenHud'
+import { useMapHud } from './hud/useMapHud'
+import { onTokenFocus } from './focus'
+import { maskTokenLabels, tokenHealth, turnTokenId } from './partyOverlays'
+import { isAnimated, tokenLooks } from './tokenLooks'
+import { useAttackFx } from './useAttackFx'
 import type { AimInfo, AimRequest, MapToken, MapVfx, Pt, SpellTargeting } from './types'
+import { useFieldLayers } from './layers/useFieldLayers'
+import { DrawBar } from './drawings/DrawBar'
+import { MapSoundsPlayer } from './sounds/MapSoundsPlayer'
+import { NotePopup } from './notes/NotePopup'
 
 /** Что сейчас наводится */
 export interface AimSpec {
@@ -72,6 +88,14 @@ export function MapField({
   const meUser = data?.me.user_id
   const mine = data?.me.room_character_id ?? null
   const combat = data?.combat
+  // пауза: игроку ход, двери и объекты закрыты (сервер всё равно ответит 423)
+  const frozen = !isDm && isPausedStatus(data?.room.status)
+  useEffect(() => {
+    if (!frozen) return
+    dragging.current = null
+    setSelected(null)
+    setReach(null)
+  }, [frozen])
 
   // мои существа по серверу: герой и призванные; обновляем после событий карты и боя
   const [units, setUnits] = useState<MyUnit[]>([])
@@ -113,6 +137,38 @@ export function MapField({
     return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
   }, [map, combat, meUser, mine, units])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
+
+  // p1/hud: панель жетона (правый клик, долгое нажатие) и цели (T, Shift + клик, Shift + рамка)
+  const hud = useMapHud({
+    map,
+    isDm,
+    tokenAt: (p) => (map ? (hitToken(map, isDm, new Map(), p) ?? undefined) : undefined),
+    onOpenCard: onOpen,
+    onTakeOver: () => {
+      clearTimeout(press.current)
+      const dg = dragging.current
+      dragging.current = null
+      if (dg) setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== dg.id)))
+    },
+    // Shift + клик по пустому без протягивания: у мастера — пинг «сюда» (рамка целей — при протягивании)
+    onEmptyShiftClick: (p) => {
+      if (isDm) sendPing(p, 'pan')
+    },
+  })
+  // игроку — имена существ, которые ему открыты; здоровье под жетонами; кольцо хода
+  const characters = data?.characters
+  const creatures = data?.creatures
+  const shownMap = useMemo(() => (map ? maskTokenLabels(map, creatures ?? [], isDm) : null), [map, creatures, isDm])
+  const health = useMemo(() => (map ? tokenHealth(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }, isDm) : {}), [map, characters, creatures, combat, isDm])
+  const turnToken = map ? turnTokenId(map, combat ?? null) : null
+  // состояния на жетонах (невидим, горит, отравлен…) и анимация атак без map.vfx
+  const looks = useMemo(() => (map ? tokenLooks(map, { characters: characters ?? [], creatures: creatures ?? [], combat: combat ?? null }) : {}), [map, characters, creatures, combat])
+  const looksLive = useMemo(() => Object.values(looks).some(isAnimated), [looks])
+  useAttackFx(canvas, map)
+
+  // «Показать на карте» из панели отряда: камера на жетон, свой — выбрать
+  const focusRef = useRef<(id: string) => void>(() => undefined)
+  useEffect(() => onTokenFocus((id) => focusRef.current(id)), [])
 
   const flash = (text: string) => {
     setNote(text)
@@ -182,7 +238,10 @@ export function MapField({
       return
     }
     if (msg.type === 'map.ping' && fromOther && p.map_id === map.id) {
-      canvas.current?.ping({ x: Number(p.x), y: Number(p.y) }, (p.color as string) || '#f5d06a')
+      const pg = parsePing(p)
+      if (!pg) return
+      canvas.current?.ping(pg.at, pingColor(pg.kind, pg.color ?? userColor(pg.userId)), pg.kind)
+      if (pg.kind === 'pan') canvas.current?.panTo(pg.at, pg.zoom)
       return
     }
     if (msg.type === 'map.aim' && fromOther && p.map_id === map.id) {
@@ -281,18 +340,38 @@ export function MapField({
       flash(errText(e))
     }
   }
-  const go = async (t: MapToken, to: Pt) => {
-    if (!map) return
-    try {
-      await moveToken(roomId, map.id, t.id, { to, mode: moveMode, ...(moveMode === 'fly' ? { elevation_ft: flyHeight } : {}) })
+  // линейка и маршрут перетаскивания: точки, высота, цена и атаки по возможности
+  const fieldRef = useRef<HTMLDivElement>(null)
+  const ruler = useRuler({
+    map,
+    roomId,
+    field: fieldRef,
+    moveMode,
+    flyHeight,
+    onError: flash,
+    onMoved: () => {
       setReach(null)
       setSelected(null)
-    } catch (e) {
-      flash(errText(e))
-    }
+    },
+  })
+  focusRef.current = (id) => {
+    const t = map?.tokens.find((x) => x.id === id)
+    if (!t || (!isDm && t.hidden)) return
+    canvas.current?.centerOn({ x: t.x, y: t.y })
+    canvas.current?.ping({ x: t.x, y: t.y })
+    if (canMove(t) && !aim && !targeting) void select(t)
   }
+  // p2/layers: метки, звуки местности, рисунки
+  const lay = useFieldLayers({ map, canvas, myTokens, selected, onError: flash })
 
   if (!map) return null
+
+  /** пинг: себе сразу, другим через сокет; «сюда» несёт масштаб мастера */
+  const sendPing = (p: Pt, kind: PingKind = 'basic') => {
+    const zoom = kind === 'pan' ? canvas.current?.zoom() : undefined
+    sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y), kind, ...(zoom ? { zoom: Math.round(zoom * 1000) / 1000 } : {}) })
+    canvas.current?.ping(p, pingColor(kind, userColor(meUser)), kind)
+  }
 
   const tokenAt = (p: Pt) => map.tokens.filter((t) => (isDm || !t.hidden) && Math.hypot(t.x - p.x, t.y - p.y) <= (t.size * map.grid.cell_px) / 2).sort((a, b) => a.size - b.size)[0]
   const onPointer = (kind: 'down' | 'move' | 'up', p: Pt, e: RPointerEvent): boolean | void => {
@@ -305,23 +384,33 @@ export function MapField({
       }
       return true
     }
+    if (lay.pointer(kind, p, e, !!dragging.current)) return true
+    if (ruler.pointer(kind, p, e)) return true
+    if (hud.handle(kind, p, e)) return true
     if (kind === 'down') {
       clearTimeout(press.current)
+      // Alt+клик — «внимание», Shift+клик мастера — «сюда»
+      const special = e.button === 0 ? pingKindFor(e, isDm) : null
+      if (special) {
+        sendPing(p, special)
+        return true
+      }
       if (e.button === 2) {
-        sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y) })
-        canvas.current?.ping(p)
+        sendPing(p)
         return true
       }
       const t = tokenAt(p)
+      if (t && canMove(t) && !targeting && frozen) {
+        flash(PAUSE_HINT)
+        return true
+      }
       if (t && canMove(t) && !targeting) {
         dragging.current = { id: t.id, from: { x: t.x, y: t.y } }
+        ruler.dragBegin(t)
         return true
       }
       // долгое нажатие — пинг
-      press.current = setTimeout(() => {
-        sendEphemeral({ type: 'map.ping', map_id: map.id, x: Math.round(p.x), y: Math.round(p.y) })
-        canvas.current?.ping(p)
-      }, 650)
+      press.current = setTimeout(() => sendPing(p), 600)
       return false
     }
     if (kind === 'move') {
@@ -329,11 +418,12 @@ export function MapField({
       const dg = dragging.current
       if (dg) {
         setDrags((d) => ({ ...d, [dg.id]: p }))
+        ruler.dragMove(p)
         const now = performance.now()
         if (now - lastDrag.current > 66) {
           lastDrag.current = now
           const t = map.tokens.find((x) => x.id === dg.id)
-          sendEphemeral({ type: 'map.drag', map_id: map.id, token_id: dg.id, x: Math.round(p.x), y: Math.round(p.y), elevation_ft: t?.elevation_ft ?? 0, ...(t?.hidden ? { hidden: true } : {}) })
+          sendEphemeral({ type: 'map.drag', map_id: map.id, token_id: dg.id, x: Math.round(p.x), y: Math.round(p.y), elevation_ft: ruler.dragElevation ?? t?.elevation_ft ?? 0, ...(t?.hidden ? { hidden: true } : {}) })
         }
         return
       }
@@ -347,8 +437,9 @@ export function MapField({
     if (dg) {
       const t = map.tokens.find((x) => x.id === dg.id)
       setDrags((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== dg.id)))
-      if (!t) return
+      if (!t) return ruler.dragCancel()
       if (dist(dg.from, p) < map.grid.cell_px * 0.4) {
+        ruler.dragCancel()
         // это был клик: выбрать или открыть
         if (selected === t.id) {
           setSelected(null)
@@ -356,8 +447,8 @@ export function MapField({
         } else void select(t)
         return
       }
-      const [c, r] = cellOf(map.grid, p)
-      void go(t, cellCenter(map.grid, c, r))
+      // по клеткам маршрута с точками; атака по возможности — сначала вопрос
+      void ruler.dragDrop(t, p)
       return
     }
     // объект с действиями: «Обыскать», «Открыть»… — если не идём на эту клетку
@@ -383,7 +474,7 @@ export function MapField({
     if (selected && reach) {
       const t = map.tokens.find((x) => x.id === selected)
       const [c, r] = cellOf(map.grid, p)
-      if (t && reach.has(`${c},${r}`)) void go(t, cellCenter(map.grid, c, r))
+      if (t && reach.has(`${c},${r}`)) void ruler.moveTo(t, [c, r])
       else {
         setSelected(null)
         setReach(null)
@@ -406,12 +497,13 @@ export function MapField({
   const byCombatant = (cid: string) => map.tokens.find((t) => t.combatant_id === cid)?.id
   const tokenChances = Object.fromEntries(Object.entries(chances ?? {}).map(([cid, ch]) => [byCombatant(cid), ch]).filter(([k]) => !!k))
   const pickedTokens = (picked ?? []).map(byCombatant).filter((x): x is string => !!x)
+  const hudToken = hud.hud ? map.tokens.find((t) => t.id === hud.hud!.tokenId && (isDm || !t.hidden)) : undefined
 
   return (
-    <div className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}`}>
+    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave} onDragOver={lay.dragOver} onDrop={lay.drop}>
       <MapCanvas
         ref={canvas}
-        map={map}
+        map={shownMap ?? map}
         viewer={{ isDm, eyes: myTokens.map((t) => t.id) }}
         artOf={artOf}
         overlays={{
@@ -425,20 +517,32 @@ export function MapField({
           chances: tokenChances,
           picked: pickedTokens,
           ghosts: Object.values(ghosts),
+          ruler: ruler.overlay,
+          targets: hud.targets,
+          targetBox: hud.box,
+          health,
+          turn: turnToken,
+          looks,
+          looksLive,
+          ...lay.overlays,
         }}
         onPointer={onPointer}
         onToken={(t) => {
+          if (hud.tookTap()) return
           if (targeting && t.combatant_id) return onTarget?.(t.combatant_id)
           if (canMove(t)) return
           onOpen?.(t)
         }}
         onDoor={(wallId) => {
+          if (frozen) return flash(PAUSE_HINT)
           const w = map.walls.find((x) => x.id === wallId)
           const me = myTokens[0]
           void doorAction(roomId, map.id, wallId, w?.door?.open ? 'close' : 'open', me?.id).catch((e) => flash(errText(e)))
         }}
       />
       {hoverCost != null && sel && <span className="mp-cost">{hoverCost} фт.</span>}
+      {!aim && <RulerHud active={ruler.active} started={ruler.started} total={ruler.total} offset={ruler.offset} route={ruler.route} pending={ruler.pending} onToggle={ruler.toggle} onConfirm={ruler.confirm} onDismiss={ruler.dismiss} />}
+      {hud.hud && hudToken && <TokenHud key={hudToken.id} map={map} token={hudToken} anchor={hud.hud} targeted={hud.targets.includes(hudToken.id)} onClose={hud.closeHud} onOpenCard={onOpen} />}
       {aim && (
         <div className="mp-aimbar">
           <b>{aim.spell}</b>
@@ -499,6 +603,17 @@ export function MapField({
         </div>
       )}
       <Credits map={map} />
+      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isDm ? lay.togglePlayersDraw : undefined} />}
+      <MapSoundsPlayer map={map} sounds={lay.layers.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
+      {lay.popup && <NotePopup key={lay.popup.id} note={lay.popup} onClose={lay.closePopup} />}
+      {lay.placing && (
+        <p className="mp-note is-soft ly-placing">
+          Нажмите на карту, чтобы поставить метку «{lay.placing.title}»{' '}
+          <button type="button" className="ly-btn" onClick={lay.cancelPlacing}>
+            отмена
+          </button>
+        </p>
+      )}
       {objMenu && (
         <div className="mp-objmenu" role="dialog" aria-label={objMenu.name}>
           <b>{objMenu.name}</b>
@@ -525,6 +640,7 @@ export function MapField({
         </div>
       )}
       {isDm && !aim && <DmMapTools map={map} roomId={roomId} onError={flash} onDone={flash} />}
+      {isDm && !aim && <SceneLight map={map} roomId={roomId} onError={flash} onDone={flash} />}
       {isDm && fired.length > 0 && (
         <ul className="mp-fired" aria-label="Сработавшие триггеры">
           {fired.map((f) => (
@@ -532,6 +648,7 @@ export function MapField({
           ))}
         </ul>
       )}
+      {frozen && <p className="mp-note is-soft mp-paused-hint">{PAUSE_HINT}</p>}
       {!isDm && map.fog?.mode !== 'off' && !map.fog?.honest && myTokens.length === 0 && <p className="mp-note is-soft">Вашего героя нет на карте</p>}
     </div>
   )

@@ -1,0 +1,56 @@
+/* Мастер на столе: темнота сцены и сброс тумана; конструктор: свойства света */
+
+.mp-scenelight { position: absolute; left: 10px; top: 46px; z-index: 5; max-width: min(300px, calc(100% - 20px)); }
+.mp-scenelight-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--radius-pill, 999px);
+  background: rgb(var(--bg-0-rgb) / 0.85);
+  color: var(--gold-3);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.mp-scenelight-btn svg, .mp-scenelight-pop svg { width: 14px; height: 14px; }
+.mp-scenelight-btn:focus-visible, .mp-scenelight-pop :is(button, select, input):focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mp-scenelight-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(var(--bg-0-rgb) / 0.92);
+  color: var(--parchment);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.25);
+}
+.mp-scenelight-range { display: grid; gap: 4px; font-size: 12px; }
+.mp-scenelight-range span { display: flex; justify-content: space-between; gap: 8px; }
+.mp-scenelight-range output { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.mp-scenelight-range input { width: 100%; accent-color: var(--gold-2); }
+.mp-scenelight-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mp-scenelight-pop button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: var(--radius-pill, 999px);
+  background: rgb(var(--gold-3-rgb) / 0.14);
+  color: var(--gold-3);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mp-scenelight-pop button:disabled { opacity: 0.45; cursor: default; }
+.mp-scenelight-pop select { padding: 2px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; }
+.mp-scenelight-pop .mp-scenelight-reset { align-self: flex-start; background: rgb(224 112 112 / 0.14); color: var(--danger-soft); }
+
+.me-light-adv { display: grid; gap: 8px; margin-top: 4px; }
+.me-light-adv > summary { cursor: pointer; color: var(--gold-3); font-size: 12.5px; }
+.me-light-range { display: flex; align-items: center; gap: 6px; }
+.me-light-range input { min-width: 0; flex: 1; }
+.me-light-hint { margin: 0; color: var(--text-dim); font-size: 11.5px; line-height: 1.4; }

@@ -8,7 +8,7 @@ import { Check, Eye, Footprints, GitFork, Ruler, VenetianMask } from 'lucide-rea
 import type { LucideIcon } from 'lucide-react'
 import { ABILITY_RU, isFramedArt, realImage, sizeRu } from '../../api'
 import type { Race } from '../../api'
-import { RaceDetailBody } from '../../pages/DetailPages'
+import { RaceDetailBody } from '../../pages/details/RaceDetail'
 import { RaceBoosts, boostInfo, boostsAbility } from '../../raceBoosts'
 import { useBookWorld } from '../../worldArt'
 import type { StepProps } from '../draft'

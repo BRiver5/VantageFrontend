@@ -57,6 +57,8 @@ export interface MapObject {
   interactions?: MapInteraction[]
   state?: Record<string, unknown>
   hidden?: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 /** Действие на объекте: «Открыть», «Обыскать», «Потянуть рычаг». Игроку — без check и сценария */
@@ -82,6 +84,8 @@ export interface MapWall {
   blocks: { move: boolean; sight: boolean; light: boolean; sound: boolean }
   door?: { open: boolean; locked: boolean; lock_dc?: number | null; secret?: boolean } | null
   one_way?: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapLight {
@@ -97,6 +101,32 @@ export interface MapLight {
   flicker: boolean
   attached_to?: string | null
   enabled: boolean
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
+  /** источник тьмы: гасит свет и закрывает обзор */
+  negative?: boolean
+  /** горит, пока темнота сцены в диапазоне */
+  darkness_min?: number
+  darkness_max?: number
+  animation?: LightAnimation
+  /** 1..10 */
+  animation_speed?: number
+  /** 1..10 */
+  animation_intensity?: number
+  /** 0..1: насколько свет окрашивает сцену */
+  color_intensity?: number
+}
+
+export type LightAnimation = 'none' | 'torch' | 'pulse' | 'chroma' | 'fog' | 'sunburst'
+
+/** Окружение и темнота сцены 0..1 с переходом по времени сервера */
+export interface MapAmbient {
+  level: 'bright' | 'dim' | 'dark'
+  color: string | null
+  darkness?: number
+  darkness_from?: number
+  darkness_started_at?: string | null
+  darkness_duration_s?: number
 }
 
 export type VisionMode = 'normal' | 'darkvision' | 'blindsight' | 'truesight' | 'tremorsense'
@@ -123,6 +153,8 @@ export interface MapToken {
   group?: string | null
   side?: 'party' | 'enemies' | 'neutral' | null
   light_id?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapItem {
@@ -137,6 +169,8 @@ export interface MapItem {
   container_object_id?: string | null
   asset_id?: string | null
   image_url?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
 }
 
 export interface MapZone {
@@ -157,6 +191,10 @@ export interface MapZone {
   obscured?: 'none' | 'lightly' | 'heavily'
   duration_rounds?: number | null
   asset_id?: string | null
+  /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
+  locked?: boolean
+  /** «без погоды»: навес, пещера */
+  no_weather?: boolean
 }
 
 /** Блок сценария: op и поля по /scene-blocks */
@@ -241,17 +279,35 @@ export interface BattleMap {
   objects: MapObject[]
   walls: MapWall[]
   lights: MapLight[]
-  ambient: { level: 'bright' | 'dim' | 'dark'; color: string | null }
+  ambient: MapAmbient
   tokens: MapToken[]
   items: MapItem[]
   zones: MapZone[]
-  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean }
+  /** explored — только игроку при динамическом тумане: его исследованные клетки "col,row" */
+  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean; explored?: string[] }
+  /** время сервера в момент отправки (ISO) — для синхронного перехода темноты */
+  server_time?: string
   /** только мастеру */
   triggers?: MapTrigger[]
   spawns?: SpawnCycle[]
   variables?: Record<string, unknown>
   audio?: { music: string[]; ambience: string[]; soundboard: string[]; volume: number }
-  rules?: { high_ground_advantage: boolean; pickup_costs: string }
+  rules?: { high_ground_advantage: boolean; high_ground_min_ft?: number; pickup_costs: string }
+  /** погода сцены: частицы поверх карты (нет — ясно) */
+  weather?: MapWeather
+  /** игроку: фигуры спрятанных зон «без погоды» */
+  weather_masks?: MapZone['shape'][]
+}
+
+export type WeatherKind = 'none' | 'rain' | 'snow' | 'fog' | 'ash' | 'embers' | 'leaves'
+export interface MapWeather {
+  kind: WeatherKind
+  /** 0..1 */
+  intensity: number
+  /** куда дует ветер: 0° — вправо, по часовой */
+  wind_deg: number
+  /** сила ветра 0..1 */
+  wind: number
 }
 
 /** Пакет конструктора: add / update / remove по видам */

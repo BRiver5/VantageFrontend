@@ -1,0 +1,155 @@
+/* ============================================================
+   VANTAGE — токены дизайн-системы (слой `tokens`)
+   «дорогой средневековый фолиант в золотом окладе»
+
+   Три уровня:
+   1. Сырые цвета палитры (+ каналы *-rgb для полупрозрачных вариантов).
+   2. Семантика — что цвет ЗНАЧИТ (поверхность, акцент, опасность…).
+      В новом коде используем ИХ, а не сырые цвета.
+   3. Шкалы — отступы, радиусы, слои, длительности.
+
+   Полупрозрачный цвет палитры пишем через канал:
+     rgb(var(--gold-2-rgb) / 0.22)   — ровно то же, что rgba(196, 154, 60, 0.22)
+   ============================================================ */
+
+:root {
+  /* ---------- 1. Палитра ---------- */
+
+  /* Уголь и пергамент — тёмный нейтральный тон в духе D&D Beyond */
+  --bg-0: #0d0e11;
+  --bg-1: #131519;
+  --bg-2: #1b1e24;
+  --bg-3: #262a32;
+  --panel: rgba(22, 24, 29, 0.88);
+  --text: #d9cfb6;
+  --text-dim: #97906f;
+  --parchment: #ecdcb0;
+
+  --bg-0-rgb: 13 14 17;
+  --bg-1-rgb: 19 21 25;
+  --bg-2-rgb: 27 30 36;
+  --bg-3-rgb: 38 42 50;
+  --text-rgb: 217 207 182;
+  --parchment-rgb: 236 220 176;
+
+  /* Золото — только в верхней навигации (списки Классы/Бестиарий и т.д.) */
+  --gold-0: #5c451c;
+  --gold-1: #8a6a2f;
+  --gold-2: #c49a3c;
+  --gold-3: #e3c46e;
+  --gold-4: #f6e7b6;
+
+  --gold-0-rgb: 92 69 28;
+  --gold-1-rgb: 138 106 47;
+  --gold-2-rgb: 196 154 60;
+  --gold-3-rgb: 228 196 110; /* исторически полупрозрачное gold-3 писалось как (228,196,110) — на 1/255 светлее hex */
+  --gold-4-rgb: 246 231 182;
+
+  /* Градиенты золота */
+  --gold-grad: linear-gradient(160deg, var(--gold-0) 0%, var(--gold-2) 24%, var(--gold-4) 50%, var(--gold-2) 76%, var(--gold-0) 100%);
+  --gold-grad-h: linear-gradient(90deg, var(--gold-1), var(--gold-4) 50%, var(--gold-1));
+  --gold-text-grad: linear-gradient(180deg, var(--gold-4) 8%, var(--gold-3) 40%, var(--gold-2) 72%, var(--gold-1) 100%);
+
+  /* Серебро — рамки всего остального контента (середина и низ страницы) */
+  --silver-0: #4b4f56;
+  --silver-1: #7c828b;
+  --silver-2: #a8afba;
+  --silver-3: #cdd3db;
+  --silver-4: #f1f4f8;
+
+  --silver-0-rgb: 75 79 86;
+  --silver-1-rgb: 124 130 139;
+  --silver-2-rgb: 168 175 186;
+  --silver-3-rgb: 205 211 219;
+  --silver-4-rgb: 241 244 248;
+
+  --silver-grad: linear-gradient(160deg, var(--silver-0) 0%, var(--silver-2) 24%, var(--silver-4) 50%, var(--silver-2) 76%, var(--silver-0) 100%);
+  --silver-grad-h: linear-gradient(90deg, var(--silver-1), var(--silver-4) 50%, var(--silver-1));
+
+  --black-rgb: 0 0 0;
+  --white-rgb: 255 255 255;
+
+  /* Умения подкласса — в таблице развития */
+  --feat-caster: #c878dc;
+  --feat-caster-dim: #9a5cb0;
+  --feat-martial: #d46458;
+  --feat-martial-dim: #a84038;
+
+  /* ---------- 2. Семантика ---------- */
+
+  --surface-0: var(--bg-0);        /* фон страницы */
+  --surface-1: var(--bg-1);        /* панели */
+  --surface-2: var(--bg-2);        /* карточки, поля */
+  --surface-3: var(--bg-3);        /* приподнятое, hover */
+  --text-muted: var(--text-dim);
+  --accent: var(--gold-2);
+  --accent-strong: var(--gold-3);
+  --accent-rgb: var(--gold-2-rgb);
+  --border: rgb(var(--silver-2-rgb) / 0.22);
+  --border-strong: rgb(var(--silver-2-rgb) / 0.4);
+  --focus-ring: 0 0 0 2px rgb(var(--gold-3-rgb) / 0.7);
+
+  --danger: #e07070;
+  --danger-soft: #ee8d82;
+  --success: #8fd194;
+  --arcane: #b79cf0;               /* магия, заклинания */
+
+  /* стороны на поле боя (цвета диспозиции) */
+  --side-party: #d9a441;
+  --side-enemy: #c8493c;
+  --side-neutral: #9aa3ad;
+
+  /* отношение к наводящему: подсветка жетонов под фигурой */
+  --rel-enemy: #e5484d;
+  --rel-ally: #3fb950;
+  --rel-self: #f5a524;
+  --rel-neutral: #a1a1aa;
+
+  /* ---------- 3. Формы и шкалы ---------- */
+
+  --hex-point: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  --hex-aspect: 1.1547; /* 2/√3 — правильные пропорции pointy-top гекса */
+  --hex-wide: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
+  --hex-wide-blunt: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
+  --hex-chip: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+  --hex-stroke: 1px;
+
+  --font-display: 'Cormorant Unicase', 'Cormorant', serif;
+  --font-body: 'Inter', sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* слои по оси Z — от холста к модалкам */
+  --z-canvas: 0;
+  --z-hud: 20;
+  --z-dock: 40;
+  --z-drawer: 60;
+  --z-popover: 80;
+  --z-modal: 100;
+  --z-toast: 120;
+
+  --dur-fast: 0.12s;
+  --dur-base: 0.2s;
+  --dur-slow: 0.4s;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --shadow-deep: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --glow-gold: 0 0 18px rgba(228, 196, 110, 0.28), 0 0 46px rgba(228, 196, 110, 0.1);
+
+  /* сайдбар */
+  --sidebar-w: 252px;
+  --sidebar-w-collapsed: 76px;
+  --sidebar-w-expanded: 252px;
+}

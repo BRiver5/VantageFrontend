@@ -1,0 +1,221 @@
+/* ============================================================
+   ДЕТАЛЬНАЯ СТРАНИЦА РАСЫ — та же сцена с портретом, что у класса,
+   но вместо кости хитов: руническое кольцо, жетоны прибавок и плитки фактов
+   ============================================================ */
+.race-detail-hero {
+  position: relative;
+  margin: 0 calc(-1 * clamp(12px, 3vw, 28px));
+  overflow: visible;
+}
+
+.race-detail-stage {
+  position: relative;
+  width: 100%;
+  min-height: clamp(430px, 60vh, 640px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 26px;
+  overflow: visible;
+}
+
+.race-detail-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 46%;
+  width: min(680px, 92vw);
+  height: min(680px, 92vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(8px);
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgb(var(--gold-2-rgb) / 0.32) 0%,
+    rgba(150, 116, 44, 0.17) 34%,
+    rgba(80, 66, 34, 0.07) 58%,
+    transparent 72%
+  );
+}
+
+/* два тонких кольца за фигурой — «круг родословной» вместо кости класса */
+.race-detail-ring {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 43%;
+  width: min(440px, 64vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.26);
+  border-radius: 50%;
+  box-shadow: inset 0 0 70px rgb(var(--gold-2-rgb) / 0.08);
+  pointer-events: none;
+}
+.race-detail-ring::before {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.16);
+  border-radius: 50%;
+}
+
+.race-detail-portrait {
+  bottom: 13%;
+  height: 90%;
+  width: min(560px, 86vw);
+}
+
+/* Раса — фигура в полный рост: ноги/полы одежды/оружие лезут под плашку имени и
+   мешают читать название. Обрезаем низ картинки чуть выше имени мягким срезом. */
+.race-detail-portrait.is-framed {
+  width: min(340px, 52vw);
+  height: 64%;
+  bottom: 22%;
+  align-items: stretch;
+}
+.race-detail-portrait.is-framed > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  border-radius: 999px 999px 8px 8px;
+  -webkit-mask-image: none;
+  mask-image: none;
+  filter: saturate(0.95) brightness(0.96);
+  box-shadow:
+    0 0 0 1px rgb(var(--silver-2-rgb) / 0.45),
+    0 0 0 7px rgba(14, 16, 22, 0.92),
+    0 0 0 8px rgb(var(--gold-2-rgb) / 0.5),
+    0 22px 48px rgba(0, 0, 0, 0.55);
+}
+
+.race-detail-portrait > img {
+  /* короче зона скрытия (раньше начиналась с ~62%), мягче feather/spread */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 80%,
+    rgba(0, 0, 0, 0.72) 88%,
+    rgba(0, 0, 0, 0.35) 93%,
+    rgba(0, 0, 0, 0.1) 97%,
+    transparent 100%
+  );
+}
+
+.race-detail-meta {
+  gap: 14px;
+  width: min(560px, calc(100% - 24px));
+}
+
+.race-detail-name-plate {
+  font-size: clamp(1.35rem, 2.9vw, 1.9rem);
+  text-wrap: balance;
+}
+
+.race-detail-tags {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.race-detail-kind {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+
+.race-detail-boosts {
+  justify-content: center;
+}
+.race-detail-boosts .race-boost {
+  padding: 7px 20px;
+  font-size: 0.84rem;
+}
+.race-detail-boosts .race-boost i { font-size: 1.04rem; }
+
+/* плитки фактов: размер, скорости, тёмное зрение, возраст */
+.race-facts {
+  max-width: 1040px;
+  margin: 0 auto 26px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 12px;
+}
+
+.race-fact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(160deg, rgb(var(--gold-2-rgb) / 0.4), rgb(var(--silver-1-rgb) / 0.18) 55%, rgb(var(--gold-2-rgb) / 0.4)) border-box;
+}
+
+.race-fact-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.3), rgb(var(--gold-2-rgb) / 0.08));
+}
+.race-fact-icon svg { width: 17px; height: 17px; stroke-width: 1.6; color: var(--gold-4); }
+
+.race-fact-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.race-fact-body i {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.race-fact-body b {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+.race-langs {
+  max-width: 1040px;
+  margin: 0 auto 30px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.race-langs-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.race-langs-label svg { width: 16px; height: 16px; }
+

@@ -13,7 +13,7 @@ import {
 import type { Book, BookContents, ContentTotals, Setting } from '../api'
 import { Corners, CoverImage, Divider } from '../ornaments'
 import { TomeSections } from './bookContentsUi'
-import { LootChips } from '../App'
+import { LootChips } from './home/LootChips'
 import { scrollToTomeSection } from '../contentSections'
 import { bgUrl } from '../media'
 

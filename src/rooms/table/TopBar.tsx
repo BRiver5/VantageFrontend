@@ -3,7 +3,7 @@
  * название комнаты, справа круглые кнопки. Всё организационное (участники,
  * приглашение, настройки, журнал) живёт за ними и не занимает стол.
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { ChevronRight, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, UserRound, Users, WifiOff, X } from 'lucide-react'
@@ -14,6 +14,9 @@ import { RoomLog } from '../RoomLog'
 import { useRoom } from '../RoomProvider'
 import { statusRu } from '../applyEvent'
 import { Round } from './parts'
+import { PauseBadge, PauseButton } from './PauseControls'
+import { PingSettingsPanel } from './PingSettings'
+import { useKeybinding } from '../../input/useKeybinding'
 
 type Pop = 'party' | 'log' | 'settings' | 'chat' | null
 
@@ -63,15 +66,11 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
   const toggle = (p: Exclude<Pop, null>) => setPop((cur) => (cur === p ? null : p))
   const unread = useChatUnread(pop === 'chat')
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('.cw-modal-layer, .tb-layer')) return
-      setMenu(false)
-      setPop(null)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  useKeybinding('dialog.close', () => {
+    if (document.querySelector('.cw-modal-layer, .tb-layer')) return
+    setMenu(false)
+    setPop(null)
+  })
 
   if (!data) return null
   const pending = data.members.filter((m) => m.status === 'pending').length
@@ -88,9 +87,10 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
           {center ?? (
             <>
               <h1>{data.room.name}</h1>
-              {(data.room.status === 'paused' || data.room.status === 'closed') && <span>{statusRu(data.room.status)}</span>}
+              {data.room.status === 'closed' && <span>{statusRu(data.room.status)}</span>}
             </>
           )}
+          <PauseBadge />
           {offline ? (
             <em className="tb-offline" role="status">
               <WifiOff aria-hidden="true" /> связь потеряна, переподключаемся…
@@ -100,6 +100,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
           )}
         </div>
         <div className="tb-rounds">
+          <PauseButton />
           {onSheet && <Round icon={UserRound} label="Лист героя" onClick={onSheet} />}
           <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} />
           <Round icon={ScrollText} label="Журнал" on={pop === 'log'} onClick={() => toggle('log')} />
@@ -132,6 +133,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
               <LeavePanel />
             </>
           )}
+          <PingSettingsPanel isDm={isDm} />
         </Drawer>
       )}
 

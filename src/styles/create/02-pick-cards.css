@@ -1,0 +1,506 @@
+/* ---------- Сетка карточек выбора ---------- */
+
+.cw-pick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  /* по вертикали — запас под выезжающий язычок «Подробнее» */
+  gap: 44px 16px;
+}
+
+.cw-pick-grid { --pick-w: 196px; }
+.cw-pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: center;
+  padding: 0 0 14px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
+    linear-gradient(160deg, rgb(var(--silver-1-rgb) / 0.55), rgb(var(--silver-1-rgb) / 0.14) 45%, rgb(var(--silver-1-rgb) / 0.55)) border-box;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.cw-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow-deep); }
+.cw-pick:focus-visible { outline: 2px solid var(--gold-2); outline-offset: 2px; }
+.cw-pick.is-selected {
+  background:
+    linear-gradient(var(--bg-2), var(--bg-1)) padding-box,
+    var(--gold-grad) border-box;
+  box-shadow: var(--glow-gold);
+}
+
+.cw-pick-visual {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 85%, rgb(var(--silver-2-rgb) / 0.08), transparent 70%);
+}
+
+/* фигура целиком, как в каталоге — без обрезки по cover */
+.cw-portrait {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 10px 0;
+}
+.cw-portrait img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.5));
+  transition: transform 0.24s ease;
+  transform-origin: center bottom;
+}
+.cw-pick:hover .cw-portrait img { transform: scale(1.04); }
+.cw-portrait-fallback {
+  align-self: center;
+  width: 38%;
+  height: 38%;
+  color: rgb(var(--gold-2-rgb) / 0.4);
+  stroke-width: 0.9;
+}
+
+/* свечение заклинателя позади портрета */
+.cw-pick-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 8%;
+  width: 96%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(150, 110, 230, 0.4) 0%,
+    rgba(120, 90, 210, 0.14) 45%,
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+.cw-pick:hover .cw-pick-aura { transform: translateX(-50%) scale(1.06); }
+
+.cw-pick-badge {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgb(var(--bg-0-rgb) / 0.78);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+  color: var(--gold-3);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cw-pick-visual .cw-card-check { z-index: 2; }
+
+.cw-pick-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  padding: 10px 12px 0;
+}
+.cw-pick-name {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--parchment);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+.cw-pick-body .cw-card-chips { justify-content: center; }
+.cw-pick-body .cw-card-chips:empty { display: none; }
+.cw-pick-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--silver-2);
+  font-size: 0.82rem;
+}
+.cw-pick-meta svg { width: 14px; height: 14px; color: var(--gold-2); flex-shrink: 0; }
+.cw-pick-meta svg:not(:first-child) { margin-left: 8px; }
+.cw-pick-line {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+.cw-pick-line svg {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  color: var(--gold-2);
+}
+.cw-pick-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+.cw-pick-foot .eq-icon-row { justify-content: center; }
+
+.cw-card-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+.cw-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cw-card-art-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgb(var(--bg-0-rgb) / 0.85));
+}
+.cw-card-art--empty {
+  display: grid;
+  place-items: center;
+}
+.cw-card-art--empty svg {
+  width: 34%;
+  height: 34%;
+  color: rgb(var(--silver-2-rgb) / 0.3);
+}
+
+.cw-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cw-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: calc(26px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--gold-3), var(--gold-2));
+}
+.cw-card-check svg { width: 14px; height: 14px; color: var(--bg-0); }
+
+/* ---------- Карточки рас и классов — как в каталоге, но кнопкой ---------- */
+
+.cw-catalog-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 48px 22px;
+  padding: 34px 0 8px;
+}
+.cw-catalog-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+/* в кнопке разметка на span — возвращаем блочность слоям каталожной карточки */
+.cw-catalog-card .class-card-visual { display: block; }
+.cw-catalog-card .race-rail-cell { padding: 0 3px; }
+.cw-catalog-card:focus-visible { outline: none; }
+.cw-catalog-card:focus-visible .class-card-panel { box-shadow: 0 0 0 2px var(--gold-2); }
+
+.cw-catalog-card .cw-pick-badge,
+.cw-catalog-card .cw-card-check { z-index: 6; }
+
+.cw-catalog-card.is-selected .class-card-panel {
+  background:
+    linear-gradient(168deg, rgba(28, 32, 42, 0.97), rgba(14, 16, 22, 0.98)) padding-box,
+    var(--gold-grad) border-box;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48), var(--glow-gold);
+}
+.cw-catalog-card.is-selected .class-card-name-plate {
+  background: var(--gold-grad);
+  color: var(--gold-4);
+}
+.cw-catalog-card.is-selected .class-card-glow {
+  background: linear-gradient(to top, rgb(var(--gold-3-rgb) / 0.5), rgb(var(--gold-2-rgb) / 0.22) 40%, transparent 100%);
+}
+
+@media (max-width: 720px) {
+  .cw-catalog-grid { gap: 40px 14px; }
+  .cw-pick-slot--catalog { flex-basis: calc(50% - 7px); }
+}
+
+/* класс: свечение за костью и фигурой — фиолетовое у заклинателей, красное у
+   остальных; тем же цветом подкрашен столб света над панелью */
+.cw-class-card { --class-glow: 150, 110, 230; }
+.cw-class-card.is-martial { --class-glow: 210, 64, 52; }
+.cw-class-aura {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 52%;
+  width: 104%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--class-glow), 0.42) 0%,
+    rgba(var(--class-glow), 0.16) 42%,
+    transparent 68%
+  );
+  pointer-events: none;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+.cw-class-card:hover .cw-class-aura { transform: translate(-50%, -50%) scale(1.07); }
+.cw-class-card .class-card-glow {
+  background: linear-gradient(
+    to top,
+    rgba(var(--class-glow), 0.4) 0%,
+    rgba(var(--class-glow), 0.18) 38%,
+    rgba(var(--class-glow), 0.06) 68%,
+    transparent 100%
+  );
+}
+
+/* ---------- Карточки предысторий — как в каталоге, но ниже и без описания ---------- */
+
+.cw-bg-grid {
+  --bg-card-h: 120px;
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* по вертикали — запас под выезжающий язычок «Подробнее» */
+  gap: 44px 22px;
+}
+/* место слева под гекс, который выступает за карточку на половину ширины */
+.cw-pick-slot--bg { padding-left: calc(var(--bg-hex-w) / 2); }
+.card.card--bg.cw-bg-card {
+  --bg-card-h: 120px;
+  padding: 10px 12px 10px calc(var(--bg-hex-w) / 2 + 12px);
+  --bg-hex-w: calc(var(--bg-card-h) / var(--hex-aspect));
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cw-bg-card .bg-card-body { justify-content: flex-start; gap: 7px; }
+/* навыки — одной строкой, лишнее обрезается: карточка не растёт в высоту */
+.cw-bg-card .bg-card-skills {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+.cw-bg-card .bg-card-skills .chip { flex-shrink: 0; padding: 2px 12px; }
+.cw-bg-card .bg-card-foot { margin-top: auto; }
+.cw-bg-card .card-name {
+  font-size: 1.08rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--parchment);
+  text-overflow: ellipsis;
+}
+.cw-bg-card .bg-card-skills .chip svg { width: 11px; height: 11px; color: var(--gold-2); }
+.cw-bg-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--gold-2); }
+.cw-bg-card .cw-card-check { z-index: 3; }
+/* выбранная — золотая рамка и золотой гекс */
+.card.card--bg.cw-bg-card.is-selected {
+  background:
+    linear-gradient(180deg, rgba(32, 30, 26, 0.97), rgba(16, 15, 13, 0.98)) padding-box,
+    var(--gold-grad) border-box;
+  box-shadow: var(--glow-gold);
+}
+.cw-bg-card.is-selected .bg-card-hex { background: var(--gold-grad); }
+.cw-bg-card.is-selected .card-name { color: var(--gold-4); }
+
+@media (max-width: 1100px) {
+  .cw-bg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .cw-bg-grid { grid-template-columns: minmax(0, 1fr); }
+  .cw-pick-slot--bg { padding-left: 0; }
+  .card.card--bg.cw-bg-card { padding: 12px; }
+}
+
+/* обёртка любой карточки выбора: карточка + язычок «Подробнее» под ней */
+.cw-pick-slot {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  isolation: isolate;
+}
+.cw-pick-slot > :first-child { z-index: 1; flex: 1 1 auto; min-width: 0; }
+.cw-pick-grid > .cw-pick-slot { flex: 0 0 var(--pick-w); }
+/* ширина карточки расы строго фиксирована: иначе длинная рейка («Маленький ·
+   60 фт.») раздвигает её по min-content, портрет 3:4 становится выше, а панель
+   с прибавками — ниже, чем у соседей */
+.cw-pick-slot--catalog { flex: 0 0 250px; }
+
+/* растянутый серебряный полугекс — нижняя половина гекса с плашки имени */
+.cw-more {
+  --tab-cut: 16px;
+  position: absolute;
+  z-index: 0;
+  top: 100%;
+  left: 50%;
+  width: 64%;
+  height: 32px;
+  padding: 0 0 2px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--tab-cut)) 100%, var(--tab-cut) 100%);
+  background: var(--silver-grad);
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--parchment);
+  cursor: pointer;
+  /* спрятан под панелью карточки, при наведении выезжает вниз */
+  transform: translate(-50%, -100%);
+  opacity: 0;
+  transition: transform 0.24s ease, opacity 0.2s ease, color 0.16s ease;
+}
+.cw-more::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 1.5px 1.5px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--tab-cut) + 1px) 100%, calc(var(--tab-cut) - 1px) 100%);
+  background: linear-gradient(180deg, rgba(18, 20, 28, 0.99), rgba(36, 40, 52, 0.98));
+}
+.cw-pick-slot:hover .cw-more,
+.cw-pick-slot:focus-within .cw-more {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+.cw-more:hover,
+.cw-more:focus-visible { color: var(--gold-4); outline: none; }
+
+/* без наведения (тач) язычок виден всегда */
+@media (hover: none) {
+  .cw-more { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* гекс «есть подрасы»: справа снизу портрета, над плашкой с именем */
+.cw-race-branch {
+  position: absolute;
+  z-index: 6;
+  right: 14px;
+  bottom: 82px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: calc(40px * var(--hex-aspect));
+  clip-path: var(--hex-point);
+  background: var(--gold-grad);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+}
+.cw-race-branch > span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  clip-path: var(--hex-point);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-0));
+}
+.cw-race-branch svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+  color: var(--gold-3);
+}
+
+/* ---------- Шаг «Подраса»: родословное древо ---------- */
+
+.cw-race-tree {
+  position: relative;
+  padding: 8px 0;
+}
+.cw-race-tree-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cw-race-tree-trunk,
+.cw-race-tree-drop {
+  stroke: rgb(var(--gold-2-rgb) / 0.42);
+  stroke-width: 2;
+}
+.cw-race-tree-knot {
+  fill: var(--bg-1);
+  stroke: rgb(var(--gold-2-rgb) / 0.6);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(45deg);
+}
+.cw-race-tree-lines .is-on .cw-race-tree-drop {
+  stroke: var(--gold-3);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgb(var(--gold-3-rgb) / 0.7));
+}
+.cw-race-tree-lines .is-on .cw-race-tree-knot {
+  fill: var(--gold-3);
+  stroke: var(--gold-4);
+}
+
+.cw-race-tree-root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+/* в колонке flex-basis карточки стал бы высотой — ширину задаём явно */
+.cw-race-tree-root > .cw-pick-slot--catalog { flex: none; width: 250px; }
+.cw-race-tree-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.cw-race-tree-branches {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  /* сверху и между рядами — место под перекладины древа и язычок «Подробнее» */
+  gap: 76px 22px;
+  margin-top: 84px;
+}
+
+@media (max-width: 720px) {
+  .cw-race-tree-branches { gap: 68px 14px; }
+}
+
+
+

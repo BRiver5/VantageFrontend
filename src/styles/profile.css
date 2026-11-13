@@ -15,9 +15,9 @@
   padding: 28px 26px;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(196, 154, 60, 0.14), transparent 70%),
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgb(var(--gold-2-rgb) / 0.14), transparent 70%),
     linear-gradient(180deg, rgba(30, 32, 38, 0.94), rgba(16, 17, 21, 0.94));
-  box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.22), 0 14px 34px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.22), 0 14px 34px rgba(0, 0, 0, 0.4);
 }
 /* гранёные уголки, как у плашек сайта */
 .pf-card::before, .pf-card::after { content: ''; position: absolute; width: 22px; height: 22px; border-color: var(--gold-2); border-style: solid; opacity: 0.7; pointer-events: none; }
@@ -30,7 +30,7 @@
 .pf-text-btn:hover:not(:disabled) { color: var(--gold-4); }
 .pf-text-btn:disabled { opacity: 0.45; cursor: default; }
 .pf-text-btn.is-danger { color: #e9a297; }
-.pf-icon { display: grid; place-items: center; width: 34px; height: 34px; border: none; border-radius: 50%; cursor: pointer; background: rgba(13, 14, 18, 0.88); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.45); color: var(--gold-3); transition: transform 0.2s ease, color 0.2s ease; }
+.pf-icon { display: grid; place-items: center; width: 34px; height: 34px; border: none; border-radius: 50%; cursor: pointer; background: rgba(13, 14, 18, 0.88); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.45); color: var(--gold-3); transition: transform 0.2s ease, color 0.2s ease; }
 .pf-icon svg { width: 16px; height: 16px; }
 .pf-icon:hover:not(:disabled) { transform: scale(1.1); color: var(--gold-4); }
 .pf-icon:disabled { opacity: 0.4; cursor: default; }
@@ -57,12 +57,12 @@
 @keyframes pf-in { from { opacity: 0; transform: translateY(-6px); } }
 
 .pf-name { width: 100%; padding: 2px 0; border: none; border-bottom: 1px solid transparent; outline: none; background: none; color: var(--gold-3); font-family: var(--font-display); font-size: clamp(1.7rem, 3vw, 2.3rem); font-weight: 700; letter-spacing: 0.04em; text-align: center; transition: border-color 0.2s ease; }
-.pf-name:hover { border-bottom-color: rgba(196, 154, 60, 0.3); }
+.pf-name:hover { border-bottom-color: rgb(var(--gold-2-rgb) / 0.3); }
 .pf-name:focus { border-bottom-color: var(--gold-2); }
 .pf-handle { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; margin: -8px 0 0; color: var(--parchment); }
 .pf-handle i { color: var(--text-dim); font-size: 0.86rem; font-style: normal; }
-.pf-badge { padding: 1px 8px; border-radius: 99px; background: rgba(196, 154, 60, 0.18); color: var(--gold-3); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.pf-bio { width: 100%; min-height: 96px; padding: 4px 2px; border: none; outline: none; resize: vertical; background: repeating-linear-gradient(180deg, transparent 0 1.6em, rgba(196, 154, 60, 0.16) 1.6em calc(1.6em + 1px)); background-attachment: local; color: var(--text); font: inherit; line-height: calc(1.6em + 1px); }
+.pf-badge { padding: 1px 8px; border-radius: 99px; background: rgb(var(--gold-2-rgb) / 0.18); color: var(--gold-3); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.pf-bio { width: 100%; min-height: 96px; padding: 4px 2px; border: none; outline: none; resize: vertical; background: repeating-linear-gradient(180deg, transparent 0 1.6em, rgb(var(--gold-2-rgb) / 0.16) 1.6em calc(1.6em + 1px)); background-attachment: local; color: var(--text); font: inherit; line-height: calc(1.6em + 1px); }
 .pf-bio::placeholder { color: var(--text-dim); font-style: italic; }
 
 .pf-heroes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -94,7 +94,7 @@
 .pf-colors { display: flex; justify-content: center; gap: 22px; }
 .pf-color { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.82rem; cursor: pointer; }
 .pf-color input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.pf-color-swatch { width: 44px; height: 44px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22), 0 0 0 2px rgba(13, 14, 18, 0.9), 0 0 0 3px rgba(196, 154, 60, 0.4); transition: transform 0.2s ease; }
+.pf-color-swatch { width: 44px; height: 44px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22), 0 0 0 2px rgba(13, 14, 18, 0.9), 0 0 0 3px rgb(var(--gold-2-rgb) / 0.4); transition: transform 0.2s ease; }
 .pf-color:hover .pf-color-swatch { transform: scale(1.1); }
 .pf-color:focus-within .pf-color-swatch { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22), 0 0 0 2px rgba(13, 14, 18, 0.9), 0 0 0 3px var(--gold-3); }
 
@@ -103,7 +103,7 @@
 .pf-presets button:hover { transform: translateY(-3px); color: var(--text); }
 .pf-presets button .pf-die { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
 .pf-presets button.is-on { color: var(--gold-4); }
-.pf-presets button.is-on .pf-die { filter: drop-shadow(0 0 8px rgba(228, 196, 110, 0.75)); }
+.pf-presets button.is-on .pf-die { filter: drop-shadow(0 0 8px rgb(var(--gold-3-rgb) / 0.75)); }
 .pf-presets i { font-size: 0.76rem; font-style: normal; }
 
 /* ---------- сохранение ---------- */
@@ -154,7 +154,7 @@
 /* ---------- окно кадра ---------- */
 
 .pf-crop-layer { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 16px; background: rgba(6, 7, 9, 0.7); backdrop-filter: blur(3px); animation: gs-fade 0.18s ease; }
-.pf-crop { display: flex; flex-direction: column; gap: 14px; max-width: min(92vw, 760px); padding: 18px; background: linear-gradient(180deg, #1c1e24, #131418); box-shadow: inset 0 0 0 1px rgba(196, 154, 60, 0.38), 0 26px 70px rgba(0, 0, 0, 0.7); animation: gs-in 0.26s cubic-bezier(0.2, 1.1, 0.35, 1); }
+.pf-crop { display: flex; flex-direction: column; gap: 14px; max-width: min(92vw, 760px); padding: 18px; background: linear-gradient(180deg, #1c1e24, #131418); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.38), 0 26px 70px rgba(0, 0, 0, 0.7); animation: gs-in 0.26s cubic-bezier(0.2, 1.1, 0.35, 1); }
 .pf-crop .cw-crop-shapes, .pf-crop .cw-field-note, .pf-crop .cw-crop-side > :not(.cw-field) { display: none; }
 .pf-crop footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .pf-crop-preview { position: relative; width: 58px; aspect-ratio: 100 / 115.47; margin-right: auto; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, var(--gold-4), var(--gold-1)); }
@@ -164,8 +164,8 @@
 
 .pf-volume { display: flex; align-items: center; gap: 12px; width: min(100%, 320px); margin-top: 6px; color: var(--gold-2); }
 .pf-volume svg { width: 20px; height: 20px; flex: none; }
-.pf-volume input { flex: 1; height: 4px; appearance: none; border-radius: 99px; cursor: pointer; background: linear-gradient(90deg, var(--gold-3) var(--vol), rgba(168, 175, 186, 0.22) var(--vol)); }
-.pf-volume input::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-4); box-shadow: 0 0 0 3px rgba(13, 14, 18, 0.9), 0 0 10px rgba(228, 196, 110, 0.6); }
+.pf-volume input { flex: 1; height: 4px; appearance: none; border-radius: 99px; cursor: pointer; background: linear-gradient(90deg, var(--gold-3) var(--vol), rgb(var(--silver-2-rgb) / 0.22) var(--vol)); }
+.pf-volume input::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-4); box-shadow: 0 0 0 3px rgba(13, 14, 18, 0.9), 0 0 10px rgb(var(--gold-3-rgb) / 0.6); }
 .pf-volume input::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--gold-4); }
 
 /* ---------- материал кубиков ---------- */

@@ -35,7 +35,7 @@ export function CardEffects({ target, title }: { target: EffectTargetRef; title:
           isDm
             ? (e) => {
                 setError(null)
-                ctl.remove(e).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Не получилось'))
+                return ctl.remove(e).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Не получилось'))
               }
             : undefined
         }
@@ -271,13 +271,19 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
   const { roomId, data } = useRoom()
   const [publicName, setPublicName] = useState(c.public_name)
   const [error, setError] = useState<string | null>(null)
+  // visibility уходит целиком из текущего c: пока запрос в пути, второй щелчок собрал бы её
+  // из старых данных и откатил первый
+  const [busy, setBusy] = useState(false)
   const inCombat = !!data?.combat && data.combat.status !== 'ended'
   const patch = async (body: Parameters<typeof patchRoomCreature>[2]) => {
+    setBusy(true)
     setError(null)
     try {
       await patchRoomCreature(roomId, c.id, body)
     } catch (e) {
       setError(errText(e))
+    } finally {
+      setBusy(false)
     }
   }
   const v = c.visibility
@@ -288,7 +294,7 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
       <ul className="tb-eyes">
         {FLAGS.map(({ key, label }) => (
           <li key={key}>
-            <button type="button" className={v[key] ? 'is-on' : ''} aria-pressed={v[key]} onClick={() => void patch({ visibility: { ...v, [key]: !v[key] } })}>
+            <button type="button" className={v[key] ? 'is-on' : ''} aria-pressed={v[key]} disabled={busy} onClick={() => void patch({ visibility: { ...v, [key]: !v[key] } })}>
               {v[key] ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />} {label}
             </button>
           </li>
@@ -298,7 +304,7 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
         <span>Хиты</span>
         <div className="tb-tri" role="radiogroup" aria-label="Как видны хиты">
           {HP_OPTIONS.map((o) => (
-            <button key={o.key} type="button" role="radio" aria-checked={v.hp === o.key} className={v.hp === o.key ? 'is-on' : ''} onClick={() => void patch({ visibility: { ...v, hp: o.key } })}>
+            <button key={o.key} type="button" role="radio" aria-checked={v.hp === o.key} className={v.hp === o.key ? 'is-on' : ''} disabled={busy} onClick={() => void patch({ visibility: { ...v, hp: o.key } })}>
               {o.label}
             </button>
           ))}
@@ -311,21 +317,25 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
         </label>
       )}
       <div className="tb-back-foot">
-        <button type="button" className={`tb-linkbtn${c.quick_access ? ' is-on' : ''}`} aria-pressed={c.quick_access} onClick={() => void patch({ quick_access: !c.quick_access })}>
+        <button type="button" className={`tb-linkbtn${c.quick_access ? ' is-on' : ''}`} aria-pressed={c.quick_access} disabled={busy} onClick={() => void patch({ quick_access: !c.quick_access })}>
           <Star aria-hidden="true" /> быстрый доступ
         </button>
         <button
           type="button"
           className="tb-linkbtn is-danger"
-          disabled={inCombat}
+          disabled={inCombat || busy}
           title={inCombat ? 'Нельзя убрать, пока идёт бой' : undefined}
           onClick={async () => {
-            if (!confirm(`Убрать «${c.display_name}» из комнаты?`)) return
+            if (busy || !confirm(`Убрать «${c.display_name}» из комнаты?`)) return
+            setBusy(true)
+            setError(null)
             try {
               await removeRoomCreature(roomId, c.id)
               onRemoved?.()
             } catch (e) {
               setError(errText(e))
+            } finally {
+              setBusy(false)
             }
           }}
         >
@@ -365,6 +375,7 @@ function LootBody({ item, canClaim, onClaim }: { item: RoomItem; canClaim: boole
   const { roomId, isDm, data } = useRoom()
   const close = useEmergeClose()
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const art = itemArt(item)
   const text = stripTags(item.magic_item?.description ?? item.equipment?.description ?? '')
   const closed = data?.room.status === 'closed'
@@ -397,12 +408,16 @@ function LootBody({ item, canClaim, onClaim }: { item: RoomItem; canClaim: boole
           <button
             type="button"
             className="tb-goldbtn is-quiet"
+            disabled={busy}
             onClick={async () => {
+              setBusy(true)
               try {
                 await takeBackItem(roomId, item.id)
                 close()
               } catch (e) {
                 setError(e instanceof ApiError && e.status === 409 ? 'Предмет уже забрали.' : errText(e))
+              } finally {
+                setBusy(false)
               }
             }}
           >
