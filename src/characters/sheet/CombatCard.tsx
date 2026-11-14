@@ -6,6 +6,7 @@ import type { SheetRoller } from '../sheetPlay'
 import { attackTags, d20Cards, tagBonus, tagCards, type RollContext } from '../rollBonuses'
 import { type SheetAttack, parseDamage, signed } from './rules'
 import { Card, DieButton, WeaponArt } from './parts'
+import { useHotbarAction } from '../../hotbar/source'
 
 /** Строка оружия: бросок атаки, урона и двуручного хвата */
 export function AttackRow({
@@ -37,8 +38,15 @@ export function AttackRow({
     return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
   }
   const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
+  const rollHit = () =>
+    void rollD20(`${a.name}, попадание`, hit, a.key, {
+      ...ctx,
+      bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
+    })
+  // панель быстрых действий нажимает ту же кнопку атаки
+  const { dragProps } = useHotbarAction({ kind: 'attack', ref: a.name, label: a.name, icon: a.image }, () => !rolling && rollHit())
   return (
-    <div className={`cw-wpn${crit ? ' is-crit' : ''}`}>
+    <div className={`cw-wpn${crit ? ' is-crit' : ''}`} {...dragProps}>
       <WeaponArt src={a.image} icon={a.type === 'ranged' ? Crosshair : a.key === 'unarmed' ? Hand : Swords} />
       <span className="cw-wpn-body">
         <b>{a.name}</b>
@@ -49,12 +57,7 @@ export function AttackRow({
           sides={20}
           value={signed(hit)}
           label="атака"
-          onClick={() =>
-            void rollD20(`${a.name}, попадание`, hit, a.key, {
-              ...ctx,
-              bonuses: [...d20Cards(sheet, ctx, a.attack_bonus), ...tagCards(sheet, 'attackBonus', tags)],
-            })
-          }
+          onClick={rollHit}
           disabled={rolling}
           title="Бросок атаки: к20 + бонус"
         />
@@ -95,8 +98,15 @@ export function SpellAttackRow({
   rollD20: SheetRoller['rollD20']
   rolling: boolean
 }) {
+  const roll = () =>
+    void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
+      kind: 'spell',
+      ability: spell.spellcasting_ability ?? undefined,
+      tags: ['spell'],
+    })
+  const { dragProps } = useHotbarAction({ kind: 'attack', ref: 'Атака заклинанием', label: 'Атака заклинанием' }, () => !rolling && roll())
   return (
-    <div className="cw-wpn cw-wpn--spell">
+    <div className="cw-wpn cw-wpn--spell" {...dragProps}>
       <WeaponArt src={null} icon={Sparkles} />
       <span className="cw-wpn-body">
         <b>Атака заклинанием</b>
@@ -107,13 +117,7 @@ export function SpellAttackRow({
           sides={20}
           value={signed(spell.spell_attack_bonus!)}
           label="атака"
-          onClick={() =>
-            void rollD20('Атака заклинанием', spell.spell_attack_bonus!, 'spell', {
-              kind: 'spell',
-              ability: spell.spellcasting_ability ?? undefined,
-              tags: ['spell'],
-            })
-          }
+          onClick={roll}
           disabled={rolling}
         />
       </span>

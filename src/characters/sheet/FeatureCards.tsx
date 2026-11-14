@@ -4,6 +4,7 @@ import type { SheetView } from '../../types/character'
 import { formatDice } from '../../equipment'
 import { type FeatureRow, STATUS_LABEL } from './rules'
 import { Card } from './parts'
+import { useHotbarAction } from '../../hotbar/source'
 
 /** Плитка умения: клик — попап с описанием */
 export function FeatureTile({
@@ -15,9 +16,11 @@ export function FeatureTile({
   actionsOf: (grantId: string) => unknown[]
   onOpen: (f: FeatureRow) => void
 }) {
+  const { dragProps } = useHotbarAction({ kind: 'feature', ref: f.key, label: f.title }, () => onOpen(f))
   return (
     <button
       type="button"
+      {...dragProps}
       className={`cw-ftile cw-feat-line--${f.source}${f.disabled ? ' is-disabled' : f.active === false ? ' is-off' : ''}${f.status ? ` is-${f.status}` : ''}`}
       onClick={() => onOpen(f)}
       title={f.disabled ? 'Отключено — бонусы не действуют' : f.status ? STATUS_LABEL[f.status] : undefined}

@@ -15,6 +15,9 @@ import { Img } from '../../../media'
 import { errText, nameOf } from './combatMath'
 import { ABILITIES, CUSTOM_TAG, type Cmd, type HeroKit, ROMAN, type SlotPick, slotFor } from './heroKit'
 import { AimBlock } from './AimBlock'
+import { HotbarAction } from '../../../hotbar/HotbarAction'
+import { PRIORITY } from '../../../hotbar/registry'
+import type { HotbarSpec } from '../../../hotbar/source'
 
 function PresetArt({ p }: { p: Preset }) {
   const [broken, setBroken] = useState(false)
@@ -127,6 +130,10 @@ export function ActionTray({
   const allies = alive.filter((c) => c.side === me.side && c.id !== me.id).map((c) => c.id)
   const foes = alive.filter((c) => c.side !== me.side).map((c) => c.id)
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+
+  // панель быстрых действий: тот же выбор приёма, что и клик по нему
+  const hotSpec = (p: Preset): HotbarSpec | null =>
+    actor.card ? { kind: p.look === 'spell' ? 'spell' : 'attack', ref: p.look === 'spell' ? (p.spellName ?? p.name) : p.name, label: p.spellName ?? p.name, icon: p.image ?? null } : null
 
   const applyPreset = (p: Preset) => {
     setPicked(p.key)
@@ -268,7 +275,9 @@ export function ActionTray({
     <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}${castPick ? ' is-compact' : ''}`}>
       {presets.map((p) => (
         <li key={p.key}>
-          <button type="button" className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
+          <HotbarAction spec={hotSpec(p)} run={() => applyPreset(p)} priority={PRIORITY.tray} characterId={actor.card?.id}>
+            {({ dragProps }) => (
+            <button type="button" {...dragProps} className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
             <span className="bt-preset-art">
               <PresetArt p={p} />
             </span>
@@ -278,6 +287,8 @@ export function ActionTray({
               {p.mech ? '' : `${p.bonus != null ? `${p.bonus >= 0 ? '+' : ''}${p.bonus} ` : ''}${p.dice || (p.heal ? `♥ ${p.heal}` : '')}`}
             </i>
           </button>
+            )}
+          </HotbarAction>
         </li>
       ))}
     </ul>
@@ -322,7 +333,9 @@ export function ActionTray({
           <ul className={`bt-presets${cmd === 'spell' ? ' is-spells' : ''}`}>
             {presets.map((p) => (
               <li key={p.key}>
-                <button type="button" className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
+                <HotbarAction spec={hotSpec(p)} run={() => applyPreset(p)} priority={PRIORITY.tray} characterId={actor.card?.id}>
+            {({ dragProps }) => (
+            <button type="button" {...dragProps} className={picked === p.key ? 'is-on' : ''} onClick={() => applyPreset(p)}>
                   <span className="bt-preset-art">
                     <PresetArt p={p} />
                   </span>
@@ -333,6 +346,8 @@ export function ActionTray({
                     {p.dice || (p.heal ? `♥ ${p.heal}` : '')}
                   </i>
                 </button>
+            )}
+          </HotbarAction>
                 {p.custom && (
                   <button type="button" className="bt-preset-x" disabled={saving} onClick={() => void dropOwn(p)} aria-label={`Убрать приём: ${p.name}`} title="Убрать приём">
                     <X aria-hidden="true" />
