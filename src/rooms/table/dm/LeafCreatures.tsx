@@ -7,6 +7,7 @@ import { revealCreature } from '../../roomsApi'
 import { CardEffects, CreatureBack, HpControls, STAT_RU, statsOf } from '../Cards'
 import { creatureArt, creatureHp, creatureName, errText, Hex, HpVessel, SIZE_RU } from '../parts'
 import { Img } from '../../../media'
+import { EncounterMeter } from '../../gm/EncounterMeter'
 import { AddCreature } from './AddCreature'
 
 /** Жетон ширмы: можно нажать, а можно перетащить на стол */
@@ -198,6 +199,7 @@ export function LeafCreatures() {
           </>
         )}
         {error && <p className="tb-err">{error}</p>}
+        <EncounterMeter compact creatures={list.filter((c) => (creatureHp(c).ratio ?? 1) > 0)} />
       </div>
       <div className="sc-pane sc-detail">
         {showAdd ? (
