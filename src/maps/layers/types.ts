@@ -46,6 +46,8 @@ export interface MapNote {
   hidden?: boolean
   page_title?: string | null
   page_shared?: boolean
+  /** этаж карты; нет — на всех */
+  level_id?: string | null
 }
 
 export interface MapSound {
@@ -65,6 +67,8 @@ export interface MapSound {
   /** темнота карты 0 день · 0.5 сумерки · 1 тьма */
   darkness: { min: number; max: number } | null
   enabled: boolean
+  /** этаж карты; нет — на всех */
+  level_id?: string | null
 }
 
 export type DrawingKind = 'rect' | 'ellipse' | 'polygon' | 'freehand' | 'text'
@@ -93,6 +97,8 @@ export interface MapDrawing extends DrawingStyle {
   text: string
   z: number
   hidden: boolean
+  /** этаж карты; нет — на всех */
+  level_id?: string | null
 }
 
 export type DrawingInput = Omit<MapDrawing, 'id' | 'map_id' | 'author_id' | 'z' | 'hidden'> & { hidden?: boolean }
