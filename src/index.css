@@ -122,3 +122,4 @@
 @import './styles/components/map-levels.css' layer(components);
 @import './styles/components/permissions.css' layer(components);
 @import './styles/components/kb-extras.css' layer(components);
+@import './styles/components/gm-tools.css' layer(components);

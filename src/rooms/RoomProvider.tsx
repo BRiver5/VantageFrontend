@@ -69,6 +69,17 @@ export interface RoomContextValue {
   refresh: () => Promise<void>
   /** запомнить новый код приглашения после его смены */
   setInviteCode: (code: string) => void
+  /** «Глазами игрока»: мастер смотрит проекцию игрока (src/rooms/gm/ViewAs.tsx); действия выключены */
+  viewAs?: ViewAsInfo
+}
+
+export interface ViewAsInfo {
+  userId: string
+  name: string
+  /** слои карты на столе так, как их получает игрок (GET …/view-as) */
+  layers: unknown
+  /** календарь так, как его видит игрок */
+  calendar: unknown
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null)
@@ -247,4 +258,16 @@ export function useRoomEvents(handler: (msg: RoomEventMessage) => void): void {
     if (!subscribe) return
     return subscribe((msg) => ref.current(msg))
   }, [subscribe])
+}
+
+const noop = () => undefined
+
+/** Та же комната, но данные — проекция игрока, а всё, что шлёт сообщения, выключено */
+export function RoomPreviewProvider({ data, viewAs, reload, children }: { data: RoomData; viewAs: ViewAsInfo; reload: () => Promise<void>; children: ReactNode }) {
+  const parent = useRoom()
+  const value = useMemo<RoomContextValue>(
+    () => ({ ...parent, data, isDm: false, viewAs, sendRolling: noop, sendEphemeral: noop, sendClientReady: noop, refresh: reload, setInviteCode: noop }),
+    [parent, data, viewAs, reload],
+  )
+  return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>
 }

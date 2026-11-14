@@ -7,9 +7,11 @@
  * и картинки для всех, таблицы случайных результатов, дашборд. Кнопка боя всегда под рукой.
  */
 import { useState, type ReactNode } from 'react'
-import { BookOpen, ChevronDown, Crown, LayoutGrid, Map as MapIcon, Package, Skull, Swords, Table2 } from 'lucide-react'
+import { Archive, BookOpen, ChevronDown, Crown, LayoutGrid, Map as MapIcon, Package, Skull, Swords, Table2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { DashboardGrid } from '../Dashboard'
+import { LeafArchive } from '../gm/LeafArchive'
+import { ViewAsButton } from '../gm/ViewAs'
 import { KnowledgeProvider } from '../kb/KnowledgeProvider'
 import { useKnowledge } from '../kb/context'
 import { useRoom } from '../RoomProvider'
@@ -21,7 +23,7 @@ import { BattleSetup } from './dm/BattleSetup'
 
 /* ---------- сама ширма ---------- */
 
-type Leaf = 'creatures' | 'loot' | 'notes' | 'maps' | 'tables' | 'dash'
+type Leaf = 'creatures' | 'loot' | 'notes' | 'maps' | 'tables' | 'dash' | 'archive'
 
 const LEAVES: { id: Leaf; label: string; icon: LucideIcon }[] = [
   { id: 'creatures', label: 'Существа', icon: Skull },
@@ -30,6 +32,7 @@ const LEAVES: { id: Leaf; label: string; icon: LucideIcon }[] = [
   { id: 'maps', label: 'Карты', icon: MapIcon },
   { id: 'tables', label: 'Таблицы', icon: Table2 },
   { id: 'dash', label: 'Дашборд', icon: LayoutGrid },
+  { id: 'archive', label: 'Архив', icon: Archive },
 ]
 
 export function DmScreen() {
@@ -53,6 +56,7 @@ function DmScreenIn() {
     maps: <LeafMaps />,
     tables: <LeafTables />,
     dash: <DashboardGrid />,
+    archive: <LeafArchive />,
   }
   return (
     <div className={`sc-root${leaf ? ' is-open' : ''}${leaf === 'dash' ? ' is-tall' : ''}`}>
@@ -75,6 +79,7 @@ function DmScreenIn() {
             </button>
           ))}
         </div>
+        <ViewAsButton />
         {leaf ? (
           <button type="button" className="tb-round" onClick={() => setLeaf(null)} aria-label="Сложить ширму" title="Сложить ширму">
             <ChevronDown aria-hidden="true" />
