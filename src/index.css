@@ -120,3 +120,4 @@
 @import './styles/components/map-layers.css' layer(components);
 @import './styles/components/roll-tables.css' layer(components);
 @import './styles/components/map-levels.css' layer(components);
+@import './styles/components/permissions.css' layer(components);

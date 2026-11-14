@@ -33,12 +33,13 @@ export function useFieldLayers(opts: {
 }) {
   const { map, canvas, myTokens, selected, onError } = opts
   const level = opts.level ?? null
-  const { roomId, data, isDm } = useRoom()
+  const { roomId, data, isDm, can } = useRoom()
   const mapId = map?.id ?? null
   const layers = useMapLayers(mapId, map?.revealed ?? false)
   const playersCanDraw = !!data?.room.settings?.players_can_draw
   const zoom = useCallback(() => canvas.current?.zoom() ?? 1, [canvas])
-  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw, zoom, onError })
+  // доверенный игрок рисует, даже когда «Игроки могут рисовать» выключено
+  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw: playersCanDraw || can.draw, zoom, onError })
   const [popup, setPopup] = useState<MapNote | null>(null)
   const [placing, setPlacing] = useState<{ pageId: string; title: string } | null>(null)
   const [listening, setListening] = useState(false)

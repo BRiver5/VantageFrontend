@@ -69,7 +69,7 @@ export function MapField({
   aimInfo?: AimInfo | null
   onAim?: (req: AimRequest | null) => void
 }) {
-  const { data, roomId, isDm, sendEphemeral } = useRoom()
+  const { data, roomId, isDm, isOwner, sendEphemeral } = useRoom()
   // карта целиком; ниже map — этаж, который сейчас виден (без этажей — та же карта)
   const fullMap = data?.activeMap ?? null
   const canvas = useRef<MapCanvasHandle>(null)
@@ -620,7 +620,7 @@ export function MapField({
       )}
       <Credits map={fullMap ?? map} />
       {(fullMap?.levels?.length ?? 0) > 0 && <LevelSwitcher levels={fullMap?.levels ?? []} level={level} onLevel={isDm ? setDmLevel : undefined} />}
-      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isDm ? lay.togglePlayersDraw : undefined} />}
+      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isOwner ? lay.togglePlayersDraw : undefined} />}
       <MapSoundsPlayer map={map} sounds={lay.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
       {lay.popup && <NotePopup key={lay.popup.id} note={lay.popup} onClose={lay.closePopup} />}
       {lay.placing && (

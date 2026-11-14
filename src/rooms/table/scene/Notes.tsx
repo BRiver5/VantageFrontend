@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Feather, X } from 'lucide-react'
-import { getCharacter, roomCharacterRef, updateCharacter } from '../../../api'
+import { Check, Feather, PenLine, X } from 'lucide-react'
+import { ApiError, getCharacter, roomCharacterRef, updateCharacter } from '../../../api'
+import type { SharedNote } from '../../../types/rooms'
+import { canEditNote } from '../../perms/permissions'
+import { patchSharedNote } from '../../roomsApi'
 import { useRoom } from '../../RoomProvider'
 import { Emerge, useEmergeClose, type Origin } from '../parts'
 import { MarkdownBody } from '../../kb/Markdown'
@@ -16,26 +19,77 @@ export function NotesMapOpen({ characterId, origin, onClose }: { characterId: st
   )
 }
 
-/** Заметки, которые мастер открыл партии: только чтение */
+type PageLookup = { has: (t: string) => boolean; body: (t: string) => string | null; titles: string[] }
+
+/** Одна открытая страница: limited — только заголовок, owner — можно править */
+function SharedNoteItem({ n, lookup, onOpen }: { n: SharedNote; lookup: PageLookup; onOpen: (title: string) => void }) {
+  const { roomId } = useRoom()
+  const [draft, setDraft] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const icon = n.body != null ? parsePage(n.body).meta.icon : undefined
+  const save = async () => {
+    if (draft == null) return
+    setBusy(true)
+    setError(null)
+    try {
+      await patchSharedNote(roomId, n.id, { body: draft, revision: n.revision })
+      setDraft(null)
+    } catch (e) {
+      setError(e instanceof ApiError && e.status === 409 ? 'Страницу уже изменили: откройте её заново' : e instanceof Error ? e.message : 'Не получилось')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <li id={`shared-${n.id}`}>
+      <h3>
+        {icon ? `${icon} ` : ''}
+        {n.title || 'Без названия'}
+        {canEditNote(n) && draft == null && (
+          <button type="button" className="tb-linkbtn" onClick={() => setDraft(n.body ?? '')} title="Вы владелец страницы">
+            <PenLine aria-hidden="true" /> править
+          </button>
+        )}
+      </h3>
+      {n.folder && <i>{n.folder}</i>}
+      {draft != null ? (
+        <div className="pm-note-edit">
+          <textarea value={draft} aria-label={`Текст страницы «${n.title}»`} onChange={(e) => setDraft(e.target.value)} />
+          <div>
+            <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void save()}>
+              <Check aria-hidden="true" /> Сохранить
+            </button>
+            <button type="button" className="tb-linkbtn" disabled={busy} onClick={() => setDraft(null)}>
+              Отмена
+            </button>
+          </div>
+          {error && <span className="tb-err">{error}</span>}
+        </div>
+      ) : n.body == null ? (
+        <p className="tb-map-wait">Мастер открыл только заголовок</p>
+      ) : (
+        <div className="kb-doc is-paper">
+          <MarkdownBody src={n.body} pages={lookup} onOpen={onOpen} />
+        </div>
+      )}
+    </li>
+  )
+}
+
+/** Заметки, которые мастер открыл партии: каждому по его уровню доступа */
 function SharedNotesList() {
   const { data } = useRoom()
   const notes = [...(data?.sharedNotes ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.order - b.order)
   if (notes.length === 0) return <p className="tb-map-wait">Мастер пока ничего не открыл</p>
   // ссылки ведут только на открытые партии страницы
-  const lookup = { has: (t: string) => notes.some((x) => x.title.toLowerCase() === t.toLowerCase()), body: (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null, titles: notes.map((x) => x.title) }
+  const find = (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())
+  const lookup: PageLookup = { has: (t) => !!find(t), body: (t) => find(t)?.body ?? null, titles: notes.map((x) => x.title) }
+  const open = (t: string) => document.getElementById(`shared-${find(t)?.id}`)?.scrollIntoView({ behavior: 'smooth' })
   return (
     <ul className="tb-shared">
       {notes.map((n) => (
-        <li key={n.id} id={`shared-${n.id}`}>
-          <h3>
-            {parsePage(n.body).meta.icon ? `${parsePage(n.body).meta.icon} ` : ''}
-            {n.title || 'Без названия'}
-          </h3>
-          {n.folder && <i>{n.folder}</i>}
-          <div className="kb-doc is-paper">
-            <MarkdownBody src={n.body} pages={lookup} onOpen={(t) => document.getElementById(`shared-${notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.id}`)?.scrollIntoView({ behavior: 'smooth' })} />
-          </div>
-        </li>
+        <SharedNoteItem key={n.id} n={n} lookup={lookup} onOpen={open} />
       ))}
     </ul>
   )

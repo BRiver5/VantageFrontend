@@ -45,6 +45,10 @@ import type {
   CastPlan,
   CastPreview,
   CastRequest,
+  DocPermissions,
+  PermissionKind,
+  PermissionsView,
+  RoomRole,
 } from '../types/rooms'
 
 const r = (id: string, path = '') => `/rooms/${id}${path}`
@@ -93,6 +97,9 @@ export const approveMember = (id: string, userId: string) =>
   post<{ user_id: string; room_character_id: string; card: CharacterCard }>(r(id, `/members/${userId}/approve`))
 export const rejectMember = (id: string, userId: string) => post<{ status: string }>(r(id, `/members/${userId}/reject`))
 export const kickMember = (id: string, userId: string) => post<{ status: string }>(r(id, `/members/${userId}/kick`))
+/** Роль участника: игрок, доверенный, помощник мастера (только хозяин комнаты) */
+export const setMemberRole = (id: string, userId: string, role: RoomRole) =>
+  post<{ user_id: string; role: RoomRole }>(r(id, `/members/${userId}/role`), { role })
 
 /* ---------- персонажи (краткие карточки; лист — через roomCharacterRef) ---------- */
 
@@ -230,6 +237,20 @@ export const deleteClock = (id: string, clockId: string) => del(r(id, `/clocks/$
 export async function listSharedNotes(id: string): Promise<SharedNote[]> {
   return (await get<{ items: SharedNote[] }>(r(id, '/notes')))?.items ?? []
 }
+
+/** Страница по уровню доступа игрока */
+export const getSharedNote = (id: string, noteId: string) => get<SharedNote>(r(id, `/notes/${noteId}`))
+/** Правка страницы игроком с уровнем owner */
+export const patchSharedNote = (id: string, noteId: string, body: { title?: string; body?: string; revision?: number }) =>
+  patch<SharedNote>(r(id, `/notes/${noteId}`), body)
+
+/* ---------- права доступа (мастер и помощник) ---------- */
+
+export const getPermissions = (id: string, kind: PermissionKind, docId: string) => get<PermissionsView>(r(id, `/permissions/${kind}/${docId}`))
+export const putPermissions = (id: string, kind: PermissionKind, docId: string, body: DocPermissions) =>
+  put<PermissionsView>(r(id, `/permissions/${kind}/${docId}`), body)
+/** Предмет: владелец меняет заметку, мастер — ещё и количество */
+export const patchRoomItem = (id: string, itemId: string, body: { notes?: string; quantity?: number }) => patch<RoomItem>(r(id, `/items/${itemId}`), body)
 
 /** Привал для всей партии (мастер); кости хитов на коротком каждый тратит сам */
 export const partyRest = (id: string, kind: 'short' | 'long', characterIds?: string[]) =>

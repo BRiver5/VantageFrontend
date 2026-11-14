@@ -40,7 +40,7 @@ export function RoomAvatar({
   )
 }
 
-export const ROLE_RU: Record<RoomRole, string> = { dm: 'Мастер', player: 'Игрок' }
+export const ROLE_RU: Record<RoomRole, string> = { dm: 'Мастер', assistant: 'Помощник мастера', trusted: 'Доверенный игрок', player: 'Игрок' }
 
 export function StatusChip({ status }: { status: RoomStatus }) {
   return <span className={`rm-status is-${status}`}>{statusRu(status)}</span>

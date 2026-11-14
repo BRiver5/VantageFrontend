@@ -9,7 +9,44 @@ import type { Creature, Equipment, Item as MagicItem } from '../api'
 /* ---------- комната ---------- */
 
 export type RoomStatus = 'lobby' | 'active' | 'paused' | 'closed'
-export type RoomRole = 'dm' | 'player'
+/** dm — хозяин комнаты; assistant — помощник мастера (ведёт игру, но не управляет комнатой);
+ * trusted — доверенный игрок (рисует, ставит метки, загружает картинки); player — игрок */
+export type RoomRole = 'dm' | 'assistant' | 'trusted' | 'player'
+
+/* ---------- права (ROOMS_FRONTEND.md → «Роли и права») ---------- */
+
+/** none — не видно; limited — имя и картинка (страница — заголовок); observer — читать; owner — менять */
+export type PermissionLevel = 'none' | 'limited' | 'observer' | 'owner'
+export type PermissionKind = 'notes' | 'creatures' | 'items'
+
+export interface DocPermissions {
+  /** уровень для всех игроков; null — по старым флагам (shared, on_screen_only, holder) */
+  default: PermissionLevel | null
+  /** личные уровни: user_id → уровень; личный важнее общего */
+  users: Record<string, PermissionLevel>
+}
+
+/** GET/PUT /rooms/{id}/permissions/{kind}/{doc} */
+export interface PermissionsView extends DocPermissions {
+  kind: string
+  id: string
+  /** уровень по старым флагам: действует, пока default = null */
+  computed_default: PermissionLevel
+  /** личные уровни из старых полей (призвавший управляет призванным) */
+  computed_users: Record<string, PermissionLevel>
+}
+
+/** me.permissions в снимке: что можно этому участнику */
+export interface RoomCapabilities {
+  is_owner: boolean
+  is_gm: boolean
+  manage_room: boolean
+  manage_members: boolean
+  draw: boolean
+  upload_media: boolean
+  map_pins: boolean
+  templates: boolean
+}
 export type MemberStatus = 'pending' | 'approved' | 'rejected' | 'kicked' | 'left'
 export type HpVisibility = 'exact' | 'band' | 'hidden'
 
@@ -190,12 +227,20 @@ export interface RoomItem {
   room_id: string
   holder: 'table' | 'screen'
   kind: ItemKind
+  /** у уровня limited нет: только name и image_url */
   equipment: Equipment | null
   magic_item: MagicItem | null
   /** только мастеру */
   catalog_ref?: string | null
   quantity: number
   notes: string
+  /** уровень игрока; у мастера нет */
+  level?: PermissionLevel
+  /** уровень limited: имя и картинка вместо снимка */
+  name?: string
+  image_url?: string | null
+  /** только мастеру */
+  permissions?: DocPermissions
 }
 
 export interface ScreenItemTemplate {
@@ -275,6 +320,7 @@ export interface RoomCreature {
   summoned_by?: string | null
   summon_spell?: string | null
   controller_id?: string | null
+  permissions?: DocPermissions
 }
 
 /** Счётчики легендарных действий у игрока: только если открыт visibility.actions */
@@ -308,6 +354,10 @@ export interface CreaturePlayerView {
   legendary?: LegendaryView | null
   effects_detail?: EffectBrief[]
   controller_id?: string | null
+  /** уровень игрока: limited — публичная карточка, observer — статблок, owner — ещё и токен */
+  level?: PermissionLevel
+  /** owner: игрок управляет токеном существа */
+  can_control?: boolean
 }
 
 export type AnyCreature = RoomCreature | CreaturePlayerView
@@ -555,10 +605,17 @@ export interface ScreenNote {
   updated_at?: string
   /** растёт с каждой правкой; пришлите в PATCH — при чужой правке будет 409 */
   revision?: number
+  permissions?: DocPermissions
 }
 
-/** Что игрок получает от общей заметки */
-export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'body' | 'folder' | 'pinned' | 'order'> & { updated_at?: string }
+/** Что игрок получает от общей заметки. limited — без body */
+export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'folder' | 'pinned' | 'order'> & {
+  body?: string
+  updated_at?: string
+  revision?: number
+  /** уровень игрока: owner может править (PATCH /rooms/{id}/notes/{note}) */
+  level?: PermissionLevel
+}
 
 /* ---------- чат и часы ---------- */
 
@@ -654,7 +711,8 @@ export interface DashboardWidget {
 export interface RoomState {
   seq: number
   room: Room
-  me: { user_id: string; role: RoomRole; room_character_id: string | null }
+  /** permissions — у старого сервера нет: см. capabilitiesOf */
+  me: { user_id: string; role: RoomRole; room_character_id: string | null; permissions?: RoomCapabilities }
   members: RoomMemberView[]
   characters: CharacterCard[]
   /** у мастера здесь и предметы ширмы: смотрите holder */

@@ -44,7 +44,7 @@ function RoomCard({ room }: { room: RoomListItem }) {
         <b className="rm-card-name">{room.name}</b>
         {room.description && <span className="rm-card-desc">{room.description}</span>}
         <span className="rm-card-meta">
-          <span className={`rm-role is-${room.my_role}`}>{room.my_role === 'dm' ? <Swords aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}{ROLE_RU[room.my_role]}</span>
+          <span className={`rm-role is-${room.my_role}`}>{room.my_role === 'dm' || room.my_role === 'assistant' ? <Swords aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}{ROLE_RU[room.my_role]}</span>
           {waiting ? (
             <span className="rm-status is-wait">
               <Clock aria-hidden="true" /> ждёт решения мастера
