@@ -389,3 +389,26 @@ describe('журнал', () => {
     expect(big.log[0].key).toBe('k3')
   })
 })
+
+describe('роли и права', () => {
+  it('member.role меняет роль участника и мою роль', () => {
+    const s = state({ me: { user_id: 'u1', role: 'player', room_character_id: null } })
+    const next = applyEvent(s, ev('member.role', { user_id: 'u1', role: 'assistant' }))
+    expect(next.members.find((m) => m.user_id === 'u1')?.role).toBe('assistant')
+    expect(next.me.role).toBe('assistant')
+    expect(describeEvent(next, ev('member.role', { user_id: 'u1', role: 'trusted' }))?.text).toBe('теперь: Доверенный игрок')
+  })
+
+  it('permissions.changed у игрока добавляет и убирает документ', () => {
+    const s = state({ me: { user_id: 'u1', role: 'player', room_character_id: null }, table: [item('i1')] })
+    const gone = applyEvent(s, ev('permissions.changed', { kind: 'items', id: 'i1', level: 'none', view: null }))
+    expect(gone.items).toEqual([])
+    const shown = applyEvent(gone, ev('permissions.changed', { kind: 'notes', id: 'n1', level: 'limited', view: { id: 'n1', title: 'Храм', folder: null, pinned: false, order: 0, level: 'limited' } }, 12))
+    expect(shown.sharedNotes.map((n) => n.id)).toEqual(['n1'])
+  })
+
+  it('permissions.changed у мастера ничего не трогает', () => {
+    const s = state({ table: [item('i1')] })
+    expect(applyEvent(s, ev('permissions.changed', { kind: 'items', id: 'i1', permissions: { default: 'none', users: {} } })).items).toHaveLength(1)
+  })
+})

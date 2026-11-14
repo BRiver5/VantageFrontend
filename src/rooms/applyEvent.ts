@@ -28,11 +28,13 @@ import type {
   RoomItem,
   RoomLogEntry,
   RoomMemberView,
+  RoomRole,
   RoomState,
   RoomStatus,
 } from '../types/rooms'
 import { isEngineRoll, type RollPayload } from '../types/rooms'
 import type { BattleMap } from '../maps/types'
+import { isGmRole, ROLE_LABEL } from './perms/permissions'
 
 /** Сколько записей журнала держим в памяти */
 export const LOG_LIMIT = 300
@@ -215,6 +217,27 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       }
     }
 
+    case 'member.role': {
+      const role = p.role as RoomRole
+      return {
+        ...base,
+        members: base.members.map((m) => (m.user_id === p.user_id ? { ...m, role } : m)),
+        // свою роль меняем сразу, а снимок с новыми проекциями перечитает RoomProvider
+        me: p.user_id === base.me.user_id ? { ...base.me, role, permissions: undefined } : base.me,
+      }
+    }
+
+    case 'permissions.changed': {
+      // мастеру — новые права (документы у него и так целиком); игроку — документ в его проекции или null
+      if (!('view' in p)) return base
+      const id = p.id as string
+      const view = p.view as P | null
+      if (p.kind === 'creatures') return { ...base, creatures: view ? upsert(base.creatures, view as AnyCreature) : without(base.creatures, id) }
+      if (p.kind === 'items') return { ...base, items: view ? upsert(base.items, view as RoomItem) : without(base.items, id) }
+      if (p.kind === 'notes') return { ...base, sharedNotes: view ? byOrder(upsert(base.sharedNotes, view as SharedNote)) : without(base.sharedNotes, id) }
+      return base
+    }
+
     case 'presence.changed': {
       const online = (p.online ?? []) as OnlineUser[]
       return { ...base, online, members: mark(base.members, online) }
@@ -239,7 +262,7 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
     case 'item.taken_back': {
       // со стола на ширму: игрокам предмет исчезает, мастеру остаётся с holder = screen
       if (p.from !== 'table') return base
-      if (base.me.role === 'dm') {
+      if (isGmRole(base.me.role)) {
         return { ...base, items: base.items.map((it) => (it.id === p.item_id ? { ...it, holder: 'screen' } : it)) }
       }
       return { ...base, items: without(base.items, p.item_id) }
@@ -309,7 +332,7 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       const m = p.map as BattleMap | undefined
       if (!m) return base
       // обновилась та, что на столе, — заменить; спрятали — убрать со стола
-      if (base.activeMap?.id === m.id || base.room.active_map_id === m.id) return { ...base, activeMap: m.revealed || base.me.role === 'dm' ? m : null }
+      if (base.activeMap?.id === m.id || base.room.active_map_id === m.id) return { ...base, activeMap: m.revealed || isGmRole(base.me.role) ? m : null }
       return base
     }
     case 'map.token_moved': {
@@ -458,6 +481,10 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       return { ...base, kind: 'member', who, text: 'покидает партию' }
     case 'member.kicked':
       return { ...base, kind: 'member', who, text: 'исключён из комнаты' }
+    case 'member.role': {
+      const m = state.members.find((x) => x.user_id === p.user_id)
+      return { ...base, kind: 'member', who: m?.display_name || m?.nickname || who, text: `теперь: ${ROLE_LABEL[p.role as RoomRole] ?? p.role}` }
+    }
     case 'room.status':
       return { ...base, kind: 'room', who, text: p.status === 'paused' ? 'Мастер поставил игру на паузу' : `Статус комнаты: ${statusRu(p.status)}` }
     case 'character.updated':
