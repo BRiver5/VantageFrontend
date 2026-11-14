@@ -4,10 +4,13 @@
  * чередование «5-10» через весь путь. Перепад высоты — ещё одна ось той же
  * метрики. Точки — клетки и высота.
  *
- * Сетка «hex» хранится, но сервер (движение, дистанции, области) и рисование
- * считают любую сетку квадратной — линейка тоже, чтобы цифры совпадали.
+ * Шестиугольники: шаги по сетке × футы клетки, без правила диагоналей; высота —
+ * третья ось как у «5». Общая таблица случаев с сервером — ../gridParity.json.
  */
+import { cellDistance, isHex } from '../hex'
 import type { BattleMap, MapGrid } from '../types'
+
+type RulerGrid = Pick<MapGrid, 'feet_per_cell' | 'diagonal'> & Partial<Pick<MapGrid, 'kind'>>
 
 export type Cell = [number, number]
 
@@ -38,9 +41,10 @@ export function roundHalfEven(x: number): number {
  * Один отрезок. parity — сколько диагоналей «5-10» уже было (нечётно — следующая стоит 10).
  * Возвращает футы и новую чётность.
  */
-export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: Pick<MapGrid, 'feet_per_cell' | 'diagonal'>, parity = 0): { ft: number; parity: number } {
+export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: RulerGrid, parity = 0): { ft: number; parity: number } {
   const fpc = grid.feet_per_cell || 5
   const dz = roundHalfEven(Math.abs(dzFt) / fpc)
+  if (grid.kind && isHex({ kind: grid.kind })) return { ft: Math.max(cellDistance({ kind: grid.kind }, a, b), dz) * fpc, parity }
   const steps = [Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), dz].sort((x, y) => y - x)
   if (grid.diagonal === '5-10') {
     const diag = steps[1]
@@ -50,7 +54,7 @@ export function segmentFt(a: Cell, b: Cell, dzFt: number, grid: Pick<MapGrid, 'f
 }
 
 /** Отрезки и итог по точкам; чередование «5-10» идёт через весь путь */
-export function measure(points: RulerPoint[], grid: Pick<MapGrid, 'feet_per_cell' | 'diagonal'>): { segments: RulerSegment[]; total: number } {
+export function measure(points: RulerPoint[], grid: RulerGrid): { segments: RulerSegment[]; total: number } {
   const segments: RulerSegment[] = []
   let total = 0
   let parity = 0

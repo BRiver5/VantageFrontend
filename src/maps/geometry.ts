@@ -3,23 +3,21 @@
  * мгновенная фигура под пальцем до его ответа и многоугольник видимости
  * для света и теней (лучи к концам стен, ближайшее пересечение).
  */
+import { cellCenter, cellOf, cellPolygon, isHex, nearestCorner } from './hex'
 import type { MapGrid, MapWall, Pt } from './types'
+
+export { cellCenter, cellOf } from './hex'
 
 export const pxPerFt = (g: MapGrid) => g.cell_px / g.feet_per_cell
 
-export const cellOf = (g: MapGrid, p: Pt): [number, number] => [Math.floor((p.x - g.offset_x) / g.cell_px), Math.floor((p.y - g.offset_y) / g.cell_px)]
-export const cellCenter = (g: MapGrid, col: number, row: number): Pt => ({ x: g.offset_x + (col + 0.5) * g.cell_px, y: g.offset_y + (row + 0.5) * g.cell_px })
 /** Центр клетки → точка для пути */
 export const pathPoints = (g: MapGrid, path: [number, number][]) => path.map(([c, r]) => cellCenter(g, c, r))
 export const snapToCell = (g: MapGrid, p: Pt): Pt => {
   const [c, r] = cellOf(g, p)
   return cellCenter(g, c, r)
 }
-/** Угол стены — к ближайшему углу клетки */
-export const snapToCorner = (g: MapGrid, p: Pt): Pt => ({
-  x: g.offset_x + Math.round((p.x - g.offset_x) / g.cell_px) * g.cell_px,
-  y: g.offset_y + Math.round((p.y - g.offset_y) / g.cell_px) * g.cell_px,
-})
+/** Угол стены — к ближайшему углу клетки (на шестиугольниках — к вершине) */
+export const snapToCorner = (g: MapGrid, p: Pt): Pt => nearestCorner(g, p)
 
 const dir = (deg: number) => {
   const a = (deg * Math.PI) / 180
@@ -132,4 +130,49 @@ export const pointInPolygon = (p: Pt, poly: Pt[]) => {
     if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside
   }
   return inside
+}
+
+/* ---------- клетки под областью: как cells_in_area на сервере ---------- */
+
+function segmentsCross(p1: Pt, p2: Pt, p3: Pt, p4: Pt): boolean {
+  const d1x = p2.x - p1.x
+  const d1y = p2.y - p1.y
+  const d2x = p4.x - p3.x
+  const d2y = p4.y - p3.y
+  const den = d1x * d2y - d1y * d2x
+  if (Math.abs(den) < 1e-9) return false
+  const t = ((p3.x - p1.x) * d2y - (p3.y - p1.y) * d2x) / den
+  const u = ((p3.x - p1.x) * d1y - (p3.y - p1.y) * d1x) / den
+  return t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9
+}
+
+/** Задевает ли фигура выпуклую клетку (уже сжатую на inset) */
+export function polygonTouches(poly: Pt[], cell: Pt[]): boolean {
+  if (cell.some((p) => pointInPolygon(p, poly)) || poly.some((p) => pointInPolygon(p, cell))) return true
+  for (let i = 0; i < poly.length; i++) {
+    for (let j = 0; j < cell.length; j++) if (segmentsCross(poly[i], poly[(i + 1) % poly.length], cell[j], cell[(j + 1) % cell.length])) return true
+  }
+  return false
+}
+
+/**
+ * Клетки под фигурой области: touch — задета хоть немного (касание краем
+ * не считается), center — центр клетки внутри. Решает сервер; это —
+ * подсветка шаблона до его ответа.
+ */
+export function areaCells(poly: Pt[], g: MapGrid, rule: MapGrid['area_rule'] = 'touch'): [number, number][] {
+  if (poly.length < 3) return []
+  const xs = poly.map((p) => p.x)
+  const ys = poly.map((p) => p.y)
+  const [c0, r0] = cellOf(g, { x: Math.min(...xs), y: Math.min(...ys) })
+  const [c1, r1] = cellOf(g, { x: Math.max(...xs), y: Math.max(...ys) })
+  const pad = isHex(g) ? 1 : 0
+  const out: [number, number][] = []
+  for (let c = Math.max(0, c0 - pad); c <= Math.min(g.cols - 1, c1 + pad); c++) {
+    for (let r = Math.max(0, r0 - pad); r <= Math.min(g.rows - 1, r1 + pad); r++) {
+      const hit = rule === 'center' ? pointInPolygon(cellCenter(g, c, r), poly) : polygonTouches(poly, cellPolygon(g, c, r, 0.5))
+      if (hit) out.push([c, r])
+    }
+  }
+  return out
 }
