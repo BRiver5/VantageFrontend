@@ -24,7 +24,7 @@ import type { Asset } from './assets'
 import { ASSET_MIME, AssetLibrary, ItemProps, ObjectProps, ZoneProps } from './EditorPanels'
 import { cellOf, dist, snapToCorner } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
-import type { MapItem, MapLight, MapToken, MapWall, MapZone, Pt } from './types'
+import type { BattleMap, MapItem, MapLight, MapToken, MapWall, MapZone, Pt } from './types'
 import { errText, uid } from './editor/batch'
 import { assetPlacement, dragTo, duplicateNear, hitAt, nextStampNumber, paintTerrain, snapCell, toolTip } from './editor/edit'
 import { EditorHeader } from './editor/EditorHeader'
@@ -46,10 +46,18 @@ import type { Brush, Stamp, Tool } from './editor/types'
 import { useLayerEditor } from './layers/useLayerEditor'
 import { NoteProps } from './notes/NoteProps'
 import { NewSoundProps, SoundProps } from './sounds/SoundProps'
+import { mapOnLevel, pruneLevels, setLevelOf, stampLevel } from './levels'
+import { LevelSwitcher } from './LevelSwitcher'
+import { LevelField } from './editor/LevelField'
+import { LevelsPanel } from './editor/LevelsPanel'
 
 export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => void }) {
   const { roomId, data } = useRoom()
-  const { map, setMap, undo, redo, state, setState, error, setError, change, save, patchProps } = useMapDoc(roomId, mapId)
+  const { map, setMap, undo, redo, state, setState, error, setError, change: changeAll, save, patchProps } = useMapDoc(roomId, mapId)
+  // этажи: конструктор показывает один этаж (null — все), новое встаёт на него
+  const [level, setLevel] = useState<string | null>(null)
+  const change = useCallback((fn: (m: BattleMap) => BattleMap) => changeAll((m) => stampLevel(m, fn(m), level)), [changeAll, level])
+  const view = useMemo(() => (map ? mapOnLevel(map, level) : null), [map, level])
   const [tool, setTool] = useState<Tool>('select')
   const [brush, setBrush] = useState<Brush>('up')
   // выбранное: один — свойства справа, несколько — палитра
@@ -74,7 +82,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const toggle = useRef<{ id: string; from: Pt } | null>(null)
   const stroke = useRef<{ painted: Set<string>; add: boolean } | null>(null)
   // p2/layers: метки и звуки местности
-  const lay = useLayerEditor({ roomId, mapId, tool, canvas, onError: (t) => setError(t) })
+  const lay = useLayerEditor({ roomId, mapId, tool, canvas, level, onError: (t) => setError(t) })
 
   const flash = (t: string) => {
     setNote(t)
@@ -173,7 +181,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     [data?.creatures],
   )
 
-  if (!map) {
+  if (!map || !view) {
     return (
       <div className="me-shell" role="dialog" aria-label="Конструктор карты">
         <p className="tb-hint">{error ?? 'Открываем карту…'}</p>
@@ -267,7 +275,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     if (tool === 'item') {
       if (kind === 'down') return e.button === 0
       if (kind === 'up' && e.button === 0) {
-        const box = map.objects.find((o) => o.container && Math.abs(p.x - o.x) <= o.w / 2 && Math.abs(p.y - o.y) <= o.h / 2)
+        const box = view.objects.find((o) => o.container && Math.abs(p.x - o.x) <= o.w / 2 && Math.abs(p.y - o.y) <= o.h / 2)
         const it: MapItem = { id: uid('i'), name: 'Находка', x: Math.round(p.x), y: Math.round(p.y), hidden: false, ...(box ? { container_object_id: box.id } : {}) }
         change((m) => ({ ...m, items: [...m.items, it] }))
         setSel(it.id)
@@ -329,7 +337,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     if (box) {
       if (kind === 'move') setBox({ a: box.a, b: p })
       if (kind === 'up') {
-        const ids = idsInBox(map, box.a, p)
+        const ids = idsInBox(view, box.a, p)
         setPicked((cur) => [...new Set([...cur, ...ids])])
         setBox(null)
       }
@@ -343,7 +351,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
     // выбор и перетаскивание
     if (kind === 'down') {
       if (e.button !== 0) return false
-      const id = hitAt(map, p)
+      const id = hitAt(view, p)
       if (e.shiftKey && !id) {
         setBox({ a: p, b: p })
         return true
@@ -418,7 +426,8 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
       <ToolBar tool={tool} setTool={setTool} setDraft={setDraft} />
 
       <div className={`me-canvas${showList ? ' has-outliner' : ''}`} onDragOver={(e) => (e.dataTransfer.types.includes(ASSET_MIME) ? e.preventDefault() : lay.dragOver(e))} onDrop={onDrop}>
-        <MapCanvas ref={canvas} map={map} viewer={viewer} artOf={artOf} overlays={eyes ? { ...overlays, notes: lay.overlays.notes, drawings: lay.overlays.drawings } : { ...overlays, ...lay.overlays }} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
+        {(map.levels?.length ?? 0) > 0 && <LevelSwitcher levels={map.levels ?? []} level={level} onLevel={setLevel} />}
+        <MapCanvas ref={canvas} map={view} viewer={viewer} artOf={artOf} overlays={eyes ? { ...overlays, notes: lay.overlays.notes, drawings: lay.overlays.drawings } : { ...overlays, ...lay.overlays }} onPointer={onPointer} className={tool === 'select' ? '' : 'is-drawing'} />
         {(error || note) && (
           <p className="mp-note" role="alert">
             {error ?? note}
@@ -459,6 +468,17 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         {selToken && <TokenProps token={selToken} setToken={setToken} remove={remove} />}
         {selObj && <ObjectProps key={selObj.id} obj={selObj} map={map} onChange={(patch) => change((m) => ({ ...m, objects: m.objects.map((o) => (o.id === selObj.id ? { ...o, ...patch } : o)) }))} onRemove={() => remove(selObj.id)} />}
         {selItem && <ItemProps item={selItem} map={map} onChange={(patch) => change((m) => ({ ...m, items: m.items.map((i) => (i.id === selItem.id ? { ...i, ...patch } : i)) }))} onRemove={() => remove(selItem.id)} />}
+        {(selWall || selLight || selObj || selItem || selZone) && (
+          <LevelField
+            levels={map.levels ?? []}
+            value={(selWall ?? selLight ?? selObj ?? selItem ?? selZone)?.level_id}
+            onChange={(id) => change((m) => setLevelOf(m, sel, id))}
+            stairs={selZone?.stairs_to}
+            onStairs={selZone ? (id) => change((m) => ({ ...m, zones: m.zones.map((z) => (z.id === selZone.id ? { ...z, stairs_to: id } : z)) })) : undefined}
+          />
+        )}
+        {lay.note && <LevelField levels={map.levels ?? []} value={lay.note.level_id} onChange={(id) => lay.note && lay.setNote(lay.note, { level_id: id })} />}
+        {lay.sound && <LevelField levels={map.levels ?? []} value={lay.sound.level_id} onChange={(id) => lay.sound && lay.setSound(lay.sound, { level_id: id })} />}
         {selZone && <ZoneProps key={selZone.id} zone={selZone} map={map} onChange={(patch) => change((m) => ({ ...m, zones: m.zones.map((z) => (z.id === selZone.id ? { ...z, ...patch } : z)) }))} onRemove={() => remove(selZone.id)} />}
 
         {(showPalette || tool === 'wall' || picked.length > 1) && <PalettePanel key={paletteTab} map={map} picked={picked} palette={palette} setPalette={setPalette} change={change} flash={flash} initial={paletteTab} />}
@@ -469,6 +489,19 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
 
         {tool === 'token' && <StampPanel data={data} stamp={stamp} setStamp={setStamp} stampHidden={stampHidden} setStampHidden={setStampHidden} flash={flash} />}
 
+        {!picked.length && !lay.selected && tool !== 'token' && (
+          <LevelsPanel
+            map={map}
+            current={level}
+            onCurrent={setLevel}
+            flash={flash}
+            onLevels={(levels, removed) => {
+              void patchProps({ levels }).then(() => {
+                if (removed) change((m) => pruneLevels(m))
+              })
+            }}
+          />
+        )}
         {!picked.length && !lay.selected && tool !== 'token' && <SidePanel map={map} roomId={roomId} mapId={mapId} side={side} setSide={setSide} eyes={eyes} setEyes={setEyes} creatureRefs={creatureRefs} change={change} save={save} patchProps={patchProps} flash={flash} setError={setError} />}
       </aside>
     </div>
