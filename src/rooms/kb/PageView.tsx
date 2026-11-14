@@ -21,6 +21,8 @@ import { iconOf } from './tree'
 import { ICONS } from './templates'
 import { Editor } from './Editor'
 import { PageMapChips } from '../../maps/notes/PageMapChips'
+import { PopOutButton } from '../../popout/PopOutWindow'
+import { emitRoomCommand } from '../commands'
 
 /* ---------- страница ---------- */
 
@@ -157,6 +159,8 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
               <option key={f} value={f} />
             ))}
           </datalist>
+          {/* p3/ux: страница в отдельном окне браузера; закрыли окно — снова в кодексе */}
+          <PopOutButton kind="article" id={note.id} title={note.title || 'Страница'} compact onReturn={() => emitRoomCommand({ type: 'kb.open', id: note.id })} />
         </div>
         <div className="kb-titlebar">
           <span className="kb-icon-wrap">

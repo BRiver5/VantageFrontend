@@ -21,6 +21,7 @@ import { BattleScene } from './table/BattleScene'
 import { BattleIntro, BattleOutro } from './table/battle/BattleCurtains'
 import { DmScreen } from './table/DmScreen'
 import { TableScene } from './table/TableScene'
+import { RoomUx } from './ux/RoomUx'
 
 const FATAL_TEXT: Record<string, string> = {
   not_member: 'Вы не участник этой комнаты.',
@@ -114,6 +115,7 @@ function Stage() {
       {validHero && <SheetOver characterId={validHero} backTo={`/rooms/${roomId}`} />}
       {fx === 'intro' && <BattleIntro onDone={clearFx} />}
       {fx === 'outro' && <BattleOutro onDone={clearFx} />}
+      <RoomUx />
     </>
   )
 }

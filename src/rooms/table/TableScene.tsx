@@ -6,6 +6,7 @@
  * в мешок, который сам выдвигается из-за листа героя.
  */
 import { MapField } from '../../maps/MapField'
+import { PopOutButton, PopOutSlot } from '../../popout/PopOutWindow'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Backpack } from 'lucide-react'
 import { ApiError, type Currency } from '../../api'
@@ -235,12 +236,16 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
       <div className={`tb-field${data?.activeMap ? ' has-map' : ''}`}>
         {data?.activeMap && (
           <div className="tb-map">
-            <MapField
-              onOpen={(t) => {
-                if (t.creature_id) setCreatureOpen({ id: t.creature_id, origin: originOf(null) })
-                else if (t.character_id) setHeroOpen({ id: t.character_id, origin: originOf(null), rotate: 0 })
-              }}
-            />
+            {/* p3/ux: карту можно вынести в отдельное окно; закрыли окно — она снова здесь */}
+            <PopOutSlot kind="map" id={data.activeMap.id} title={data.activeMap.name || 'Карта'}>
+              <MapField
+                onOpen={(t) => {
+                  if (t.creature_id) setCreatureOpen({ id: t.creature_id, origin: originOf(null) })
+                  else if (t.character_id) setHeroOpen({ id: t.character_id, origin: originOf(null), rotate: 0 })
+                }}
+              />
+            </PopOutSlot>
+            <PopOutButton kind="map" id={data.activeMap.id} title={data.activeMap.name || 'Карта'} className="po-btn po-fab is-map" compact />
           </div>
         )}
         {!data?.activeMap && tokens.length > 0 && (
