@@ -17,12 +17,15 @@ import {
   FolderPlus,
   Network,
   Pin,
+  ScrollText,
   Search,
   X,
 } from 'lucide-react'
 import { KnowledgeGraph } from './Graph'
 import { type PageLookup } from './Markdown'
-import { linksOf, plainText, tagsOf, writePage } from './mdparse'
+import { embedsOf, linksOf, plainText, tagsOf, writePage } from './mdparse'
+import { QuestLog } from './PageTypes'
+import { typePatch } from './pageKinds'
 import { norm, useKnowledge } from './context'
 import { buildTree, iconOf } from './tree'
 import { FolderNode, PageRow } from './TreeView'
@@ -37,6 +40,11 @@ export function KnowledgeWorkspace() {
   const notes = useMemo(() => kb.notes ?? [], [kb.notes])
   const [q, setQ] = useState('')
   const [graph, setGraph] = useState(false)
+  const [quests, setQuests] = useState(false)
+  const closeViews = () => {
+    setGraph(false)
+    setQuests(false)
+  }
   const [newMenu, setNewMenu] = useState(false)
   const [newFolder, setNewFolder] = useState<string | null>(null)
   const [extraFolders, setExtraFolders] = useState<string[]>([])
@@ -60,7 +68,15 @@ export function KnowledgeWorkspace() {
   }, [current?.folder])
 
   const lookup = useMemo<PageLookup>(
-    () => ({ has: (t) => byTitle.has(norm(t)), body: (t) => byTitle.get(norm(t))?.body ?? null, titles: notes.map((n) => n.title) }),
+    () => ({
+      has: (t) => byTitle.has(norm(t)),
+      body: (t) => byTitle.get(norm(t))?.body ?? null,
+      titles: notes.map((n) => n.title),
+      byId: (id) => {
+        const n = notes.find((x) => x.id === id)
+        return n ? { title: n.title, body: n.body, revealed: n.revealed_secrets ?? [] } : null
+      },
+    }),
     [byTitle, notes],
   )
   const folders = useMemo(() => {
@@ -72,9 +88,14 @@ export function KnowledgeWorkspace() {
   const pinned = notes.filter((n) => n.pinned)
   const edges = useMemo(() => {
     const out: { from: string; to: string }[] = []
-    for (const n of notes) for (const l of linksOf(n.body)) {
-      const t = byTitle.get(l)
-      if (t && t.id !== n.id) out.push({ from: n.id, to: t.id })
+    const ids = new Set(notes.map((n) => n.id))
+    for (const n of notes) {
+      for (const l of linksOf(n.body)) {
+        const t = byTitle.get(l)
+        if (t && t.id !== n.id) out.push({ from: n.id, to: t.id })
+      }
+      // @Embed[page:id] — тоже связь
+      for (const e of embedsOf(n.body)) if (e.kind === 'page' && e.id !== n.id && ids.has(e.id)) out.push({ from: n.id, to: e.id })
     }
     return out
   }, [notes, byTitle])
@@ -97,9 +118,11 @@ export function KnowledgeWorkspace() {
   const newPage = async (tpl: (typeof TEMPLATES)[number], folder?: string) => {
     setNewMenu(false)
     const body = writePage({ tags: [], extra: {}, icon: tpl.icon || undefined }, tpl.body)
-    const n = await kb.create({ title: tpl.name === 'Пустая страница' ? 'Новая страница' : tpl.name, folder: folder ?? (tpl.folder || current?.folder || null), body, order: notes.length })
+    const typed = tpl.type ? typePatch({}, tpl.type) : {}
+    const n = await kb.create({ title: tpl.name === 'Пустая страница' ? 'Новая страница' : tpl.name, folder: folder ?? (tpl.folder || current?.folder || null), body, order: notes.length, ...typed })
     if (n) kb.setCurrent(n.id)
     setGraph(false)
+    setQuests(false)
   }
   const toggle = (p: string) =>
     setOpenFolders((s) => {
@@ -142,8 +165,11 @@ export function KnowledgeWorkspace() {
             <button type="button" className="kb-new is-quiet" onClick={() => setNewFolder('')} title="Новая папка">
               <FolderPlus aria-hidden="true" />
             </button>
-            <button type="button" className={`kb-new is-quiet${graph ? ' is-on' : ''}`} onClick={() => setGraph((v) => !v)} title="Граф связей">
+            <button type="button" className={`kb-new is-quiet${graph ? ' is-on' : ''}`} onClick={() => (setGraph((v) => !v), setQuests(false))} title="Граф связей">
               <Network aria-hidden="true" />
+            </button>
+            <button type="button" className={`kb-new is-quiet${quests ? ' is-on' : ''}`} onClick={() => (setQuests((v) => !v), setGraph(false))} title="Квесты">
+              <ScrollText aria-hidden="true" />
             </button>
           </div>
           {newFolder != null && (
@@ -171,7 +197,7 @@ export function KnowledgeWorkspace() {
                 {found.length === 0 && <li className="kb-hint">Ничего не нашли</li>}
                 {found.map((n) => (
                   <li key={n.id}>
-                    <button type="button" className={`kb-row is-found${current?.id === n.id ? ' is-on' : ''}`} onClick={() => (kb.setCurrent(n.id), setGraph(false))}>
+                    <button type="button" className={`kb-row is-found${current?.id === n.id ? ' is-on' : ''}`} onClick={() => (kb.setCurrent(n.id), closeViews())}>
                       <span className="kb-row-icon">{iconOf(n) ?? <FileText aria-hidden="true" />}</span>
                       <span className="kb-row-title">
                         {n.title}
@@ -189,7 +215,7 @@ export function KnowledgeWorkspace() {
                       <Pin aria-hidden="true" /> Закреплено
                     </h4>
                     {pinned.map((n) => (
-                      <PageRow key={n.id} n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), setGraph(false))} />
+                      <PageRow key={n.id} n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), closeViews())} />
                     ))}
                   </section>
                 )}
@@ -202,14 +228,14 @@ export function KnowledgeWorkspace() {
                       current={current?.id ?? null}
                       openFolders={openFolders}
                       toggle={toggle}
-                      onOpen={(id) => (kb.setCurrent(id), setGraph(false))}
+                      onOpen={(id) => (kb.setCurrent(id), closeViews())}
                       onDrop={(id, folder) => id && void kb.update(id, { folder })}
                       onNew={(folder) => void newPage(TEMPLATES[0], folder)}
                     />
                   ))}
                   {tree.pages.map((n) => (
                     <li key={n.id}>
-                      <PageRow n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), setGraph(false))} />
+                      <PageRow n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), closeViews())} />
                     </li>
                   ))}
                 </ul>
@@ -219,12 +245,17 @@ export function KnowledgeWorkspace() {
           </div>
         </aside>
         <main className="kb-stage">
-          {graph ? (
+          {quests ? (
+            <div className="kb-quests-stage">
+              <h2>Квесты</h2>
+              <QuestLog notes={notes} onOpen={(id) => (kb.setCurrent(id), setQuests(false))} empty="Квестов пока нет: «страница» → «Квест»." />
+            </div>
+          ) : graph ? (
             <KnowledgeGraph
               nodes={notes.map((n) => ({ id: n.id, title: n.title, folder: n.folder ?? '', icon: iconOf(n) }))}
               edges={edges}
               current={current?.id ?? null}
-              onOpen={(id) => (kb.setCurrent(id), setGraph(false))}
+              onOpen={(id) => (kb.setCurrent(id), closeViews())}
             />
           ) : current ? (
             <PageView key={current.id} note={current} lookup={lookup} folders={folders} onOpenTitle={(t) => void openTitle(t)} onTag={(t) => setQ(`#${t}`)} backlinks={backlinks} />

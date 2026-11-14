@@ -5,6 +5,7 @@ import { useRoom } from '../../RoomProvider'
 import { Emerge, useEmergeClose, type Origin } from '../parts'
 import { MarkdownBody } from '../../kb/Markdown'
 import { parsePage } from '../../kb/mdparse'
+import { QuestLog, TypedPanel } from '../../kb/PageTypes'
 
 /* ---------- личные заметки: карта в углу ---------- */
 
@@ -22,7 +23,14 @@ function SharedNotesList() {
   const notes = [...(data?.sharedNotes ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.order - b.order)
   if (notes.length === 0) return <p className="tb-map-wait">Мастер пока ничего не открыл</p>
   // ссылки ведут только на открытые партии страницы
-  const lookup = { has: (t: string) => notes.some((x) => x.title.toLowerCase() === t.toLowerCase()), body: (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null, titles: notes.map((x) => x.title) }
+  const lookup = {
+    has: (t: string) => notes.some((x) => x.title.toLowerCase() === t.toLowerCase()),
+    body: (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null,
+    titles: notes.map((x) => x.title),
+    byId: (id: string) => notes.find((x) => x.id === id) ?? null,
+  }
+  const jump = (id: string | undefined) => document.getElementById(`shared-${id}`)?.scrollIntoView({ behavior: 'smooth' })
+  const refs = notes.map((x) => ({ id: x.id, title: x.title, page_type: x.page_type }))
   return (
     <ul className="tb-shared">
       {notes.map((n) => (
@@ -32,8 +40,9 @@ function SharedNotesList() {
             {n.title || 'Без названия'}
           </h3>
           {n.folder && <i>{n.folder}</i>}
+          <TypedPanel note={n} pages={refs} onOpenPage={jump} />
           <div className="kb-doc is-paper">
-            <MarkdownBody src={n.body} pages={lookup} onOpen={(t) => document.getElementById(`shared-${notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.id}`)?.scrollIntoView({ behavior: 'smooth' })} />
+            <MarkdownBody src={n.body} pages={lookup} onOpen={(t) => jump(notes.find((x) => x.title.toLowerCase() === t.toLowerCase())?.id)} />
           </div>
         </li>
       ))}
@@ -45,7 +54,9 @@ function NotesPaper({ characterId }: { characterId: string }) {
   const { roomId, data } = useRoom()
   const close = useEmergeClose()
   const shared = data?.sharedNotes.length ?? 0
-  const [tab, setTab] = useState<'mine' | 'shared'>('mine')
+  const [tab, setTab] = useState<'mine' | 'shared' | 'quests'>('mine')
+  // журнал квестов: сервер присылает только видимые игроку квесты и цели
+  const questCount = (data?.sharedNotes ?? []).filter((n) => n.page_type === 'quest').length
   const [text, setText] = useState<string | null>(null)
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -103,11 +114,18 @@ function NotesPaper({ characterId }: { characterId: string }) {
             <button type="button" role="tab" aria-selected={tab === 'shared'} className={tab === 'shared' ? 'is-on' : ''} onClick={() => setTab('shared')}>
               От мастера <em>{shared}</em>
             </button>
+            {questCount > 0 && (
+              <button type="button" role="tab" aria-selected={tab === 'quests'} className={tab === 'quests' ? 'is-on' : ''} onClick={() => setTab('quests')}>
+                Квесты <em>{questCount}</em>
+              </button>
+            )}
           </div>
         ) : (
           <h2>Мои заметки</h2>
         )}
-        {tab === 'shared' && shared > 0 ? (
+        {tab === 'quests' && questCount > 0 ? (
+          <QuestLog notes={data?.sharedNotes ?? []} empty="Квестов пока нет" />
+        ) : tab === 'shared' && shared > 0 ? (
           <SharedNotesList />
         ) : text == null ? (
           <p className="tb-map-wait">Разворачиваем карту…</p>

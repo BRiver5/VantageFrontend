@@ -1,0 +1,148 @@
+/* База знаний: тайные блоки, карточки встраивания, квесты, НИП, лавки, раздел монет.
+   Страницы — бумага (цвета чернил --ink / --ink-soft из стола), панели — токены темы. */
+
+/* ---------- тайна ---------- */
+
+.kb-secret { --c: 90, 60, 150; margin: 0 0 1em; border-radius: 10px; background: repeating-linear-gradient(135deg, rgba(var(--c), 0.07) 0 10px, rgba(var(--c), 0.11) 10px 20px); box-shadow: inset 3px 0 0 rgba(var(--c), 0.75); }
+.kb-secret.is-revealed { --c: 46, 110, 60; background: rgba(var(--c), 0.08); }
+.kb-secret-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 14px; color: rgb(var(--c)); font-family: var(--font-display); }
+.kb-secret-head svg { flex: none; width: 1em; height: 1em; }
+.kb-secret-state { font-family: var(--font-body); font-size: 12px; font-style: italic; opacity: 0.8; }
+.kb-secret-head .kb-chip { margin-left: auto; color: rgb(var(--c)); box-shadow: inset 0 0 0 1px rgba(var(--c), 0.4); }
+.kb-secret-head .kb-chip:hover { background: rgba(var(--c), 0.12); }
+.kb-secret-body { padding: 0 14px 10px 36px; }
+.kb-secret-body > :last-child { margin-bottom: 0; }
+.kb-doc.is-player-view { outline: 2px dashed rgba(46, 110, 60, 0.35); outline-offset: 6px; border-radius: 6px; }
+
+/* ---------- карточки @Embed ---------- */
+
+.kb-embed-block { margin: 0 0 1em; }
+.kb-card { display: inline-flex; gap: 12px; max-width: 100%; margin: 2px 0; padding: 10px 12px; vertical-align: top; border-radius: 10px; background: rgba(255, 250, 235, 0.45); box-shadow: inset 0 0 0 1px rgba(70, 44, 16, 0.2); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.35; }
+.kb-embed-block .kb-card { display: flex; }
+.kb-card.is-missing, .kb-card.is-loading { align-items: center; gap: 8px; color: var(--ink-soft); font-style: italic; }
+.kb-card.is-missing svg, .kb-card.is-loading svg { width: 16px; height: 16px; }
+.kb-card-art { display: grid; flex: none; place-items: center; width: 52px; height: 52px; overflow: hidden; border-radius: 8px; background: rgba(70, 44, 16, 0.08); color: var(--ink-soft); }
+.kb-card-art img { width: 100%; height: 100%; object-fit: cover; }
+.kb-card-art svg { width: 24px; height: 24px; }
+.kb-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kb-card-kind { color: var(--ink-soft); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.kb-card-title { font-family: var(--font-display); font-size: 16px; }
+.kb-card-facts { color: var(--ink-soft); font-size: 12.5px; }
+.kb-card-text { font-size: 13px; }
+.kb-card.is-creature { box-shadow: inset 3px 0 0 rgba(150, 35, 25, 0.6), inset 0 0 0 1px rgba(70, 44, 16, 0.2); }
+.kb-card.is-spell { box-shadow: inset 3px 0 0 rgba(90, 60, 150, 0.6), inset 0 0 0 1px rgba(70, 44, 16, 0.2); }
+.kb-card.is-item { box-shadow: inset 3px 0 0 rgba(170, 120, 20, 0.7), inset 0 0 0 1px rgba(70, 44, 16, 0.2); }
+
+/* ---------- вставка карточек и поиск по каталогу ---------- */
+
+.kb-tools { position: relative; }
+.kb-embed-pick { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; width: min(360px, calc(100vw - 32px)); padding: 10px; border-radius: 10px; background: var(--surface-2); box-shadow: 0 10px 30px rgba(var(--black-rgb), 0.45), inset 0 0 0 1px var(--border); color: var(--text); }
+.kb-embed-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.kb-embed-tabs button { padding: 3px 9px; border: none; border-radius: 99px; cursor: pointer; background: transparent; color: var(--text-dim); font: inherit; font-size: 12.5px; }
+.kb-embed-tabs button.is-on { background: rgba(var(--gold-2-rgb), 0.18); color: var(--accent-strong); }
+.kb-picker { display: flex; flex-direction: column; gap: 6px; }
+.kb-picker > input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); color: var(--text); font: inherit; }
+.kb-picker-list { display: flex; flex-direction: column; max-height: 240px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.kb-picker-list button { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 5px 8px; border: none; border-radius: 6px; cursor: pointer; background: none; color: inherit; font: inherit; text-align: left; }
+.kb-picker-list button:hover { background: rgba(var(--gold-2-rgb), 0.12); }
+.kb-picker-list button[draggable='true'] { cursor: grab; }
+.kb-picker-list i { color: var(--text-dim); font-size: 12px; }
+.kb-embed-pick .kb-hint { margin: 8px 0 0; font-size: 12px; }
+
+/* ---------- поля страниц: квест, НИП, лавка ---------- */
+
+.kb-type-pick { appearance: none; padding-right: 12px; }
+.kb-typed { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: rgba(255, 250, 235, 0.4); box-shadow: inset 0 0 0 1px rgba(70, 44, 16, 0.2); color: var(--ink); font-family: var(--font-body); }
+.kb-typed select, .kb-typed input:not([type='checkbox']), .kb-typed textarea { padding: 3px 6px; border: 1px solid rgba(70, 44, 16, 0.3); border-radius: 6px; background: rgba(255, 255, 255, 0.55); color: var(--ink); font: inherit; font-size: 14px; }
+.kb-typed input[type='number'] { width: 70px; }
+.kb-typed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.kb-typed-head > svg { width: 18px; height: 18px; color: var(--ink-soft); }
+.kb-typed-giver { margin-left: auto; color: var(--ink-soft); font-size: 13px; }
+.kb-typed-field { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.kb-typed-field > span { color: var(--ink-soft); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+.kb-typed-toggle { display: inline-flex; align-items: center; gap: 5px; }
+.kb-quest-status { padding: 1px 10px; border-radius: 99px; background: rgba(40, 80, 130, 0.14); font-size: 13px; }
+.kb-quest.is-completed .kb-quest-status { background: rgba(46, 110, 60, 0.18); }
+.kb-quest.is-failed .kb-quest-status { background: rgba(150, 35, 25, 0.16); }
+.kb-quest.is-hidden { opacity: 0.85; box-shadow: inset 0 0 0 1px rgba(90, 60, 150, 0.35); }
+.kb-objectives { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.kb-objectives li { display: flex; align-items: center; gap: 8px; }
+.kb-objectives li.is-done > span:last-child, .kb-objectives li.is-done .kb-objective-text { color: var(--ink-soft); text-decoration: line-through; }
+.kb-objectives li.is-hidden { opacity: 0.6; font-style: italic; }
+.kb-objective-text { flex: 1; min-width: 0; }
+.kb-objective-mark { display: grid; flex: none; place-items: center; width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(70, 44, 16, 0.45); }
+.kb-objective-mark svg { width: 12px; height: 12px; color: rgb(46, 110, 60); }
+.kb-objectives.is-compact { margin: 4px 0 0 6px; font-size: 13.5px; }
+.kb-npc { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+.kb-npc-portrait { position: relative; display: grid; flex: none; place-items: center; width: 96px; height: 96px; overflow: hidden; border-radius: 50%; background: rgba(70, 44, 16, 0.1); font-size: 40px; }
+.kb-npc-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.kb-npc-portrait-tools { position: absolute; bottom: 4px; display: flex; gap: 4px; }
+.kb-npc-portrait-tools button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: none; border-radius: 50%; cursor: pointer; background: rgba(var(--black-rgb), 0.55); color: var(--text); }
+.kb-npc-portrait-tools svg { width: 14px; height: 14px; }
+.kb-npc-facts { display: grid; flex: 1; grid-template-columns: auto 1fr; gap: 6px 12px; min-width: 220px; margin: 0; }
+.kb-npc-facts dt { color: var(--ink-soft); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+.kb-npc-facts dd { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.kb-npc-attitude { padding: 0 8px; border-radius: 99px; background: rgba(70, 44, 16, 0.1); }
+.kb-npc.is-friendly .kb-npc-attitude { background: rgba(46, 110, 60, 0.18); }
+.kb-npc.is-hostile .kb-npc-attitude { background: rgba(150, 35, 25, 0.18); }
+.kb-npc-creature { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; }
+.kb-npc-creature-card { display: flex; align-items: flex-start; gap: 6px; }
+
+/* лавка */
+.kb-shop { display: flex; flex-direction: column; gap: 8px; }
+.kb-shop-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kb-shop-head > svg { width: 18px; height: 18px; color: var(--ink-soft); }
+.kb-shop-head .kb-hint { margin: 0; color: var(--ink-soft); }
+.kb-shop-wallet { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 13px; }
+.kb-shop-wallet svg { width: 15px; height: 15px; }
+.kb-shop-stock, .kb-shop-sell ul { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.kb-shop-stock li, .kb-shop-sell li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+.kb-shop-stock li:nth-child(odd) { background: rgba(70, 44, 16, 0.05); }
+.kb-shop-name { display: inline-flex; flex: 1; align-items: center; gap: 6px; min-width: 140px; }
+.kb-shop-name svg { width: 14px; height: 14px; color: var(--ink-soft); }
+.kb-shop-name em, .kb-shop-sell em { color: var(--ink-soft); font-size: 12.5px; }
+.kb-shop-price { font-variant-numeric: tabular-nums; font-weight: 700; }
+.kb-shop-acts { display: inline-flex; align-items: center; gap: 6px; }
+.kb-shop-acts input[type='number'] { width: 64px; }
+.kb-shop-add { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.kb-shop-add label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.kb-shop-add .kb-picker { flex: 1; min-width: 200px; }
+.kb-shop-add .kb-picker-list button:hover { background: rgba(70, 44, 16, 0.08); }
+.kb-shop-add .kb-picker-list i { color: var(--ink-soft); }
+.kb-shop-sell summary { cursor: pointer; color: var(--ink-soft); }
+.kb-shop-sell li > span:first-child { flex: 1; }
+.kb-shop-note { margin: 0; color: rgb(46, 110, 60); font-size: 13.5px; }
+.kb-typed .kb-chip { color: var(--ink-soft); box-shadow: inset 0 0 0 1px rgba(70, 44, 16, 0.25); }
+.kb-typed .kb-chip.is-on { background: rgba(70, 44, 16, 0.85); color: var(--parchment); }
+.kb-typed .kb-chip:disabled { cursor: default; opacity: 0.5; }
+
+/* ---------- журнал квестов ---------- */
+
+.kb-quests-stage { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+.kb-questlog { display: flex; flex-direction: column; gap: 14px; }
+.kb-questlog h4 { margin: 0 0 6px; font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.kb-questlog h4 em { opacity: 0.6; font-style: normal; }
+.kb-questlog > section > ul { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.kb-questlog-item { padding: 8px 12px; border-radius: 8px; background: rgba(var(--gold-2-rgb), 0.06); box-shadow: inset 3px 0 0 rgba(var(--gold-2-rgb), 0.5); }
+.kb-questlog-item.is-completed { box-shadow: inset 3px 0 0 var(--success); }
+.kb-questlog-item.is-failed { box-shadow: inset 3px 0 0 var(--danger); opacity: 0.85; }
+.kb-questlog-item.is-hidden { box-shadow: inset 3px 0 0 var(--arcane); opacity: 0.75; }
+.kb-questlog-title { display: flex; gap: 8px; align-items: baseline; padding: 0; border: none; cursor: pointer; background: none; color: inherit; font: inherit; font-weight: 700; text-align: left; }
+.kb-questlog-title:disabled { cursor: default; }
+.kb-questlog-title i { opacity: 0.6; font-size: 12.5px; font-weight: 400; }
+.kb-questlog .kb-hint { margin: 4px 0 0; }
+
+/* ---------- раздел монет (ширма) ---------- */
+
+.sc-split { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; padding: 12px; border-radius: 10px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--border); }
+.sc-split header { display: flex; align-items: center; gap: 8px; }
+.sc-split header svg { width: 16px; height: 16px; color: var(--accent); }
+.sc-split header .tb-card-x { position: static; margin-left: auto; }
+.sc-split-coins { display: flex; flex-wrap: wrap; gap: 8px; }
+.sc-split-coins label { display: inline-flex; align-items: center; gap: 4px; }
+.sc-split-coins input { width: 64px; }
+.sc-split-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sc-split-heroes { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.sc-split-heroes label { display: inline-flex; align-items: center; gap: 5px; }
+.sc-split input, .sc-split select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; }
+.sc-split .tb-goldbtn { align-self: flex-start; }

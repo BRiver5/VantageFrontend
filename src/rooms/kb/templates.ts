@@ -1,7 +1,10 @@
 
+import type { PageType } from '../../types/rooms'
+
 /* ---------- шаблоны ---------- */
 
-export const TEMPLATES: { name: string; icon: string; folder: string; body: string }[] = [
+/** type — у страницы будут поля квеста, НИП или лавки */
+export const TEMPLATES: { name: string; icon: string; folder: string; body: string; type?: PageType }[] = [
   { name: 'Пустая страница', icon: '', folder: '', body: '' },
   {
     name: 'Персонаж мастера',
@@ -19,8 +22,17 @@ export const TEMPLATES: { name: string; icon: string; folder: string; body: stri
     name: 'Квест',
     icon: '📜',
     folder: 'Квесты',
+    type: 'quest',
     body: '> [!tip] Зацепка\n> Как герои узнают о деле.\n\n## Шаги\n- [ ] \n- [ ] \n\n## Награда\n\n## Если пойдёт не так\n',
   },
+  {
+    name: 'НИП',
+    icon: '🧙',
+    folder: 'Персонажи',
+    type: 'npc',
+    body: '> [!lore] Кто это\n> Одна фраза, чтобы вспомнить за столом.\n\n## Чего хочет\n- \n\n:::secret Тайна\nИгроки об этом пока не знают.\n:::\n',
+  },
+  { name: 'Лавка', icon: '💰', folder: 'Лавки', type: 'shop', body: '## Как выглядит\nЗапахи, вывеска, хозяин за прилавком.\n' },
   {
     name: 'Таблица случайностей',
     icon: '🎲',

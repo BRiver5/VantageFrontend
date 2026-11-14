@@ -188,7 +188,7 @@ export type ItemTarget = 'table' | 'screen' | string
 export interface RoomItem {
   id: string
   room_id: string
-  holder: 'table' | 'screen'
+  holder: 'table' | 'screen' | 'map' | 'shop'
   kind: ItemKind
   equipment: Equipment | null
   magic_item: MagicItem | null
@@ -555,10 +555,71 @@ export interface ScreenNote {
   updated_at?: string
   /** растёт с каждой правкой; пришлите в PATCH — при чужой правке будет 409 */
   revision?: number
+  /** тип страницы: у квеста, НИП и лавки свои поля */
+  page_type?: PageType
+  quest?: QuestFields | null
+  npc?: NpcFields | null
+  shop?: ShopFields | null
+  /** id тайных блоков «:::secret id=…», раскрытых партии */
+  revealed_secrets?: string[]
 }
 
-/** Что игрок получает от общей заметки */
-export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'body' | 'folder' | 'pinned' | 'order'> & { updated_at?: string }
+export type PageType = 'page' | 'quest' | 'npc' | 'shop'
+export type QuestStatus = 'active' | 'completed' | 'failed' | 'hidden'
+export type NpcAttitude = 'friendly' | 'neutral' | 'hostile' | 'unknown'
+
+export interface QuestObjective {
+  id: string
+  text: string
+  done: boolean
+  /** скрытую цель видит только мастер; игроку поле не приходит */
+  visible?: boolean
+}
+
+export interface QuestFields {
+  status: QuestStatus
+  objectives: QuestObjective[]
+  rewards: string
+  /** кто дал квест: id страницы НИП */
+  giver_page_id: string | null
+}
+
+export interface NpcFields {
+  portrait: string | null
+  attitude: NpcAttitude
+  role: string
+  location_page_id: string | null
+  location: string
+  /** статблок из каталога существ; игроку не приходит */
+  creature_id?: string | null
+}
+
+export interface ShopFields {
+  open: boolean
+  buy_multiplier: number
+  sell_multiplier: number
+  merchant_page_id: string | null
+}
+
+/** Товар лавки: предмет комнаты с holder = shop и ценами в медных */
+export interface ShopStockItem extends RoomItem {
+  shop_id: string
+  /** своя цена штуки; null — цена предмета × множитель */
+  price_cp: number | null
+  base_price_cp: number
+  unit_price_cp: number
+  sell_price_cp: number
+}
+
+export interface ShopView {
+  page_id: string
+  title: string
+  shop: ShopFields
+  stock: ShopStockItem[]
+}
+
+/** Что игрок получает от общей заметки: тайны вырезаны, скрытые цели квеста убраны */
+export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'body' | 'folder' | 'pinned' | 'order' | 'page_type' | 'quest' | 'npc' | 'shop'> & { updated_at?: string }
 
 /* ---------- чат и часы ---------- */
 

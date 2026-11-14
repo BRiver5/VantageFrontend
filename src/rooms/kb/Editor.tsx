@@ -1,7 +1,9 @@
-import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react'
 import {
   Bold,
   Dices,
+  Lock,
+  PackageSearch,
   FileText,
   Heading2,
   ImagePlus,
@@ -16,10 +18,63 @@ import {
 import { uploadMedia } from '../../api'
 import { norm } from './context'
 import { matches } from '../../input/keybindings'
+import { embedText, newSecretId } from './mdparse'
+import { CatalogPicker } from './CatalogPicker'
+import { ENTITY_EMBED } from './pageKinds'
+
+type PickTab = 'pages' | 'items' | 'equipment' | 'creatures' | 'spells'
+const PICK_TABS: { id: PickTab; label: string }[] = [
+  { id: 'pages', label: 'Страницы' },
+  { id: 'items', label: 'Предметы' },
+  { id: 'equipment', label: 'Снаряжение' },
+  { id: 'creatures', label: 'Существа' },
+  { id: 'spells', label: 'Заклинания' },
+]
+
+/** Что вставить: страницы базы и карточки каталога. Строки можно перетащить в текст */
+function EmbedPicker({ pages, onInsert }: { pages: { id: string; title: string }[]; onInsert: (text: string) => void }) {
+  const [tab, setTab] = useState<PickTab>('pages')
+  const [q, setQ] = useState('')
+  const drag = (text: string) => (e: DragEvent) => {
+    e.dataTransfer.setData('text/plain', text)
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+  const shown = pages.filter((p) => norm(p.title).includes(norm(q))).slice(0, 30)
+  return (
+    <div className="kb-embed-pick" role="dialog" aria-label="Вставить карточку">
+      <div className="kb-embed-tabs" role="tablist">
+        {PICK_TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'is-on' : ''} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'pages' ? (
+        <div className="kb-picker">
+          <input type="search" value={q} placeholder="Название страницы" onChange={(e) => setQ(e.target.value)} autoFocus />
+          <ul className="kb-picker-list">
+            {shown.map((p) => (
+              <li key={p.id}>
+                <button type="button" draggable onDragStart={drag(embedText('page', p.id))} onClick={() => onInsert(embedText('page', p.id))} title="Нажмите или перетащите: страница встанет целиком">
+                  <b>{p.title}</b>
+                  <i>встроить</i>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <CatalogPicker key={tab} entities={[tab]} autoFocus onPick={(h) => onInsert(embedText(ENTITY_EMBED[h.entity] ?? 'item', h.id))} dragText={(h) => embedText(ENTITY_EMBED[h.entity] ?? 'item', h.id)} />
+      )}
+      <p className="kb-hint">Нажмите — карточка встанет под курсор, или перетащите её в нужное место текста.</p>
+    </div>
+  )
+}
 
 /* ---------- редактор ---------- */
 
-export function Editor({ value, onChange, titles }: { value: string; onChange: (v: string) => void; titles: string[] }) {
+export function Editor({ value, onChange, titles, pages = [] }: { value: string; onChange: (v: string) => void; titles: string[]; pages?: { id: string; title: string }[] }) {
+  const [picking, setPicking] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
   const [suggest, setSuggest] = useState<{ q: string; at: number } | null>(null)
   const [pick, setPick] = useState(0)
@@ -108,6 +163,8 @@ export function Editor({ value, onChange, titles }: { value: string; onChange: (
     { icon: ImagePlus, label: 'Картинка', run: () => file.current?.click() },
     { icon: LayoutDashboard, label: 'Доска с фото', run: () => block('```board\n{"h":420,"items":[]}\n```') },
     { icon: Dices, label: 'Таблица случайностей', run: () => block('```random\nНазвание таблицы\n- первый исход\n- второй исход\n- третий исход\n```') },
+    { icon: Lock, label: 'Тайна: видит только мастер, пока не раскроет', run: () => block(`:::secret id=${newSecretId()} Тайна\nТо, чего игроки пока не знают.\n:::`) },
+    { icon: PackageSearch, label: 'Вставить карточку: страница, предмет, существо, заклинание', run: () => setPicking((v) => !v) },
   ]
   return (
     <div className="kb-editor">
@@ -118,6 +175,15 @@ export function Editor({ value, onChange, titles }: { value: string; onChange: (
           </button>
         ))}
         {busy && <span className="kb-tools-busy">загружаем…</span>}
+        {picking && (
+          <EmbedPicker
+            pages={pages}
+            onInsert={(text) => {
+              insert(text)
+              setPicking(false)
+            }}
+          />
+        )}
         <input ref={file} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={(e) => (e.target.files?.[0] && void upload(e.target.files[0]), (e.target.value = ''))} />
       </div>
       <div className="kb-textwrap">
@@ -126,7 +192,7 @@ export function Editor({ value, onChange, titles }: { value: string; onChange: (
           className="kb-text"
           value={value}
           spellCheck
-          placeholder={'Пишите как в Obsidian: # заголовок, [[ссылка]], - [ ] задача…\nКартинку можно вставить прямо из буфера.'}
+          placeholder={'Пишите как в Obsidian: # заголовок, [[ссылка]], - [ ] задача…\nКартинку можно вставить прямо из буфера, страницу — перетащить из дерева.'}
           onChange={(e) => (onChange(e.target.value), checkSuggest(e.target.value, e.target.selectionStart))}
           onKeyDown={onKey}
           onPaste={onPaste}

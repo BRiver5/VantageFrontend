@@ -38,6 +38,6 @@ export function buildTree(notes: ScreenNote[], extra: string[]): TreeFolder {
   return root
 }
 
-export const iconOf = (n: ScreenNote) => parsePage(n.body).meta.icon
+export const iconOf = (n: Pick<ScreenNote, 'body'>) => parsePage(n.body).meta.icon
 
 export const countPages = (f: TreeFolder): number => f.pages.length + f.folders.reduce((s, x) => s + countPages(x), 0)

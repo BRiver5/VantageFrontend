@@ -33,6 +33,7 @@ import type {
 } from '../types/rooms'
 import { isEngineRoll, type RollPayload } from '../types/rooms'
 import type { BattleMap } from '../maps/types'
+import { formatCoins, formatCopper, type Coins } from './kb/money'
 
 /** Сколько записей журнала держим в памяти */
 export const LOG_LIMIT = 300
@@ -301,6 +302,14 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
     case 'note.unshared':
       return { ...base, sharedNotes: without(base.sharedNotes, p.note_id) }
 
+    case 'shop.stock': {
+      // мастеру: предмет ушёл с ширмы в лавку или вернулся из лавки на ширму
+      let items = base.items
+      if (p.from_screen) items = without(items, p.from_screen)
+      for (const it of (p.to_screen ?? []) as RoomItem[]) items = upsert(items, it)
+      return items === base.items ? base : { ...base, items }
+    }
+
     case 'map.activated': {
       const m = p.map as BattleMap | undefined
       return m ? { ...base, activeMap: m, room: { ...base.room, active_map_id: m.id } } : base
@@ -421,6 +430,15 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
     case 'item.taken_back':
       return { ...base, kind: 'item', who, text: p.from === 'table' ? 'Предмет убран со стола' : `Мастер забирает ${p.name ?? 'предмет'}` }
+    case 'shop.purchase':
+      return { ...base, kind: 'item', who: p.character_name ?? nameOf(state, p.character_id), text: `покупает ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''} в «${p.shop}» за ${formatCopper(p.price_cp ?? 0)}` }
+    case 'shop.sale':
+      return { ...base, kind: 'item', who: p.character_name ?? nameOf(state, p.character_id), text: `продаёт ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''} в «${p.shop}» за ${formatCopper(p.price_cp ?? 0)}` }
+    case 'currency.split': {
+      const ids = (p.character_ids ?? []) as string[]
+      const rest = p.remainder ? ` · остаток ${formatCoins(p.remainder as Coins)}${p.remainder_to ? `: ${nameOf(state, p.remainder_to) || 'одному из партии'}` : p.from_character_id ? ' остаётся в источнике' : ' не роздан'}` : ''
+      return { ...base, kind: 'item', who, text: `Монеты ${formatCoins(p.amount as Coins)} разделены на ${ids.length}: по ${formatCoins(p.share as Coins)}${rest}` }
+    }
     case 'currency.transferred': {
       const amount = Object.entries(p.amount ?? {}).map(([k, v]) => `${v} ${k}`).join(', ')
       return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${amount}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
