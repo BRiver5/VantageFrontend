@@ -4,15 +4,16 @@
  * инструмент, при этом сам стол остаётся на виду сверху.
  *
  * Разделы: существа (жетон перетаскивают прямо на стол), добыча, заметки, карты
- * и картинки для всех, дашборд. Кнопка боя всегда под рукой.
+ * и картинки для всех, таблицы случайных результатов, дашборд. Кнопка боя всегда под рукой.
  */
 import { useState, type ReactNode } from 'react'
-import { BookOpen, ChevronDown, Crown, LayoutGrid, Map as MapIcon, Package, Skull, Swords } from 'lucide-react'
+import { BookOpen, ChevronDown, Crown, LayoutGrid, Map as MapIcon, Package, Skull, Swords, Table2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { DashboardGrid } from '../Dashboard'
 import { KnowledgeProvider } from '../kb/KnowledgeProvider'
 import { useKnowledge } from '../kb/context'
 import { useRoom } from '../RoomProvider'
+import { LeafTables } from '../tables/LeafTables'
 import { LeafCreatures } from './dm/LeafCreatures'
 import { LeafLoot } from './dm/LeafLoot'
 import { LeafMaps } from './dm/LeafMaps'
@@ -20,13 +21,14 @@ import { BattleSetup } from './dm/BattleSetup'
 
 /* ---------- сама ширма ---------- */
 
-type Leaf = 'creatures' | 'loot' | 'notes' | 'maps' | 'dash'
+type Leaf = 'creatures' | 'loot' | 'notes' | 'maps' | 'tables' | 'dash'
 
 const LEAVES: { id: Leaf; label: string; icon: LucideIcon }[] = [
   { id: 'creatures', label: 'Существа', icon: Skull },
   { id: 'loot', label: 'Добыча', icon: Package },
   { id: 'notes', label: 'Кодекс', icon: BookOpen },
   { id: 'maps', label: 'Карты', icon: MapIcon },
+  { id: 'tables', label: 'Таблицы', icon: Table2 },
   { id: 'dash', label: 'Дашборд', icon: LayoutGrid },
 ]
 
@@ -49,6 +51,7 @@ function DmScreenIn() {
     loot: <LeafLoot />,
     notes: null,
     maps: <LeafMaps />,
+    tables: <LeafTables />,
     dash: <DashboardGrid />,
   }
   return (

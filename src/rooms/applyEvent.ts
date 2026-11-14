@@ -33,6 +33,8 @@ import type {
 } from '../types/rooms'
 import { isEngineRoll, type RollPayload } from '../types/rooms'
 import type { BattleMap } from '../maps/types'
+import { drawnSummary } from './tables/logic'
+import type { TableDrawn } from './tables/types'
 
 /** Сколько записей журнала держим в памяти */
 export const LOG_LIMIT = 300
@@ -394,6 +396,8 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       const what = String(p.label ?? '').replace(/^концентрация:\s*/i, '')
       return { ...base, kind: 'combat', who, text: `${msg.type === 'concentration.ended' ? 'Концентрация прервана' : 'Действие закончилось'}${what ? `: ${what}` : ''}${removed.length ? ` — сняты ${removed.join(', ')}` : ''}` }
     }
+    case 'table.drawn':
+      return { ...base, kind: 'room', who, text: drawnSummary(p as unknown as TableDrawn) }
     case 'room.rest':
       return { ...base, kind: 'room', who, text: p.kind === 'long' ? 'Партия отдыхает: продолжительный отдых' : 'Партия делает короткий привал' }
     case 'note.shared':
