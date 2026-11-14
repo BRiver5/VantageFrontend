@@ -6,6 +6,7 @@
  */
 import { RoomAudioPlayer } from './RoomAudio'
 import { RoomClocks } from './Clocks'
+import { RoomCalendar } from './gm/RoomCalendar'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, DoorOpen, Monitor } from 'lucide-react'
@@ -107,6 +108,7 @@ function Stage() {
     <>
       {inCombat ? <BattleScene onSheet={openSheet} /> : <TableScene onSheet={openSheet} />}
       <RoomClocks />
+      <RoomCalendar />
       <RoomAudioPlayer />
       {!validHero && <PartyHud />}
       <TurnCues />
