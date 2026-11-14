@@ -7,7 +7,7 @@
  * базы знаний. Инструмент «Звук» (A): клик выбирает место, источник — в
  * свойствах. В «Выборе» метки и звуки тащатся мышью, Delete убирает.
  */
-import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent, type RefObject } from 'react'
 import type { MapCanvasHandle } from '../render/types'
 import { noteAt, soundAt } from '../render/notes'
 import type { Pt } from '../types'
@@ -15,14 +15,28 @@ import { KB_PAGE_MIME } from '../notes/bus'
 import { createNote, createSound, deleteNote, deleteSound, patchNote, patchSound, type NoteInput, type SoundInput } from './api'
 import type { MapNote, MapSound } from './types'
 import { useMapLayers } from './useMapLayers'
+import { layerOnLevel } from '../levels'
 
 export type LayerTool = 'note' | 'sound'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось')
 
-export function useLayerEditor(opts: { roomId: string; mapId: string; tool: string; canvas: RefObject<MapCanvasHandle | null>; onError: (t: string) => void }) {
+export function useLayerEditor(opts: {
+  roomId: string
+  mapId: string
+  tool: string
+  canvas: RefObject<MapCanvasHandle | null>
+  /** этаж конструктора (null — все): новые метки и звуки встают на него, чужие не видны */
+  level?: string | null
+  onError: (t: string) => void
+}) {
   const { roomId, mapId, tool, canvas, onError } = opts
+  const level = opts.level ?? null
   const layers = useMapLayers(mapId)
+  const notes = useMemo(() => layerOnLevel(layers.notes, level), [layers.notes, level])
+  const sounds = useMemo(() => layerOnLevel(layers.sounds, level), [layers.sounds, level])
+  const drawings = useMemo(() => layerOnLevel(layers.drawings, level), [layers.drawings, level])
+  const here = level ? { level_id: level } : {}
   const [sel, setSel] = useState<string | null>(null)
   const [pendingSound, setPendingSound] = useState<Pt | null>(null)
   const drag = useRef<{ id: string; kind: 'note' | 'sound'; from: Pt; base: Pt; moved: boolean } | null>(null)
@@ -41,7 +55,7 @@ export function useLayerEditor(opts: { roomId: string; mapId: string; tool: stri
 
   const addNote = async (p: Pt, body: NoteInput = {}) => {
     try {
-      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), icon: body.page_id ? 'book' : 'pin', ...body })
+      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), icon: body.page_id ? 'book' : 'pin', ...here, ...body })
       if (n) {
         layers.put('notes', { upsert: [n] })
         setSel(n.id)
@@ -62,7 +76,7 @@ export function useLayerEditor(opts: { roomId: string; mapId: string; tool: stri
   const addSound = async (body: SoundInput) => {
     if (!pendingSound) return
     try {
-      const s = await createSound(roomId, mapId, { x: Math.round(pendingSound.x), y: Math.round(pendingSound.y), ...body })
+      const s = await createSound(roomId, mapId, { x: Math.round(pendingSound.x), y: Math.round(pendingSound.y), ...here, ...body })
       if (s) {
         layers.put('sounds', { upsert: [s] })
         setSel(s.id)
@@ -119,8 +133,8 @@ export function useLayerEditor(opts: { roomId: string; mapId: string; tool: stri
     if (tool !== 'select') return undefined
     if (kind === 'down') {
       if (e.button !== 0) return undefined
-      const n = noteAt(layers.notes, p, k())
-      const s = n ? null : soundAt(layers.sounds, p, k())
+      const n = noteAt(notes, p, k())
+      const s = n ? null : soundAt(sounds, p, k())
       const hit = n ?? s
       if (!hit) {
         setSel(null)
@@ -180,6 +194,6 @@ export function useLayerEditor(opts: { roomId: string; mapId: string; tool: stri
     removeNote,
     setSound,
     removeSound,
-    overlays: { notes: layers.notes, sounds: layers.sounds, drawings: layers.drawings, layerSelected: sel, listener: pendingSound },
+    overlays: { notes, sounds, drawings, layerSelected: sel, listener: pendingSound },
   }
 }

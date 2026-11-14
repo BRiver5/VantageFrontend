@@ -33,6 +33,8 @@ import { useFieldLayers } from './layers/useFieldLayers'
 import { DrawBar } from './drawings/DrawBar'
 import { MapSoundsPlayer } from './sounds/MapSoundsPlayer'
 import { NotePopup } from './notes/NotePopup'
+import { mapOnLevel, tokenLevel, viewLevel } from './levels'
+import { LevelSwitcher } from './LevelSwitcher'
 
 /** Что сейчас наводится */
 export interface AimSpec {
@@ -68,7 +70,8 @@ export function MapField({
   onAim?: (req: AimRequest | null) => void
 }) {
   const { data, roomId, isDm, sendEphemeral } = useRoom()
-  const map = data?.activeMap ?? null
+  // карта целиком; ниже map — этаж, который сейчас виден (без этажей — та же карта)
+  const fullMap = data?.activeMap ?? null
   const canvas = useRef<MapCanvasHandle>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [reach, setReach] = useState<Map<string, number> | null>(null)
@@ -102,7 +105,7 @@ export function MapField({
   const [unitsTick, setUnitsTick] = useState(0)
   const [messages, setMessages] = useState<{ id: number; text: string }[]>([])
   const [fired, setFired] = useState<{ id: number; text: string }[]>([])
-  const mapId = map?.id
+  const mapId = fullMap?.id
   useEffect(() => {
     if (!mapId || isDm) return
     const t = setTimeout(() => {
@@ -119,23 +122,28 @@ export function MapField({
   // появятся, уже стоящие на карте свяжутся с участниками
   const relinked = useRef('')
   useEffect(() => {
-    if (!isDm || !map || !combat || combat.status === 'ended') return
-    const linked = new Set(map.tokens.map((t) => t.combatant_id).filter(Boolean))
+    if (!isDm || !fullMap || !combat || combat.status === 'ended') return
+    const linked = new Set(fullMap.tokens.map((t) => t.combatant_id).filter(Boolean))
     const missing = combat.combatants.filter((c) => !c.defeated && !linked.has(c.id)).map((c) => c.id)
     if (!missing.length) return
-    const key = `${map.id}:${combat.id}:${missing.sort().join(',')}`
+    const key = `${fullMap.id}:${combat.id}:${missing.sort().join(',')}`
     if (relinked.current === key) return
     relinked.current = key
-    void activateMap(roomId, map.id).catch(() => undefined)
-  }, [isDm, map, combat, roomId])
+    void activateMap(roomId, fullMap.id).catch(() => undefined)
+  }, [isDm, fullMap, combat, roomId])
 
-  /** мои жетоны: свой герой и призванные, которыми я управляю */
+  /** мои жетоны: свой герой и призванные, которыми я управляю (на всех этажах) */
   const myTokens = useMemo(() => {
-    if (!map) return [] as MapToken[]
-    if (units.length) return map.tokens.filter((t) => units.some((u) => u.token_id === t.id))
+    if (!fullMap) return [] as MapToken[]
+    if (units.length) return fullMap.tokens.filter((t) => units.some((u) => u.token_id === t.id))
     const ruled = new Set((combat?.combatants ?? []).filter((c) => c.controller_id && c.controller_id === meUser).map((c) => c.id))
-    return map.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
-  }, [map, combat, meUser, mine, units])
+    return fullMap.tokens.filter((t) => (mine && t.character_id === mine) || (t.combatant_id && ruled.has(t.combatant_id)))
+  }, [fullMap, combat, meUser, mine, units])
+
+  // этажи: мастер выбирает сам (null — все), игрок видит этаж выбранного или своего жетона
+  const [dmLevel, setDmLevel] = useState<string | null>(null)
+  const level = viewLevel(fullMap, { isDm, chosen: dmLevel, selected, mine: myTokens })
+  const map = useMemo(() => (fullMap ? mapOnLevel(fullMap, level) : null), [fullMap, level])
   const canMove = useCallback((t: MapToken) => isDm || myTokens.some((x) => x.id === t.id), [isDm, myTokens])
 
   // p1/hud: панель жетона (правый клик, долгое нажатие) и цели (T, Shift + клик, Shift + рамка)
@@ -355,14 +363,15 @@ export function MapField({
     },
   })
   focusRef.current = (id) => {
-    const t = map?.tokens.find((x) => x.id === id)
+    const t = fullMap?.tokens.find((x) => x.id === id)
     if (!t || (!isDm && t.hidden)) return
+    if (isDm && dmLevel && fullMap) setDmLevel(tokenLevel(fullMap, t))
     canvas.current?.centerOn({ x: t.x, y: t.y })
     canvas.current?.ping({ x: t.x, y: t.y })
     if (canMove(t) && !aim && !targeting) void select(t)
   }
   // p2/layers: метки, звуки местности, рисунки
-  const lay = useFieldLayers({ map, canvas, myTokens, selected, onError: flash })
+  const lay = useFieldLayers({ map, canvas, myTokens, selected, level, onError: flash })
 
   if (!map) return null
 
@@ -578,7 +587,7 @@ export function MapField({
           units={units}
           selected={units.some((u) => u.token_id === selected) ? selected : null}
           onSelect={(id) => {
-            const t = id ? map.tokens.find((x) => x.id === id) : null
+            const t = id ? (fullMap ?? map).tokens.find((x) => x.id === id) : null
             if (t) {
               void select(t)
               canvas.current?.ping({ x: t.x, y: t.y }, '#78c8ff')
@@ -609,9 +618,10 @@ export function MapField({
           ))}
         </div>
       )}
-      <Credits map={map} />
+      <Credits map={fullMap ?? map} />
+      {(fullMap?.levels?.length ?? 0) > 0 && <LevelSwitcher levels={fullMap?.levels ?? []} level={level} onLevel={isDm ? setDmLevel : undefined} />}
       {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isDm ? lay.togglePlayersDraw : undefined} />}
-      <MapSoundsPlayer map={map} sounds={lay.layers.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
+      <MapSoundsPlayer map={map} sounds={lay.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
       {lay.popup && <NotePopup key={lay.popup.id} note={lay.popup} onClose={lay.closePopup} />}
       {lay.placing && (
         <p className="mp-note is-soft ly-placing">
@@ -646,8 +656,8 @@ export function MapField({
           </button>
         </div>
       )}
-      {isDm && !aim && <DmMapTools map={map} roomId={roomId} onError={flash} onDone={flash} />}
-      {isDm && !aim && <SceneLight map={map} roomId={roomId} onError={flash} onDone={flash} />}
+      {isDm && !aim && <DmMapTools map={fullMap ?? map} roomId={roomId} onError={flash} onDone={flash} />}
+      {isDm && !aim && <SceneLight map={fullMap ?? map} roomId={roomId} onError={flash} onDone={flash} />}
       {isDm && fired.length > 0 && (
         <ul className="mp-fired" aria-label="Сработавшие триггеры">
           {fired.map((f) => (
