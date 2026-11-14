@@ -1,5 +1,6 @@
 /** Зоны: заливка и контур, плюс постоянный эффект зоны в движке частиц */
-import { circle, pxPerFt } from '../geometry'
+import { cellCenter, circle, pxPerFt } from '../geometry'
+import { fillCell } from './background'
 import { loadPresets, presetOf, type VfxEngine } from '../vfx'
 import type { BattleMap } from '../types'
 import type { MapOverlays, View } from './types'
@@ -16,10 +17,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, m: BattleMap, isDm: boo
     ctx.lineWidth = (ov.editor && ov.selected === z.id ? 3 : 1.5) / v.k
     if (ov.editor && ov.selected === z.id) ctx.strokeStyle = '#78c8ff'
     if (z.shape.kind === 'cells') {
-      for (const key of z.shape.cells ?? []) {
-        const [cc, rr] = key.split(',').map(Number)
-        ctx.fillRect(g.offset_x + cc * g.cell_px, g.offset_y + rr * g.cell_px, g.cell_px, g.cell_px)
-      }
+      for (const key of z.shape.cells ?? []) fillCell(ctx, g, key)
     } else if (pts.length) {
       ctx.beginPath()
       pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
@@ -32,7 +30,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, m: BattleMap, isDm: boo
     if (z.vfx_preset) {
       const pre = presetOf(z.vfx_preset)
       if (!pre) void loadPresets([z.vfx_preset])
-      const cellsPts = z.shape.kind === 'cells' ? (z.shape.cells ?? []).map((key) => { const [cc, rr] = key.split(',').map(Number); return { x: g.offset_x + (cc + 0.5) * g.cell_px, y: g.offset_y + (rr + 0.5) * g.cell_px } }) : []
+      const cellsPts = z.shape.kind === 'cells' ? (z.shape.cells ?? []).map((key) => { const [cc, rr] = key.split(',').map(Number); return cellCenter(g, cc, rr) }) : []
       const all = pts.length ? pts : cellsPts
       if (all.length) {
         const cx = all.reduce((s, p) => s + p.x, 0) / all.length
