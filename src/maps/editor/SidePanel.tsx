@@ -5,6 +5,7 @@ import { fireTrigger } from '../api'
 import type { BattleMap } from '../types'
 import { errText, uid } from './batch'
 import { GridFields } from './GridFields'
+import { gridFit } from '../hex'
 import { imageSize } from './imageSize'
 import { SpawnsPanel } from './SpawnsPanel'
 import { TriggersPanel } from './TriggersPanel'
@@ -72,7 +73,7 @@ export function SidePanel({ map, roomId, mapId, side, setSide, eyes, setEyes, cr
                     const [{ url }, size] = await Promise.all([uploadMedia(f), imageSize(f)])
                     const layer = { id: bg?.id ?? uid('bg'), image_url: url, x: 0, y: 0, w: size.w, h: size.h, rotation: 0, z: 0, kind: 'background' as const, opacity: 1 }
                     change((m) => ({ ...m, layers: [...m.layers.filter((l) => l.id !== layer.id), layer] }))
-                    await patchProps({ grid: { ...g, cols: Math.ceil(size.w / g.cell_px), rows: Math.ceil(size.h / g.cell_px) } })
+                    await patchProps({ grid: { ...g, ...gridFit(g, size.w, size.h) } })
                   } catch (err) {
                     setError(errText(err))
                   } finally {

@@ -1,5 +1,5 @@
 /** Список объектов сцены: стены, объекты, свет, жетоны, предметы, зоны; фильтры, рамка выбора, закрепление */
-import { pxPerFt } from '../geometry'
+import { cellCenter, pxPerFt } from '../geometry'
 import type { BattleMap, MapWall, MapZone, Pt } from '../types'
 
 export type PlaceKind = 'walls' | 'objects' | 'lights' | 'tokens' | 'items' | 'zones'
@@ -46,9 +46,9 @@ export function zoneCenter(z: MapZone, map: BattleMap): Pt {
   if (s.kind === 'circle' && s.center) return s.center
   if (s.kind === 'cells' && s.cells?.length) {
     const g = map.grid
-    const cs = s.cells.map((k) => k.split(',').map(Number))
-    const c = cs.reduce((a, [x, y]) => ({ x: a.x + x, y: a.y + y }), { x: 0, y: 0 })
-    return { x: g.offset_x + (c.x / cs.length + 0.5) * g.cell_px, y: g.offset_y + (c.y / cs.length + 0.5) * g.cell_px }
+    const cs = s.cells.map((k) => k.split(',').map(Number)).map(([c, r]) => cellCenter(g, c, r))
+    const c = cs.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 })
+    return { x: c.x / cs.length, y: c.y / cs.length }
   }
   const pts = s.points ?? []
   if (!pts.length) return { x: 0, y: 0 }

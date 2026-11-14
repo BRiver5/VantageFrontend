@@ -7,8 +7,11 @@
 
 export type Pt = { x: number; y: number }
 
+/** Вид сетки: квадрат или шестиугольники рядами (rows) / столбцами (cols) со сдвигом нечётных (odd) или чётных (even) — см. hex.ts */
+export type GridKind = 'square' | 'hex_rows_odd' | 'hex_rows_even' | 'hex_cols_odd' | 'hex_cols_even'
+
 export interface MapGrid {
-  kind: 'square' | 'hex'
+  kind: GridKind
   cell_px: number
   feet_per_cell: number
   cols: number

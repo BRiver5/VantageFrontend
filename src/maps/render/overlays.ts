@@ -1,4 +1,5 @@
 /** Подсказки поверх карты: досягаемость, путь, черновик, шаблоны наведения (пинги — render/pings.ts) */
+import { traceCell } from '../hex'
 import type { MapGrid } from '../types'
 import type { MapOverlays, View } from './types'
 
@@ -7,7 +8,9 @@ export function drawReach(ctx: CanvasRenderingContext2D, g: MapGrid, reach: Map<
   for (const [key, cost] of reach) {
     const [cc, rr] = key.split(',').map(Number)
     ctx.fillStyle = cost === 0 ? 'rgba(245, 208, 106, 0.18)' : 'rgba(111, 208, 142, 0.16)'
-    ctx.fillRect(g.offset_x + cc * g.cell_px + 1, g.offset_y + rr * g.cell_px + 1, g.cell_px - 2, g.cell_px - 2)
+    ctx.beginPath()
+    traceCell(ctx, g, cc, rr, 1)
+    ctx.fill()
   }
 }
 
@@ -59,9 +62,15 @@ export function drawGhosts(ctx: CanvasRenderingContext2D, ghosts: NonNullable<Ma
   }
 }
 
-/** наведение */
-export function drawAim(ctx: CanvasRenderingContext2D, aim: NonNullable<MapOverlays['aim']>, v: View) {
+/** наведение: задетые клетки, затем фигура */
+export function drawAim(ctx: CanvasRenderingContext2D, aim: NonNullable<MapOverlays['aim']>, v: View, g?: MapGrid) {
   ctx.save()
+  if (g && aim.cells?.length) {
+    ctx.fillStyle = aim.ok ? `${aim.color}26` : 'rgba(200, 60, 40, 0.12)'
+    ctx.beginPath()
+    for (const [cc, rr] of aim.cells) traceCell(ctx, g, cc, rr, 1)
+    ctx.fill()
+  }
   ctx.fillStyle = aim.ok ? `${aim.color}33` : 'rgba(200, 60, 40, 0.18)'
   ctx.strokeStyle = aim.ok ? aim.color : '#e5484d'
   ctx.lineWidth = 2.5 / v.k

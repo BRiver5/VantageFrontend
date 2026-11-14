@@ -11,7 +11,8 @@ export interface MapOverlays {
   /** путь под курсором: центры клеток */
   path?: Pt[] | null
   /** фигура наведения (от сервера или своя до ответа) */
-  aim?: { polygon: Pt[]; color: string; origin?: Pt; ok: boolean } | null
+  /** cells — клетки под шаблоном (квадраты или шестиугольники), подсветка до ответа сервера */
+  aim?: { polygon: Pt[]; color: string; origin?: Pt; ok: boolean; cells?: [number, number][] } | null
   /** отношение токенов под фигурой */
   relations?: Record<string, 'enemy' | 'ally' | 'self' | 'neutral'>
   /** шанс над целью */

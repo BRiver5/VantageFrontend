@@ -15,7 +15,7 @@ import { activateMap, doorAction, editMap, fireTrigger, interactObject, movePrev
 import { getAttribution, sfxFor, type AssetCredit } from './assets'
 import type { BattleMap, MapObject } from './types'
 import { MapUnits } from './MapUnits'
-import { angleTo, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
+import { angleTo, areaCells, areaPolygon, cellCenter, cellOf, dist, pathPoints, pxPerFt } from './geometry'
 import { MapCanvas, type MapCanvasHandle } from './MapCanvas'
 import { parsePing, pingColor, pingKindFor, userColor, type PingKind } from './pings'
 import { PAUSE_HINT, isPausedStatus } from '../rooms/pause'
@@ -490,8 +490,15 @@ export function MapField({
   // наведение: фигура от сервера, а до ответа — своя
   const local = aimPt ? aimFrom(aimPt) : null
   const serverPoly = aimInfo?.polygon?.map(([x, y]) => ({ x, y }))
-  const aimOverlay = aim && (serverPoly?.length || local)
-    ? { polygon: serverPoly?.length ? serverPoly : local!.polygon, color: aim.color, origin: aimInfo?.origin ? { x: aimInfo.origin[0], y: aimInfo.origin[1] } : local?.origin, ok: aimInfo ? aimInfo.in_range : true }
+  const aimPoly = aim && (serverPoly?.length || local) ? (serverPoly?.length ? serverPoly : local!.polygon) : null
+  const aimOverlay = aim && aimPoly
+    ? {
+        polygon: aimPoly,
+        color: aim.color,
+        origin: aimInfo?.origin ? { x: aimInfo.origin[0], y: aimInfo.origin[1] } : local?.origin,
+        ok: aimInfo ? aimInfo.in_range : true,
+        cells: aim.targeting.mode === 'area_from_self' || aim.targeting.mode === 'area_at_point' ? areaCells(aimPoly, map.grid, map.grid.area_rule) : undefined,
+      }
     : null
   const relations = Object.fromEntries((aimInfo?.tokens ?? []).map((t) => [t.token_id, t.relation]))
   const byCombatant = (cid: string) => map.tokens.find((t) => t.combatant_id === cid)?.id
