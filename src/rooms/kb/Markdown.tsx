@@ -13,6 +13,7 @@ import { Img } from '../../media'
 import { parseBlocks, parseInline, parsePage, replaceWidget, toggleTask, type Block, type EmbedKind, type Inline, type WidgetKind } from './mdparse'
 import { BoardWidget, RandomWidget } from './widgets'
 import { EmbedCard } from './EmbedCard'
+import { TableEmbed } from './TableEmbed'
 
 export interface PageLookup {
   /** есть ли страница с таким названием (без регистра) */
@@ -161,6 +162,7 @@ function PageEmbedById({ id, ctx }: { id: string; ctx: Ctx }) {
 
 function EmbedAny({ kind, id, ctx }: { kind: EmbedKind; id: string; ctx: Ctx }) {
   if (kind === 'page') return <PageEmbedById id={id} ctx={ctx} />
+  if (kind === 'table') return <TableEmbed key={`table:${id}`} id={id} />
   return <EmbedCard key={`${kind}:${id}`} kind={kind} id={id} />
 }
 

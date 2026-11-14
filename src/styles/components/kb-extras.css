@@ -146,3 +146,10 @@
 .sc-split-heroes label { display: inline-flex; align-items: center; gap: 5px; }
 .sc-split input, .sc-split select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; }
 .sc-split .tb-goldbtn { align-self: flex-start; }
+
+/* @Embed[table:…]: кнопка «Тянуть» и ошибка внутри карточки */
+.kb-card-action { align-self: flex-start; margin-top: 6px; padding: 4px 12px; border: none; border-radius: var(--radius-sm); background: rgb(var(--gold-2-rgb) / 0.22); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.kb-card-action:hover:not(:disabled) { background: rgb(var(--gold-2-rgb) / 0.36); }
+.kb-card-action:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.kb-card-action:disabled { opacity: 0.55; cursor: default; }
+.kb-card-text.is-error { color: var(--danger); }
