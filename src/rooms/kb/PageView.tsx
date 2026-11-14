@@ -3,6 +3,7 @@ import {
   BookOpen,
   Eye,
   EyeOff,
+  Users,
   FileText,
   ImagePlus,
   PanelRight,
@@ -14,8 +15,11 @@ import {
 import { uploadMedia } from '../../api'
 import { Img } from '../../media'
 import type { ScreenNote } from '../../types/rooms'
-import { MarkdownBody, type PageLookup } from './Markdown'
-import { linksOf, parseBlocks, parsePage, plainText, renameLinks, writePage, type PageMeta } from './mdparse'
+import { MarkdownBody, type PageLookup, type SecretControl } from './Markdown'
+import { ensureSecretId, linksOf, parseBlocks, parsePage, plainText, renameLinks, stripSecrets, writePage, type PageMeta } from './mdparse'
+import { TypedPanel } from './PageTypes'
+import { PAGE_TYPES, pageTypeOf, typePatch } from './pageKinds'
+import type { PageType } from '../../types/rooms'
 import { NoteConflict, norm, useKnowledge } from './context'
 import { iconOf } from './tree'
 import { ICONS } from './templates'
@@ -39,6 +43,11 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
   const pending = useRef<Partial<ScreenNote> | null>(null)
   const cover = useRef<HTMLInputElement>(null)
   const { meta } = parsePage(draft)
+  // поля типа (квест, НИП, лавка) и раскрытые тайны правим здесь же и пишем той же очередью
+  const [typed, setTyped] = useState<Partial<ScreenNote>>(() => ({ page_type: pageTypeOf(note), quest: note.quest, npc: note.npc, shop: note.shop }))
+  const [revealed, setRevealed] = useState<string[]>(() => note.revealed_secrets ?? [])
+  const [asPlayer, setAsPlayer] = useState(false)
+  const view = { ...note, ...typed }
 
   const flush = useCallback(async () => {
     const patch = pending.current
@@ -73,6 +82,29 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
     queue({ body: v })
   }
   const setMeta = (patch: Partial<PageMeta>) => setBody(writePage({ ...parsePage(draft).meta, ...patch }, parsePage(draft).body))
+  const patchTyped = (patch: Partial<ScreenNote>) => {
+    setTyped((t) => ({ ...t, ...patch }))
+    queue(patch)
+  }
+  /** «Раскрыть игрокам»: блоку без номера сначала даём номер прямо в тексте */
+  const secrets: SecretControl = {
+    revealed,
+    onToggle: ({ id, from }) => {
+      let sid = id
+      let body: string | null = null
+      if (sid == null) {
+        const given = ensureSecretId(draft, from)
+        if (!given) return
+        sid = given.id
+        body = given.src
+      }
+      const next = revealed.includes(sid) ? revealed.filter((x) => x !== sid) : [...revealed, sid]
+      setRevealed(next)
+      if (body != null) setDraft(body)
+      queue(body != null ? { body, revealed_secrets: next } : { revealed_secrets: next })
+    },
+  }
+  const pageRefs = (kb.notes ?? []).filter((n) => n.id !== note.id).map((n) => ({ id: n.id, title: n.title, page_type: pageTypeOf(n) }))
 
   /** Переименование: ссылки [[Старое]] в других страницах переписываются одним пакетом */
   const renameTo = async (next: string) => {
@@ -193,6 +225,13 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
               <ImagePlus aria-hidden="true" /> обложка
             </button>
           )}
+          <select className="kb-chip kb-type-pick" value={view.page_type ?? 'page'} onChange={(e) => patchTyped(typePatch(view, e.target.value as PageType))} title="Тип страницы" aria-label="Тип страницы">
+            {PAGE_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.icon} {t.label}
+              </option>
+            ))}
+          </select>
           <button type="button" className="kb-chip" onClick={() => setMeta({ width: meta.width === 'wide' ? 'normal' : 'wide' })}>
             {meta.width === 'wide' ? 'узко' : 'широко'}
           </button>
@@ -200,6 +239,9 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
           <small className={`kb-save is-${state}`}>{state === 'saving' ? 'записываем…' : state === 'saved' ? 'записано' : state === 'error' ? 'не записалось' : state === 'conflict' ? 'конфликт правок' : ''}</small>
           <button type="button" className={`kb-chip${note.pinned ? ' is-on' : ''}`} onClick={() => void kb.update(note.id, { pinned: !note.pinned })} title={note.pinned ? 'Убрать из закреплённых' : 'Закрепить: страница будет под рукой на дашборде'}>
             {note.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />} {note.pinned ? 'закреплено' : 'к себе'}
+          </button>
+          <button type="button" className={`kb-chip${asPlayer ? ' is-on' : ''}`} onClick={() => setAsPlayer((v) => !v)} title="Как страницу увидят игроки: без нераскрытых тайн">
+            <Users aria-hidden="true" /> глазами игроков
           </button>
           <button type="button" className={`kb-chip${note.shared ? ' is-share' : ''}`} onClick={() => void kb.update(note.id, { shared: !note.shared })} title={note.shared ? 'Игроки видят эту страницу' : 'Открыть страницу партии'}>
             {note.shared ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />} {note.shared ? 'видят игроки' : 'показать партии'}
@@ -233,11 +275,18 @@ export function PageView({ note, lookup, folders, onOpenTitle, onTag, backlinks 
             ))}
           </div>
         )}
+        <TypedPanel note={view} onPatch={patchTyped} pages={pageRefs} onOpenPage={(id) => kb.setCurrent(id)} />
         <div className={`kb-columns${side ? ' has-side' : ''}`}>
           <div className={`kb-main${mode === 'edit' ? ' is-split' : ''}`}>
-            {mode === 'edit' && <Editor value={parsePage(draft).body} onChange={(v) => setBody(writePage(parsePage(draft).meta, v))} titles={lookup.titles.filter((t) => t !== note.title)} />}
-            <div className="kb-doc">
-              {draft.trim() ? <MarkdownBody src={draft} pages={lookup} onOpen={onOpenTitle} onTag={onTag} onChange={setBody} /> : <p className="kb-hint">Пустая страница. Нажмите «правка» и начните писать.</p>}
+            {mode === 'edit' && <Editor value={parsePage(draft).body} onChange={(v) => setBody(writePage(parsePage(draft).meta, v))} titles={lookup.titles.filter((t) => t !== note.title)} pages={pageRefs} />}
+            <div className={`kb-doc${asPlayer ? ' is-player-view' : ''}`}>
+              {!draft.trim() ? (
+                <p className="kb-hint">Пустая страница. Нажмите «правка» и начните писать.</p>
+              ) : asPlayer ? (
+                <MarkdownBody src={stripSecrets(draft, revealed)} pages={lookup} onOpen={onOpenTitle} />
+              ) : (
+                <MarkdownBody src={draft} pages={lookup} onOpen={onOpenTitle} onTag={onTag} onChange={setBody} secrets={secrets} />
+              )}
             </div>
           </div>
           {side && (

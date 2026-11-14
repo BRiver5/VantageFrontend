@@ -13,6 +13,11 @@
  *   [[Другая страница]] [[Другая|подпись]]  ![[Встроить страницу]]
  *   ![картинка](url)  - [ ] задача  > [!tip] Выноска  | таблица |
  *   ```board …```  ```random …```   ← виджеты: доска с фото, таблица случайностей
+ *   @Embed[page:<id>]  @Embed[item:<id>]  ← встроить страницу или карточку
+ *     (item, equipment, creature, spell — из каталога)
+ *   :::secret id=k3f9a Заголовок            ← тайна: видит только мастер,
+ *   …                                         пока не раскроет её партии;
+ *   :::                                       сервер вырезает её у игроков
  *
  * Разбор чистый и без HTML: рендер собирает React-элементы, поэтому ничего не
  * вставляется в DOM как разметка.
@@ -77,10 +82,38 @@ export type Inline =
   | { t: 'wiki'; page: string; label: string; embed: boolean }
   | { t: 'img'; src: string; alt: string }
   | { t: 'tag'; v: string }
+  | { t: 'embed'; kind: EmbedKind; id: string }
   | { t: 'br' }
+
+/* ---------- встраивание: @Embed[вид:id] ---------- */
+
+/**
+ * Виды встраивания. table — место для таблиц случайностей (модуль таблиц):
+ * пока рисуется как недоступная карточка.
+ */
+export type EmbedKind = 'page' | 'item' | 'equipment' | 'creature' | 'spell' | 'table'
+export const EMBED_KINDS: EmbedKind[] = ['page', 'item', 'equipment', 'creature', 'spell', 'table']
+const EMBED_SRC = String.raw`@Embed\[(page|item|equipment|creature|spell|table):([\w-]{1,64})\]`
+const EMBED_ONLY = new RegExp(`^${EMBED_SRC}$`)
+
+export const embedText = (kind: EmbedKind, id: string) => `@Embed[${kind}:${id}]`
+
+/** Все встраивания текста по порядку, без повторов */
+export function embedsOf(src: string): { kind: EmbedKind; id: string }[] {
+  const seen = new Set<string>()
+  const out: { kind: EmbedKind; id: string }[] = []
+  for (const m of src.matchAll(new RegExp(EMBED_SRC, 'g'))) {
+    const key = `${m[1]}:${m[2]}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ kind: m[1] as EmbedKind, id: m[2] })
+  }
+  return out
+}
 
 const INLINE = [
   { re: /^`([^`]+)`/, make: (m: RegExpExecArray): Inline => ({ t: 'code', v: m[1] }) },
+  { re: new RegExp(`^${EMBED_SRC}`), make: (m: RegExpExecArray): Inline => ({ t: 'embed', kind: m[1] as EmbedKind, id: m[2] }) },
   { re: /^(!?)\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/, make: (m: RegExpExecArray): Inline => ({ t: 'wiki', page: m[2].trim(), label: (m[3] ?? m[2]).trim(), embed: m[1] === '!' }) },
   { re: /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/, make: (m: RegExpExecArray): Inline => ({ t: 'img', alt: m[1], src: m[2] }) },
   { re: /^\[([^\]]+)\]\(([^)\s]+)\)/, make: (m: RegExpExecArray): Inline => ({ t: 'link', href: m[2], c: parseInline(m[1]) }) },
@@ -118,7 +151,7 @@ export function parseInline(src: string): Inline[] {
       continue
     }
     let hit = false
-    if ('`[!*_~h'.includes(rest[0])) {
+    if ('`[!*_~h@'.includes(rest[0])) {
       for (const rule of INLINE) {
         const m = rule.re.exec(rest)
         if (m) {
@@ -160,6 +193,9 @@ export type Block =
   | { t: 'widget'; kind: WidgetKind; raw: string; from: number; to: number }
   | { t: 'hr' }
   | { t: 'table'; head: string[]; align: ('l' | 'c' | 'r')[]; rows: string[][] }
+  | { t: 'embed'; kind: EmbedKind; id: string }
+  /** тайна: id null — ещё без номера, раскрыть нельзя; from/to — строки оград ::: */
+  | { t: 'secret'; id: string | null; title: string; blocks: Block[]; from: number; to: number }
 
 export type WidgetKind = 'board' | 'random'
 const WIDGETS: WidgetKind[] = ['board', 'random']
@@ -178,8 +214,86 @@ const cells = (line: string) =>
     .split('|')
     .map((c) => c.trim())
 
-/** Разбор блоков; base — номер первой строки в исходнике (для галочек и виджетов) */
-export function parseBlocks(src: string, base = 0): Block[] {
+/* ---------- тайные блоки ---------- */
+
+const SECRET_OPEN = /^\s*:::\s*secret\b(?:\s+id=([\w-]{1,40}))?[ \t]*(.*)$/i
+const SECRET_CLOSE = /^\s*:::\s*$/
+const FENCE_START = /^\s*(```|~~~)/
+
+const fenceToggle = (line: string, fence: string | null): string | null => {
+  const m = FENCE_START.exec(line)
+  if (!m) return fence
+  if (fence == null) return m[1]
+  return line.trim().startsWith(fence) ? null : fence
+}
+
+export interface SecretSpan {
+  id: string | null
+  title: string
+  /** строка открывающей ограды */
+  from: number
+  /** строка закрывающей ограды (или последняя строка, если её нет) */
+  to: number
+}
+
+/**
+ * Тайные блоки верхнего уровня — те же правила, что у сервера (app/rooms/kb.py):
+ * ::: внутри кода не считается, незакрытый блок тянется до конца текста.
+ */
+export function secretSpans(src: string): SecretSpan[] {
+  const lines = src.split('\n')
+  const out: SecretSpan[] = []
+  let fence: string | null = null
+  let i = 0
+  while (i < lines.length) {
+    const m = fence == null ? SECRET_OPEN.exec(lines[i]) : null
+    if (!m) {
+      fence = fenceToggle(lines[i], fence)
+      i++
+      continue
+    }
+    let j = i + 1
+    let inner: string | null = null
+    while (j < lines.length) {
+      if (inner == null && SECRET_CLOSE.test(lines[j])) break
+      inner = fenceToggle(lines[j], inner)
+      j++
+    }
+    out.push({ id: m[1] ?? null, title: m[2].trim(), from: i, to: Math.min(j, lines.length - 1) })
+    i = j + 1
+  }
+  return out
+}
+
+/** Что увидит игрок: нераскрытые тайны вырезаны (как на сервере) */
+export function stripSecrets(src: string, revealed: readonly string[]): string {
+  const spans = secretSpans(src)
+  if (spans.length === 0) return src
+  const shown = new Set(revealed)
+  const drop = new Set<number>()
+  for (const s of spans) if (s.id == null || !shown.has(s.id)) for (let n = s.from; n <= s.to; n++) drop.add(n)
+  return src
+    .split('\n')
+    .filter((_, n) => !drop.has(n))
+    .join('\n')
+}
+
+export const newSecretId = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0')
+
+/** Дать номер тайне, которая начинается в строке line; вернёт новый текст и номер */
+export function ensureSecretId(src: string, line: number): { src: string; id: string } | null {
+  const lines = src.split('\n')
+  const m = SECRET_OPEN.exec(lines[line] ?? '')
+  if (!m) return null
+  if (m[1]) return { src, id: m[1] }
+  const id = newSecretId()
+  lines[line] = lines[line].replace(/secret\b/i, `secret id=${id}`)
+  return { src: lines.join('\n'), id }
+}
+
+/** Разбор блоков; base — номер первой строки в исходнике (для галочек и виджетов).
+ * nested — внутри цитаты или выноски: там тайн нет (сервер ищет их только на верхнем уровне). */
+export function parseBlocks(src: string, base = 0, nested = false): Block[] {
   const lines = src.split(/\r?\n/)
   const out: Block[] = []
   let i = 0
@@ -191,6 +305,30 @@ export function parseBlocks(src: string, base = 0): Block[] {
   while (i < lines.length) {
     const line = lines[i]
     const trimmed = line.trim()
+    // тайна: до закрывающей ::: (код внутри не считается)
+    const sec = nested ? null : SECRET_OPEN.exec(line)
+    if (sec) {
+      flushPara()
+      const start = i
+      const inner: string[] = []
+      let fence: string | null = null
+      i++
+      while (i < lines.length && !(fence == null && SECRET_CLOSE.test(lines[i]))) {
+        fence = fenceToggle(lines[i], fence)
+        inner.push(lines[i++])
+      }
+      out.push({ t: 'secret', id: sec[1] ?? null, title: sec[2].trim(), blocks: parseBlocks(inner.join('\n'), base + start + 1, true), from: base + start, to: base + Math.min(i, lines.length - 1) })
+      i++
+      continue
+    }
+    // строка из одного встраивания — отдельный блок, а не кусок абзаца
+    const only = EMBED_ONLY.exec(trimmed)
+    if (only) {
+      flushPara()
+      out.push({ t: 'embed', kind: only[1] as EmbedKind, id: only[2] })
+      i++
+      continue
+    }
     // код и виджеты
     const fence = /^(```|~~~)\s*([\w-]*)\s*$/.exec(trimmed)
     if (fence) {
@@ -229,8 +367,8 @@ export function parseBlocks(src: string, base = 0): Block[] {
       const start = i
       while (i < lines.length && lines[i].trim().startsWith('>')) inner.push(lines[i++].trim().replace(/^>\s?/, ''))
       const co = /^\[!(\w+)\]([+-]?)\s*(.*)$/.exec(inner[0] ?? '')
-      if (co) out.push({ t: 'callout', kind: co[1].toLowerCase(), fold: co[2] as '' | '+' | '-', title: co[3], blocks: parseBlocks(inner.slice(1).join('\n'), base + start + 1) })
-      else out.push({ t: 'quote', blocks: parseBlocks(inner.join('\n'), base + start) })
+      if (co) out.push({ t: 'callout', kind: co[1].toLowerCase(), fold: co[2] as '' | '+' | '-', title: co[3], blocks: parseBlocks(inner.slice(1).join('\n'), base + start + 1, true) })
+      else out.push({ t: 'quote', blocks: parseBlocks(inner.join('\n'), base + start, true) })
       continue
     }
     if (/^\s*([-*+]|\d+[.)])\s+/.test(line)) {
@@ -284,6 +422,8 @@ export function plainText(src: string, max = 160): string {
   const { body } = parsePage(src)
   return body
     .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*:::.*$/gm, ' ')
+    .replace(new RegExp(EMBED_SRC, 'g'), ' ')
     .replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => b ?? a)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')

@@ -22,7 +22,9 @@ export function PageRow({ n, current, onOpen }: { n: ScreenNote; current: boolea
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/x-kb-page', n.id)
-        e.dataTransfer.effectAllowed = 'move'
+        // в текст страницы падает ссылка [[…]]
+        e.dataTransfer.setData('text/plain', `[[${n.title}]]`)
+        e.dataTransfer.effectAllowed = 'copyMove'
       }}
     >
       <span className="kb-row-icon">{icon ?? <FileText aria-hidden="true" />}</span>

@@ -13,6 +13,11 @@ export function NotePopup({ note, onClose }: { note: MapNote; onClose: () => voi
     has: (t: string) => shared.some((x) => x.title.toLowerCase() === t.toLowerCase()),
     body: (t: string) => shared.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null,
     titles: shared.map((x) => x.title),
+    // встраивание: только страницы, текст которых игроку открыт (limited приходит без body)
+    byId: (id: string) => {
+      const p = shared.find((x) => x.id === id)
+      return p && p.body != null ? { title: p.title, body: p.body } : null
+    },
   }
   const title = note.label || page?.title || 'Метка'
   return (

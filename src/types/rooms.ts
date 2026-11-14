@@ -225,7 +225,7 @@ export type ItemTarget = 'table' | 'screen' | string
 export interface RoomItem {
   id: string
   room_id: string
-  holder: 'table' | 'screen'
+  holder: 'table' | 'screen' | 'map' | 'shop'
   kind: ItemKind
   /** у уровня limited нет: только name и image_url */
   equipment: Equipment | null
@@ -606,10 +606,75 @@ export interface ScreenNote {
   /** растёт с каждой правкой; пришлите в PATCH — при чужой правке будет 409 */
   revision?: number
   permissions?: DocPermissions
+  /** тип страницы: у квеста, НИП и лавки свои поля */
+  page_type?: PageType
+  quest?: QuestFields | null
+  npc?: NpcFields | null
+  shop?: ShopFields | null
+  /** id тайных блоков «:::secret id=…», раскрытых партии */
+  revealed_secrets?: string[]
 }
 
-/** Что игрок получает от общей заметки. limited — без body */
-export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'folder' | 'pinned' | 'order'> & {
+export type PageType = 'page' | 'quest' | 'npc' | 'shop'
+export type QuestStatus = 'active' | 'completed' | 'failed' | 'hidden'
+export type NpcAttitude = 'friendly' | 'neutral' | 'hostile' | 'unknown'
+
+export interface QuestObjective {
+  id: string
+  text: string
+  done: boolean
+  /** скрытую цель видит только мастер; игроку поле не приходит */
+  visible?: boolean
+}
+
+export interface QuestFields {
+  status: QuestStatus
+  objectives: QuestObjective[]
+  rewards: string
+  /** кто дал квест: id страницы НИП */
+  giver_page_id: string | null
+}
+
+export interface NpcFields {
+  portrait: string | null
+  attitude: NpcAttitude
+  role: string
+  location_page_id: string | null
+  location: string
+  /** статблок из каталога существ; игроку не приходит */
+  creature_id?: string | null
+}
+
+export interface ShopFields {
+  open: boolean
+  buy_multiplier: number
+  sell_multiplier: number
+  merchant_page_id: string | null
+}
+
+/** Товар лавки: предмет комнаты с holder = shop и ценами в медных */
+export interface ShopStockItem extends RoomItem {
+  shop_id: string
+  /** своя цена штуки; null — цена предмета × множитель */
+  price_cp: number | null
+  base_price_cp: number
+  unit_price_cp: number
+  sell_price_cp: number
+}
+
+export interface ShopView {
+  page_id: string
+  title: string
+  shop: ShopFields
+  stock: ShopStockItem[]
+}
+
+/**
+ * Что игрок получает от общей заметки, по своему уровню доступа:
+ * limited — только заголовок (без body и полей типа); observer и owner — текст без нераскрытых тайн,
+ * без скрытых целей квеста и без статблока НИП. Скрытый квест не приходит вовсе.
+ */
+export type SharedNote = Pick<ScreenNote, 'id' | 'title' | 'folder' | 'pinned' | 'order' | 'page_type' | 'quest' | 'npc' | 'shop'> & {
   body?: string
   updated_at?: string
   revision?: number

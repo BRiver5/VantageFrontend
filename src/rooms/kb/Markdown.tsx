@@ -2,13 +2,17 @@
  * Отрисовка страницы базы знаний: блоки и строчная разметка из markdown.ts —
  * в React-элементы. Ссылки [[…]] ведут на страницы (нет такой — пунктир, клик
  * создаёт), ![[…]] встраивает страницу, задачи отмечаются прямо в чтении.
+ * @Embed[page:id] встраивает страницу по id, @Embed[item:id] и др. — карточки
+ * каталога. Тайные блоки :::secret мастер видит с кнопкой «Раскрыть игрокам»;
+ * игрок получает с сервера только раскрытые.
  */
 import { Fragment, useState, type ReactNode } from 'react'
-import { AlertTriangle, BookOpen, ChevronRight, Flame, Info, Lightbulb, Quote, ScrollText, Skull, Sparkles } from 'lucide-react'
+import { AlertTriangle, BookOpen, ChevronRight, Eye, EyeOff, Flame, Info, Lightbulb, Lock, Quote, ScrollText, Skull, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Img } from '../../media'
-import { parseBlocks, parseInline, parsePage, replaceWidget, toggleTask, type Block, type Inline, type WidgetKind } from './mdparse'
+import { parseBlocks, parseInline, parsePage, replaceWidget, toggleTask, type Block, type EmbedKind, type Inline, type WidgetKind } from './mdparse'
 import { BoardWidget, RandomWidget } from './widgets'
+import { EmbedCard } from './EmbedCard'
 
 export interface PageLookup {
   /** есть ли страница с таким названием (без регистра) */
@@ -16,6 +20,15 @@ export interface PageLookup {
   /** текст страницы: для ![[встраивания]] */
   body: (title: string) => string | null
   titles: string[]
+  /** страница по id: для @Embed[page:id]; null — нет или закрыта от зрителя */
+  byId?: (id: string) => { title: string; body: string; revealed?: string[] } | null
+}
+
+/** Тайные блоки у мастера: что уже раскрыто и как раскрыть ещё */
+export interface SecretControl {
+  revealed: string[]
+  /** нет — только показать (встроенная страница); id null — блок ещё без номера */
+  onToggle?: (s: { id: string | null; from: number }) => void
 }
 
 interface Ctx {
@@ -26,6 +39,8 @@ interface Ctx {
   onChange?: (next: string) => void
   src: string
   depth: number
+  /** есть — смотрит мастер; нет — игрок (тайны пришли уже раскрытыми) */
+  secrets?: SecretControl
 }
 
 const CALLOUT: Record<string, { icon: LucideIcon; label: string }> = {
@@ -75,6 +90,8 @@ function inline(nodes: Inline[], ctx: Ctx, key = ''): ReactNode[] {
           <span key={k}>{inline(n.c, ctx, k)}</span>
         )
       }
+      case 'embed':
+        return <EmbedAny key={k} kind={n.kind} id={n.id} ctx={ctx} />
       case 'wiki': {
         if (n.embed) return <Embed key={k} title={n.page} ctx={ctx} />
         const exists = ctx.pages.has(n.page)
@@ -107,9 +124,64 @@ function Embed({ title, ctx }: { title: string; ctx: Ctx }) {
         <BookOpen aria-hidden="true" /> {title}
       </button>
       <span className="kb-embed-body">
-        <MarkdownBody src={body} pages={ctx.pages} onOpen={ctx.onOpen} depth={ctx.depth + 1} />
+        <MarkdownBody src={body} pages={ctx.pages} onOpen={ctx.onOpen} depth={ctx.depth + 1} secrets={ctx.secrets ? { revealed: [] } : undefined} />
       </span>
     </span>
+  )
+}
+
+function PageEmbedById({ id, ctx }: { id: string; ctx: Ctx }) {
+  const page = ctx.pages.byId?.(id) ?? null
+  if (page == null) {
+    return (
+      <span className="kb-card is-missing">
+        <BookOpen aria-hidden="true" />
+        <span>Страница недоступна</span>
+      </span>
+    )
+  }
+  if (ctx.depth >= 2) {
+    return (
+      <button type="button" className="kb-wiki" onClick={() => ctx.onOpen(page.title)}>
+        {page.title}
+      </button>
+    )
+  }
+  return (
+    <span className="kb-embed">
+      <button type="button" className="kb-embed-head" onClick={() => ctx.onOpen(page.title)}>
+        <BookOpen aria-hidden="true" /> {page.title}
+      </button>
+      <span className="kb-embed-body">
+        <MarkdownBody src={page.body} pages={ctx.pages} onOpen={ctx.onOpen} depth={ctx.depth + 1} secrets={ctx.secrets ? { revealed: page.revealed ?? [] } : undefined} />
+      </span>
+    </span>
+  )
+}
+
+function EmbedAny({ kind, id, ctx }: { kind: EmbedKind; id: string; ctx: Ctx }) {
+  if (kind === 'page') return <PageEmbedById id={id} ctx={ctx} />
+  return <EmbedCard key={`${kind}:${id}`} kind={kind} id={id} />
+}
+
+function SecretBlock({ b, ctx, k }: { b: Extract<Block, { t: 'secret' }>; ctx: Ctx; k: string }) {
+  const ctl = ctx.secrets
+  // игроку сервер присылает только раскрытые тайны
+  const shown = !ctl || (b.id != null && ctl.revealed.includes(b.id))
+  return (
+    <aside className={`kb-secret${shown ? ' is-revealed' : ''}`}>
+      <header className="kb-secret-head">
+        {shown ? <Eye aria-hidden="true" /> : <Lock aria-hidden="true" />}
+        <b>{b.title ? inline(parseInline(b.title), ctx, `${k}t`) : ctl ? 'Тайна' : 'Раскрытая тайна'}</b>
+        {ctl && <span className="kb-secret-state">{shown ? 'видят игроки' : 'только мастер'}</span>}
+        {ctl?.onToggle && (
+          <button type="button" className="kb-chip" onClick={() => ctl.onToggle?.({ id: b.id, from: b.from })}>
+            {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />} {shown ? 'Скрыть от игроков' : 'Раскрыть игрокам'}
+          </button>
+        )}
+      </header>
+      <div className="kb-secret-body">{blocks(b.blocks, ctx, `${k}s`)}</div>
+    </aside>
   )
 }
 
@@ -167,6 +239,14 @@ function blocks(list: Block[], ctx: Ctx, key = ''): ReactNode[] {
         return <Callout key={k} b={b} ctx={ctx} k={k} />
       case 'widget':
         return <Widget key={k} b={b} ctx={ctx} />
+      case 'embed':
+        return (
+          <div key={k} className="kb-embed-block">
+            <EmbedAny kind={b.kind} id={b.id} ctx={ctx} />
+          </div>
+        )
+      case 'secret':
+        return <SecretBlock key={k} b={b} ctx={ctx} k={k} />
       case 'table':
         return (
           <div key={k} className="kb-table-wrap">
@@ -220,8 +300,8 @@ function blocks(list: Block[], ctx: Ctx, key = ''): ReactNode[] {
 }
 
 /** Тело страницы без шапки */
-export function MarkdownBody({ src, pages, onOpen, onTag, onChange, depth = 0 }: { src: string; pages: PageLookup; onOpen: (title: string) => void; onTag?: (t: string) => void; onChange?: (next: string) => void; depth?: number }) {
+export function MarkdownBody({ src, pages, onOpen, onTag, onChange, depth = 0, secrets }: { src: string; pages: PageLookup; onOpen: (title: string) => void; onTag?: (t: string) => void; onChange?: (next: string) => void; depth?: number; secrets?: SecretControl }) {
   const { body, offset } = parsePage(src)
-  const ctx: Ctx = { pages, onOpen, onTag, onChange, src, depth }
+  const ctx: Ctx = { pages, onOpen, onTag, onChange, src, depth, secrets }
   return <>{blocks(parseBlocks(body, offset), ctx)}</>
 }

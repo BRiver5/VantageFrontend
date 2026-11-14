@@ -121,3 +121,4 @@
 @import './styles/components/roll-tables.css' layer(components);
 @import './styles/components/map-levels.css' layer(components);
 @import './styles/components/permissions.css' layer(components);
+@import './styles/components/kb-extras.css' layer(components);

@@ -412,3 +412,22 @@ describe('роли и права', () => {
     expect(applyEvent(s, ev('permissions.changed', { kind: 'items', id: 'i1', permissions: { default: 'none', users: {} } })).items).toHaveLength(1)
   })
 })
+
+describe('лавки и раздел монет', () => {
+  it('shop.stock: предмет уходит с ширмы в лавку и возвращается', () => {
+    const s = state({ table: [item('i1', { holder: 'screen' })] })
+    const moved = applyEvent(s, ev('shop.stock', { page_id: 'p', from_screen: 'i1', to_screen: [] }))
+    expect(moved.items).toEqual([])
+    const back = applyEvent(moved, ev('shop.stock', { page_id: 'p', from_screen: null, to_screen: [item('i1', { holder: 'screen' })] }, 12))
+    expect(back.items.map((i) => i.id)).toEqual(['i1'])
+    expect(applyEvent(s, ev('shop.stock', { page_id: 'p' })).items).toBe(s.items)
+  })
+
+  it('журнал: покупка, продажа, раздел', () => {
+    const s = state()
+    expect(describeEvent(s, ev('shop.purchase', { character_name: 'Гимли', name: 'Факел', quantity: 2, shop: 'Лавка', price_cp: 250 }))).toMatchObject({ who: 'Гимли', text: 'покупает Факел ×2 в «Лавка» за 2 зм, 5 см' })
+    expect(describeEvent(s, ev('shop.sale', { character_name: 'Гимли', name: 'Меч', quantity: 1, shop: 'Лавка', price_cp: 7 }))?.text).toBe('продаёт Меч в «Лавка» за 7 мм')
+    const split = describeEvent(s, ev('currency.split', { amount: { gp: 10 }, share: { gp: 3, sp: 3, cp: 3 }, remainder: { cp: 1 }, remainder_to: null, character_ids: ['a', 'b', 'c'], from_character_id: null }))
+    expect(split?.text).toBe('Монеты 10 зм разделены на 3: по 3 зм, 3 см, 3 мм · остаток 1 мм не роздан')
+  })
+})

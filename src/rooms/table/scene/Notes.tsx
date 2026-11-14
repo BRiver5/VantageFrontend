@@ -6,8 +6,9 @@ import { canEditNote } from '../../perms/permissions'
 import { patchSharedNote } from '../../roomsApi'
 import { useRoom } from '../../RoomProvider'
 import { Emerge, useEmergeClose, type Origin } from '../parts'
-import { MarkdownBody } from '../../kb/Markdown'
+import { MarkdownBody, type PageLookup } from '../../kb/Markdown'
 import { parsePage } from '../../kb/mdparse'
+import { QuestLog, TypedPanel } from '../../kb/PageTypes'
 
 /* ---------- личные заметки: карта в углу ---------- */
 
@@ -19,10 +20,10 @@ export function NotesMapOpen({ characterId, origin, onClose }: { characterId: st
   )
 }
 
-type PageLookup = { has: (t: string) => boolean; body: (t: string) => string | null; titles: string[] }
+type PageRef = { id: string; title: string; page_type?: SharedNote['page_type'] }
 
 /** Одна открытая страница: limited — только заголовок, owner — можно править */
-function SharedNoteItem({ n, lookup, onOpen }: { n: SharedNote; lookup: PageLookup; onOpen: (title: string) => void }) {
+function SharedNoteItem({ n, lookup, onOpen, refs, onOpenPage }: { n: SharedNote; lookup: PageLookup; onOpen: (title: string) => void; refs: PageRef[]; onOpenPage: (id: string) => void }) {
   const { roomId } = useRoom()
   const [draft, setDraft] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -69,9 +70,12 @@ function SharedNoteItem({ n, lookup, onOpen }: { n: SharedNote; lookup: PageLook
       ) : n.body == null ? (
         <p className="tb-map-wait">Мастер открыл только заголовок</p>
       ) : (
-        <div className="kb-doc is-paper">
-          <MarkdownBody src={n.body} pages={lookup} onOpen={onOpen} />
-        </div>
+        <>
+          <TypedPanel note={n} pages={refs} onOpenPage={onOpenPage} />
+          <div className="kb-doc is-paper">
+            <MarkdownBody src={n.body} pages={lookup} onOpen={onOpen} />
+          </div>
+        </>
       )}
     </li>
   )
@@ -84,12 +88,23 @@ function SharedNotesList() {
   if (notes.length === 0) return <p className="tb-map-wait">Мастер пока ничего не открыл</p>
   // ссылки ведут только на открытые партии страницы
   const find = (t: string) => notes.find((x) => x.title.toLowerCase() === t.toLowerCase())
-  const lookup: PageLookup = { has: (t) => !!find(t), body: (t) => find(t)?.body ?? null, titles: notes.map((x) => x.title) }
-  const open = (t: string) => document.getElementById(`shared-${find(t)?.id}`)?.scrollIntoView({ behavior: 'smooth' })
+  const lookup: PageLookup = {
+    has: (t) => !!find(t),
+    body: (t) => find(t)?.body ?? null,
+    titles: notes.map((x) => x.title),
+    // встраивание @Embed[page:id]: только страницы, текст которых игроку открыт
+    byId: (id) => {
+      const page = notes.find((x) => x.id === id)
+      return page && page.body != null ? { title: page.title, body: page.body } : null
+    },
+  }
+  const jump = (id: string | undefined) => document.getElementById(`shared-${id}`)?.scrollIntoView({ behavior: 'smooth' })
+  const open = (t: string) => jump(find(t)?.id)
+  const refs = notes.map((x) => ({ id: x.id, title: x.title, page_type: x.page_type }))
   return (
     <ul className="tb-shared">
       {notes.map((n) => (
-        <SharedNoteItem key={n.id} n={n} lookup={lookup} onOpen={open} />
+        <SharedNoteItem key={n.id} n={n} lookup={lookup} onOpen={open} refs={refs} onOpenPage={jump} />
       ))}
     </ul>
   )
@@ -99,7 +114,9 @@ function NotesPaper({ characterId }: { characterId: string }) {
   const { roomId, data } = useRoom()
   const close = useEmergeClose()
   const shared = data?.sharedNotes.length ?? 0
-  const [tab, setTab] = useState<'mine' | 'shared'>('mine')
+  const [tab, setTab] = useState<'mine' | 'shared' | 'quests'>('mine')
+  // журнал квестов: сервер присылает только видимые игроку квесты и цели
+  const questCount = (data?.sharedNotes ?? []).filter((n) => n.page_type === 'quest').length
   const [text, setText] = useState<string | null>(null)
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -157,11 +174,18 @@ function NotesPaper({ characterId }: { characterId: string }) {
             <button type="button" role="tab" aria-selected={tab === 'shared'} className={tab === 'shared' ? 'is-on' : ''} onClick={() => setTab('shared')}>
               От мастера <em>{shared}</em>
             </button>
+            {questCount > 0 && (
+              <button type="button" role="tab" aria-selected={tab === 'quests'} className={tab === 'quests' ? 'is-on' : ''} onClick={() => setTab('quests')}>
+                Квесты <em>{questCount}</em>
+              </button>
+            )}
           </div>
         ) : (
           <h2>Мои заметки</h2>
         )}
-        {tab === 'shared' && shared > 0 ? (
+        {tab === 'quests' && questCount > 0 ? (
+          <QuestLog notes={data?.sharedNotes ?? []} empty="Квестов пока нет" />
+        ) : tab === 'shared' && shared > 0 ? (
           <SharedNotesList />
         ) : text == null ? (
           <p className="tb-map-wait">Разворачиваем карту…</p>
