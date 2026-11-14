@@ -7,7 +7,7 @@ const send = <T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body?: unkno
 
 export const getLayers = (roomId: string, mapId: string) => request<MapLayersData>(m(roomId, mapId, '/layers'), { auth: true })
 
-export type NoteInput = Partial<Pick<MapNote, 'x' | 'y' | 'label' | 'icon' | 'size' | 'tint' | 'always_visible' | 'page_id' | 'limited' | 'hidden'>>
+export type NoteInput = Partial<Pick<MapNote, 'x' | 'y' | 'label' | 'icon' | 'size' | 'tint' | 'always_visible' | 'page_id' | 'limited' | 'hidden' | 'level_id'>>
 export const createNote = (roomId: string, mapId: string, body: NoteInput) => send<MapNote>(m(roomId, mapId, '/notes'), 'POST', body)
 export const patchNote = (roomId: string, mapId: string, id: string, body: NoteInput) => send<MapNote>(m(roomId, mapId, `/notes/${id}`), 'PATCH', body)
 export const deleteNote = (roomId: string, mapId: string, id: string) => send<void>(m(roomId, mapId, `/notes/${id}`), 'DELETE')

@@ -1,0 +1,36 @@
+/* Этажи карты: переключатель на столе и в конструкторе, список этажей конструктора */
+
+.mp-levels {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 5;
+  translate: -50% 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: calc(100% - 20px);
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-pill, 999px);
+  background: rgb(var(--bg-0-rgb) / 0.85);
+  color: var(--gold-3);
+  font-size: 12.5px;
+}
+.mp-levels svg { width: 14px; height: 14px; margin: 0 2px; }
+.mp-levels.is-readonly { padding: 5px 12px; }
+.mp-levels button { padding: 3px 10px; border: 0; border-radius: var(--radius-pill, 999px); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.mp-levels button:hover { background: rgb(var(--gold-2-rgb) / 0.14); }
+.mp-levels button.is-on { background: rgb(var(--gold-2-rgb) / 0.28); color: var(--parchment); }
+.mp-levels button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.me-levels { display: grid; gap: 6px; }
+.me-levels-row { display: grid; grid-template-columns: 1fr 64px 64px auto; align-items: center; gap: 4px; }
+.me-levels-row.is-current { box-shadow: inset 2px 0 0 var(--gold-3); padding-left: 4px; }
+.me-levels-row input { min-width: 0; }
+.me-levels-btns { display: flex; gap: 2px; }
+.me-levels-btns button { padding: 2px 6px; }
+.me-levels-btns svg { width: 13px; height: 13px; }
+.me-levels-bg { grid-column: 1 / -1; }
