@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Backpack, Crown, Gem, ImagePlus, Package, Plus, Search, Trash2 } from 'lucide-react'
+import { Backpack, Coins, Crown, Gem, ImagePlus, Package, Plus, Search, Trash2 } from 'lucide-react'
 import { realImage, uploadMedia, type Equipment, type Item } from '../../../api'
 import { useCatalogList } from '../../../create/useCatalog'
 import type { RoomItem, ScreenItemTemplate } from '../../../types/rooms'
@@ -8,6 +8,7 @@ import { claimItem, createTemplate, deleteTemplate, issueItem, issueTemplate, li
 import { errText, Hex, itemArt, itemName } from '../parts'
 import { Img } from '../../../media'
 import { type Pick, useList } from './common'
+import { SplitCoins } from './SplitCoins'
 
 /** Куда отдать: стол, ширма или любой герой — одно нажатие */
 function GiveBar({ pick, onDone }: { pick: Pick; onDone: (msg: string) => void }) {
@@ -135,6 +136,7 @@ export function LeafLoot() {
   const [pick, setPick] = useState<Pick | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [splitting, setSplitting] = useState(false)
   const [screenPick, setScreenPick] = useState<RoomItem | null>(null)
   // предмет из-за ширмы уже отдаётся: второй щелчок получил бы 409
   const [giving, setGiving] = useState(false)
@@ -180,6 +182,9 @@ export function LeafLoot() {
         </label>
         <button type="button" className={`tb-goldbtn${creating ? '' : ' is-quiet'}`} aria-pressed={creating} onClick={() => setCreating((v) => !v)}>
           <Plus aria-hidden="true" /> Свой предмет
+        </button>
+        <button type="button" className={`tb-goldbtn${splitting ? '' : ' is-quiet'}`} aria-pressed={splitting} onClick={() => setSplitting((v) => !v)} title="Разделить монеты поровну между героями">
+          <Coins aria-hidden="true" /> Разделить монеты
         </button>
       </div>
 
@@ -276,6 +281,7 @@ export function LeafLoot() {
         </div>
       )}
 
+      {splitting && <SplitCoins onClose={() => setSplitting(false)} />}
       <footer className="sc-loot-foot">
         {pick ? <GiveBar key={pick.id} pick={pick} onDone={setDone} /> : <p className="tb-hint">Выберите предмет, затем решите, кому он достанется.</p>}
         {done && (
