@@ -12,7 +12,7 @@
  * обработчики, написанные до реестра (Escape закрывал окно и с зажатым Shift).
  */
 
-export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor' | 'map-ruler' | 'map-tokens'
+export type KeyCategory = 'general' | 'text' | 'create' | 'kb' | 'map-editor' | 'map-ruler' | 'map-tokens' | 'hotbar'
 
 export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   general: 'Общее',
@@ -23,6 +23,8 @@ export const CATEGORY_LABELS: Record<KeyCategory, string> = {
   'map-ruler': 'Линейка и ход по карте',
   // p1/hud: жетоны на карте стола
   'map-tokens': 'Карта: жетоны и цели',
+  // p3/ux: панель быстрых действий в комнате
+  hotbar: 'Панель быстрых действий',
 }
 
 export interface KeyAction {
@@ -36,7 +38,7 @@ export interface KeyAction {
 
 export const ACTIONS = [
   { id: 'dialog.close', label: 'Закрыть окно или меню', category: 'general', defaults: ['Escape'], loose: true },
-  { id: 'search.open', label: 'Открыть поиск', category: 'general', defaults: ['Ctrl+K'], loose: true },
+  { id: 'search.open', label: 'Открыть поиск (в комнате — и команды)', category: 'general', defaults: ['Ctrl+K'], loose: true },
   { id: 'search.quick', label: 'Открыть поиск вне поля ввода', category: 'general', defaults: ['/'] },
 
   { id: 'review.send', label: 'Отправить отзыв', category: 'text', defaults: ['Ctrl+Enter'], loose: true },
@@ -80,6 +82,23 @@ export const ACTIONS = [
   // p1/hud: цели и панель жетона на карте стола
   { id: 'map.target.toggle', label: 'Цель: отметить жетон под курсором', category: 'map-tokens', defaults: ['T'] },
   { id: 'map.target.clear', label: 'Цель: снять все отметки', category: 'map-tokens', defaults: ['Shift+T'] },
+
+  // p3/ux: панель быстрых действий (не в поле ввода)
+  { id: 'hotbar.slot.1', label: 'Панель: ячейка 1', category: 'hotbar', defaults: ['1'] },
+  { id: 'hotbar.slot.2', label: 'Панель: ячейка 2', category: 'hotbar', defaults: ['2'] },
+  { id: 'hotbar.slot.3', label: 'Панель: ячейка 3', category: 'hotbar', defaults: ['3'] },
+  { id: 'hotbar.slot.4', label: 'Панель: ячейка 4', category: 'hotbar', defaults: ['4'] },
+  { id: 'hotbar.slot.5', label: 'Панель: ячейка 5', category: 'hotbar', defaults: ['5'] },
+  { id: 'hotbar.slot.6', label: 'Панель: ячейка 6', category: 'hotbar', defaults: ['6'] },
+  { id: 'hotbar.slot.7', label: 'Панель: ячейка 7', category: 'hotbar', defaults: ['7'] },
+  { id: 'hotbar.slot.8', label: 'Панель: ячейка 8', category: 'hotbar', defaults: ['8'] },
+  { id: 'hotbar.slot.9', label: 'Панель: ячейка 9', category: 'hotbar', defaults: ['9'] },
+  { id: 'hotbar.slot.10', label: 'Панель: ячейка 10', category: 'hotbar', defaults: ['0'] },
+  { id: 'hotbar.page.1', label: 'Панель: страница 1', category: 'hotbar', defaults: ['Alt+1'] },
+  { id: 'hotbar.page.2', label: 'Панель: страница 2', category: 'hotbar', defaults: ['Alt+2'] },
+  { id: 'hotbar.page.3', label: 'Панель: страница 3', category: 'hotbar', defaults: ['Alt+3'] },
+  { id: 'hotbar.page.4', label: 'Панель: страница 4', category: 'hotbar', defaults: ['Alt+4'] },
+  { id: 'hotbar.page.5', label: 'Панель: страница 5', category: 'hotbar', defaults: ['Alt+5'] },
 ] as const satisfies readonly KeyAction[]
 
 export type ActionId = (typeof ACTIONS)[number]['id']

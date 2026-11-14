@@ -32,6 +32,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { searchCatalog, type SearchHit, type SearchResult } from '../api'
 import { matches } from '../input/keybindings'
+import { rankByQuery } from './fuzzy'
+import { notifyPaletteOpen, usePaletteCommands, type PaletteCommand } from './paletteCommands'
 
 /** Раздел → страница и значок. Без страницы (способности классов) результат раскрывается на месте */
 const ENTITY: Record<string, { path: string | null; icon: LucideIcon; label: string }> = {
@@ -65,9 +67,13 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<{ initial: string } | null>(null)
   const openSearch = useCallback((initial = '') => setOpen({ initial }), [])
   const { pathname } = useLocation()
+  // в комнате палитра ещё и выполняет действия: их список даёт сама комната
+  const commands = usePaletteCommands()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // сочетание уже занято полем (Ctrl+K — ссылка в редакторе кодекса)
+      if (e.defaultPrevented) return
       const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))
       if (matches(e, 'search.open')) {
         e.preventDefault()
@@ -81,13 +87,17 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // в комнате сцена занимает весь экран и свои сочетания: там поиск не нужен
-  const blocked = pathname.startsWith('/rooms/') && pathname !== '/rooms/'
+  // в комнате без списка действий (экран ещё грузится) палитру не открываем
+  const blocked = pathname.startsWith('/rooms/') && pathname !== '/rooms/' && !commands
+  const shown = !!open && !blocked
+  useEffect(() => {
+    if (shown) notifyPaletteOpen()
+  }, [shown])
 
   return (
     <SearchContext.Provider value={openSearch}>
       {children}
-      {open && !blocked && <SearchPalette key={open.initial} initial={open.initial} onClose={() => setOpen(null)} />}
+      {open && !blocked && <SearchPalette key={open.initial} initial={open.initial} commands={commands} onClose={() => setOpen(null)} />}
     </SearchContext.Provider>
   )
 }
@@ -110,7 +120,7 @@ function Mark({ text, q }: { text: string; q: string }) {
   )
 }
 
-function SearchPalette({ initial, onClose }: { initial: string; onClose: () => void }) {
+function SearchPalette({ initial, commands, onClose }: { initial: string; commands: PaletteCommand[] | null; onClose: () => void }) {
   const navigate = useNavigate()
   const [q, setQ] = useState(initial)
   const [entity, setEntity] = useState<string | null>(null)
@@ -121,7 +131,7 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
   const [error, setError] = useState<string | null>(null)
   const [active, setActive] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const listRef = useRef<HTMLOListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const query = q.trim()
 
   // запрос с задержкой; прежний обрывается
@@ -156,6 +166,13 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
   }, [query, entity])
 
   const items = useMemo(() => result?.items ?? [], [result])
+  // действия комнаты — над находками кодекса; стрелки ходят по общему списку
+  const cmds = useMemo(() => (commands ? rankByQuery(query, commands, query ? 8 : 60) : []), [commands, query])
+  const total = cmds.length + items.length
+  const runCmd = (c: PaletteCommand) => {
+    onClose()
+    c.run()
+  }
   const hasMore = !!result && result.items.length < result.total
 
   const loadMore = async () => {
@@ -184,6 +201,7 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [active])
+  useEffect(() => setActive(0), [query])
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -192,13 +210,16 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
       else onClose()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActive((i) => Math.min(items.length - 1, i + 1))
+      setActive((i) => Math.min(total - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActive((i) => Math.max(0, i - 1))
-    } else if (e.key === 'Enter' && items[active]) {
+    } else if (e.key === 'Enter' && active < cmds.length && cmds[active]) {
       e.preventDefault()
-      go(items[active])
+      runCmd(cmds[active])
+    } else if (e.key === 'Enter' && items[active - cmds.length]) {
+      e.preventDefault()
+      go(items[active - cmds.length])
     }
   }
 
@@ -206,17 +227,17 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
 
   return createPortal(
     <div className="gs-layer" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="gs" role="dialog" aria-modal="true" aria-label="Поиск по сайту" onKeyDown={onKey}>
+      <div className="gs" role="dialog" aria-modal="true" aria-label={commands ? 'Команды и поиск' : 'Поиск по сайту'} onKeyDown={onKey}>
         <label className="gs-input">
           {loading ? <Loader2 className="gs-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
           <input
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Заклинание, монстр, класс, предмет…"
+            placeholder={commands ? 'Команда, статья или поиск по кодексу…' : 'Заклинание, монстр, класс, предмет…'}
             aria-label="Что ищем"
             aria-controls="gs-results"
-            aria-activedescendant={items[active] ? `gs-${items[active].entity}-${items[active].id}` : undefined}
+            aria-activedescendant={active < cmds.length ? (cmds[active] ? `gs-cmd-${cmds[active].id}` : undefined) : items[active - cmds.length] ? `gs-${items[active - cmds.length].entity}-${items[active - cmds.length].id}` : undefined}
           />
           <button type="button" className="gs-close" onClick={onClose} aria-label="Закрыть">
             <X aria-hidden="true" />
@@ -240,21 +261,49 @@ function SearchPalette({ initial, onClose }: { initial: string; onClose: () => v
           </div>
         )}
 
-        <div className="gs-body">
+        <div className="gs-body" ref={listRef}>
+          {cmds.length > 0 && (
+            <ol className="gs-list gs-cmds" role="listbox" aria-label="Действия">
+              {cmds.map((c, i) => {
+                const Icon = c.icon ?? CornerDownLeft
+                const head = i === 0 || cmds[i - 1].group !== c.group
+                return (
+                  <li key={c.id} id={`gs-cmd-${c.id}`} role="option" aria-selected={i === active} data-i={i}>
+                    {head && <span className="gs-group">{c.group}</span>}
+                    <button type="button" className={`gs-hit gs-cmd${i === active ? ' is-active' : ''}`} onMouseMove={() => setActive(i)} onClick={() => runCmd(c)}>
+                      <span className="gs-hit-icon">
+                        <Icon aria-hidden="true" />
+                      </span>
+                      <span className="gs-hit-body">
+                        <b>
+                          <Mark text={c.label} q={query} />
+                        </b>
+                      </span>
+                      {c.hint && <span className="gs-hit-kind">{c.hint}</span>}
+                      {i === active && <CornerDownLeft className="gs-hit-enter" aria-hidden="true" />}
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
           {!query ? (
+            commands ? null : (
             <div className="gs-empty">
               <p>Ищите по всему кодексу: классы, расы, заклинания, бестиарий, предметы, книги и миры.</p>
               <p className="gs-tip">
                 Можно с опечатками и в английской раскладке. <kbd>Ctrl</kbd> <kbd>K</kbd> или <kbd>/</kbd> — открыть с любой страницы.
               </p>
             </div>
+            )
           ) : error ? (
             <p className="gs-empty">{error}</p>
-          ) : result && items.length === 0 && !loading ? (
+          ) : result && items.length === 0 && !loading && cmds.length === 0 ? (
             <p className="gs-empty">По запросу «{query}» ничего не нашлось.</p>
           ) : (
-            <ol id="gs-results" ref={listRef} className="gs-list" role="listbox" aria-label="Результаты">
-              {items.map((hit, i) => {
+            <ol id="gs-results" className="gs-list" role="listbox" aria-label="Результаты">
+              {items.map((hit, j) => {
+                const i = j + cmds.length
                 const meta = metaOf(hit.entity, hit.entity_title)
                 const Icon = meta.icon
                 const open = expanded === hit.id

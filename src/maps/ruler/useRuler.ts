@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type RefObject } from 'react'
 import { useKeybinding } from '../../input/useKeybinding'
+import { useRoomCommand } from '../../rooms/commands'
 import { cellCenter, cellOf, pathPoints } from '../geometry'
 import type { RulerOverlay } from '../render/ruler'
 import type { BattleMap, MapToken, Pt } from '../types'
@@ -257,6 +258,8 @@ export function useRuler({
   }
 
   useKeybinding('ruler.toggle', guard(toggle), !!map && !drag)
+  // p3/ux: «Линейка» из палитры Ctrl+K
+  useRoomCommand('ruler.toggle', toggle, !!map && !drag)
   useKeybinding('ruler.waypoint', guard(placeWaypoint), keysOn)
   useKeybinding('ruler.unwaypoint', guard(() => (drag ? setDrag({ ...drag, waypoints: drag.waypoints.slice(0, -1) }) : setPoints((l) => removeWaypoint(l)))), keysOn)
   useKeybinding('ruler.up', guard(() => lift(1, false)), keysOn)
