@@ -22,6 +22,7 @@ import { auraClass, describeEffect, EffectSigils } from './effects'
 import { Img } from '../../media'
 import { COIN_ORDER, COIN_RU, bubbleOf, flyTo, relay } from './scene/motion'
 import { NotesMapOpen } from './scene/Notes'
+import { canClaimItem } from '../perms/permissions'
 import { type Bubble, RollBubble, Seat, type SeatInfo } from './scene/Seat'
 import { DmProp, Loot, Sack, Token } from './scene/Props'
 
@@ -320,7 +321,7 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
         <LootCard
           item={openLoot}
           origin={lootOpen.origin}
-          canClaim={!!mine && !closed}
+          canClaim={!!mine && !closed && canClaimItem(openLoot, isDm)}
           onClaim={() => void claim(openLoot)}
           onClose={() => setLootOpen(null)}
         />

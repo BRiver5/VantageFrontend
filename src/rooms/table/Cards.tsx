@@ -15,6 +15,7 @@ import { cardRatio, creatureArt, creatureHp, creatureName, Emerge, errText, Hex,
 import { ConditionPicker, EffectList } from './effects'
 import { useEffectControl, useTargetEffects, type EffectTargetRef } from './useEffects'
 import { Img } from '../../media'
+import { PermissionsButton } from '../perms/PermissionsDialog'
 
 const sizeRu = (s: string | null | undefined) => (s ? (SIZE_RU[s] ?? s) : null)
 export const stripTags = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -320,6 +321,7 @@ export function CreatureBack({ c, onFlip, onRemoved }: { c: RoomCreature; onFlip
         <button type="button" className={`tb-linkbtn${c.quick_access ? ' is-on' : ''}`} aria-pressed={c.quick_access} disabled={busy} onClick={() => void patch({ quick_access: !c.quick_access })}>
           <Star aria-hidden="true" /> быстрый доступ
         </button>
+        <PermissionsButton kind="creatures" docId={c.id} title={c.display_name} />
         <button
           type="button"
           className="tb-linkbtn is-danger"
@@ -424,6 +426,7 @@ function LootBody({ item, canClaim, onClaim }: { item: RoomItem; canClaim: boole
             <Undo2 aria-hidden="true" /> За ширму
           </button>
         )}
+        <PermissionsButton kind="items" docId={item.id} title={itemName(item)} />
       </div>
       {error && <span className="tb-err">{error}</span>}
     </>

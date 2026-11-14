@@ -26,9 +26,11 @@ export function NotePopup({ note, onClose }: { note: MapNote; onClose: () => voi
           <X aria-hidden="true" />
         </button>
       </header>
-      {page ? (
+      {page && page.body == null ? (
+        <p className="ly-hint">Мастер открыл только заголовок.</p>
+      ) : page ? (
         <div className="kb-doc is-paper ly-note-body">
-          <MarkdownBody src={page.body} pages={lookup} onOpen={() => undefined} />
+          <MarkdownBody src={page.body ?? ''} pages={lookup} onOpen={() => undefined} />
         </div>
       ) : note.access === 'limited' ? (
         <p className="ly-hint">Подробности мастер пока не открыл.</p>

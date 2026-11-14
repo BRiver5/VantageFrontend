@@ -28,8 +28,8 @@ export const creatureArt = (c: AnyCreature): string | null => (isFullCreature(c)
 export const creatureName = (c: AnyCreature): string => (isFullCreature(c) ? c.display_name : c.name)
 export const creatureSize = (c: AnyCreature): string | null | undefined => (isFullCreature(c) ? c.snapshot.size : c.size)
 
-export const itemName = (it: RoomItem) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? 'Предмет'
-export const itemArt = (it: RoomItem) => realImage(it.equipment?.equipment_image_gallery) ?? realImage(it.magic_item?.item_image_gallery)
+export const itemName = (it: RoomItem) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? it.name ?? 'Предмет'
+export const itemArt = (it: RoomItem) => realImage(it.equipment?.equipment_image_gallery) ?? realImage(it.magic_item?.item_image_gallery) ?? (it.image_url || null)
 
 /**
  * В событии передачи нет картинки предмета. Отправитель её знает, поэтому

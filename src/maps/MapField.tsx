@@ -67,7 +67,7 @@ export function MapField({
   aimInfo?: AimInfo | null
   onAim?: (req: AimRequest | null) => void
 }) {
-  const { data, roomId, isDm, sendEphemeral } = useRoom()
+  const { data, roomId, isDm, isOwner, sendEphemeral } = useRoom()
   const map = data?.activeMap ?? null
   const canvas = useRef<MapCanvasHandle>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -603,7 +603,7 @@ export function MapField({
         </div>
       )}
       <Credits map={map} />
-      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isDm ? lay.togglePlayersDraw : undefined} />}
+      {!aim && <DrawBar draw={lay.draw} playersCanDraw={lay.playersCanDraw} onPlayersCanDraw={isOwner ? lay.togglePlayersDraw : undefined} />}
       <MapSoundsPlayer map={map} sounds={lay.layers.sounds} listener={lay.listener} isDm={isDm} listening={lay.listening} onListening={lay.setListening} />
       {lay.popup && <NotePopup key={lay.popup.id} note={lay.popup} onClose={lay.closePopup} />}
       {lay.placing && (

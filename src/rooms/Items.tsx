@@ -24,7 +24,7 @@ const errText = (e: unknown) => {
   return e instanceof Error ? e.message : 'Ошибка сервера'
 }
 
-export const roomItemName = (it: RoomItem) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? 'Предмет'
+export const roomItemName = (it: RoomItem) => it.equipment?.equipment_name ?? it.magic_item?.item_name ?? it.name ?? 'Предмет'
 
 /* ---------- передача предмета и монет ---------- */
 
