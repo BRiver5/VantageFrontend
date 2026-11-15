@@ -173,7 +173,7 @@ function ImportPane() {
                     <b>{labelOf(t)}</b>
                   </label>
                   <span className="ar-diff">
-                    {row.add.length > 0 && <i className="is-add">+{row.add.length} новых</i>}
+                    {row.add.length > 0 && <i className="is-add">+{countLabel(row.add.length, ['новая запись', 'новые записи', 'новых записей'])}</i>}
                     {row.update.length > 0 && <i className="is-upd">{row.update.length} {plural(row.update.length, ['перезапишется', 'перезапишутся', 'перезапишутся'])}</i>}
                   </span>
                   {(row.add.length > 0 || row.update.length > 0) && (
