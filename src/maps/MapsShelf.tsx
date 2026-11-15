@@ -1,13 +1,16 @@
 /**
  * Боевые карты в ширме мастера: создать из картинки, открыть конструктор,
- * положить на стол (activate), убрать со стола, удалить.
+ * положить на стол (activate), убрать со стола, удалить. Список — директория
+ * с папками (src/ui/directory, вид maps — общий с картинками для показа).
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BookMarked, FileInput, Library, Map as MapIcon, PenLine, Play, Square, Trash2, Upload, X } from 'lucide-react'
 import { ApiError, uploadMedia } from '../api'
 import { Img } from '../media'
 import { useRoom } from '../rooms/RoomProvider'
+import { DirectoryList } from '../ui/directory/DirectoryList'
+import { useDirectory } from '../ui/directory/useDirectory'
 import { activateMap, createMap, deleteMap, deleteScene, importUvtt, listMaps, listScenes, loadScene, patchMap, saveAsScene, type ScenePresetSummary } from './api'
 import { MapEditor } from './MapEditor'
 import type { BattleMap } from './types'
@@ -57,6 +60,13 @@ export function MapsShelf() {
   const [off, setOff] = useState(false)
   const [scenes, setScenes] = useState(false)
   const active = data?.room.active_map_id ?? data?.activeMap?.id ?? null
+  const dir = useDirectory('maps')
+  const { folderOf, sortOf } = dir
+  const entries = useMemo(() => (items ?? []).map((m) => ({ m, id: m.id, name: m.name, folderId: folderOf(m), sortOrder: sortOf(m.id) })), [items, folderOf, sortOf])
+  const saveScene = (m: BattleMap) => {
+    const title = prompt('Название сцены', m.name)
+    if (title) void act(() => saveAsScene(roomId, m.id, title))
+  }
 
   const reload = useCallback(
     () =>
@@ -162,50 +172,66 @@ export function MapsShelf() {
             <b>Из сцен</b>
           </button>
         </li>
-        {(items ?? []).map((m) => {
-          const bg = m.layers?.find((l) => l.kind === 'background')?.image_url
-          const on = m.id === active
-          return (
-            <li key={m.id}>
-              <div className={`sc-map${on ? ' is-active' : ''}`}>
-                {bg ? <Img src={bg} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}
-                <b>{m.name}</b>
-                {on && <em className="ms-live">на столе</em>}
-                <span className="sc-map-acts">
-                  {on ? (
-                    <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void act(() => patchMap(roomId, m.id, { revealed: false, revision: m.revision } as Partial<BattleMap>))}>
-                      <Square aria-hidden="true" /> Убрать
-                    </button>
-                  ) : (
-                    <button type="button" className="tb-goldbtn" data-tour="map-to-table" disabled={busy} onClick={() => void act(() => activateMap(roomId, m.id))}>
-                      <Play aria-hidden="true" /> На стол
-                    </button>
-                  )}
-                  <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" data-tour="map-edit" onClick={() => setEditing(m.id)}>
-                    <PenLine aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="sc-iconbtn"
-                    aria-label="Сохранить как сцену"
-                    title="Сохранить как сцену: карта, враги и сценарий без героев"
-                    disabled={busy}
-                    onClick={() => {
-                      const title = prompt('Название сцены', m.name)
-                      if (title) void act(() => saveAsScene(roomId, m.id, title))
-                    }}
-                  >
-                    <BookMarked aria-hidden="true" />
-                  </button>
-                  <button type="button" className="sc-iconbtn is-danger" aria-label="Удалить" title="Удалить" disabled={busy} onClick={() => confirm(`Удалить «${m.name}»?`) && void act(() => deleteMap(roomId, m.id))}>
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </span>
-              </div>
-            </li>
-          )
-        })}
       </ul>
+      <DirectoryList
+        listId="maps-battle"
+        label="Боевые карты"
+        items={entries}
+        folders={dir.folders}
+        ops={dir.ops}
+        selectedId={active}
+        searchPlaceholder="Найти карту…"
+        renderItem={({ m }) => {
+          const bg = m.layers?.find((l) => l.kind === 'background')?.image_url
+          return (
+            <>
+              <span className="dir-thumb">{bg ? <Img src={bg} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}</span>
+              <span className="dir-name">{m.name}</span>
+              {m.id === active && <em className="dir-live ms-live">на столе</em>}
+            </>
+          )
+        }}
+        rowActions={({ m }) =>
+          m.id === active ? (
+            <>
+              <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void act(() => patchMap(roomId, m.id, { revealed: false, revision: m.revision } as Partial<BattleMap>))}>
+                <Square aria-hidden="true" /> Убрать
+              </button>
+              <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" data-tour="map-edit" onClick={() => setEditing(m.id)}>
+                <PenLine aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="tb-goldbtn" data-tour="map-to-table" disabled={busy} onClick={() => void act(() => activateMap(roomId, m.id))}>
+                <Play aria-hidden="true" /> На стол
+              </button>
+              <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" data-tour="map-edit" onClick={() => setEditing(m.id)}>
+                <PenLine aria-hidden="true" />
+              </button>
+            </>
+          )
+        }
+        actions={{
+          open: ({ m }) => setEditing(m.id),
+          extra: ({ m }) => [
+            m.id === active
+              ? { id: 'off', label: 'Убрать со стола', icon: <Square />, disabled: busy, run: () => void act(() => patchMap(roomId, m.id, { revealed: false, revision: m.revision } as Partial<BattleMap>)) }
+              : { id: 'on', label: 'На стол', icon: <Play />, disabled: busy, run: () => void act(() => activateMap(roomId, m.id)) },
+            { id: 'edit', label: 'Конструктор', icon: <PenLine />, run: () => setEditing(m.id) },
+            { id: 'scene', label: 'Сохранить как сцену', icon: <BookMarked />, disabled: busy, run: () => saveScene(m) },
+          ],
+          rename: ({ m }, name) => act(() => patchMap(roomId, m.id, { name, revision: m.revision } as Partial<BattleMap>)),
+          duplicate: ({ m }) => {
+            const { id: _id, room_id: _room, revision: _rev, ...rest } = m as BattleMap & { room_id?: string; revision?: number }
+            return act(() => createMap(roomId, { ...rest, name: `${m.name} (копия)`, revealed: false }))
+          },
+          exportJson: ({ m }) => m,
+          remove: ({ m }) => act(() => deleteMap(roomId, m.id)),
+        }}
+        empty={items && items.length === 0 ? <p className="tb-hint">Создайте карту из картинки, пустую или из сцены.</p> : null}
+      />
+      {dir.error && <p className="tb-err">{dir.error}</p>}
       {error && <p className="tb-err">{error}</p>}
       {scenes && (
         <ScenesPicker
