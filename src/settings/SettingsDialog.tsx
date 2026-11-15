@@ -193,13 +193,6 @@ function SettingsPanel({ room }: { room?: ReactNode }) {
       keywords: 'вспышки мигание эпилепсия щадящий режим пинги свет',
       node: <Toggle label="Фоточувствительность" hint="Без вспышек и мигания: пинги — медленный круг, свет на карте не мерцает" checked={prefs.photosensitive} onChange={(v) => setUserSettings({ photosensitive: v })} />,
     },
-    {
-      key: 'lang',
-      label: 'Язык',
-      hint: 'Другие языки появятся позже',
-      keywords: 'язык language русский',
-      node: <Choice label="Язык" hint="Другие языки появятся позже" value="ru" options={[['ru', 'Русский']] as const} onChange={() => undefined} disabled />,
-    },
     ...(user
       ? [
           {
