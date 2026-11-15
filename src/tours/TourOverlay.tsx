@@ -46,7 +46,8 @@ export function TourOverlay({ run }: { run: TourRun }) {
       if (cancelled) return
       const el = step.selector ? await waitForElement(step.selector, WAIT_MS, () => cancelled) : null
       if (cancelled) return
-      target.current = el
+      // не нашли — прежний якорь остаётся: к нему вернёмся, если назад идти некуда
+      if (el || !step.selector) target.current = el
       if (el) revealElement(el)
       dispatchTour({ type: 'resolved', found: !step.selector || !!el })
     })()
