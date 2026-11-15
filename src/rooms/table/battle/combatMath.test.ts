@@ -67,9 +67,10 @@ describe('участник', () => {
   })
 
   it('effectsOf', () => {
-    expect(effectsOf(combatant({ card: { effects: ['Благословение'] } as CombatantView['card'] }))).toEqual(['Благословение'])
-    expect(effectsOf(combatant({ creature: playerView({ effects: ['Яд'] }) }))).toEqual(['Яд'])
-    expect(effectsOf(combatant({ creature: fullCreature({ conditions: [{ label: 'Ослеплён' }] as RoomCreature['conditions'] }) }))).toEqual(['Ослеплён'])
+    expect(effectsOf(combatant({ card: { effects: ['Благословение'] } as CombatantView['card'] }))).toEqual([{ label: 'Благословение', code: null }])
+    expect(effectsOf(combatant({ card: { effects: ['Сеть'], effect_codes: ['restrained'] } as CombatantView['card'] }))).toEqual([{ label: 'Сеть', code: 'restrained' }])
+    expect(effectsOf(combatant({ creature: playerView({ effects: ['Яд'] }) }))).toEqual([{ label: 'Яд', code: null }])
+    expect(effectsOf(combatant({ creature: fullCreature({ conditions: [{ label: 'Ослеплён', code: 'blinded' }] as RoomCreature['conditions'] }) })).map((e) => e.code)).toEqual(['blinded'])
     expect(effectsOf(combatant())).toEqual([])
   })
 

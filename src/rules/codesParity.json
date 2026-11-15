@@ -1,0 +1,540 @@
+{
+ "_comment": "Общая таблица кодов: tests/rules/codes_parity.json на сервере и src/rules/codesParity.json на фронте. Меняются вместе.",
+ "effects": [
+  {
+   "code": "blinded",
+   "ru": "Ослеплён",
+   "en": "Blinded",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "charmed",
+   "ru": "Очарован",
+   "en": "Charmed",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "deafened",
+   "ru": "Оглох",
+   "en": "Deafened",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "exhaustion",
+   "ru": "Истощение",
+   "en": "Exhaustion",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "frightened",
+   "ru": "Испуган",
+   "en": "Frightened",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "grappled",
+   "ru": "Схвачен",
+   "en": "Grappled",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "incapacitated",
+   "ru": "Недееспособен",
+   "en": "Incapacitated",
+   "kind": "condition",
+   "incapacitating": true
+  },
+  {
+   "code": "invisible",
+   "ru": "Невидим",
+   "en": "Invisible",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "paralyzed",
+   "ru": "Парализован",
+   "en": "Paralyzed",
+   "kind": "condition",
+   "incapacitating": true
+  },
+  {
+   "code": "petrified",
+   "ru": "Окаменел",
+   "en": "Petrified",
+   "kind": "condition",
+   "incapacitating": true
+  },
+  {
+   "code": "poisoned",
+   "ru": "Отравлен",
+   "en": "Poisoned",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "prone",
+   "ru": "Сбит с ног",
+   "en": "Prone",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "restrained",
+   "ru": "Опутан",
+   "en": "Restrained",
+   "kind": "condition",
+   "incapacitating": false
+  },
+  {
+   "code": "stunned",
+   "ru": "Ошеломлён",
+   "en": "Stunned",
+   "kind": "condition",
+   "incapacitating": true
+  },
+  {
+   "code": "unconscious",
+   "ru": "Без сознания",
+   "en": "Unconscious",
+   "kind": "condition",
+   "incapacitating": true
+  },
+  {
+   "code": "concentration",
+   "ru": "Концентрация",
+   "en": "Concentration",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "disengage",
+   "ru": "Отход",
+   "en": "Disengage",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "dodge",
+   "ru": "Уклонение",
+   "en": "Dodge",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "burning",
+   "ru": "Горит",
+   "en": "Burning",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "blessed",
+   "ru": "Благословение",
+   "en": "Blessed",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "hasted",
+   "ru": "Ускорение",
+   "en": "Hasted",
+   "kind": "effect",
+   "incapacitating": false
+  },
+  {
+   "code": "dead",
+   "ru": "Мёртв",
+   "en": "Dead",
+   "kind": "effect",
+   "incapacitating": false
+  }
+ ],
+ "damage_types": [
+  {
+   "code": "acid",
+   "ru": "Кислота",
+   "en": "Acid"
+  },
+  {
+   "code": "bludgeoning",
+   "ru": "Дробящий",
+   "en": "Bludgeoning"
+  },
+  {
+   "code": "cold",
+   "ru": "Холод",
+   "en": "Cold"
+  },
+  {
+   "code": "fire",
+   "ru": "Огонь",
+   "en": "Fire"
+  },
+  {
+   "code": "force",
+   "ru": "Силовое поле",
+   "en": "Force"
+  },
+  {
+   "code": "lightning",
+   "ru": "Электричество",
+   "en": "Lightning"
+  },
+  {
+   "code": "necrotic",
+   "ru": "Некротическая",
+   "en": "Necrotic"
+  },
+  {
+   "code": "piercing",
+   "ru": "Колющий",
+   "en": "Piercing"
+  },
+  {
+   "code": "poison",
+   "ru": "Яд",
+   "en": "Poison"
+  },
+  {
+   "code": "psychic",
+   "ru": "Психическая",
+   "en": "Psychic"
+  },
+  {
+   "code": "radiant",
+   "ru": "Излучение",
+   "en": "Radiant"
+  },
+  {
+   "code": "slashing",
+   "ru": "Рубящий",
+   "en": "Slashing"
+  },
+  {
+   "code": "thunder",
+   "ru": "Звук",
+   "en": "Thunder"
+  }
+ ],
+ "parse": [
+  [
+   "Отравлен",
+   "poisoned"
+  ],
+  [
+   "отравление",
+   "poisoned"
+  ],
+  [
+   "Отравленный",
+   "poisoned"
+  ],
+  [
+   "ОТРАВЛЕН ядом виверны",
+   "poisoned"
+  ],
+  [
+   "Ослеплён",
+   "blinded"
+  ],
+  [
+   "Ослеплен",
+   "blinded"
+  ],
+  [
+   "Ослеплённый",
+   "blinded"
+  ],
+  [
+   "Очарован",
+   "charmed"
+  ],
+  [
+   "Оглох",
+   "deafened"
+  ],
+  [
+   "Оглохший",
+   "deafened"
+  ],
+  [
+   "Истощение",
+   "exhaustion"
+  ],
+  [
+   "Истощение 2",
+   "exhaustion"
+  ],
+  [
+   "Истощение (3)",
+   "exhaustion"
+  ],
+  [
+   "Испуган",
+   "frightened"
+  ],
+  [
+   "Напуган",
+   "frightened"
+  ],
+  [
+   "Схвачен",
+   "grappled"
+  ],
+  [
+   "Недееспособен",
+   "incapacitated"
+  ],
+  [
+   "Недееспособный",
+   "incapacitated"
+  ],
+  [
+   "Невидим",
+   "invisible"
+  ],
+  [
+   "Невидимость",
+   "invisible"
+  ],
+  [
+   "Великая невидимость",
+   "invisible"
+  ],
+  [
+   "Парализован",
+   "paralyzed"
+  ],
+  [
+   "Парализован (Удержание личности)",
+   "paralyzed"
+  ],
+  [
+   "Окаменел",
+   "petrified"
+  ],
+  [
+   "Окаменевший",
+   "petrified"
+  ],
+  [
+   "Сбит с ног",
+   "prone"
+  ],
+  [
+   "Сбитый с ног",
+   "prone"
+  ],
+  [
+   "Лежит ничком",
+   "prone"
+  ],
+  [
+   "Опутан",
+   "restrained"
+  ],
+  [
+   "Скован",
+   "restrained"
+  ],
+  [
+   "Ошеломлён",
+   "stunned"
+  ],
+  [
+   "Оглушён",
+   "stunned"
+  ],
+  [
+   "Без сознания",
+   "unconscious"
+  ],
+  [
+   "Бессознательный",
+   "unconscious"
+  ],
+  [
+   "  без   сознания ",
+   "unconscious"
+  ],
+  [
+   "Концентрация",
+   "concentration"
+  ],
+  [
+   "Концентрация: Невидимость",
+   "concentration"
+  ],
+  [
+   "Concentration: Bless",
+   "concentration"
+  ],
+  [
+   "Отход",
+   "disengage"
+  ],
+  [
+   "Disengage (бонусное)",
+   "disengage"
+  ],
+  [
+   "Уклонение",
+   "dodge"
+  ],
+  [
+   "Горит",
+   "burning"
+  ],
+  [
+   "В огне",
+   "burning"
+  ],
+  [
+   "Благословение",
+   "blessed"
+  ],
+  [
+   "Ускорение",
+   "hasted"
+  ],
+  [
+   "Мёртв",
+   "dead"
+  ],
+  [
+   "Poisoned",
+   "poisoned"
+  ],
+  [
+   "prone",
+   "prone"
+  ],
+  [
+   "unconscious",
+   "unconscious"
+  ],
+  [
+   "«Отравлен»",
+   "poisoned"
+  ],
+  [
+   "Метка охотника",
+   null
+  ],
+  [
+   "Проклят",
+   null
+  ],
+  [
+   "Порча",
+   null
+  ],
+  [
+   "",
+   null
+  ]
+ ],
+ "damage_parse": [
+  [
+   "fire",
+   "fire"
+  ],
+  [
+   "Огонь",
+   "fire"
+  ],
+  [
+   "огонь",
+   "fire"
+  ],
+  [
+   "Fire",
+   "fire"
+  ],
+  [
+   "Звук",
+   "thunder"
+  ],
+  [
+   "гром",
+   "thunder"
+  ],
+  [
+   "Некротический",
+   "necrotic"
+  ],
+  [
+   "Силовое поле",
+   "force"
+  ],
+  [
+   "Электричество",
+   "lightning"
+  ],
+  [
+   "молния",
+   "lightning"
+  ],
+  [
+   "Рубящий",
+   "slashing"
+  ],
+  [
+   "Колющий",
+   "piercing"
+  ],
+  [
+   "Дробящий",
+   "bludgeoning"
+  ],
+  [
+   "Яд",
+   "poison"
+  ],
+  [
+   "Психическая",
+   "psychic"
+  ],
+  [
+   "Излучение",
+   "radiant"
+  ],
+  [
+   "Кислота",
+   "acid"
+  ],
+  [
+   "Холод",
+   "cold"
+  ],
+  [
+   "вода",
+   null
+  ],
+  [
+   "",
+   null
+  ]
+ ],
+ "concentration_spell": [
+  [
+   "Концентрация: Невидимость",
+   "Невидимость"
+  ],
+  [
+   "Концентрация",
+   ""
+  ],
+  [
+   "Невидимость",
+   ""
+  ]
+ ]
+}

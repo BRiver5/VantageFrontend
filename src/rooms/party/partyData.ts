@@ -40,10 +40,10 @@ export function selectParty(characters: CharacterCard[], opts: { mine: string | 
 
 /* ---------- эффекты ---------- */
 
-/** Эффекты героя с id и длительностью; у старых карточек — только подписи */
+/** Эффекты героя с id, кодом и длительностью; у старых карточек — только подписи (код — из effect_codes, если есть) */
 export function effectsOfCard(card: CharacterCard): EffectBrief[] {
   if (card.effects_detail?.length) return card.effects_detail
-  return (card.effects ?? []).map((label) => ({ id: '', label, expires: 'never', rounds_left: null }))
+  return (card.effects ?? []).map((label, i) => ({ id: '', label, code: card.effect_codes?.[i] ?? null, expires: 'never', rounds_left: null }))
 }
 
 const EXPIRES_RU: Record<string, string> = {

@@ -50,6 +50,8 @@ button.fx-sigil { cursor: pointer; }
 .fx-sigil.is-petrified { background: radial-gradient(circle at 35% 30%, #6c6a66, #262523 75%); color: #ecebe6; }
 .fx-sigil.is-stunned, .fx-sigil.is-surprised { background: radial-gradient(circle at 35% 30%, #8a3c22, #2d0f06 75%); color: #ffd9c4; }
 .fx-sigil.is-unconscious { background: radial-gradient(circle at 35% 30%, #2c2c44, #0c0c16 75%); color: #c9c9ef; }
+.fx-sigil.is-burning { background: radial-gradient(circle at 35% 30%, #b0481c, #3a1004 75%); color: #ffe0b8; }
+.fx-sigil.is-disengage, .fx-sigil.is-dodge { background: radial-gradient(circle at 35% 30%, #3d5f52, #10201b 75%); color: #d2f2e4; }
 
 /* ---------- ауры: что происходит с фигурой ---------- */
 

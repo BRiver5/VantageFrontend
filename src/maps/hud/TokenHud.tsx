@@ -9,7 +9,8 @@ import { applyVitals, roomCharacterRef } from '../../api'
 import { useKeybinding } from '../../input/useKeybinding'
 import { useRoom } from '../../rooms/RoomProvider'
 import { addCombatants, creatureVitals, removeCombatant } from '../../rooms/roomsApi'
-import { CONDITIONS, ConditionPicker } from '../../rooms/table/effects'
+import { ConditionPicker } from '../../rooms/table/effects'
+import { CONDITIONS } from '../../rooms/table/effectDefs'
 import { BAND_RU, creatureHp } from '../../rooms/table/parts'
 import { useEffectControl, useTargetEffects } from '../../rooms/table/useEffects'
 import { patchToken } from '../api'
@@ -218,7 +219,7 @@ export function TokenHud({ map, token, anchor, targeted, onClose, onOpenCard }: 
       {can.effects && (
         <div className="mp-hud-fx" role="group" aria-label="Состояния">
           {QUICK.map((c) => {
-            const on = effects.filter((e) => e.def.key === c.key)
+            const on = effects.filter((e) => e.code === c.key)
             const Icon = c.icon
             return (
               <button
@@ -232,7 +233,7 @@ export function TokenHud({ map, token, anchor, targeted, onClose, onOpenCard }: 
                 onClick={() =>
                   void run(async () => {
                     if (on.length) for (const e of on) await control.remove(e)
-                    else await control.apply({ label: c.label, expires: 'never', rounds_left: null, concentration: false })
+                    else await control.apply({ label: c.label, code: c.key, expires: 'never', rounds_left: null, concentration: false })
                   })
                 }
               >

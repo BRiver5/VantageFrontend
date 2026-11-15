@@ -2,7 +2,8 @@ import { type CSSProperties } from 'react'
 import type { CharacterCard } from '../../../types/rooms'
 import { useRoom } from '../../RoomProvider'
 import { Hex, originFromEvent, seed, useHeroArt, type Origin } from '../parts'
-import { auraClass, describeEffect, EffectSigils } from '../effects'
+import { EffectSigils } from '../effects'
+import { auraClass, cardEffects, showEffect } from '../effectDefs'
 
 /* ---------- места за столом ---------- */
 
@@ -20,7 +21,7 @@ export function Seat({ seat, bubble, nudge, onOpen }: { seat: SeatInfo; bubble?:
   const art = useHeroArt(roomId, card.id, card.avatar_url, isDm)
   const down = card.hp.current <= 0
   const tilt = (seed(card.id, 3) * 14 - 7).toFixed(1)
-  const fx = card.effects.map((l) => describeEffect(l))
+  const fx = cardEffects(card).map(showEffect)
   return (
     <button
       type="button"
