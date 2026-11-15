@@ -14,6 +14,7 @@ import type { RoomClock } from '../types/rooms'
 import { useRoom } from './RoomProvider'
 import { createClock, deleteClock, patchClock, tickClock } from './roomsApi'
 import { errText } from './table/parts'
+import { plural } from '../lib/plural'
 
 /** Старые раундовые часы помечались невидимым U+2063 в конце названия: сервер снимает метку сам */
 const nameOf = (c: Pick<RoomClock, 'name'>) => c.name.replace(/\u2063+$/, '')
@@ -21,11 +22,7 @@ const nameOf = (c: Pick<RoomClock, 'name'>) => c.name.replace(/\u2063+$/, '')
 type Kind = 'progress' | 'countdown' | 'rounds'
 
 /** 1 раунд, 2 раунда, 5 раундов */
-const roundsWord = (n: number) => {
-  const d = n % 10
-  const h = n % 100
-  return d === 1 && h !== 11 ? 'раунд' : d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'раунда' : 'раундов'
-}
+const roundsWord = (n: number) => plural(n, ['раунд', 'раунда', 'раундов'])
 const kindOf = (c: RoomClock): Kind => (c.kind === 'progress' && /\u2063$/.test(c.name) ? 'rounds' : c.kind)
 
 /** Остаток отсчёта: тикает раз в секунду */

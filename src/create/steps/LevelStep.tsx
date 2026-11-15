@@ -14,6 +14,7 @@ import type { ClassBundle } from '../useClassBundle'
 import { asiLevels, casterKind, proficiencyBonus, spellSlotsAt, subclassLevelFallback } from '../dnd5e'
 import { useAppShell } from '../../shell'
 import { StepHeader } from './ui'
+import { plural } from '../../lib/plural'
 
 const LEVELS = Array.from({ length: 20 }, (_, i) => i + 1)
 
@@ -180,11 +181,11 @@ export default function LevelStep({
         </span>
         <span>
           <b>{level}</b>
-          <i>{level === 1 ? 'шаг прокачки' : 'шагов прокачки'}</i>
+          <i>{plural(level, ['шаг', 'шага', 'шагов'])} прокачки</i>
         </span>
         <span>
           <b>{asiCount}</b>
-          <i>усилений характеристик</i>
+          <i>{plural(asiCount, ['усиление', 'усиления', 'усилений'])} характеристик</i>
         </span>
         {draft.cls && (
           <span className={level >= subclassLevel ? '' : 'is-off'}>

@@ -9,6 +9,7 @@ import { ArrowLeft, BookMarked, Search } from 'lucide-react'
 import { request } from '../api'
 import { parseBlocks, parseInline, type Block, type Inline } from '../rooms/kb/mdparse'
 import { getTerm, loadTerms, TermRef, type TermPage, type TermSummary } from './terms'
+import { plural } from '../lib/plural'
 
 const ORDER = ['Основы', 'Характеристики', 'Навыки', 'Бой', 'Урон', 'Состояния', 'Магия', 'Чувства', 'Окружение', 'Отдых', 'Существа', 'Снаряжение', 'Классы']
 
@@ -276,7 +277,7 @@ export function TermDetailPage() {
           <TermMarkdown src={t.body} />
           {(t.documents ?? 0) > 0 && (
             <p className="tm-stat">
-              Встречается в {t.documents} {plural(t.documents ?? 0, 'записи', 'записях', 'записях')} каталога
+              Встречается в {t.documents} {plural(t.documents ?? 0, ['записи', 'записях', 'записях'])} каталога
             </p>
           )}
           {t.related.length > 0 && (
@@ -308,14 +309,6 @@ function TermChips({ list }: { list: TermSummary[] }) {
       ))}
     </div>
   )
-}
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
-  return many
 }
 
 /** Иконка game-icons: белый знак на чёрном. Наложение «screen» убирает чёрный фон, фильтр красит знак в золото */

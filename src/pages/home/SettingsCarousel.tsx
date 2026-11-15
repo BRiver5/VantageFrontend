@@ -8,6 +8,7 @@ import {
 import { settingArt, splitTitle } from '../../api'
 import type { Book } from '../../api'
 import { bgUrl } from '../../media'
+import { countLabel } from '../../lib/plural'
 
 /* ---------- Карусель сеттингов ---------- */
 
@@ -35,13 +36,7 @@ const ACCENTS = [
   'rgba(116, 40, 88, 0.36)', // фей-роза
 ]
 
-function tomes(n: number): string {
-  const d10 = n % 10
-  const d100 = n % 100
-  if (d10 === 1 && d100 !== 11) return `${n} том`
-  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return `${n} тома`
-  return `${n} томов`
-}
+const tomes = (n: number): string => countLabel(n, ['том', 'тома', 'томов'])
 
 export function SettingsCarousel({
   realms,

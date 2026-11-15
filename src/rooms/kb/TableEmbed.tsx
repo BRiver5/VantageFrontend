@@ -9,6 +9,7 @@ import { useRoom } from '../RoomProvider'
 import { drawTable, listTables } from '../tables/api'
 import { drawnSummary } from '../tables/logic'
 import type { RollTable } from '../tables/types'
+import { countLabel } from '../../lib/plural'
 
 export function TableEmbed({ id }: { id: string }) {
   const { roomId } = useRoom()
@@ -70,7 +71,7 @@ export function TableEmbed({ id }: { id: string }) {
         <span className="kb-card-kind">Таблица</span>
         <b className="kb-card-title">{table.name}</b>
         <span className="kb-card-facts">
-          {[`${table.results.length} результатов`, table.formula || null, left != null ? `осталось ${left}` : null].filter(Boolean).join(' · ')}
+          {[countLabel(table.results.length, ['результат', 'результата', 'результатов']), table.formula || null, left != null ? `осталось ${left}` : null].filter(Boolean).join(' · ')}
         </span>
         {table.description && <span className="kb-card-text">{table.description}</span>}
         {last && <span className="kb-card-text">{last}</span>}
