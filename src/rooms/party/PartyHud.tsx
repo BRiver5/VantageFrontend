@@ -61,7 +61,7 @@ export function PartyHud() {
   }
 
   return (
-    <aside className={`pt-hud${open ? '' : ' is-closed'}`} aria-label="Отряд">
+    <aside className={`pt-hud${open ? '' : ' is-closed'}`} aria-label="Отряд" data-tour="party-bar">
       {open && fxCard && <EffectsPanel key={fxCard.id} card={fxCard} canRemove={isDm} own={!isDm} onClose={isDm ? () => setPicked(null) : undefined} />}
       <div className="pt-bar">
         <button type="button" className="pt-toggle" onClick={toggle} aria-expanded={open} title={open ? 'Свернуть отряд' : 'Показать отряд'} aria-label={open ? 'Свернуть отряд' : 'Показать отряд'}>

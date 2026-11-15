@@ -402,9 +402,9 @@ export function Emerge({
 
 /* ---------- круглая кнопка шапки ---------- */
 
-export function Round({ icon: Icon, label, badge, on, alert, onClick }: { icon: LucideIcon; label: string; badge?: number; on?: boolean; alert?: boolean; onClick: () => void }) {
+export function Round({ icon: Icon, label, badge, on, alert, onClick, tour }: { icon: LucideIcon; label: string; badge?: number; on?: boolean; alert?: boolean; onClick: () => void; tour?: string }) {
   return (
-    <button type="button" className={`tb-round${on ? ' is-on' : ''}${alert ? ' is-alert' : ''}`} onClick={onClick} aria-label={label} aria-expanded={on} title={label}>
+    <button type="button" className={`tb-round${on ? ' is-on' : ''}${alert ? ' is-alert' : ''}`} onClick={onClick} aria-label={label} aria-expanded={on} title={label} data-tour={tour}>
       <Icon aria-hidden="true" />
       {badge ? <em>{badge}</em> : null}
     </button>

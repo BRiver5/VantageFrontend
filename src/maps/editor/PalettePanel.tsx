@@ -70,7 +70,7 @@ export function PalettePanel({ map, picked, palette, setPalette, change, flash, 
 
       {tab === 'walls' && (
         <>
-          <div className="me-presets" role="group" aria-label="Заготовки стен">
+          <div className="me-presets" role="group" aria-label="Заготовки стен" data-tour="map-wall-presets">
             {WALL_PRESETS.map((p) => (
               <button key={p.id} type="button" className={preset === p.id ? 'is-on' : ''} aria-pressed={preset === p.id} title={p.hint} onClick={() => setPalette((x) => applyWallPreset(x, p.id))}>
                 {p.label}
