@@ -17,6 +17,7 @@ import type { DrawingKind, DrawingStyle, MapDrawing } from '../layers/types'
 import { clearDrawings, createDrawing, deleteDrawing, patchDrawing } from '../layers/api'
 import { drawingAt, moveDrawing, polygonAdd, polygonFinish, polygonUndo, rectFrom, smoothStroke, textBox, zFor } from './geometry'
 import { loadStyle, saveStyle } from './style'
+import { tableLevelOf } from '../levels'
 
 export type DrawTool = 'select' | DrawingKind
 
@@ -47,8 +48,10 @@ export interface DrawToolApi {
 
 const draftOf = (kind: DrawingKind, style: DrawingStyle, over: Partial<MapDrawing>): MapDrawing => ({ id: 'draft', map_id: '', author_id: '', kind, x: 0, y: 0, w: 0, h: 0, points: [], text: '', z: 0, hidden: false, ...style, ...over })
 
-export function useDrawTool(opts: { roomId: string; mapId: string | null; layers: MapLayers; isDm: boolean; me: string | undefined; playersCanDraw: boolean; zoom: () => number; onError: (t: string) => void }): DrawToolApi {
+export function useDrawTool(opts: { roomId: string; mapId: string | null; layers: MapLayers; isDm: boolean; me: string | undefined; playersCanDraw: boolean; level?: string | null; zoom: () => number; onError: (t: string) => void }): DrawToolApi {
   const { roomId, mapId, layers, isDm, me, playersCanDraw, zoom, onError } = opts
+  // этаж, который сейчас смотрят: новый рисунок встаёт на него (мастер на «Все» — на всех этажах)
+  const level = opts.level ?? null
   const canDraw = isDm || playersCanDraw
   const [active, setActiveState] = useState(false)
   const [tool, setToolState] = useState<DrawTool>('freehand')
@@ -118,13 +121,13 @@ export function useDrawTool(opts: { roomId: string; mapId: string | null; layers
       if (!mapId) return
       const { id: _id, map_id: _m, author_id: _a, z: _z, ...body } = d
       try {
-        const saved = await createDrawing(roomId, mapId, body)
+        const saved = await createDrawing(roomId, mapId, { ...body, ...tableLevelOf(level) })
         if (saved) layers.put('drawings', { upsert: [saved] })
       } catch (e) {
         onError(errText(e))
       }
     },
-    [roomId, mapId, layers, onError],
+    [roomId, mapId, layers, level, onError],
   )
 
   const finishPolygon = useCallback(

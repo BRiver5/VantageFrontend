@@ -18,7 +18,7 @@ import { KB_PAGE_MIME, onPlacePageOnMap, onShowPageOnMap, openKbPage } from '../
 import { createNote } from './api'
 import type { MapNote } from './types'
 import { useMapLayers } from './useMapLayers'
-import { layerOnLevel } from '../levels'
+import { layerOnLevel, tableLevelOf } from '../levels'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось')
 
@@ -39,7 +39,7 @@ export function useFieldLayers(opts: {
   const playersCanDraw = !!data?.room.settings?.players_can_draw
   const zoom = useCallback(() => canvas.current?.zoom() ?? 1, [canvas])
   // доверенный игрок рисует, даже когда «Игроки могут рисовать» выключено
-  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw: playersCanDraw || can.draw, zoom, onError })
+  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw: playersCanDraw || can.draw, level, zoom, onError })
   const [popup, setPopup] = useState<MapNote | null>(null)
   const [placing, setPlacing] = useState<{ pageId: string; title: string } | null>(null)
   const [listening, setListening] = useState(false)
@@ -67,7 +67,7 @@ export function useFieldLayers(opts: {
   const place = async (pageId: string | null, p: Pt) => {
     if (!mapId) return
     try {
-      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), page_id: pageId, icon: pageId ? 'book' : 'pin', ...(level ? { level_id: level } : {}) })
+      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), page_id: pageId, icon: pageId ? 'book' : 'pin', ...tableLevelOf(level) })
       if (n) layers.put('notes', { upsert: [n] })
     } catch (e) {
       onError(errText(e))

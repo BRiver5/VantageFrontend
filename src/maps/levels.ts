@@ -73,6 +73,13 @@ export function mapOnLevel(map: BattleMap, level: string | null): BattleMap {
   }
 }
 
+/**
+ * Этаж новой вещи, поставленной со стола (рисунок, метка): этаж, который
+ * сейчас смотрят (viewLevel — у игрока этаж его жетона). Мастер на «Все» —
+ * без этажа, вещь «на всех этажах».
+ */
+export const tableLevelOf = (level: string | null): { level_id?: string } => (level ? { level_id: level } : {})
+
 /** метки, звуки, рисунки этажа (тот же массив, если отбирать нечего) */
 export function layerOnLevel<T extends Leveled>(xs: T[], level: string | null): T[] {
   return level == null || !xs.some((x) => x.level_id != null && x.level_id !== level) ? xs : xs.filter((x) => onLevel(x, level))
