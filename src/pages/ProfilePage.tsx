@@ -9,12 +9,14 @@
 import { DICE_MATERIALS, materialInfo, setDiceMaterial, useDiceMaterial, type MaterialInfo } from '../dice/diceMaterial'
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Check, Crop, DoorOpen, Link2, Loader2, Lock, LogOut, ScrollText, Trash2, UserRound, Volume2, VolumeX, X } from 'lucide-react'
+import { Camera, Check, Crop, DoorOpen, Link2, Loader2, Lock, LogOut, ScrollText, Settings, Trash2, UserRound, Volume2, VolumeX, X } from 'lucide-react'
 import { listMyCharacters, realImage, uploadAvatar, type Character, type Race } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { FaceCropper, FaceImage } from '../characters/FacePortrait'
 import { formatPortrait, parsePortrait, type FaceCrop } from '../characters/portrait'
-import { getDiceVolume, initDiceAudio, playDropsForRoll, setDiceVolume } from '../dice/diceSounds'
+import { initDiceAudio, playDropsForRoll, setDiceVolume } from '../dice/diceSounds'
+import { useDeviceSettings } from '../settings/settings'
+import { openSettings } from '../settings/open'
 import { useCatalogList } from '../create/useCatalog'
 import { Img } from '../media'
 import { useKeybinding } from '../input/useKeybinding'
@@ -311,7 +313,8 @@ function DiceMaterials() {
 
 /** Громкость кубиков: хранится в браузере, слышна сразу */
 function Volume() {
-  const [vol, setVol] = useState(() => Math.round(getDiceVolume() * 100))
+  // «Звуки интерфейса» из настроек устройства: тот же ползунок есть в центре настроек
+  const vol = Math.round(useDeviceSettings().interfaceVolume * 100)
   const last = useRef(0)
   return (
     <label className="pf-volume">
@@ -325,7 +328,6 @@ function Volume() {
         style={{ '--vol': `${vol}%` } as CSSProperties}
         onChange={(e) => {
           const v = Number(e.target.value)
-          setVol(v)
           setDiceVolume(v / 100)
           // короткий стук, чтобы услышать громкость, но не чаще раза в 300 мс
           const now = Date.now()
@@ -417,6 +419,9 @@ export default function ProfilePage() {
         <Link to="/rooms" className="pf-text-btn">
           <DoorOpen aria-hidden="true" /> Комнаты
         </Link>
+        <button type="button" className="pf-text-btn" onClick={() => openSettings()}>
+          <Settings aria-hidden="true" /> Настройки
+        </button>
         <button type="button" className="pf-text-btn is-danger" onClick={logout}>
           <LogOut aria-hidden="true" /> Выйти
         </button>

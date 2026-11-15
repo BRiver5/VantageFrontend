@@ -13,7 +13,7 @@
  */
 import { blockingSegments, pointInPolygon, pxPerFt, visibility } from '../geometry'
 import { isHex, traceCell } from '../hex'
-import { isPingCalm } from '../pingSettings'
+import { lightsStill } from '../../settings/motion'
 import type { BattleMap, MapGrid, MapLight, MapToken, Pt } from '../types'
 import { animationOf, darknessAt, exploredRects, hueShift, lightActive, lightFrame, noteServerTime, sceneShade, seedOf, serverNow, shadeColor, type LightFrame } from './lighting'
 import type { MapViewer, View } from './types'
@@ -161,7 +161,8 @@ export function drawDarkness(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement
   const ambientDark = sceneShade(m.ambient, d)
   const dmFree = vw.isDm && !vw.asPlayer
   const needFog = !!sights
-  const calm = isPingCalm()
+  // щадящий режим или производительность: свет не мерцает
+  const calm = lightsStill()
   const ppf = pxPerFt(g)
   const lightSegs = blockingSegments(m.walls, 'light')
   const lit: Lit[] = []

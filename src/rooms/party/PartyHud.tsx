@@ -16,28 +16,12 @@ import { describeEffect } from '../table/effects'
 import { errText } from '../table/parts'
 import { useEffectControl } from '../table/useEffects'
 import { durationText, effectsOfCard, selectParty, type PartyMember } from './partyData'
-
-const PREF = 'vantage.partyHud.open'
-
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(PREF) !== '0'
-  } catch {
-    return true
-  }
-}
-
-function writeOpen(open: boolean) {
-  try {
-    localStorage.setItem(PREF, open ? '1' : '0')
-  } catch {
-    /* хранилище недоступно — просто не запоминаем */
-  }
-}
+import { setDeviceSettings, useDeviceSettings } from '../../settings/settings'
 
 export function PartyHud() {
   const { data, isDm } = useRoom()
-  const [open, setOpen] = useState(readOpen)
+  // развёрнута ли панель — настройка устройства
+  const open = useDeviceSettings().partyHudOpen
   const [picked, setPicked] = useState<string | null>(null)
   const mine = data?.me.room_character_id ?? null
   const characters = data?.characters
@@ -50,10 +34,7 @@ export function PartyHud() {
   // чьи эффекты: игроку — свой герой; мастеру — выбранный или тот, чей ход
   const fxCard = isDm ? (party.find((m) => m.card.id === picked) ?? party.find((m) => m.current))?.card : party.find((m) => m.mine)?.card
   const toggle = () => {
-    setOpen((v) => {
-      writeOpen(!v)
-      return !v
-    })
+    setDeviceSettings({ partyHudOpen: !open })
   }
   const onPick = (m: PartyMember) => {
     if (isDm) setPicked((p) => (p === m.card.id ? null : m.card.id))

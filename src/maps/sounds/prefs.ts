@@ -1,40 +1,17 @@
 /**
- * Личная громкость звуков местности: «Громкость у меня» из плеера комнаты
- * (vantage-room-volume) × «Фон карты» (vantage-ambience-volume). Меняются —
- * событие vantage-volume (и storage из другой вкладки).
+ * Личная громкость звуков местности: «Музыка» (громкость комнаты у меня) ×
+ * «Фон карты». Обе живут в настройках устройства (src/settings).
  */
-const ROOM_KEY = 'vantage-room-volume'
-const AMB_KEY = 'vantage-ambience-volume'
-export const VOLUME_EVENT = 'vantage-volume'
+import { getDeviceSettings, setDeviceSettings, subscribeSettings } from '../../settings/settings'
 
-const read = (key: string, d: number) => {
-  try {
-    const raw = localStorage.getItem(key)
-    const v = raw === null ? d : Number(raw)
-    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : d
-  } catch {
-    return d
-  }
-}
-
-export const roomVolume = () => read(ROOM_KEY, 0.8)
-export const ambienceVolume = () => read(AMB_KEY, 1)
+export const roomVolume = () => getDeviceSettings().musicVolume
+export const ambienceVolume = () => getDeviceSettings().ambienceVolume
 
 export function setAmbienceVolume(v: number) {
-  try {
-    localStorage.setItem(AMB_KEY, String(v))
-  } catch {
-    /* приватный режим */
-  }
-  window.dispatchEvent(new Event(VOLUME_EVENT))
+  setDeviceSettings({ ambienceVolume: v })
 }
 
-/** подписка на смену личной громкости */
+/** подписка на смену личной громкости (и из другой вкладки) */
 export function onVolumeChange(fn: () => void): () => void {
-  window.addEventListener(VOLUME_EVENT, fn)
-  window.addEventListener('storage', fn)
-  return () => {
-    window.removeEventListener(VOLUME_EVENT, fn)
-    window.removeEventListener('storage', fn)
-  }
+  return subscribeSettings(fn)
 }

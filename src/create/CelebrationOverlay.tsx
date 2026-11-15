@@ -31,6 +31,7 @@ import { Corners } from '../ornaments'
 import { playAddResult } from '../dice/diceSounds'
 import { ABILITY_LABELS } from '../types/character'
 import type { AbilityName } from '../types/character'
+import { useReducedMotion } from '../settings/motion'
 
 export type CelebrationScene =
   | { kind: 'level'; level: number; className: string }
@@ -212,9 +213,7 @@ export default function CelebrationOverlay({
   const [index, setIndex] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reducedMotion = useReducedMotion()
 
   const clearTimer = useCallback(() => {
     if (timer.current) {

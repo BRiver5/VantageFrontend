@@ -7,6 +7,10 @@ import ErrorBoundary from './ErrorBoundary.tsx'
 import { AuthProvider } from './auth/AuthContext.tsx'
 import { TermsProvider } from './terms/terms.tsx'
 import { EquipmentDrawerProvider } from './equipmentDrawer.tsx'
+import { installSettings } from './settings/apply'
+
+// масштаб шрифта и «меньше движения» — до первого кадра
+installSettings()
 
 // StrictMode отключён: двойной dev-монтаж ломает инициализацию 3D-кубиков —
 // @3d-dice/dice-box поднимает свой WebGL-контекст и WASM-физику на общем
