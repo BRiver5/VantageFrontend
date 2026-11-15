@@ -6,7 +6,7 @@
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { ChevronRight, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, UserRound, Users, WifiOff, X } from 'lucide-react'
+import { ChevronRight, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, SlidersHorizontal, UserRound, Users, WifiOff, X } from 'lucide-react'
 import { ChatPanel, useChatUnread } from '../Chat'
 import { InvitePanel, LeavePanel, PartyPanel, PartyRestPanel, RoomSettingsPanel } from '../Lobby'
 import { RollingNow } from '../RoomDice'
@@ -17,6 +17,7 @@ import { Round } from './parts'
 import { PauseBadge, PauseButton } from './PauseControls'
 import { PingSettingsPanel } from './PingSettings'
 import { useKeybinding } from '../../input/useKeybinding'
+import { SettingsDialog } from '../../settings/SettingsDialog'
 
 type Pop = 'party' | 'log' | 'settings' | 'chat' | null
 
@@ -63,6 +64,8 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
   const { data, isDm, isOwner, link } = useRoom()
   const [menu, setMenu] = useState(false)
   const [pop, setPop] = useState<Pop>(null)
+  // центр настроек: устройство, профиль и (для хозяина) эта комната
+  const [prefs, setPrefs] = useState(false)
   const toggle = (p: Exclude<Pop, null>) => setPop((cur) => (cur === p ? null : p))
   const unread = useChatUnread(pop === 'chat')
 
@@ -134,8 +137,19 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
             </>
           )}
           <PingSettingsPanel isDm={isDm} />
+          <button
+            type="button"
+            className="tb-linkbtn"
+            onClick={() => {
+              setPop(null)
+              setPrefs(true)
+            }}
+          >
+            Все настройки и клавиши…
+          </button>
         </Drawer>
       )}
+      {prefs && <SettingsDialog onClose={() => setPrefs(false)} room={isOwner ? <RoomSettingsPanel /> : <p className="st-note">Настройки этой комнаты меняет мастер.</p>} />}
 
       {menu &&
         createPortal(
@@ -159,6 +173,16 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
             <Link to="/" className="tb-menu-item">
               <Home aria-hidden="true" /> Главная
             </Link>
+            <button
+              type="button"
+              className="tb-menu-item"
+              onClick={() => {
+                setMenu(false)
+                setPrefs(true)
+              }}
+            >
+              <SlidersHorizontal aria-hidden="true" /> Настройки
+            </button>
             {canFullscreen && (
               <button
                 type="button"

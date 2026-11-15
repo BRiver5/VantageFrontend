@@ -41,6 +41,7 @@ import { Sidebar } from './shell/Sidebar'
 import { HomePage } from './pages/home/HomePage'
 import { AppTabBar } from './shell/AppTabBar'
 import { ScrollToTop } from './shell/ScrollToTop'
+import { SettingsHost } from './settings/SettingsHost'
 
 /* ---------- Приложение ---------- */
 
@@ -161,6 +162,7 @@ export default function App() {
         </RouteReadyGate>
       </main>
       <DiceRoller />
+      <SettingsHost />
       {app && <AppTabBar />}
     </div>
     </SearchProvider>

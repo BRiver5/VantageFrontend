@@ -5,12 +5,14 @@ import {
   ChevronRight,
   LogIn,
   Search,
+  Settings,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { VantageLogo } from '../ornaments'
 import { useOpenSearch } from '../search/GlobalSearch'
 import { CATEGORIES } from './categories'
+import { openSettings } from '../settings/open'
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -73,6 +75,10 @@ export function Sidebar() {
         </nav>
 
         <div className="sidebar-foot">
+          <button type="button" className="sidebar-link sidebar-link--settings" title="Настройки" onClick={() => openSettings()}>
+            <Settings aria-hidden="true" className="sidebar-link-icon" />
+            <span className="sidebar-link-label">Настройки</span>
+          </button>
           {!ready ? null : user ? (
             <NavLink
               to="/me"
