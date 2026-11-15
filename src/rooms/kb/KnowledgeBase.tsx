@@ -7,28 +7,31 @@
  * «Локации/Север», body — markdown с шапкой (иконка, обложка, теги). Сервер
  * менять не нужно; всё можно выгрузить в Obsidian.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   BookOpen,
+  Eye,
   FilePlus2,
   FileText,
-  Folder,
-  FolderPlus,
   Network,
   Pin,
+  PinOff,
   ScrollText,
-  Search,
   X,
 } from 'lucide-react'
+import type { ScreenNote } from '../../types/rooms'
+import { DirectoryList } from '../../ui/directory/DirectoryList'
+import { folderPath } from '../../ui/directory/model'
+import { useDirectory } from '../../ui/directory/useDirectory'
 import { KnowledgeGraph } from './Graph'
 import { type PageLookup } from './Markdown'
 import { embedsOf, linksOf, plainText, tagsOf, writePage } from './mdparse'
 import { QuestLog } from './PageTypes'
 import { typePatch } from './pageKinds'
 import { norm, useKnowledge } from './context'
-import { buildTree, iconOf } from './tree'
-import { FolderNode, PageRow } from './TreeView'
+import { iconOf } from './tree'
+import { PageRow } from './TreeView'
 import { TEMPLATES } from './templates'
 import { PageView } from './PageView'
 import { useKeybinding } from '../../input/useKeybinding'
@@ -46,9 +49,6 @@ export function KnowledgeWorkspace() {
     setQuests(false)
   }
   const [newMenu, setNewMenu] = useState(false)
-  const [newFolder, setNewFolder] = useState<string | null>(null)
-  const [extraFolders, setExtraFolders] = useState<string[]>([])
-  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set())
   const byTitle = useMemo(() => new Map(notes.map((n) => [norm(n.title), n])), [notes])
   const current = notes.find((n) => n.id === kb.current) ?? null
 
@@ -56,16 +56,21 @@ export function KnowledgeWorkspace() {
     if (!document.querySelector('.kb-suggest')) kb.close()
   })
 
-  // открытая страница — раскрыть её папки
-  useEffect(() => {
-    if (!current?.folder) return
-    const parts = current.folder.split('/')
-    setOpenFolders((s) => {
-      const next = new Set(s)
-      parts.forEach((_, i) => next.add(parts.slice(0, i + 1).join('/')))
-      return next
-    })
-  }, [current?.folder])
+  // Папки — общая директория (src/ui/directory): путь страницы остаётся строкой folder,
+  // а перенос — пакетная правка страниц с проверкой ревизий.
+  const { updateMany, reload } = kb
+  const moveItems = useCallback(
+    async (ids: string[], path: string, order: string[] | null) => {
+      const patch = new Map<string, Partial<ScreenNote> & { id: string }>()
+      for (const id of ids) patch.set(id, { id, folder: path || null })
+      order?.forEach((id, i) => patch.set(id, { ...(patch.get(id) ?? { id }), order: i }))
+      await updateMany([...patch.values()])
+    },
+    [updateMany],
+  )
+  const reloadNotes = useCallback(() => void reload().catch(() => undefined), [reload])
+  const dir = useDirectory('kb', { paths: notes.map((n) => n.folder), moveItems, onChanged: reloadNotes })
+  const entries = useMemo(() => notes.map((n) => ({ ...n, name: n.title || 'Без названия', folderId: dir.folderOf(n), sortOrder: n.order })), [notes, dir.folderOf])
 
   const lookup = useMemo<PageLookup>(
     () => ({
@@ -79,12 +84,7 @@ export function KnowledgeWorkspace() {
     }),
     [byTitle, notes],
   )
-  const folders = useMemo(() => {
-    const s = new Set<string>(extraFolders)
-    for (const n of notes) if (n.folder) n.folder.split('/').forEach((_, i, a) => s.add(a.slice(0, i + 1).join('/')))
-    return [...s].sort((a, b) => a.localeCompare(b, 'ru'))
-  }, [notes, extraFolders])
-  const tree = useMemo(() => buildTree(notes, extraFolders), [notes, extraFolders])
+  const folders = useMemo(() => [...new Set(dir.folders.map((f) => f.path ?? folderPath(dir.folders, f.id)))].sort((a, b) => a.localeCompare(b, 'ru')), [dir.folders])
   const pinned = notes.filter((n) => n.pinned)
   const edges = useMemo(() => {
     const out: { from: string; to: string }[] = []
@@ -101,12 +101,12 @@ export function KnowledgeWorkspace() {
   }, [notes, byTitle])
   const backlinks = current ? notes.filter((n) => n.id !== current.id && linksOf(n.body).includes(norm(current.title))) : []
 
-  const found = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    if (!s) return null
-    if (s.startsWith('#')) return notes.filter((n) => tagsOf(n.body).includes(s.slice(1)))
-    return notes.filter((n) => n.title.toLowerCase().includes(s) || n.body.toLowerCase().includes(s))
-  }, [q, notes])
+  /** Поиск по названию и тексту, «#тег» — по тегам */
+  const match = useCallback((n: ScreenNote, query: string) => {
+    const s = query.trim().toLowerCase()
+    if (s.startsWith('#')) return tagsOf(n.body).includes(s.slice(1))
+    return n.title.toLowerCase().includes(s) || n.body.toLowerCase().includes(s)
+  }, [])
 
   /** Ссылка [[…]]: открыть страницу, а если её нет — создать рядом с текущей */
   const openTitle = async (t: string) => {
@@ -124,13 +124,6 @@ export function KnowledgeWorkspace() {
     setGraph(false)
     setQuests(false)
   }
-  const toggle = (p: string) =>
-    setOpenFolders((s) => {
-      const next = new Set(s)
-      if (next.has(p)) next.delete(p)
-      else next.add(p)
-      return next
-    })
 
   return createPortal(
     <div className="kb-layer" role="dialog" aria-label="База знаний">
@@ -143,105 +136,97 @@ export function KnowledgeWorkspace() {
               <X aria-hidden="true" />
             </button>
           </header>
-          <label className="kb-search">
-            <Search aria-hidden="true" />
-            <input type="search" value={q} placeholder="Поиск или #тег" onChange={(e) => setQ(e.target.value)} />
-          </label>
-          <div className="kb-nav-acts">
-            <span className="kb-new-wrap">
-              <button type="button" className="kb-new" onClick={() => setNewMenu((v) => !v)} aria-expanded={newMenu}>
-                <FilePlus2 aria-hidden="true" /> страница
-              </button>
-              {newMenu && (
-                <span className="kb-new-menu">
-                  {TEMPLATES.map((t) => (
-                    <button key={t.name} type="button" onClick={() => void newPage(t)}>
-                      <span>{t.icon || <FileText aria-hidden="true" />}</span> {t.name}
-                    </button>
-                  ))}
-                </span>
-              )}
-            </span>
-            <button type="button" className="kb-new is-quiet" onClick={() => setNewFolder('')} title="Новая папка">
-              <FolderPlus aria-hidden="true" />
-            </button>
-            <button type="button" className={`kb-new is-quiet${graph ? ' is-on' : ''}`} onClick={() => (setGraph((v) => !v), setQuests(false))} title="Граф связей">
-              <Network aria-hidden="true" />
-            </button>
-            <button type="button" className={`kb-new is-quiet${quests ? ' is-on' : ''}`} onClick={() => (setQuests((v) => !v), setGraph(false))} title="Квесты">
-              <ScrollText aria-hidden="true" />
-            </button>
-          </div>
-          {newFolder != null && (
-            <form
-              className="kb-newfolder"
-              onSubmit={(e) => {
-                e.preventDefault()
-                const p = newFolder.split('/').map((x) => x.trim()).filter(Boolean).join('/')
-                if (p) {
-                  setExtraFolders((l) => [...new Set([...l, p])])
-                  setOpenFolders((s) => new Set([...s, p]))
-                }
-                setNewFolder(null)
-              }}
-            >
-              <Folder aria-hidden="true" />
-              <input autoFocus value={newFolder} placeholder="Локации/Север" onChange={(e) => setNewFolder(e.target.value)} onBlur={(e) => e.currentTarget.form?.requestSubmit()} />
-            </form>
-          )}
-          <div className="kb-tree" onDragOver={(e) => e.dataTransfer.types.includes('text/x-kb-page') && e.preventDefault()} onDrop={(e) => e.target === e.currentTarget && void kb.update(e.dataTransfer.getData('text/x-kb-page'), { folder: null })}>
+          <div className="kb-tree">
             {kb.notes == null && !kb.error && <p className="kb-hint">Открываем архив…</p>}
             {kb.error && <p className="tb-err">{kb.error}</p>}
-            {found ? (
-              <ul>
-                {found.length === 0 && <li className="kb-hint">Ничего не нашли</li>}
-                {found.map((n) => (
-                  <li key={n.id}>
-                    <button type="button" className={`kb-row is-found${current?.id === n.id ? ' is-on' : ''}`} onClick={() => (kb.setCurrent(n.id), closeViews())}>
-                      <span className="kb-row-icon">{iconOf(n) ?? <FileText aria-hidden="true" />}</span>
-                      <span className="kb-row-title">
-                        {n.title}
-                        <i>{plainText(n.body, 70)}</i>
-                      </span>
-                    </button>
-                  </li>
+            {pinned.length > 0 && !q.trim() && (
+              <section className="kb-pinned">
+                <h4>
+                  <Pin aria-hidden="true" /> Закреплено
+                </h4>
+                {pinned.map((n) => (
+                  <PageRow key={n.id} n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), closeViews())} />
                 ))}
-              </ul>
-            ) : (
-              <>
-                {pinned.length > 0 && (
-                  <section className="kb-pinned">
-                    <h4>
-                      <Pin aria-hidden="true" /> Закреплено
-                    </h4>
-                    {pinned.map((n) => (
-                      <PageRow key={n.id} n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), closeViews())} />
-                    ))}
-                  </section>
-                )}
-                <ul>
-                  {tree.folders.map((f) => (
-                    <FolderNode
-                      key={f.path}
-                      f={f}
-                      depth={0}
-                      current={current?.id ?? null}
-                      openFolders={openFolders}
-                      toggle={toggle}
-                      onOpen={(id) => (kb.setCurrent(id), closeViews())}
-                      onDrop={(id, folder) => id && void kb.update(id, { folder })}
-                      onNew={(folder) => void newPage(TEMPLATES[0], folder)}
-                    />
-                  ))}
-                  {tree.pages.map((n) => (
-                    <li key={n.id}>
-                      <PageRow n={n} current={current?.id === n.id} onOpen={() => (kb.setCurrent(n.id), closeViews())} />
-                    </li>
-                  ))}
-                </ul>
-                {notes.length === 0 && kb.notes != null && <p className="kb-hint">Архив пуст. Начните с шаблона: «страница» → «Локация».</p>}
-              </>
+              </section>
             )}
+            <DirectoryList
+              listId="kb"
+              label="Страницы кодекса"
+              items={entries}
+              folders={dir.folders}
+              ops={dir.ops}
+              selectedId={current?.id ?? null}
+              query={q}
+              onQueryChange={setQ}
+              match={match}
+              searchPlaceholder="Поиск или #тег"
+              defaultSort="manual"
+              onCreate={(folderId) => void newPage(TEMPLATES[0], folderPath(dir.folders, folderId) || undefined)}
+              createLabel="Страница"
+              createInHeader={false}
+              toolbar={
+                <>
+                  <span className="kb-new-wrap">
+                    <button type="button" className="dir-btn is-main" onClick={() => setNewMenu((v) => !v)} aria-expanded={newMenu}>
+                      <FilePlus2 aria-hidden="true" /> Страница
+                    </button>
+                    {newMenu && (
+                      <span className="kb-new-menu">
+                        {TEMPLATES.map((t) => (
+                          <button key={t.name} type="button" onClick={() => void newPage(t)}>
+                            <span>{t.icon || <FileText aria-hidden="true" />}</span> {t.name}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <button type="button" className={`dir-icon-btn${graph ? ' is-on' : ''}`} aria-pressed={graph} onClick={() => (setGraph((v) => !v), setQuests(false))} title="Граф связей" aria-label="Граф связей">
+                    <Network aria-hidden="true" />
+                  </button>
+                  <button type="button" className={`dir-icon-btn${quests ? ' is-on' : ''}`} aria-pressed={quests} onClick={() => (setQuests((v) => !v), setGraph(false))} title="Квесты" aria-label="Квесты">
+                    <ScrollText aria-hidden="true" />
+                  </button>
+                </>
+              }
+              renderItem={(n) => (
+                <>
+                  <span className="kb-row-icon">{iconOf(n) ?? <FileText aria-hidden="true" />}</span>
+                  <span className="dir-name">{n.name}</span>
+                  {n.shared && <Eye className="kb-row-mark" aria-label="видят игроки" />}
+                  {n.pinned && <Pin className="kb-row-mark" aria-label="закреплена" />}
+                </>
+              )}
+              onItemDragStart={(n, e) => {
+                e.dataTransfer.setData('text/x-kb-page', n.id)
+                // в текст страницы падает ссылка [[…]]
+                e.dataTransfer.setData('text/plain', `[[${n.title}]]`)
+              }}
+              actions={{
+                open: (n) => (kb.setCurrent(n.id), closeViews()),
+                extra: (n) => [
+                  { id: 'pin', label: n.pinned ? 'Открепить' : 'Закрепить', icon: n.pinned ? <PinOff /> : <Pin />, run: () => void kb.update(n.id, { pinned: !n.pinned }).catch(() => undefined) },
+                ],
+                rename: (n, title) => kb.update(n.id, { title }),
+                duplicate: async (n) => {
+                  const copy = await kb.create({
+                    title: `${n.title} (копия)`,
+                    body: n.body,
+                    folder: n.folder,
+                    order: n.order + 1,
+                    page_type: n.page_type,
+                    quest: n.quest,
+                    npc: n.npc,
+                    shop: n.shop,
+                  })
+                  if (copy) kb.setCurrent(copy.id)
+                },
+                permissions: 'notes',
+                exportJson: (n) => notes.find((y) => y.id === n.id) ?? n,
+                remove: (n) => kb.remove(n.id),
+              }}
+              empty={notes.length === 0 && kb.notes != null ? <p className="kb-hint">Архив пуст. Начните с шаблона: «Страница» → «Локация».</p> : null}
+            />
+            {dir.error && <p className="tb-err">{dir.error}</p>}
           </div>
         </aside>
         <main className="kb-stage">

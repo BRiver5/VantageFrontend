@@ -61,6 +61,8 @@ export interface DirectoryListProps<T extends DirItem> {
   /** «Создать»: новая запись в папке (null — корень) */
   onCreate?: (folderId: string | null) => void
   createLabel?: string
+  /** Кнопка «Создать» в шапке; false — только «создать здесь» у папок (своя кнопка в toolbar) */
+  createInHeader?: boolean
   /** Кнопка «Создать» нажата (например, открыт поиск по бестиарию) */
   createActive?: boolean
   /** Свои кнопки шапки после стандартных */

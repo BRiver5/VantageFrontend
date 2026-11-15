@@ -17,6 +17,8 @@ export interface KnowledgeApi {
   /** несколько заметок разом: всё или ничего */
   updateMany: (items: (Partial<ScreenNote> & { id: string })[]) => Promise<void>
   remove: (id: string) => Promise<void>
+  /** перечитать страницы с сервера (папки переименовали или перенесли) */
+  reload: () => Promise<void>
   setCurrent: (id: string | null) => void
 }
 

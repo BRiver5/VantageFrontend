@@ -448,7 +448,7 @@ export function DirectoryList<T extends DirItem>(props: DirectoryListProps<T>) {
       {!props.compact && (
         <div className="dir-head">
           <div className="dir-head-row">
-            {onCreate && (
+            {onCreate && props.createInHeader !== false && (
               <button type="button" className={`dir-btn is-main${props.createActive ? ' is-on' : ''}`} aria-pressed={props.createActive} onClick={() => onCreate(folderOf(rows.find((r) => r.id === focusId)))}>
                 <Plus aria-hidden="true" /> {props.createLabel ?? 'Создать'}
               </button>
