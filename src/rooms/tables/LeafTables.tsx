@@ -78,13 +78,15 @@ export function LeafTables() {
   const [editing, setEditing] = useState(false)
   const [folderForm, setFolderForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const tables = list.items ?? []
+  const tables = useMemo(() => list.items ?? [], [list.items])
   const current = tables.find((t) => t.id === pick) ?? null
 
   const upsert = (t: RollTable) => list.setItems((xs) => (xs?.some((x) => x.id === t.id) ? xs.map((x) => (x.id === t.id ? t : x)) : [...(xs ?? []), t]))
 
   const dir = useDirectory('tables', { paths: tables.map((t) => t.folder), onChanged: list.reload })
-  const entries = useMemo(() => tables.map((t) => ({ ...t, folderId: dir.folderOf(t), sortOrder: dir.sortOf(t.id) })), [tables, dir.folderOf, dir.sortOf])
+
+  const { folderOf, sortOf } = dir
+  const entries = useMemo(() => tables.map((t) => ({ ...t, folderId: folderOf(t), sortOrder: sortOf(t.id) })), [tables, folderOf, sortOf])
 
   const create = async (folderId: string | null = null) => {
     setError(null)

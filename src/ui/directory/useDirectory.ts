@@ -20,6 +20,8 @@ export interface DirectoryOptions {
   moveItems?: (ids: string[], path: string, order: string[] | null) => Promise<void>
   /** Сервер переписал что-то в записях (пути): перечитать их */
   onChanged?: () => void
+  /** Не загружать (список сейчас не показан) */
+  disabled?: boolean
 }
 
 export interface Directory {
@@ -49,11 +51,12 @@ export function useDirectory(kind: FolderKind, opts: DirectoryOptions = {}): Dir
       }),
     [roomId, kind],
   )
+  const disabled = !!opts.disabled
   useEffect(() => {
-    void reload()
-  }, [reload])
+    if (!disabled) void reload()
+  }, [reload, disabled])
   useRoomEvents((msg) => {
-    if (msg.type === 'folders.changed' && (msg.payload as { kind?: string })?.kind === kind) {
+    if (!disabled && msg.type === 'folders.changed' && (msg.payload as { kind?: string })?.kind === kind) {
       void reload()
       if (pathMode) onChanged?.()
     }

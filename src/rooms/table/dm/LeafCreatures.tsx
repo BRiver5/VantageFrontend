@@ -1,63 +1,28 @@
-import { useRef, useState, type PointerEvent as RPointerEvent } from 'react'
-import { Eye, EyeOff, Plus, Shield, Skull } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Eye, EyeOff, Shield, Skull } from 'lucide-react'
 import type { AnyCreature, RoomCreature } from '../../../types/rooms'
 import { isFullCreature } from '../../../types/rooms'
+import { DirectoryList } from '../../../ui/directory/DirectoryList'
+import { useDirectory } from '../../../ui/directory/useDirectory'
 import { useRoom } from '../../RoomProvider'
-import { revealCreature } from '../../roomsApi'
+import { addCreatures, patchRoomCreature, removeRoomCreature, revealCreature } from '../../roomsApi'
 import { CardEffects, CreatureBack, HpControls, STAT_RU, statsOf } from '../Cards'
 import { creatureArt, creatureHp, creatureName, errText, Hex, HpVessel, SIZE_RU } from '../parts'
 import { Img } from '../../../media'
 import { EncounterMeter } from '../../gm/EncounterMeter'
 import { AddCreature } from './AddCreature'
 
-/** Жетон ширмы: можно нажать, а можно перетащить на стол */
-function ShelfToken({ c, selected, onSelect, onDropToTable }: { c: AnyCreature; selected: boolean; onSelect: () => void; onDropToTable: () => void }) {
+/** Строка полки: жетон, имя и где существо — за ширмой или на столе */
+function ShelfToken({ c }: { c: AnyCreature }) {
   const hp = creatureHp(c)
   const hidden = isFullCreature(c) && c.on_screen_only
-  const start = useRef<{ x: number; y: number } | null>(null)
-  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
-  const down = (e: RPointerEvent) => {
-    if (e.button !== 0) return
-    start.current = { x: e.clientX, y: e.clientY }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const move = (e: RPointerEvent) => {
-    const s = start.current
-    if (!s || !hidden) return
-    if (ghost || Math.hypot(e.clientX - s.x, e.clientY - s.y) > 8) setGhost({ x: e.clientX, y: e.clientY })
-  }
-  const up = (e: RPointerEvent) => {
-    const wasDrag = !!ghost
-    start.current = null
-    setGhost(null)
-    if (!wasDrag) return
-    const sheet = document.querySelector('.sc-sheet')?.getBoundingClientRect()
-    if (sheet && e.clientY < sheet.top) onDropToTable()
-  }
   return (
     <>
-      <button
-        type="button"
-        className={`sc-token${selected ? ' is-on' : ''}${hidden ? ' is-hidden' : ' is-out'}${hp.ratio === 0 ? ' is-down' : ''}`}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={() => {
-          start.current = null
-          setGhost(null)
-        }}
-        onClick={onSelect}
-        aria-pressed={selected}
-        title={hidden ? 'За ширмой. Перетащите на стол, чтобы показать игрокам' : 'На столе'}
-      >
+      <span className={`dir-creature${hidden ? ' is-hidden' : ' is-out'}${hp.ratio === 0 ? ' is-down' : ''}`} title={hidden ? 'За ширмой. Перетащите на стол, чтобы показать игрокам' : 'На столе'}>
         <Hex plain={creatureArt(c)} name={creatureName(c)} tone="enemy" />
-        <b>{creatureName(c)}</b>
-      </button>
-      {ghost && (
-        <span className="sc-ghost" style={{ left: ghost.x, top: ghost.y }} aria-hidden="true">
-          <Hex plain={creatureArt(c)} name={creatureName(c)} tone="enemy" />
-        </span>
-      )}
+        <span className="dir-name">{creatureName(c)}</span>
+      </span>
+      <i className={`dir-state${hidden ? ' is-hidden' : ''}`}>{hidden ? 'за ширмой' : 'на столе'}</i>
     </>
   )
 }
@@ -153,52 +118,71 @@ export function LeafCreatures() {
   const [adding, setAdding] = useState(() => (data?.creatures.length ?? 0) === 0)
   const [back, setBack] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const list = (data?.creatures ?? []) as AnyCreature[]
-  const behind = list.filter((c) => isFullCreature(c) && c.on_screen_only)
-  const onTable = list.filter((c) => !(isFullCreature(c) && c.on_screen_only))
+  const list = useMemo(() => (data?.creatures ?? []) as AnyCreature[], [data?.creatures])
   const current = list.find((c) => c.id === sel) ?? list[0] ?? null
   const showAdd = adding || list.length === 0
+  const dir = useDirectory('creatures')
+  const { folderOf, sortOf } = dir
+  const entries = useMemo(() => list.map((c) => ({ c, id: c.id, name: creatureName(c), folderId: folderOf(c), sortOrder: sortOf(c.id) })), [list, folderOf, sortOf])
+  const behind = list.some((c) => isFullCreature(c) && c.on_screen_only)
 
-  const token = (c: AnyCreature) => (
-    <ShelfToken
-      key={c.id}
-      c={c}
-      selected={current?.id === c.id && !showAdd}
-      onSelect={() => {
-        setSel(c.id)
-        setAdding(false)
-        setBack(false)
-      }}
-      onDropToTable={() => {
-        setError(null)
-        revealCreature(roomId, c.id).catch((e) => setError(errText(e)))
-      }}
-    />
-  )
+  const reveal = (c: AnyCreature) => {
+    setError(null)
+    revealCreature(roomId, c.id).catch((e) => setError(errText(e)))
+  }
 
   return (
     <div className="sc-two is-beasts">
       <div className="sc-pane sc-shelf">
         <h4>
-          За ширмой
-          {behind.length > 0 && <i>перетащите на стол</i>}
+          Существа
+          {behind && <i>перетащите на стол</i>}
         </h4>
-        <div className="sc-tokens">
-          {behind.map(token)}
-          <button type="button" className={`sc-token is-add${showAdd ? ' is-on' : ''}`} onClick={() => setAdding((v) => !v)} aria-pressed={showAdd}>
-            <span className="sc-plus">
-              <Plus aria-hidden="true" />
-            </span>
-            <b>Добавить</b>
-          </button>
-        </div>
-        {onTable.length > 0 && (
-          <>
-            <h4>На столе</h4>
-            <div className="sc-tokens">{onTable.map(token)}</div>
-          </>
-        )}
-        {error && <p className="tb-err">{error}</p>}
+        <DirectoryList
+          listId="creatures"
+          label="Существа"
+          items={entries}
+          folders={dir.folders}
+          ops={dir.ops}
+          selectedId={showAdd ? null : (current?.id ?? null)}
+          onCreate={() => setAdding((v) => !v)}
+          createLabel="Добавить"
+          createActive={showAdd}
+          searchPlaceholder="Найти существо…"
+          renderItem={(e) => <ShelfToken c={e.c} />}
+          onItemDragEnd={(e, _ev, point) => {
+            // жетон за ширмой, отпущенный над столом, выходит к игрокам
+            const hidden = isFullCreature(e.c) && e.c.on_screen_only
+            const sheet = document.querySelector('.sc-sheet')?.getBoundingClientRect()
+            if (hidden && point && sheet && point.y < sheet.top) reveal(e.c)
+          }}
+          actions={{
+            open: (e) => {
+              setSel(e.id)
+              setAdding(false)
+              setBack(false)
+            },
+            extra: (e) => (isFullCreature(e.c) && e.c.on_screen_only ? [{ id: 'reveal', label: 'На стол', icon: <Eye />, run: () => reveal(e.c) }] : []),
+            rename: (e, name) => patchRoomCreature(roomId, e.id, { display_name: name }),
+            duplicate: (e) => {
+              const c = e.c
+              if (!isFullCreature(c)) return
+              return addCreatures(roomId, {
+                ...(c.catalog_ref ? { catalog_ref: c.catalog_ref } : { snapshot: c.snapshot }),
+                display_name: `${c.display_name} (копия)`,
+                public_name: c.public_name,
+                image_url: c.image_url,
+                visibility: c.visibility,
+                on_screen_only: true,
+                quick_access: c.quick_access,
+              })
+            },
+            permissions: 'creatures',
+            exportJson: (e) => e.c,
+            remove: (e) => removeRoomCreature(roomId, e.id),
+          }}
+        />
+        {(error || dir.error) && <p className="tb-err">{error || dir.error}</p>}
         <EncounterMeter compact creatures={list.filter((c) => (creatureHp(c).ratio ?? 1) > 0)} />
       </div>
       <div className="sc-pane sc-detail">

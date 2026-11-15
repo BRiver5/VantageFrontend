@@ -70,7 +70,8 @@ export function KnowledgeWorkspace() {
   )
   const reloadNotes = useCallback(() => void reload().catch(() => undefined), [reload])
   const dir = useDirectory('kb', { paths: notes.map((n) => n.folder), moveItems, onChanged: reloadNotes })
-  const entries = useMemo(() => notes.map((n) => ({ ...n, name: n.title || 'Без названия', folderId: dir.folderOf(n), sortOrder: n.order })), [notes, dir.folderOf])
+  const { folderOf } = dir
+  const entries = useMemo(() => notes.map((n) => ({ ...n, name: n.title || 'Без названия', folderId: folderOf(n), sortOrder: n.order })), [notes, folderOf])
 
   const lookup = useMemo<PageLookup>(
     () => ({

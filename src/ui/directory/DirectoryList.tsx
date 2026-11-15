@@ -139,7 +139,12 @@ export function DirectoryList<T extends DirItem>(props: DirectoryListProps<T>) {
 
   const focusRow = (id: string | null) => {
     setFocusId(id)
-    if (id) requestAnimationFrame(() => treeRef.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"]`)?.focus())
+    if (!id) return
+    requestAnimationFrame(() => {
+      // пункт меню мог открыть поле имени — фокус остаётся в нём
+      if (treeRef.current?.querySelector('.dir-rename')) return
+      treeRef.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"]`)?.focus()
+    })
   }
 
   /* ---------- действия ---------- */
@@ -192,9 +197,10 @@ export function DirectoryList<T extends DirItem>(props: DirectoryListProps<T>) {
 
   /* ---------- перетаскивание ---------- */
 
-  const trackPoint = (e: globalThis.DragEvent) => {
+  // один и тот же слушатель на всё перетаскивание: снимать его надо тем же объектом
+  const [trackPoint] = useState(() => (e: globalThis.DragEvent) => {
     lastPoint.current = { x: e.clientX, y: e.clientY }
-  }
+  })
   const startDrag = (e: DragEvent, row: Row<T>) => {
     if (renaming) return e.preventDefault()
     drag.current = { type: row.kind, id: row.id }
@@ -315,7 +321,7 @@ export function DirectoryList<T extends DirItem>(props: DirectoryListProps<T>) {
 
   const tabbable = focusId && rows.some((r) => r.id === focusId) ? focusId : (rows.find((r) => r.id === selectedId)?.id ?? rows[0]?.id)
   const marker = (row: Row<T>) => (over?.id === row.id ? ` is-drop-${over.zone}` : '')
-  const draggable = !!ops || !!props.onItemDragStart
+  const draggable = !!ops || !!props.onItemDragStart || !!props.onItemDragEnd
 
   const renderRow = (row: Row<T>, index: number) => {
     const common = {
