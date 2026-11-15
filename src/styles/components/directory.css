@@ -1,0 +1,229 @@
+/* ============================================================
+   Директории списков мастера (как боковая панель Foundry):
+   существа ширмы, добыча, карты, таблицы, база знаний.
+   Компоненты: src/ui/directory/*
+   ============================================================ */
+
+.dir {
+  --dir-fs: max(12px, calc(var(--t, 1px) * 13.5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+  color: var(--text);
+  font-size: var(--dir-fs);
+}
+.dir.is-busy { cursor: progress; }
+
+/* ---------- шапка ---------- */
+
+.dir-head { display: flex; flex-direction: column; gap: 6px; }
+.dir-head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.dir-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--bg-2-rgb) / 0.7);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast), color var(--dur-fast);
+}
+.dir-btn svg { width: 1em; height: 1em; color: var(--accent); }
+.dir-btn:hover, .dir-btn.is-on { border-color: rgb(var(--gold-2-rgb) / 0.6); color: var(--gold-4); }
+.dir-btn.is-main { border-color: rgb(var(--gold-2-rgb) / 0.45); }
+.dir-btn:focus-visible, .dir-icon-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.dir-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-0-rgb) / 0.5);
+}
+.dir-search svg { flex: none; width: 1em; height: 1em; color: var(--text-muted); }
+.dir-search input { flex: 1; min-width: 0; border: none; background: none; color: var(--text); font: inherit; outline: none; }
+.dir-search:focus-within { border-color: rgb(var(--gold-2-rgb) / 0.6); }
+
+.dir-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dir-icon-btn svg { width: 16px; height: 16px; }
+.dir-icon-btn:hover, .dir-icon-btn.is-on { border-color: var(--border); color: var(--gold-3); }
+
+/* ---------- дерево ---------- */
+
+.dir-tree {
+  flex: 1;
+  min-height: 2.5em;
+  margin: 0;
+  padding: 2px 0 var(--space-3);
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+  border-radius: var(--radius-sm);
+}
+.dir-tree.is-drop-root { box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5); }
+
+.dir-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 4px 2px calc(6px + var(--dir-depth, 0) * 14px);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+.dir-row:hover { background: rgb(var(--white-rgb) / 0.04); }
+.dir-row:focus-visible { box-shadow: var(--focus-ring); }
+.dir-row.is-on { background: rgb(var(--gold-2-rgb) / 0.16); color: var(--gold-4); }
+.dir-row.is-folder { color: var(--parchment); font-weight: 600; }
+.dir-row.is-virtual .dir-folder-icon { opacity: 0.75; }
+
+.dir-caret, .dir-icon { display: inline-grid; flex: none; place-items: center; }
+.dir-caret svg { width: 14px; height: 14px; color: var(--text-muted); }
+.dir-icon svg { width: 1.05em; height: 1.05em; color: var(--accent); }
+.dir-folder-icon svg { color: currentColor; }
+.dir-folder-icon { color: var(--gold-2); }
+.dir-grip { flex: none; width: 12px; height: 12px; margin-left: -4px; color: var(--text-muted); opacity: 0; cursor: grab; }
+.dir-row:hover .dir-grip { opacity: 0.7; }
+
+.dir-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-count { flex: none; color: var(--text-muted); font-size: 0.8em; font-style: normal; font-weight: 400; }
+
+.dir-rename {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 6px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.6);
+  border-radius: 4px;
+  background: var(--surface-0);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.dir-acts { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.dir-more {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+.dir-more svg { width: 14px; height: 14px; }
+.dir-row:hover .dir-more, .dir-row:focus-within .dir-more, .dir-row.is-on .dir-more { opacity: 1; }
+.dir-more:hover { background: rgb(var(--white-rgb) / 0.08); color: var(--gold-3); }
+
+/* куда упадёт перетаскиваемое */
+.dir-row.is-drop-inside { background: rgb(var(--gold-2-rgb) / 0.2); box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.6); }
+.dir-row.is-drop-before::before, .dir-row.is-drop-after::after {
+  content: '';
+  position: absolute;
+  left: calc(6px + var(--dir-depth, 0) * 14px);
+  right: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--gold-3);
+  pointer-events: none;
+}
+.dir-row.is-drop-before::before { top: -1px; }
+.dir-row.is-drop-after::after { bottom: -1px; }
+
+.dir-empty { margin: var(--space-2) 0; color: var(--text-muted); font-size: 0.92em; }
+
+/* ---------- меню ---------- */
+
+.dir-menu {
+  position: fixed;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 4px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-deep);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+.dir-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dir-menu > button:hover, .dir-menu > button:focus-visible { background: rgb(var(--gold-2-rgb) / 0.16); color: var(--gold-4); outline: none; }
+.dir-menu > button:disabled { opacity: 0.45; cursor: default; }
+.dir-menu > button.is-danger { color: var(--danger); }
+.dir-menu-icon { display: inline-grid; flex: none; place-items: center; width: 16px; }
+.dir-menu-icon svg { width: 15px; height: 15px; }
+.dir-menu-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px 4px; border-top: 1px solid var(--border); }
+.dir-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgb(var(--white-rgb) / 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.dir-swatch.is-none { background: linear-gradient(135deg, transparent 45%, var(--danger) 45% 55%, transparent 55%); }
+.dir-swatch[aria-checked='true'] { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3px var(--gold-3); }
+.dir-swatch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------- списки ширмы ---------- */
+
+/* жетон существа в строке */
+.dir-creature { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.dir-creature .tb-hex, .dir-creature > span:first-child { flex: none; width: 26px; height: 30px; }
+.dir-creature.is-out { opacity: 0.8; }
+.dir-creature.is-down .dir-name { text-decoration: line-through; opacity: 0.6; }
+.dir-state { flex: none; color: var(--text-muted); font-size: 0.78em; font-style: normal; }
+.dir-state.is-hidden { color: var(--arcane); }
+
+/* миниатюра карты или предмета */
+.dir-thumb { display: inline-grid; flex: none; place-items: center; width: 34px; height: 24px; overflow: hidden; border-radius: 4px; background: rgb(var(--bg-0-rgb) / 0.6); }
+.dir-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dir-thumb svg { width: 14px; height: 14px; color: var(--accent); }
+.dir-live { flex: none; padding: 0 6px; border-radius: var(--radius-pill); background: rgb(var(--gold-2-rgb) / 0.2); color: var(--gold-3); font-size: 0.75em; font-style: normal; }
+.dir-acts .tb-goldbtn { padding: 2px 8px; font-size: 0.85em; }
+.dir-acts .sc-iconbtn { width: 24px; height: 24px; }
