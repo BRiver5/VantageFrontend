@@ -28,7 +28,7 @@ export function RulerHud({
   const names = (pending?.provokes ?? route?.provokes ?? []).map((p) => p.name)
   return (
     <>
-      <button type="button" className={`rl-toggle${active ? ' is-on' : ''}`} onClick={onToggle} aria-pressed={active} aria-label="Линейка" title="Линейка (R)">
+      <button type="button" className={`rl-toggle${active ? ' is-on' : ''}`} onClick={onToggle} aria-pressed={active} aria-label="Линейка" title="Линейка (R)" data-tour="ruler">
         <Ruler aria-hidden="true" />
       </button>
       {active && (

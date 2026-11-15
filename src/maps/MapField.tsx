@@ -516,7 +516,7 @@ export function MapField({
   const hudToken = hud.hud ? map.tokens.find((t) => t.id === hud.hud!.tokenId && (isDm || !t.hidden)) : undefined
 
   return (
-    <div ref={fieldRef} className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave} onDragOver={lay.dragOver} onDrop={lay.drop}>
+    <div ref={fieldRef} data-tour="map-field" className={`mp-field${aim ? ' is-aiming' : ''}${locked ? ' is-locked' : ''}${ruler.active ? ' is-measuring' : ''}`} onPointerLeave={hud.leave} onDragOver={lay.dragOver} onDrop={lay.drop}>
       <MapCanvas
         ref={canvas}
         map={shownMap ?? map}

@@ -6,7 +6,7 @@
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { ChevronRight, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, SlidersHorizontal, UserRound, Users, WifiOff, X } from 'lucide-react'
+import { ChevronRight, CircleHelp, DoorOpen, Expand, Home, Library, MessageCircle, ScrollText, Settings, SlidersHorizontal, UserRound, Users, WifiOff, X } from 'lucide-react'
 import { ChatPanel, useChatUnread } from '../Chat'
 import { InvitePanel, LeavePanel, PartyPanel, PartyRestPanel, RoomSettingsPanel } from '../Lobby'
 import { RollingNow } from '../RoomDice'
@@ -18,6 +18,7 @@ import { PauseBadge, PauseButton } from './PauseControls'
 import { PingSettingsPanel } from './PingSettings'
 import { useKeybinding } from '../../input/useKeybinding'
 import { SettingsDialog } from '../../settings/SettingsDialog'
+import { openToursPanel } from '../../tours/store'
 
 type Pop = 'party' | 'log' | 'settings' | 'chat' | null
 
@@ -82,7 +83,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
 
   return (
     <>
-      <header className="tb-top">
+      <header className="tb-top" data-tour="room-topbar">
         <button type="button" className="tb-round tb-chevron" onClick={() => setMenu(true)} aria-label="Меню: переходы" aria-expanded={menu}>
           <ChevronRight aria-hidden="true" />
         </button>
@@ -104,11 +105,12 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
         </div>
         <div className="tb-rounds">
           <PauseButton />
-          {onSheet && <Round icon={UserRound} label="Лист героя" onClick={onSheet} />}
-          <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} />
+          {onSheet && <Round icon={UserRound} label="Лист героя" onClick={onSheet} tour="room-sheet" />}
+          <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} tour="room-chat" />
           <Round icon={ScrollText} label="Журнал" on={pop === 'log'} onClick={() => toggle('log')} />
-          <Round icon={Users} label="Участники" badge={pending || undefined} alert={pending > 0} on={pop === 'party'} onClick={() => toggle('party')} />
-          <Round icon={Settings} label={isOwner ? 'Настройки комнаты' : 'Комната'} on={pop === 'settings'} onClick={() => toggle('settings')} />
+          <Round icon={Users} label="Участники" badge={pending || undefined} alert={pending > 0} on={pop === 'party'} onClick={() => toggle('party')} tour="room-members" />
+          <Round icon={Settings} label={isOwner ? 'Настройки комнаты' : 'Комната'} on={pop === 'settings'} onClick={() => toggle('settings')} tour="room-settings" />
+          <Round icon={CircleHelp} label="Обучение" onClick={openToursPanel} tour="room-tours" />
         </div>
       </header>
 

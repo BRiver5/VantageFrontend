@@ -75,13 +75,13 @@ function DmScreenIn() {
           <div className="sc-sheet-in">{body[leaf]}</div>
         </section>
       )}
-      <nav className="sc-bar" aria-label="Ширма мастера">
+      <nav className="sc-bar" aria-label="Ширма мастера" data-tour="gm-screen">
         <span className="sc-bar-sign" aria-hidden="true">
           <Crown />
         </span>
         <div className="sc-tabs" role="tablist">
           {LEAVES.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" role="tab" aria-selected={leaf === id} className={leaf === id ? 'is-on' : ''} onClick={() => (id === 'notes' ? kb?.open() : setLeaf((l) => (l === id ? null : id)))}>
+            <button key={id} type="button" role="tab" data-tour={`gm-leaf-${id}`} aria-selected={leaf === id} className={leaf === id ? 'is-on' : ''} onClick={() => (id === 'notes' ? kb?.open() : setLeaf((l) => (l === id ? null : id)))}>
               <span className="sc-tab-hex">
                 <Icon aria-hidden="true" />
               </span>
@@ -91,12 +91,12 @@ function DmScreenIn() {
         </div>
         <ViewAsButton />
         {leaf ? (
-          <button type="button" className="tb-round" onClick={() => setLeaf(null)} aria-label="Сложить ширму" title="Сложить ширму">
+          <button type="button" className="tb-round" onClick={() => setLeaf(null)} aria-label="Сложить ширму" title="Сложить ширму" data-tour="gm-screen-close">
             <ChevronDown aria-hidden="true" />
           </button>
         ) : (
           !inCombat && (
-            <button type="button" className="sc-fight" onClick={() => setBattle((v) => !v)} aria-expanded={battle} title="Начать бой">
+            <button type="button" className="sc-fight" data-tour="gm-fight" onClick={() => setBattle((v) => !v)} aria-expanded={battle} title="Начать бой">
               <Swords aria-hidden="true" />
               <span>В бой</span>
             </button>

@@ -42,6 +42,7 @@ import { HomePage } from './pages/home/HomePage'
 import { AppTabBar } from './shell/AppTabBar'
 import { ScrollToTop } from './shell/ScrollToTop'
 import { SettingsHost } from './settings/SettingsHost'
+import { TourHost } from './tours/TourHost'
 
 /* ---------- Приложение ---------- */
 
@@ -163,6 +164,7 @@ export default function App() {
       </main>
       <DiceRoller />
       <SettingsHost />
+      <TourHost />
       {app && <AppTabBar />}
     </div>
     </SearchProvider>

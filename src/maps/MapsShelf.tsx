@@ -93,7 +93,7 @@ export function MapsShelf() {
     )
   }
   return (
-    <section className="ms-shelf" aria-label="Боевые карты">
+    <section className="ms-shelf" aria-label="Боевые карты" data-tour="maps-shelf">
       <h3>Боевые карты</h3>
       <ul className="sc-maps">
         <li>
@@ -122,6 +122,7 @@ export function MapsShelf() {
           <button
             type="button"
             className="sc-map is-add"
+            data-tour="map-blank"
             disabled={busy}
             onClick={() =>
               void act(async () => {
@@ -135,7 +136,7 @@ export function MapsShelf() {
           </button>
         </li>
         <li>
-          <label className={`sc-map is-add${busy ? ' is-busy' : ''}`} title="Universal VTT из Dungeondraft, DungeonFog и других: картинка, стены, двери и свет">
+          <label className={`sc-map is-add${busy ? ' is-busy' : ''}`} data-tour="map-import" title="Universal VTT из Dungeondraft, DungeonFog и других: картинка, стены, двери и свет">
             <FileInput aria-hidden="true" />
             <b>Импорт .dd2vtt</b>
             <input
@@ -176,11 +177,11 @@ export function MapsShelf() {
                       <Square aria-hidden="true" /> Убрать
                     </button>
                   ) : (
-                    <button type="button" className="tb-goldbtn" disabled={busy} onClick={() => void act(() => activateMap(roomId, m.id))}>
+                    <button type="button" className="tb-goldbtn" data-tour="map-to-table" disabled={busy} onClick={() => void act(() => activateMap(roomId, m.id))}>
                       <Play aria-hidden="true" /> На стол
                     </button>
                   )}
-                  <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" onClick={() => setEditing(m.id)}>
+                  <button type="button" className="sc-iconbtn" aria-label="Конструктор" title="Конструктор" data-tour="map-edit" onClick={() => setEditing(m.id)}>
                     <PenLine aria-hidden="true" />
                   </button>
                   <button
