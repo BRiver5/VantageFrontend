@@ -85,6 +85,8 @@ export interface BlockRefs {
   object_id?: { id: string; label: string }[]
   trigger_id?: { id: string; label: string }[]
   preset?: { id: string; label: string }[]
+  /** этажи карты: блок change_level */
+  level_id?: { id: string; label: string }[]
 }
 
 /** Короткая фраза блока: «Спасбросок Ловкость Сл 15» */

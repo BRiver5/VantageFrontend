@@ -13,6 +13,11 @@ export function NotePopup({ note, onClose }: { note: MapNote; onClose: () => voi
     has: (t: string) => shared.some((x) => x.title.toLowerCase() === t.toLowerCase()),
     body: (t: string) => shared.find((x) => x.title.toLowerCase() === t.toLowerCase())?.body ?? null,
     titles: shared.map((x) => x.title),
+    // встраивание: только страницы, текст которых игроку открыт (limited приходит без body)
+    byId: (id: string) => {
+      const p = shared.find((x) => x.id === id)
+      return p && p.body != null ? { title: p.title, body: p.body } : null
+    },
   }
   const title = note.label || page?.title || 'Метка'
   return (
@@ -26,9 +31,11 @@ export function NotePopup({ note, onClose }: { note: MapNote; onClose: () => voi
           <X aria-hidden="true" />
         </button>
       </header>
-      {page ? (
+      {page && page.body == null ? (
+        <p className="ly-hint">Мастер открыл только заголовок.</p>
+      ) : page ? (
         <div className="kb-doc is-paper ly-note-body">
-          <MarkdownBody src={page.body} pages={lookup} onOpen={() => undefined} />
+          <MarkdownBody src={page.body ?? ''} pages={lookup} onOpen={() => undefined} />
         </div>
       ) : note.access === 'limited' ? (
         <p className="ly-hint">Подробности мастер пока не открыл.</p>

@@ -7,7 +7,7 @@
  * знаний на карту или кнопкой «На карту» на странице (следующий клик).
  * «Показать на карте» со страницы ведёт камеру к метке.
  */
-import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent, type RefObject } from 'react'
 import { patchRoom } from '../../rooms/roomsApi'
 import { useRoom } from '../../rooms/RoomProvider'
 import type { MapCanvasHandle } from '../render/types'
@@ -18,21 +18,35 @@ import { KB_PAGE_MIME, onPlacePageOnMap, onShowPageOnMap, openKbPage } from '../
 import { createNote } from './api'
 import type { MapNote } from './types'
 import { useMapLayers } from './useMapLayers'
+import { layerOnLevel } from '../levels'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось')
 
-export function useFieldLayers(opts: { map: BattleMap | null; canvas: RefObject<MapCanvasHandle | null>; myTokens: MapToken[]; selected: string | null; onError: (t: string) => void }) {
+export function useFieldLayers(opts: {
+  map: BattleMap | null
+  canvas: RefObject<MapCanvasHandle | null>
+  myTokens: MapToken[]
+  selected: string | null
+  /** видимый этаж (null — все): метки, звуки и рисунки других этажей не рисуются */
+  level?: string | null
+  onError: (t: string) => void
+}) {
   const { map, canvas, myTokens, selected, onError } = opts
-  const { roomId, data, isDm } = useRoom()
+  const level = opts.level ?? null
+  const { roomId, data, isDm, can } = useRoom()
   const mapId = map?.id ?? null
   const layers = useMapLayers(mapId, map?.revealed ?? false)
   const playersCanDraw = !!data?.room.settings?.players_can_draw
   const zoom = useCallback(() => canvas.current?.zoom() ?? 1, [canvas])
-  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw, zoom, onError })
+  // доверенный игрок рисует, даже когда «Игроки могут рисовать» выключено
+  const draw = useDrawTool({ roomId, mapId, layers, isDm, me: data?.me.user_id, playersCanDraw: playersCanDraw || can.draw, zoom, onError })
   const [popup, setPopup] = useState<MapNote | null>(null)
   const [placing, setPlacing] = useState<{ pageId: string; title: string } | null>(null)
   const [listening, setListening] = useState(false)
   const [listenAt, setListenAt] = useState<Pt | null>(null)
+  const notes = useMemo(() => layerOnLevel(layers.notes, level), [layers.notes, level])
+  const sounds = useMemo(() => layerOnLevel(layers.sounds, level), [layers.sounds, level])
+  const drawings = useMemo(() => layerOnLevel(layers.drawings, level), [layers.drawings, level])
 
   // «Поставить на карту» со страницы базы знаний
   useEffect(() => (isDm ? onPlacePageOnMap((v) => setPlacing(v)) : undefined), [isDm])
@@ -53,7 +67,7 @@ export function useFieldLayers(opts: { map: BattleMap | null; canvas: RefObject<
   const place = async (pageId: string | null, p: Pt) => {
     if (!mapId) return
     try {
-      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), page_id: pageId, icon: pageId ? 'book' : 'pin' })
+      const n = await createNote(roomId, mapId, { x: Math.round(p.x), y: Math.round(p.y), page_id: pageId, icon: pageId ? 'book' : 'pin', ...(level ? { level_id: level } : {}) })
       if (n) layers.put('notes', { upsert: [n] })
     } catch (e) {
       onError(errText(e))
@@ -84,7 +98,7 @@ export function useFieldLayers(opts: { map: BattleMap | null; canvas: RefObject<
     }
     // busy — карта тащит жетон: отпускание над меткой не открывает её
     if (kind === 'up' && e.button === 0 && !busy) {
-      const n = noteAt(layers.notes, p, zoom())
+      const n = noteAt(notes, p, zoom())
       if (n) {
         openNote(n)
         return true
@@ -119,6 +133,7 @@ export function useFieldLayers(opts: { map: BattleMap | null; canvas: RefObject<
 
   return {
     layers,
+    sounds,
     draw,
     playersCanDraw,
     togglePlayersDraw,
@@ -136,10 +151,10 @@ export function useFieldLayers(opts: { map: BattleMap | null; canvas: RefObject<
     popup,
     closePopup: () => setPopup(null),
     overlays: {
-      notes: layers.notes,
-      drawings: layers.drawings,
+      notes,
+      drawings,
       ...draw.overlay,
-      sounds: isDm && listening ? layers.sounds : null,
+      sounds: isDm && listening ? sounds : null,
       listener: isDm && listening ? listenAt : null,
     },
   }

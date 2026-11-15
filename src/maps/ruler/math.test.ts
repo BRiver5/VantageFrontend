@@ -3,7 +3,7 @@ import { addWaypoint, elevationStep, feet, floorAt, heightLabel, measure, remove
 
 const square5 = { kind: 'square' as const, feet_per_cell: 5, diagonal: '5' as const }
 const square510 = { kind: 'square' as const, feet_per_cell: 5, diagonal: '5-10' as const }
-const hex = { kind: 'hex' as const, feet_per_cell: 5, diagonal: '5' as const }
+const hex = { kind: 'hex_rows_odd' as const, feet_per_cell: 5, diagonal: '5' as const }
 const pt = (c: number, r: number, elevation = 0): RulerPoint => ({ cell: [c, r], elevation })
 
 describe('segmentFt', () => {
@@ -29,25 +29,13 @@ describe('segmentFt', () => {
     expect(segmentFt([0, 0], [6, 0], -10, square5).ft).toBe(30)
   })
 
-  it('сетка «hex» считается квадратной, как на сервере', () => {
-    expect(segmentFt([0, 0], [2, 4], 0, hex).ft).toBe(segmentFt([0, 0], [2, 4], 0, square5).ft)
+  it('шестиугольники: шаги по сетке без диагоналей, высота — третья ось', () => {
     expect(segmentFt([0, 0], [2, 4], 0, hex).ft).toBe(20)
+    expect(segmentFt([0, 0], [2, 4], 0, { ...hex, diagonal: '5-10' })).toEqual({ ft: 20, parity: 0 })
     expect(segmentFt([0, 0], [1, 0], 15, hex).ft).toBe(15)
   })
 
-  // Та же таблица — в tests/maps/test_geometry_parity.py на сервере (grid_distance_ft)
-  it.each([
-    [[0, 0], [4, 0], 0, '5', 20],
-    [[0, 0], [3, 3], 0, '5', 15],
-    [[0, 0], [4, 2], 0, '5-10', 25],
-    [[0, 0], [3, 3], 0, '5-10', 20],
-    [[0, 0], [2, 0], 10, '5-10', 15],
-    [[2, 5], [0, 0], 0, '5-10', 30],
-    [[0, 0], [0, 0], 12.5, '5', 10],
-    [[0, 0], [1, 1], 7.5, '5', 10],
-  ] as const)('%j → %j, высота %d, диагональ %s: %d фт', (a, b, dz, diagonal, ft) => {
-    expect(segmentFt([a[0], a[1]], [b[0], b[1]], dz, { feet_per_cell: 5, diagonal }).ft).toBe(ft)
-  })
+  // Общая таблица с сервером — ../gridParity.json (src/maps/hex.test.ts)
 })
 
 describe('measure', () => {

@@ -9,10 +9,11 @@ import { Check, Copy, Coffee, Crown, Heart, KeyRound, LogOut, Moon, RefreshCw, S
 import { ApiError, uploadMedia } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { useRoom } from './RoomProvider'
-import { approveMember, deleteRoom, kickMember, leaveRoom, partyRest, patchRoom, rejectMember, rotateInvite, setRoomStatus } from './roomsApi'
+import { approveMember, deleteRoom, kickMember, leaveRoom, partyRest, patchRoom, rejectMember, rotateInvite, setMemberRole, setRoomStatus } from './roomsApi'
+import { ASSIGNABLE_ROLES, ROLE_HINT, ROLE_LABEL } from './perms/permissions'
 import { Field, MEMBER_STATUS_RU, ROLE_RU, RoomAvatar, copyText, inviteLink } from './ui'
 import { statusRu } from './applyEvent'
-import type { CharacterCard, RoomMemberView, RoomStatus } from '../types/rooms'
+import type { CharacterCard, RoomMemberView, RoomRole, RoomStatus } from '../types/rooms'
 import { Img } from '../media'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Ошибка сервера')
@@ -41,13 +42,30 @@ export function HeroCardLine({ card }: { card: CharacterCard }) {
 
 /* ---------- участники ---------- */
 
-function MemberRow({ m, card, isDm, me, busy, onAct }: {
+/** Хозяин выдаёт роль: игрок, доверенный, помощник мастера */
+function RoleSelect({ m, busy, onRole }: { m: RoomMemberView; busy: boolean; onRole: (m: RoomMemberView, role: RoomRole) => void }) {
+  return (
+    <label className="pm-role" title={ROLE_HINT[m.role]}>
+      <select className="pm-select" value={m.role} disabled={busy} aria-label={`Роль: ${m.display_name || m.nickname || 'игрок'}`} onChange={(e) => onRole(m, e.target.value as RoomRole)}>
+        {ASSIGNABLE_ROLES.map((r) => (
+          <option key={r} value={r}>
+            {ROLE_LABEL[r]}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function MemberRow({ m, card, isDm, me, busy, onAct, onRole }: {
   m: RoomMemberView
   card?: CharacterCard
+  /** хозяин комнаты: заявки, исключение, роли */
   isDm: boolean
   me: string
   busy: boolean
   onAct: (kind: 'approve' | 'reject' | 'kick', m: RoomMemberView) => void
+  onRole?: (m: RoomMemberView, role: RoomRole) => void
 }) {
   const name = m.display_name || m.nickname || 'Игрок'
   const pending = m.status === 'pending'
@@ -58,6 +76,7 @@ function MemberRow({ m, card, isDm, me, busy, onAct }: {
         <b>
           {name}
           {m.user_id === me && <em> (вы)</em>}
+          {(m.role === 'assistant' || m.role === 'trusted') && !(isDm && onRole) && <i className="pm-role-tag">{ROLE_LABEL[m.role]}</i>}
         </b>
         {card ? (
           <HeroCardLine card={card} />
@@ -77,6 +96,7 @@ function MemberRow({ m, card, isDm, me, busy, onAct }: {
           </button>
         </span>
       )}
+      {isDm && onRole && m.status === 'approved' && m.role !== 'dm' && <RoleSelect m={m} busy={busy} onRole={onRole} />}
       {isDm && m.status === 'approved' && m.role !== 'dm' && (
         <button type="button" className="cw-mini-btn" disabled={busy} onClick={() => onAct('kick', m)} title="Исключить из комнаты" aria-label="Исключить">
           <UserMinus aria-hidden="true" />
@@ -127,7 +147,7 @@ export function PartyRestPanel() {
 }
 
 export function PartyPanel() {
-  const { data, roomId, isDm } = useRoom()
+  const { data, roomId, isDm, isOwner } = useRoom()
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -148,6 +168,19 @@ export function PartyPanel() {
     }
   }
 
+  const changeRole = async (m: RoomMemberView, role: RoomRole) => {
+    if (role === 'assistant' && !confirm(`Сделать «${m.display_name || m.nickname}» помощником мастера? Он увидит всё, что скрыто от игроков.`)) return
+    setBusy(true)
+    setError(null)
+    try {
+      await setMemberRole(roomId, m.user_id, role)
+    } catch (e) {
+      setError(errText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const cardOf = (m: RoomMemberView) => data.characters.find((c) => c.id === m.room_character_id)
   const pending = data.members.filter((m) => m.status === 'pending')
   const active = data.members.filter((m) => m.status === 'approved')
@@ -158,14 +191,14 @@ export function PartyPanel() {
 
   return (
     <div className="rm-panel">
-      {isDm && pending.length > 0 && (
+      {isOwner && pending.length > 0 && (
         <div className="rm-requests">
           <h3 className="rm-panel-title">
             <UserPlus aria-hidden="true" /> Заявки · {pending.length}
           </h3>
           <ul className="rm-members">
             {pending.map((m) => (
-              <MemberRow key={m.user_id} m={m} isDm={isDm} me={me} busy={busy} onAct={act} />
+              <MemberRow key={m.user_id} m={m} isDm={isOwner} me={me} busy={busy} onAct={act} />
             ))}
           </ul>
         </div>
@@ -175,7 +208,7 @@ export function PartyPanel() {
       </h3>
       <ul className="rm-members">
         {ordered.map((m) => (
-          <MemberRow key={m.user_id} m={m} card={cardOf(m)} isDm={isDm} me={me} busy={busy} onAct={act} />
+          <MemberRow key={m.user_id} m={m} card={cardOf(m)} isDm={isOwner} me={me} busy={busy} onAct={act} onRole={changeRole} />
         ))}
       </ul>
       {gone.length > 0 && (
@@ -183,7 +216,7 @@ export function PartyPanel() {
           <summary>Вышли и исключены · {gone.length}</summary>
           <ul className="rm-members">
             {gone.map((m) => (
-              <MemberRow key={m.user_id} m={m} isDm={isDm} me={me} busy={busy} onAct={act} />
+              <MemberRow key={m.user_id} m={m} isDm={isOwner} me={me} busy={busy} onAct={act} />
             ))}
           </ul>
         </details>

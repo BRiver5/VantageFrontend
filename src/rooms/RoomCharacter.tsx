@@ -16,6 +16,12 @@ import { useRoom } from './RoomProvider'
 import { useOriginalAvatar } from './table/parts'
 import { RoomLog } from './RoomLog'
 import type { InventoryItemInstance } from '../types/character'
+import { useAppShell } from '../shell'
+import { HotbarSourceContext } from '../hotbar/source'
+import { pendingSlot, subscribePending } from '../hotbar/registry'
+import { tabFor, type HotbarSlot } from '../hotbar/model'
+import { PopOutButton } from '../popout/PopOutWindow'
+import { closePopout, popoutKey, usePopout } from '../popout/store'
 
 /** Экран героя на телефоне: кнопка обратно к столу (или в бой), меню и общий журнал */
 function useHudExtra(): HudExtra {
@@ -47,10 +53,24 @@ function useHudExtra(): HudExtra {
   )
 }
 
-/** Лист одного героя комнаты: свой — игроку, любой — мастеру */
-export function RoomHero({ characterId }: { characterId: string }) {
+/** Лист одного героя комнаты: свой — игроку, любой — мастеру. inWindow — лист в отдельном окне */
+export function RoomHero({ characterId, inWindow = false }: { characterId: string; inWindow?: boolean }) {
   const { roomId, isDm, data } = useRoom()
+  const navigate = useNavigate()
+  const { app } = useAppShell()
   const [tab, setTab] = useState<SheetTab>('main')
+  const popped = usePopout('sheet', characterId)
+  const name = data?.characters.find((c) => c.id === characterId)?.name ?? 'Лист героя'
+  // панель быстрых действий ждёт кнопку из другой вкладки листа — открыть её
+  useEffect(() => {
+    const follow = (slot: HotbarSlot | null) => {
+      const want = slot && slot.character_id === characterId ? tabFor(slot.kind, app) : null
+      if (want) setTab(want)
+    }
+    follow(pendingSlot())
+    return subscribePending(follow)
+  }, [characterId, app])
+  const hotbarSource = useMemo(() => ({ characterId }), [characterId])
   const copyAvatar = data?.characters.find((c) => c.id === characterId)?.avatar_url
   const original = useOriginalAvatar(roomId, characterId, copyAvatar)
   // карточка обновляется раньше листа: пока лист не перечитан, картинка берётся из неё
@@ -77,13 +97,35 @@ export function RoomHero({ characterId }: { characterId: string }) {
     }),
     [roomId, isDm, hudExtra, characterId, avatarFallback],
   )
+  // лист вынесен в окно: здесь — только заглушка, чтобы не было двух листов сразу
+  if (popped && !inWindow) {
+    return (
+      <div className="po-placeholder is-sheet" role="status">
+        <p>{name}: лист открыт в отдельном окне</p>
+        <button type="button" className="po-btn" onClick={() => closePopout(popoutKey('sheet', characterId))}>
+          вернуть сюда
+        </button>
+      </div>
+    )
+  }
   return (
-    <>
+    <HotbarSourceContext.Provider value={hotbarSource}>
+      {!inWindow && !app && (
+        <PopOutButton
+          kind="sheet"
+          id={characterId}
+          title={name}
+          className="po-btn po-fab"
+          onOpened={() => navigate(`/rooms/${roomId}`)}
+          onReturn={() => navigate(`/rooms/${roomId}?hero=${characterId}`)}
+          dragSlot={{ kind: 'sheet', ref: characterId, label: name }}
+        />
+      )}
       <LiveCharacter key={characterId} characterRef={roomCharacterRef(roomId, characterId)} tab={tab} onTab={setTab} room={room} />
       {dropError && <p className="auth-error rm-float-error" role="alert">{dropError}</p>}
       {transfer && <TransferItemDialog characterId={characterId} item={transfer} onClose={() => setTransfer(null)} />}
       {coins && <CoinsHost characterId={characterId} onClose={() => setCoins(false)} />}
-    </>
+    </HotbarSourceContext.Provider>
   )
 }
 

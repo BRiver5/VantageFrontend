@@ -16,6 +16,7 @@ import { coinOf, inventoryItem } from '../create/startingGear'
 import { InventoryManager } from '../create/steps/InventoryManager'
 import type { InventoryItemInstance } from '../types/character'
 import { Img } from '../media'
+import { HotbarAction } from '../hotbar/HotbarAction'
 
 const COLS = 7
 const cellKey = (col: number, row: number) => `${col}:${row}`
@@ -161,6 +162,9 @@ export function InventoryBoard({
               onClick={() => !it && selected && moveTo(selected, col, row)}
             >
               {it && (
+                // панель быстрых действий открывает те же подробности предмета
+                <HotbarAction spec={{ kind: 'item', ref: it.instance_id, label: itemName(it) }} run={() => setSelected(it.instance_id)}>
+                {({ writeDrag }) => (
                 <button
                   type="button"
                   draggable
@@ -168,6 +172,7 @@ export function InventoryBoard({
                     setDragId(it.instance_id)
                     e.dataTransfer.setData('text/plain', it.instance_id)
                     e.dataTransfer.effectAllowed = 'move'
+                    writeDrag(e.dataTransfer)
                   }}
                   onDragEnd={() => setDragId(null)}
                   className={`cw-inv-cell${it.equipped ? ' is-equipped' : ''}${selected === it.instance_id ? ' is-selected' : ''}${dragId === it.instance_id ? ' is-dragging' : ''}${packed ? ' is-container' : ''}`}
@@ -187,6 +192,8 @@ export function InventoryBoard({
                     </span>
                   )}
                 </button>
+                )}
+                </HotbarAction>
               )}
             </div>
           )

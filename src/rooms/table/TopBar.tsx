@@ -60,7 +60,7 @@ function LogScroll({ onClose }: { onClose: () => void }) {
 }
 
 export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () => void }) {
-  const { data, isDm, link } = useRoom()
+  const { data, isDm, isOwner, link } = useRoom()
   const [menu, setMenu] = useState(false)
   const [pop, setPop] = useState<Pop>(null)
   const toggle = (p: Exclude<Pop, null>) => setPop((cur) => (cur === p ? null : p))
@@ -73,7 +73,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
   })
 
   if (!data) return null
-  const pending = data.members.filter((m) => m.status === 'pending').length
+  const pending = isOwner ? data.members.filter((m) => m.status === 'pending').length : 0
   const offline = link !== 'open' && link !== 'syncing'
   const canFullscreen = typeof document !== 'undefined' && !!document.documentElement.requestFullscreen
 
@@ -105,7 +105,7 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
           <Round icon={MessageCircle} label="Чат" badge={unread || undefined} on={pop === 'chat'} onClick={() => toggle('chat')} />
           <Round icon={ScrollText} label="Журнал" on={pop === 'log'} onClick={() => toggle('log')} />
           <Round icon={Users} label="Участники" badge={pending || undefined} alert={pending > 0} on={pop === 'party'} onClick={() => toggle('party')} />
-          <Round icon={Settings} label={isDm ? 'Настройки комнаты' : 'Комната'} on={pop === 'settings'} onClick={() => toggle('settings')} />
+          <Round icon={Settings} label={isOwner ? 'Настройки комнаты' : 'Комната'} on={pop === 'settings'} onClick={() => toggle('settings')} />
         </div>
       </header>
 
@@ -117,14 +117,14 @@ export function TopBar({ center, onSheet }: { center?: ReactNode; onSheet?: () =
       )}
       {pop === 'party' && (
         <Drawer title="Участники" icon={Users} onClose={() => setPop(null)}>
-          {isDm && <InvitePanel />}
+          {isOwner && <InvitePanel />}
           <PartyPanel />
           {isDm && <PartyRestPanel />}
         </Drawer>
       )}
       {pop === 'settings' && (
-        <Drawer title={isDm ? 'Настройки комнаты' : data.room.name} icon={Settings} onClose={() => setPop(null)}>
-          {isDm ? (
+        <Drawer title={isOwner ? 'Настройки комнаты' : data.room.name} icon={Settings} onClose={() => setPop(null)}>
+          {isOwner ? (
             <RoomSettingsPanel />
           ) : (
             <>

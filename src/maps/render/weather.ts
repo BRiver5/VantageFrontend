@@ -4,6 +4,7 @@
  * при её смене. Всё одного вида рисуется одним путём: один stroke или fill
  * на кадр, без выделений памяти. Вкладка в фоне — шаг не считается.
  */
+import { gridSize } from '../hex'
 import type { BattleMap } from '../types'
 import { WEATHER, WeatherField, isWeatherOn, weatherCount, type WeatherRect } from '../weather'
 import { buildWeatherMasks, isMasked, type WeatherMasks } from '../weatherMask'
@@ -61,8 +62,9 @@ export class WeatherLayer {
     // видимое ∩ карта
     const x0 = Math.max(g.offset_x, -v.x / v.k)
     const y0 = Math.max(g.offset_y, -v.y / v.k)
-    const x1 = Math.min(g.offset_x + g.cols * g.cell_px, (W - v.x) / v.k)
-    const y1 = Math.min(g.offset_y + g.rows * g.cell_px, (H - v.y) / v.k)
+    const size = gridSize(g)
+    const x1 = Math.min(g.offset_x + size.w, (W - v.x) / v.k)
+    const y1 = Math.min(g.offset_y + size.h, (H - v.y) / v.k)
     if (x1 <= x0 || y1 <= y0) return
     const r = this.rect
     r.x = x0

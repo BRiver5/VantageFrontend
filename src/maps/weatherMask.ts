@@ -5,7 +5,8 @@
  * выделений памяти: рамка, потом точная фигура.
  */
 import { pxPerFt } from './geometry'
-import type { BattleMap, MapZone } from './types'
+import { cellOf } from './hex'
+import type { BattleMap, GridKind, MapZone } from './types'
 
 interface RectMask {
   cx: number
@@ -35,6 +36,8 @@ export interface WeatherMasks {
   /** клетки: col * CELL_K + row */
   cells: Set<number>
   cellPx: number
+  /** вид сетки: клетки "col,row" на шестиугольниках ищутся по hex.cellOf */
+  kind?: GridKind
   ox: number
   oy: number
   empty: boolean
@@ -74,7 +77,7 @@ function addShape(out: WeatherMasks, shape: MapZone['shape'], map: BattleMap) {
 }
 
 export function buildWeatherMasks(map: BattleMap): WeatherMasks {
-  const out: WeatherMasks = { rects: [], polys: [], circles: [], cells: new Set(), cellPx: map.grid.cell_px, ox: map.grid.offset_x, oy: map.grid.offset_y, empty: true }
+  const out: WeatherMasks = { rects: [], polys: [], circles: [], cells: new Set(), cellPx: map.grid.cell_px, kind: map.grid.kind, ox: map.grid.offset_x, oy: map.grid.offset_y, empty: true }
   for (const l of map.layers) {
     if (l.kind !== 'roof' || l.w <= 0 || l.h <= 0) continue
     const a = ((l.rotation ?? 0) * Math.PI) / 180
@@ -103,8 +106,7 @@ export function isMasked(m: WeatherMasks, x: number, y: number): boolean {
     if (dx * dx + dy * dy <= c.r2) return true
   }
   if (m.cells.size) {
-    const col = Math.floor((x - m.ox) / m.cellPx)
-    const row = Math.floor((y - m.oy) / m.cellPx)
+    const [col, row] = cellOf({ kind: m.kind ?? 'square', cell_px: m.cellPx, offset_x: m.ox, offset_y: m.oy }, { x, y })
     if (m.cells.has(col * CELL_K + row)) return true
   }
   for (const p of m.polys) {

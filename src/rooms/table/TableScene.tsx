@@ -6,6 +6,7 @@
  * в мешок, который сам выдвигается из-за листа героя.
  */
 import { MapField } from '../../maps/MapField'
+import { PopOutButton, PopOutSlot } from '../../popout/PopOutWindow'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Backpack } from 'lucide-react'
 import { ApiError, type Currency } from '../../api'
@@ -22,6 +23,7 @@ import { auraClass, describeEffect, EffectSigils } from './effects'
 import { Img } from '../../media'
 import { COIN_ORDER, COIN_RU, bubbleOf, flyTo, relay } from './scene/motion'
 import { NotesMapOpen } from './scene/Notes'
+import { canClaimItem } from '../perms/permissions'
 import { type Bubble, RollBubble, Seat, type SeatInfo } from './scene/Seat'
 import { DmProp, Loot, Sack, Token } from './scene/Props'
 
@@ -235,12 +237,16 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
       <div className={`tb-field${data?.activeMap ? ' has-map' : ''}`}>
         {data?.activeMap && (
           <div className="tb-map">
-            <MapField
-              onOpen={(t) => {
-                if (t.creature_id) setCreatureOpen({ id: t.creature_id, origin: originOf(null) })
-                else if (t.character_id) setHeroOpen({ id: t.character_id, origin: originOf(null), rotate: 0 })
-              }}
-            />
+            {/* p3/ux: карту можно вынести в отдельное окно; закрыли окно — она снова здесь */}
+            <PopOutSlot kind="map" id={data.activeMap.id} title={data.activeMap.name || 'Карта'}>
+              <MapField
+                onOpen={(t) => {
+                  if (t.creature_id) setCreatureOpen({ id: t.creature_id, origin: originOf(null) })
+                  else if (t.character_id) setHeroOpen({ id: t.character_id, origin: originOf(null), rotate: 0 })
+                }}
+              />
+            </PopOutSlot>
+            <PopOutButton kind="map" id={data.activeMap.id} title={data.activeMap.name || 'Карта'} className="po-btn po-fab is-map" compact />
           </div>
         )}
         {!data?.activeMap && tokens.length > 0 && (
@@ -320,7 +326,7 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
         <LootCard
           item={openLoot}
           origin={lootOpen.origin}
-          canClaim={!!mine && !closed}
+          canClaim={!!mine && !closed && canClaimItem(openLoot, isDm)}
           onClaim={() => void claim(openLoot)}
           onClose={() => setLootOpen(null)}
         />

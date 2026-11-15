@@ -7,8 +7,11 @@
 
 export type Pt = { x: number; y: number }
 
+/** Вид сетки: квадрат или шестиугольники рядами (rows) / столбцами (cols) со сдвигом нечётных (odd) или чётных (even) — см. hex.ts */
+export type GridKind = 'square' | 'hex_rows_odd' | 'hex_rows_even' | 'hex_cols_odd' | 'hex_cols_even'
+
 export interface MapGrid {
-  kind: 'square' | 'hex'
+  kind: GridKind
   cell_px: number
   feet_per_cell: number
   cols: number
@@ -32,6 +35,18 @@ export interface MapLayer {
   kind: 'background' | 'floor' | 'overlay' | 'roof'
   opacity: number
   hide_when_occupied?: boolean
+  /** этаж (BattleMap.levels); нет — на всех этажах */
+  level_id?: string | null
+}
+
+/** Этаж карты: высоты [bottom_ft, top_ft); жетон на этаже, куда попадает его высота */
+export interface MapLevel {
+  id: string
+  name: string
+  bottom_ft: number
+  top_ft: number
+  /** своя подложка этажа — вместо фона карты */
+  background?: MapLayer | null
 }
 
 export interface MapObject {
@@ -59,6 +74,8 @@ export interface MapObject {
   hidden?: boolean
   /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
   locked?: boolean
+  /** этаж (BattleMap.levels); нет — на всех этажах */
+  level_id?: string | null
 }
 
 /** Действие на объекте: «Открыть», «Обыскать», «Потянуть рычаг». Игроку — без check и сценария */
@@ -86,6 +103,8 @@ export interface MapWall {
   one_way?: boolean
   /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
   locked?: boolean
+  /** этаж (BattleMap.levels); нет — на всех этажах */
+  level_id?: string | null
 }
 
 export interface MapLight {
@@ -115,6 +134,8 @@ export interface MapLight {
   animation_intensity?: number
   /** 0..1: насколько свет окрашивает сцену */
   color_intensity?: number
+  /** прикреплённый к жетону светит на его этаже */
+  level_id?: string | null
 }
 
 export type LightAnimation = 'none' | 'torch' | 'pulse' | 'chroma' | 'fog' | 'sunburst'
@@ -171,6 +192,8 @@ export interface MapItem {
   image_url?: string | null
   /** конструктор: закреплено — на холсте не выбирается, только из списка объектов */
   locked?: boolean
+  /** этаж (BattleMap.levels); нет — на всех этажах */
+  level_id?: string | null
 }
 
 export interface MapZone {
@@ -195,6 +218,10 @@ export interface MapZone {
   locked?: boolean
   /** «без погоды»: навес, пещера */
   no_weather?: boolean
+  /** этаж (BattleMap.levels); нет — на всех этажах */
+  level_id?: string | null
+  /** лестница: вошедший жетон переходит на этот этаж */
+  stairs_to?: string | null
 }
 
 /** Блок сценария: op и поля по /scene-blocks */
@@ -275,6 +302,8 @@ export interface BattleMap {
   revealed: boolean
   grid: MapGrid
   layers: MapLayer[]
+  /** этажи; пусто или нет — одноуровневая карта */
+  levels?: MapLevel[]
   terrain: { elevation: Record<string, number>; difficult: string[]; water: string[]; climbable: string[] }
   objects: MapObject[]
   walls: MapWall[]
@@ -284,7 +313,8 @@ export interface BattleMap {
   items: MapItem[]
   zones: MapZone[]
   /** explored — только игроку при динамическом тумане: его исследованные клетки "col,row" */
-  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean; explored?: string[] }
+  /** explored_levels — то же по этажам (карта с levels) */
+  fog: { mode: 'off' | 'manual' | 'dynamic'; honest: boolean; shared_party_vision: boolean; explored?: string[]; explored_levels?: Record<string, string[]> }
   /** время сервера в момент отправки (ISO) — для синхронного перехода темноты */
   server_time?: string
   /** только мастеру */

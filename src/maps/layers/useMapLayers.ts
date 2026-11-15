@@ -23,7 +23,7 @@ type LayerItem = { notes: MapNote; sounds: MapSound; drawings: MapDrawing }
 const EMPTY = { notes: [] as MapNote[], sounds: [] as MapSound[], drawings: [] as MapDrawing[] }
 
 export function useMapLayers(mapId: string | null | undefined, revealed = true): MapLayers {
-  const { roomId, data } = useRoom()
+  const { roomId, data, viewAs } = useRoom()
   const [state, setState] = useState<{ mapId: string | null; notes: MapNote[]; sounds: MapSound[]; drawings: MapDrawing[] }>({ mapId: null, ...EMPTY })
   const [tick, setTick] = useState(0)
   const connected = data != null
@@ -31,6 +31,14 @@ export function useMapLayers(mapId: string | null | undefined, revealed = true):
   useEffect(() => {
     if (!mapId || !connected) return
     let alive = true
+    if (viewAs) {
+      // «глазами игрока»: слои уже пришли проекцией игрока, свой запрос дал бы мастерские
+      const r = (viewAs.layers ?? {}) as { map_id?: string; notes?: MapNote[]; sounds?: MapSound[]; drawings?: MapDrawing[] }
+      void Promise.resolve().then(() => alive && setState({ mapId, notes: r.map_id === mapId ? (r.notes ?? []) : [], sounds: r.map_id === mapId ? (r.sounds ?? []) : [], drawings: r.map_id === mapId ? byZ(r.drawings ?? []) : [] }))
+      return () => {
+        alive = false
+      }
+    }
     getLayers(roomId, mapId).then(
       (r) => alive && r && setState({ mapId, notes: r.notes ?? [], sounds: r.sounds ?? [], drawings: byZ(r.drawings ?? []) }),
       () => alive && setState({ mapId, ...EMPTY }),
@@ -38,7 +46,7 @@ export function useMapLayers(mapId: string | null | undefined, revealed = true):
     return () => {
       alive = false
     }
-  }, [roomId, mapId, tick, connected, revealed])
+  }, [roomId, mapId, tick, connected, revealed, viewAs])
 
   useRoomEvents((msg) => {
     if (msg.type !== 'map.notes' && msg.type !== 'map.sounds' && msg.type !== 'map.drawings') return

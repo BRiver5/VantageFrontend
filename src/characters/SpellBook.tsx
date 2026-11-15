@@ -7,6 +7,7 @@
  * (можно и выше — усиленное), ритуал — без ячейки.
  */
 import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { HotbarAction } from '../hotbar/HotbarAction'
 import { BookOpen, Dices, Eye, Hourglass, Sparkles, Star, Target, Timer, Wand2 } from 'lucide-react'
 import type { Spell } from '../api'
 import { useCatalogList } from '../create/useCatalog'
@@ -299,9 +300,12 @@ export function SpellBook({
                   const origin = grantedOrigin(sp)
                   const spent = origin === 'race' && racialUsed.has(sp.name)
                   return (
+                    // панель быстрых действий открывает то же окно заклинания
+                    <HotbarAction key={sp.name} spec={{ kind: 'spell', ref: sp.name, label: sp.name }} run={() => setOpen(sp)}>
+                    {({ dragProps }) => (
                     <button
-                      key={sp.name}
                       type="button"
+                      {...dragProps}
                       className={`cw-scard${sp.prepared ? '' : ' is-unprepared'}${origin ? ` is-${origin}` : ''}${spent ? ' is-spent' : ''}`}
                       onClick={() => setOpen(sp)}
                     >
@@ -325,6 +329,8 @@ export function SpellBook({
                         {spent && <em className="is-off">использовано</em>}
                       </span>
                     </button>
+                    )}
+                    </HotbarAction>
                   )
                 })}
               </div>

@@ -3,7 +3,7 @@ import type { BlockRefs } from '../blocks'
 import { allPresets, type VfxPreset } from '../vfx'
 import type { BattleMap } from '../types'
 
-/** Ссылки для полей блоков: двери, свет, зоны, объекты, триггеры, пресеты */
+/** Ссылки для полей блоков: двери, свет, зоны, объекты, триггеры, пресеты, этажи */
 export function useRefs(map: BattleMap): BlockRefs {
   const [presets, setPresets] = useState<VfxPreset[]>([])
   useEffect(() => {
@@ -17,7 +17,8 @@ export function useRefs(map: BattleMap): BlockRefs {
       object_id: map.objects.map((o) => ({ id: o.id, label: o.name || 'Объект' })),
       trigger_id: (map.triggers ?? []).map((t) => ({ id: t.id, label: t.name || 'Триггер' })),
       preset: presets.map((p) => ({ id: p.id, label: p.name })),
+      level_id: (map.levels ?? []).map((l) => ({ id: l.id, label: l.name || 'Этаж' })),
     }),
-    [map.walls, map.lights, map.zones, map.objects, map.triggers, presets],
+    [map.walls, map.lights, map.zones, map.objects, map.triggers, map.levels, presets],
   )
 }

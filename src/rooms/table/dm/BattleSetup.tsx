@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Swords, X } from 'lucide-react'
 import type { AnyCreature } from '../../../types/rooms'
 import { isFullCreature } from '../../../types/rooms'
+import { EncounterMeter } from '../../gm/EncounterMeter'
 import { useRoom } from '../../RoomProvider'
 import { addCombatants, startCombat } from '../../roomsApi'
 import { creatureArt, creatureName, errText, Hex } from '../parts'
@@ -34,6 +35,7 @@ export function BattleSetup({ onClose }: { onClose: () => void }) {
         ))}
         {creatures.length === 0 && <p className="tb-hint">Существ пока нет: добавьте их в разделе «Существа».</p>}
       </div>
+      <EncounterMeter creatures={creatures.filter((c) => picked.includes(c.id))} />
       <footer>
         {error && <span className="tb-err">{error}</span>}
         <button

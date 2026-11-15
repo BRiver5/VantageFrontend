@@ -1,6 +1,7 @@
 /** Правки карты конструктора: попадание курсором, ассеты, рельеф, перетаскивание */
 import { assetImage, assetTitle, type Asset } from '../assets'
 import { cellCenter, cellOf, dist, pointInPolygon } from '../geometry'
+import { gridSize, isHex } from '../hex'
 import type { BattleMap, MapObject, MapToken, Pt } from '../types'
 import { uid } from './batch'
 import { segDist, zonePoly } from './geometry'
@@ -8,10 +9,11 @@ import type { Brush, Tool } from './types'
 
 type Grid = BattleMap['grid']
 
-/** объект в клетках: чётный размер — к углу, нечётный — к центру */
+/** объект в клетках: чётный размер — к углу, нечётный — к центру; на шестиугольниках — всегда к центру клетки */
 export const snapCell = (g: Grid, p: Pt, w = 1, h = 1) => {
   const [c, r] = cellOf(g, p)
   const cc = cellCenter(g, c, r)
+  if (isHex(g)) return cc
   return { x: cc.x + (w % 2 === 0 ? g.cell_px / 2 : 0), y: cc.y + (h % 2 === 0 ? g.cell_px / 2 : 0) }
 }
 
@@ -40,13 +42,15 @@ export const assetPlacement = (g: Grid, a: Asset, p: Pt): { apply: (m: BattleMap
   const url = assetImage(a)
   if (a.kind === 'map_background') {
     const ratio = (a.height_px ?? 1) / (a.width_px ?? 1)
-    const W = g.cols * g.cell_px
+    const W = gridSize(g).w
     return { apply: (m) => ({ ...m, layers: [...m.layers.filter((l) => l.kind !== 'background'), { id: uid('bg'), asset_id: a.id, image_url: url, x: g.offset_x, y: g.offset_y, w: W, h: Math.round(W * ratio), rotation: 0, z: 0, kind: 'background', opacity: 1 }] }) }
   }
   if (a.kind === 'terrain') {
+    // плитка пола — квадрат клетки (на шестиугольниках — квадрат cell_px вокруг центра)
     const [c, r] = cellOf(g, p)
-    const x = g.offset_x + c * g.cell_px
-    const y = g.offset_y + r * g.cell_px
+    const cc = cellCenter(g, c, r)
+    const x = cc.x - g.cell_px / 2
+    const y = cc.y - g.cell_px / 2
     return { apply: (m) => ({ ...m, layers: [...m.layers.filter((l) => !(l.kind === 'floor' && l.x === x && l.y === y)), { id: uid('fl'), asset_id: a.id, image_url: url, x, y, w: g.cell_px, h: g.cell_px, rotation: 0, z: 1, kind: 'floor', opacity: 1 }] }) }
   }
   if (a.kind === 'token') {

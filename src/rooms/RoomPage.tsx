@@ -6,6 +6,7 @@
  */
 import { RoomAudioPlayer } from './RoomAudio'
 import { RoomClocks } from './Clocks'
+import { RoomCalendar } from './gm/RoomCalendar'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, DoorOpen, Monitor } from 'lucide-react'
@@ -21,6 +22,7 @@ import { BattleScene } from './table/BattleScene'
 import { BattleIntro, BattleOutro } from './table/battle/BattleCurtains'
 import { DmScreen } from './table/DmScreen'
 import { TableScene } from './table/TableScene'
+import { RoomUx } from './ux/RoomUx'
 
 const FATAL_TEXT: Record<string, string> = {
   not_member: 'Вы не участник этой комнаты.',
@@ -107,6 +109,7 @@ function Stage() {
     <>
       {inCombat ? <BattleScene onSheet={openSheet} /> : <TableScene onSheet={openSheet} />}
       <RoomClocks />
+      <RoomCalendar />
       <RoomAudioPlayer />
       {!validHero && <PartyHud />}
       <TurnCues />
@@ -114,6 +117,7 @@ function Stage() {
       {validHero && <SheetOver characterId={validHero} backTo={`/rooms/${roomId}`} />}
       {fx === 'intro' && <BattleIntro onDone={clearFx} />}
       {fx === 'outro' && <BattleOutro onDone={clearFx} />}
+      <RoomUx />
     </>
   )
 }

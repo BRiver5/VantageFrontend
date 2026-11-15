@@ -6,7 +6,7 @@
  *
  * Кости бросает сервер; экран меняют только события.
  */
-import { useCallback, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Dices, Flag, Hourglass, Plus, Swords, Undo2, UserRound, Wand2, X, Zap } from 'lucide-react'
 import { playForcedRoll, type ForcedDie } from '../../dice/diceControl'
 import type { CombatActionResult, CombatantView, ConcentrationCheck, ConcentrationSave, SaveEndsResult } from '../../types/rooms'
@@ -26,6 +26,7 @@ import { TurnStrip } from './battle/TurnStrip'
 import { SlotSky } from './battle/SlotSky'
 import { ActionTray } from './battle/ActionTray'
 import { AddUnits } from './battle/AddUnits'
+import { PRIORITY, registerOpener, type Opener } from '../../hotbar/registry'
 
 /* ---------- сцена ---------- */
 
@@ -154,8 +155,14 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
   // чей лист нужен панели: у игрока — свой герой, у мастера — тот, чей ход
   const kitUnit = combat ? (isDm ? (combat.combatants.find((c) => c.id === current) ?? combat.combatants.find((c) => !c.defeated)) : combat.combatants.find((c) => c.id === myUnitId)) : undefined
   const kit = useHeroKit(roomId, kitUnit?.card?.id, kitUnit?.card?.level ?? 1)
+  // панель быстрых действий: атака и заклинание героя открывают лоток боя, приём выбирает он сам
+  const hotbarOpen = useRef<Opener>(() => false)
+  useEffect(() => registerOpener((s) => hotbarOpen.current(s), PRIORITY.tray), [])
 
-  if (!data || !combat || combat.status === 'ended') return null
+  if (!data || !combat || combat.status === 'ended') {
+    hotbarOpen.current = () => false
+    return null
+  }
 
   const units = combat.combatants.map((c) => (held[c.id] ? { ...c, ...held[c.id] } : c))
   const byId = new Map(units.map((c) => [c.id, c]))
@@ -198,6 +205,14 @@ export function BattleScene({ onSheet }: { onSheet?: () => void }) {
     const marked = targetCombatants(data.activeMap?.tokens ?? [], targetStore.get()).filter((id) => byId.get(id) && !byId.get(id)!.defeated)
     if (marked.length) setTargets((t) => (t.length ? t : marked))
     setCmd(next)
+  }
+  hotbarOpen.current = (s) => {
+    if (setup || closed || !trayActor?.card || s.character_id !== trayActor.card.id) return false
+    const want: Cmd | null = s.kind === 'attack' ? 'attack' : s.kind === 'spell' ? 'spell' : null
+    // лоток уже открыт, а приёма с таким именем в нём нет — пусть откроется лист
+    if (!want || cmd === want) return false
+    openCmd(want)
+    return true
   }
   const onFigure = (c: CombatantView, origin: Origin) => {
     if (targeting) {

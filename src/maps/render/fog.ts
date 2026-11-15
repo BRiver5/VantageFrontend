@@ -12,6 +12,7 @@
  * подкрашивают сцену под слоем темноты.
  */
 import { blockingSegments, pointInPolygon, pxPerFt, visibility } from '../geometry'
+import { isHex, traceCell } from '../hex'
 import { isPingCalm } from '../pingSettings'
 import type { BattleMap, MapGrid, MapLight, MapToken, Pt } from '../types'
 import { animationOf, darknessAt, exploredRects, hueShift, lightActive, lightFrame, noteServerTime, sceneShade, seedOf, serverNow, shadeColor, type LightFrame } from './lighting'
@@ -68,11 +69,16 @@ interface Lit {
 
 const explored = new WeakMap<readonly string[], { key: string; path: Path2D }>()
 function exploredPath(cells: readonly string[], g: MapGrid): Path2D {
-  const key = `${g.cell_px}:${g.offset_x}:${g.offset_y}`
+  const key = `${g.kind}:${g.cell_px}:${g.offset_x}:${g.offset_y}`
   const hit = explored.get(cells)
   if (hit && hit.key === key) return hit.path
   const path = new Path2D()
-  for (const r of exploredRects(cells, g)) path.rect(r.x, r.y, r.w, r.h)
+  if (isHex(g)) {
+    for (const k of cells) {
+      const [c, r] = k.split(',').map(Number)
+      if (Number.isFinite(c) && Number.isFinite(r)) traceCell(path, g, c, r)
+    }
+  } else for (const r of exploredRects(cells, g)) path.rect(r.x, r.y, r.w, r.h)
   explored.set(cells, { key, path })
   return path
 }

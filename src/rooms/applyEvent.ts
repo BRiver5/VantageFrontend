@@ -28,11 +28,16 @@ import type {
   RoomItem,
   RoomLogEntry,
   RoomMemberView,
+  RoomRole,
   RoomState,
   RoomStatus,
 } from '../types/rooms'
 import { isEngineRoll, type RollPayload } from '../types/rooms'
 import type { BattleMap } from '../maps/types'
+import { drawnSummary } from './tables/logic'
+import type { TableDrawn } from './tables/types'
+import { isGmRole, ROLE_LABEL } from './perms/permissions'
+import { formatCoins, formatCopper, type Coins } from './kb/money'
 
 /** Сколько записей журнала держим в памяти */
 export const LOG_LIMIT = 300
@@ -215,6 +220,27 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       }
     }
 
+    case 'member.role': {
+      const role = p.role as RoomRole
+      return {
+        ...base,
+        members: base.members.map((m) => (m.user_id === p.user_id ? { ...m, role } : m)),
+        // свою роль меняем сразу, а снимок с новыми проекциями перечитает RoomProvider
+        me: p.user_id === base.me.user_id ? { ...base.me, role, permissions: undefined } : base.me,
+      }
+    }
+
+    case 'permissions.changed': {
+      // мастеру — новые права (документы у него и так целиком); игроку — документ в его проекции или null
+      if (!('view' in p)) return base
+      const id = p.id as string
+      const view = p.view as P | null
+      if (p.kind === 'creatures') return { ...base, creatures: view ? upsert(base.creatures, view as AnyCreature) : without(base.creatures, id) }
+      if (p.kind === 'items') return { ...base, items: view ? upsert(base.items, view as RoomItem) : without(base.items, id) }
+      if (p.kind === 'notes') return { ...base, sharedNotes: view ? byOrder(upsert(base.sharedNotes, view as SharedNote)) : without(base.sharedNotes, id) }
+      return base
+    }
+
     case 'presence.changed': {
       const online = (p.online ?? []) as OnlineUser[]
       return { ...base, online, members: mark(base.members, online) }
@@ -239,7 +265,7 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
     case 'item.taken_back': {
       // со стола на ширму: игрокам предмет исчезает, мастеру остаётся с holder = screen
       if (p.from !== 'table') return base
-      if (base.me.role === 'dm') {
+      if (isGmRole(base.me.role)) {
         return { ...base, items: base.items.map((it) => (it.id === p.item_id ? { ...it, holder: 'screen' } : it)) }
       }
       return { ...base, items: without(base.items, p.item_id) }
@@ -301,6 +327,14 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
     case 'note.unshared':
       return { ...base, sharedNotes: without(base.sharedNotes, p.note_id) }
 
+    case 'shop.stock': {
+      // мастеру: предмет ушёл с ширмы в лавку или вернулся из лавки на ширму
+      let items = base.items
+      if (p.from_screen) items = without(items, p.from_screen)
+      for (const it of (p.to_screen ?? []) as RoomItem[]) items = upsert(items, it)
+      return items === base.items ? base : { ...base, items }
+    }
+
     case 'map.activated': {
       const m = p.map as BattleMap | undefined
       return m ? { ...base, activeMap: m, room: { ...base.room, active_map_id: m.id } } : base
@@ -309,7 +343,7 @@ export function applyEvent(state: RoomData, msg: RoomEventMessage): RoomData {
       const m = p.map as BattleMap | undefined
       if (!m) return base
       // обновилась та, что на столе, — заменить; спрятали — убрать со стола
-      if (base.activeMap?.id === m.id || base.room.active_map_id === m.id) return { ...base, activeMap: m.revealed || base.me.role === 'dm' ? m : null }
+      if (base.activeMap?.id === m.id || base.room.active_map_id === m.id) return { ...base, activeMap: m.revealed || isGmRole(base.me.role) ? m : null }
       return base
     }
     case 'map.token_moved': {
@@ -394,6 +428,8 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       const what = String(p.label ?? '').replace(/^концентрация:\s*/i, '')
       return { ...base, kind: 'combat', who, text: `${msg.type === 'concentration.ended' ? 'Концентрация прервана' : 'Действие закончилось'}${what ? `: ${what}` : ''}${removed.length ? ` — сняты ${removed.join(', ')}` : ''}` }
     }
+    case 'table.drawn':
+      return { ...base, kind: 'room', who, text: drawnSummary(p as unknown as TableDrawn) }
     case 'room.rest':
       return { ...base, kind: 'room', who, text: p.kind === 'long' ? 'Партия отдыхает: продолжительный отдых' : 'Партия делает короткий привал' }
     case 'note.shared':
@@ -421,6 +457,15 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
     case 'item.taken_back':
       return { ...base, kind: 'item', who, text: p.from === 'table' ? 'Предмет убран со стола' : `Мастер забирает ${p.name ?? 'предмет'}` }
+    case 'shop.purchase':
+      return { ...base, kind: 'item', who: p.character_name ?? nameOf(state, p.character_id), text: `покупает ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''} в «${p.shop}» за ${formatCopper(p.price_cp ?? 0)}` }
+    case 'shop.sale':
+      return { ...base, kind: 'item', who: p.character_name ?? nameOf(state, p.character_id), text: `продаёт ${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ''} в «${p.shop}» за ${formatCopper(p.price_cp ?? 0)}` }
+    case 'currency.split': {
+      const ids = (p.character_ids ?? []) as string[]
+      const rest = p.remainder ? ` · остаток ${formatCoins(p.remainder as Coins)}${p.remainder_to ? `: ${nameOf(state, p.remainder_to) || 'одному из партии'}` : p.from_character_id ? ' остаётся в источнике' : ' не роздан'}` : ''
+      return { ...base, kind: 'item', who, text: `Монеты ${formatCoins(p.amount as Coins)} разделены на ${ids.length}: по ${formatCoins(p.share as Coins)}${rest}` }
+    }
     case 'currency.transferred': {
       const amount = Object.entries(p.amount ?? {}).map(([k, v]) => `${v} ${k}`).join(', ')
       return { ...base, kind: 'item', who: nameOf(state, p.from_character_id), text: `передаёт ${amount}: ${nameOf(state, p.to_character_id) || 'другому персонажу'}` }
@@ -458,6 +503,10 @@ export function describeEvent(state: RoomData, msg: RoomEventMessage): RoomLogEn
       return { ...base, kind: 'member', who, text: 'покидает партию' }
     case 'member.kicked':
       return { ...base, kind: 'member', who, text: 'исключён из комнаты' }
+    case 'member.role': {
+      const m = state.members.find((x) => x.user_id === p.user_id)
+      return { ...base, kind: 'member', who: m?.display_name || m?.nickname || who, text: `теперь: ${ROLE_LABEL[p.role as RoomRole] ?? p.role}` }
+    }
     case 'room.status':
       return { ...base, kind: 'room', who, text: p.status === 'paused' ? 'Мастер поставил игру на паузу' : `Статус комнаты: ${statusRu(p.status)}` }
     case 'character.updated':

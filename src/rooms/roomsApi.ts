@@ -42,9 +42,15 @@ import type {
   ConcentrationSave,
   RoomClock,
   SharedNote,
+  ShopStockItem,
+  ShopView,
   CastPlan,
   CastPreview,
   CastRequest,
+  DocPermissions,
+  PermissionKind,
+  PermissionsView,
+  RoomRole,
 } from '../types/rooms'
 
 const r = (id: string, path = '') => `/rooms/${id}${path}`
@@ -93,6 +99,9 @@ export const approveMember = (id: string, userId: string) =>
   post<{ user_id: string; room_character_id: string; card: CharacterCard }>(r(id, `/members/${userId}/approve`))
 export const rejectMember = (id: string, userId: string) => post<{ status: string }>(r(id, `/members/${userId}/reject`))
 export const kickMember = (id: string, userId: string) => post<{ status: string }>(r(id, `/members/${userId}/kick`))
+/** Роль участника: игрок, доверенный, помощник мастера (только хозяин комнаты) */
+export const setMemberRole = (id: string, userId: string, role: RoomRole) =>
+  post<{ user_id: string; role: RoomRole }>(r(id, `/members/${userId}/role`), { role })
 
 /* ---------- персонажи (краткие карточки; лист — через roomCharacterRef) ---------- */
 
@@ -231,9 +240,62 @@ export async function listSharedNotes(id: string): Promise<SharedNote[]> {
   return (await get<{ items: SharedNote[] }>(r(id, '/notes')))?.items ?? []
 }
 
+/** Страница по уровню доступа игрока */
+export const getSharedNote = (id: string, noteId: string) => get<SharedNote>(r(id, `/notes/${noteId}`))
+/** Правка страницы игроком с уровнем owner */
+export const patchSharedNote = (id: string, noteId: string, body: { title?: string; body?: string; revision?: number }) =>
+  patch<SharedNote>(r(id, `/notes/${noteId}`), body)
+
+/* ---------- права доступа (мастер и помощник) ---------- */
+
+export const getPermissions = (id: string, kind: PermissionKind, docId: string) => get<PermissionsView>(r(id, `/permissions/${kind}/${docId}`))
+export const putPermissions = (id: string, kind: PermissionKind, docId: string, body: DocPermissions) =>
+  put<PermissionsView>(r(id, `/permissions/${kind}/${docId}`), body)
+/** Предмет: владелец меняет заметку, мастер — ещё и количество */
+export const patchRoomItem = (id: string, itemId: string, body: { notes?: string; quantity?: number }) => patch<RoomItem>(r(id, `/items/${itemId}`), body)
+
 /** Привал для всей партии (мастер); кости хитов на коротком каждый тратит сам */
 export const partyRest = (id: string, kind: 'short' | 'long', characterIds?: string[]) =>
   post<{ kind: string; character_ids: string[]; failed: string[] }>(r(id, '/rest'), characterIds ? { kind, character_ids: characterIds } : { kind })
+
+/* ---------- лавки базы знаний и раздел монет ---------- */
+
+type Coins = Partial<Record<Currency, number>>
+const shop = (id: string, pageId: string, path = '') => r(id, `/kb/shops/${pageId}${path}`)
+/** Лавка: игроку — только открытая ему страница (иначе 404) */
+export const getShop = (id: string, pageId: string) => get<ShopView>(shop(id, pageId))
+/** Мастер кладёт товар: с ширмы (room_item_id), заготовку (template_id) или из каталога (kind + catalog_ref) */
+export const addShopStock = (
+  id: string,
+  pageId: string,
+  body: { room_item_id?: string; template_id?: string; kind?: string; catalog_ref?: string; quantity?: number; price_cp?: number | null },
+) => post<ShopStockItem>(shop(id, pageId, '/stock'), body)
+export const patchShopStock = (id: string, pageId: string, itemId: string, body: { quantity?: number; price_cp?: number | null }) =>
+  patch<ShopStockItem>(shop(id, pageId, `/stock/${itemId}`), body)
+export const removeShopStock = (id: string, pageId: string, itemId: string) => del<RoomItem>(shop(id, pageId, `/stock/${itemId}`))
+export interface ShopDeal {
+  name: string
+  quantity: number
+  price_cp: number
+  currency: Record<Currency, number>
+}
+export const buyFromShop = (id: string, pageId: string, body: { item_id: string; quantity?: number; character_id?: string }) =>
+  post<ShopDeal & { left: number }>(shop(id, pageId, '/buy'), body)
+export const sellToShop = (id: string, pageId: string, body: { instance_id: string; quantity?: number; character_id?: string }) =>
+  post<ShopDeal>(shop(id, pageId, '/sell'), body)
+
+export interface SplitResult {
+  amount: Record<Currency, number>
+  share: Record<Currency, number>
+  /** что не поделилось; null — поделилось без остатка */
+  remainder: Record<Currency, number> | null
+  remainder_to: string | null
+  character_ids: string[]
+  from_character_id: string | null
+}
+/** Мастер делит монеты поровну; from_character_id — взять из чьего-то кошелька */
+export const splitCurrency = (id: string, body: { amount: Coins; character_ids: string[]; from_character_id?: string | null; remainder_to?: string | null }) =>
+  post<SplitResult>(r(id, '/currency/split'), body)
 
 /* ---------- ширма (только мастер) ---------- */
 

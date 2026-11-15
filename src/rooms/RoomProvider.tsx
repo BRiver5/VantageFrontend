@@ -10,7 +10,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { ApiError } from '../api'
 import { getAccessToken } from '../auth/token'
-import type { RoomEventMessage, RoomState } from '../types/rooms'
+import type { RoomCapabilities, RoomEventMessage, RoomState } from '../types/rooms'
+import { capabilitiesOf, isGmRole } from './perms/permissions'
 import { applyEvent, chatOf, describeEvent, fromSnapshot, mergeChat, pushLog, type RoomData, type RoomExtras } from './applyEvent'
 import { getRoomState, listClocks, listEventsOfType, listSharedNotes } from './roomsApi'
 import { getMap } from '../maps/api'
@@ -50,7 +51,12 @@ export interface RoomContextValue {
   link: SocketStatus
   /** причина, по которой соединение не восстановить: пора уйти с экрана */
   fatal: FatalReason | null
+  /** ведёт игру: хозяин комнаты или помощник мастера */
   isDm: boolean
+  /** хозяин комнаты: настройки, участники, роли, удаление */
+  isOwner: boolean
+  /** что может этот участник (me.permissions) */
+  can: RoomCapabilities
   /** подписка на каждое применённое событие (броски, контент, бой): для анимаций */
   subscribe: (fn: (msg: RoomEventMessage) => void) => () => void
   /** анимация броска у других; лишнее чаще 5 раз в секунду не отправляется */
@@ -63,6 +69,17 @@ export interface RoomContextValue {
   refresh: () => Promise<void>
   /** запомнить новый код приглашения после его смены */
   setInviteCode: (code: string) => void
+  /** «Глазами игрока»: мастер смотрит проекцию игрока (src/rooms/gm/ViewAs.tsx); действия выключены */
+  viewAs?: ViewAsInfo
+}
+
+export interface ViewAsInfo {
+  userId: string
+  name: string
+  /** слои карты на столе так, как их получает игрок (GET …/view-as) */
+  layers: unknown
+  /** календарь так, как его видит игрок */
+  calendar: unknown
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null)
@@ -79,6 +96,9 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
   const gapDuringSync = useRef(false)
   const socketRef = useRef<RoomSocket | null>(null)
   const listeners = useRef(new Set<(msg: RoomEventMessage) => void>())
+  const meRef = useRef<string | null>(null)
+  meRef.current = data?.me.user_id ?? null
+  const refreshRef = useRef<(() => Promise<void>) | null>(null)
 
   const emit = useCallback((msg: RoomEventMessage) => {
     for (const fn of listeners.current) {
@@ -108,6 +128,8 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
       }
       dispatch({ type: 'event', msg })
       if (msg.type !== 'noop') emit(msg)
+      // мою роль сменили: проекции мастера и игрока разные — нужен новый снимок
+      if (msg.type === 'member.role' && (msg.payload as { user_id?: string })?.user_id === meRef.current) void refreshRef.current?.()
     },
     [emit],
   )
@@ -188,6 +210,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
     syncPending.current = true
     socketRef.current?.requestSync()
   }, [roomId])
+  refreshRef.current = refresh
 
   const value = useMemo<RoomContextValue>(
     () => ({
@@ -196,7 +219,9 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
       loadError,
       link,
       fatal,
-      isDm: data?.me.role === 'dm',
+      isDm: isGmRole(data?.me.role),
+      isOwner: data?.me.role === 'dm',
+      can: capabilitiesOf(data?.me, !!data?.room.settings.players_can_draw),
       subscribe,
       sendRolling: (label) => socketRef.current?.sendRolling(label),
       sendEphemeral: (obj) => socketRef.current?.sendEphemeral(obj),
@@ -233,4 +258,16 @@ export function useRoomEvents(handler: (msg: RoomEventMessage) => void): void {
     if (!subscribe) return
     return subscribe((msg) => ref.current(msg))
   }, [subscribe])
+}
+
+const noop = () => undefined
+
+/** Та же комната, но данные — проекция игрока, а всё, что шлёт сообщения, выключено */
+export function RoomPreviewProvider({ data, viewAs, reload, children }: { data: RoomData; viewAs: ViewAsInfo; reload: () => Promise<void>; children: ReactNode }) {
+  const parent = useRoom()
+  const value = useMemo<RoomContextValue>(
+    () => ({ ...parent, data, isDm: false, viewAs, sendRolling: noop, sendEphemeral: noop, sendClientReady: noop, refresh: reload, setInviteCode: noop }),
+    [parent, data, viewAs, reload],
+  )
+  return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>
 }

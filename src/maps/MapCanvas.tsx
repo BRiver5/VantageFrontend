@@ -12,6 +12,7 @@
 import { loadPresets, presetOf, VfxEngine } from './vfx'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type PointerEvent as RPointerEvent } from 'react'
 import { pxPerFt } from './geometry'
+import { gridSize } from './hex'
 import type { BattleMap, MapToken, Pt } from './types'
 
 import { ELEMENT } from './render/constants'
@@ -239,8 +240,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         c.height = Math.round(H * dpr)
       }
       const g = m.grid
-      const mapW = g.cols * g.cell_px + g.offset_x
-      const mapH = g.rows * g.cell_px + g.offset_y
+      const size = gridSize(g)
+      const mapW = size.w + g.offset_x
+      const mapH = size.h + g.offset_y
       // вписать карту при первом показе
       const fitKey = `${m.id}:${Math.round(W / 40)}x${Math.round(H / 40)}`
       if (W > 0 && (cam.current.fitted.split(':')[0] !== m.id || (!cam.current.touched && cam.current.fitted !== fitKey))) {
@@ -340,7 +342,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // чужие шаблоны
       drawGhosts(ctx, ov.ghosts ?? [], v)
       // наведение
-      if (ov.aim && ov.aim.polygon.length) drawAim(ctx, ov.aim, v)
+      if (ov.aim && ov.aim.polygon.length) drawAim(ctx, ov.aim, v, g)
       // линейка и маршрут перетаскивания
       if (ov.ruler) drawRuler(ctx, ov.ruler, v, now)
 
