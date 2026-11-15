@@ -14,6 +14,7 @@ import type { SheetView } from '../../types/character'
 import { DamageTypePicker } from '../DamageTypePicker'
 import { type StageEngine } from '../HeroStage'
 import type { SheetRoller } from '../sheetPlay'
+import { countLabel } from '../../lib/plural'
 
 /* ---------- хиты ---------- */
 
@@ -69,7 +70,7 @@ export function HpDialog({
           <span className="hud-hp-caption">{form ? form.name : 'Хиты'}</span>
           <b className="gold-text">{hp.current}</b>
           <i>из {hp.max}</i>
-          {hp.temp > 0 && <em>+{hp.temp} временных</em>}
+          {hp.temp > 0 && <em>+{countLabel(hp.temp, ['временный', 'временных', 'временных'])}</em>}
           {form && (
             <span className="hud-hp-form">
               <PawPrint aria-hidden="true" /> свои {combat.hit_points.current}/{combat.hit_points.max}

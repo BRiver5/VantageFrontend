@@ -31,6 +31,8 @@ import { Corners } from '../ornaments'
 import { playAddResult } from '../dice/diceSounds'
 import { ABILITY_LABELS } from '../types/character'
 import type { AbilityName } from '../types/character'
+import { useReducedMotion } from '../settings/motion'
+import { countLabel } from '../lib/plural'
 
 export type CelebrationScene =
   | { kind: 'level'; level: number; className: string }
@@ -169,7 +171,7 @@ function sceneChip(scene: CelebrationScene): string {
     case 'level':
       return `${scene.level} уровень`
     case 'hp':
-      return `+${scene.amount} хитов`
+      return `+${countLabel(scene.amount, ['хит', 'хита', 'хитов'])}`
     case 'slot':
       return `${ordinal(scene.circle)} ×${scene.count}`
     case 'ability':
@@ -212,9 +214,7 @@ export default function CelebrationOverlay({
   const [index, setIndex] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reducedMotion = useReducedMotion()
 
   const clearTimer = useCallback(() => {
     if (timer.current) {

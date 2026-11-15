@@ -3,6 +3,7 @@ import {
 } from 'lucide-react'
 import { DieImage, hitDieType } from '../../../dice/diceAssets'
 import type { FeatureEntry } from '../../../classArticleHtml'
+import { countLabel } from '../../../lib/plural'
 
 /** Сколько нового даёт уровень по сравнению с предыдущим */
 export interface LevelRequirements {
@@ -33,7 +34,7 @@ export function HpEquation({
   total: number
 }) {
   return (
-    <div className="cw-hp-eq" aria-label={`${value} ${conMod >= 0 ? '+' : '−'} ${Math.abs(conMod)} = ${total} хитов`}>
+    <div className="cw-hp-eq" aria-label={`${value} ${conMod >= 0 ? '+' : '−'} ${Math.abs(conMod)} = ${countLabel(total, ['хит', 'хита', 'хитов'])}`}>
       <span className="cw-hp-token">
         <DieImage type={hitDieType(die)} size={22} />
         <b>{value}</b>

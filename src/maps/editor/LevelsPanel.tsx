@@ -40,7 +40,7 @@ export function LevelsPanel({ map, current, onCurrent, onLevels, flash }: Props)
   }
 
   return (
-    <section className="me-levels">
+    <section className="me-levels" data-tour="map-levels">
       <h3>Этажи</h3>
       {!list.length && <p className="tb-hint">Одноуровневая карта. Этажи разделяют стены, свет и вещи по высоте: жетон видит и ходит по своему этажу.</p>}
       {list.map((l, i) => (

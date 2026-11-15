@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layerOnLevel, levelAt, mapOnLevel, nextLevel, pruneLevels, setLevelOf, stampLevel, tokenLevel, viewLevel } from './levels'
+import { layerOnLevel, levelAt, mapOnLevel, nextLevel, pruneLevels, setLevelOf, stampLevel, tableLevelOf, tokenLevel, viewLevel } from './levels'
 import type { BattleMap, MapLevel, MapToken } from './types'
 
 const LEVELS: MapLevel[] = [
@@ -93,6 +93,16 @@ describe('layerOnLevel', () => {
     expect(layerOnLevel(xs, 'g')).toBe(xs)
     expect(layerOnLevel(xs, null)).toBe(xs)
     expect(ids(layerOnLevel(xs, 'up'))).toEqual(['a'])
+  })
+})
+
+describe('tableLevelOf', () => {
+  it('puts a table drawing on the viewed level, or on all levels for the DM «Все»', () => {
+    const m = base()
+    const player = viewLevel(m, { isDm: false, chosen: null, selected: 'owl', mine: [tk('hero'), tk('owl', 12)] })
+    expect(tableLevelOf(player)).toEqual({ level_id: 'up' })
+    expect(tableLevelOf(viewLevel(m, { isDm: true, chosen: 'cellar', selected: null, mine: [] }))).toEqual({ level_id: 'cellar' })
+    expect(tableLevelOf(viewLevel(m, { isDm: true, chosen: null, selected: null, mine: [] }))).toEqual({})
   })
 })
 

@@ -24,6 +24,7 @@ import {
 } from '../startingGear'
 import { StepHeader, StepStatus } from './ui'
 import { Img } from '../../media'
+import { countLabel } from '../../lib/plural'
 
 const COIN_CURRENCY: Record<string, Currency> = {
   copper: 'cp',
@@ -92,7 +93,7 @@ function GearTile({
         )}
         {entry.quantity > 1 && <i className="cw-gear-qty">×{entry.quantity}</i>}
         {coins.map((c) => (
-          <span key={c.slug} className="cw-gear-purse" title={`${c.quantity} монет`}>
+          <span key={c.slug} className="cw-gear-purse" title={countLabel(c.quantity, ['монета', 'монеты', 'монет'])}>
             <CoinImg currency={COIN_CURRENCY[c.slug.split('-')[0]]} size={16} />
             {c.quantity}
           </span>

@@ -1,0 +1,338 @@
+/* Туры по интерфейсу: затемнение с вырезом, окно шага, список туров, предложение */
+
+.tour-layer {
+  --tour-z: 6000;
+  position: fixed;
+  inset: 0;
+  z-index: var(--tour-z);
+  pointer-events: none;
+}
+.tour-dim,
+.tour-block {
+  position: fixed;
+  pointer-events: auto;
+}
+.tour-dim {
+  inset: 0;
+  background: rgb(var(--black-rgb) / 0.6);
+}
+.tour-layer[data-phase='resolving'] .tour-dim {
+  /* пока ищем якорь, страница должна принимать программные клики, а не мышь */
+  background: rgb(var(--black-rgb) / 0.35);
+}
+.tour-spot {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 0 0 2px rgb(var(--gold-3-rgb) / 0.85),
+    0 0 24px 4px rgb(var(--gold-3-rgb) / 0.35),
+    0 0 0 200vmax rgb(var(--black-rgb) / 0.6);
+  pointer-events: none;
+  transition:
+    left var(--dur-slow) var(--ease-out),
+    top var(--dur-slow) var(--ease-out),
+    width var(--dur-slow) var(--ease-out),
+    height var(--dur-slow) var(--ease-out);
+}
+
+.tour-dialog {
+  position: fixed;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 14px 16px 12px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgb(var(--bg-3-rgb) / 0.98), rgb(var(--bg-1-rgb) / 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.45),
+    var(--shadow-deep);
+  color: var(--text);
+  font-family: var(--font-body);
+  pointer-events: auto;
+  animation: tour-in var(--dur-base) var(--ease-out);
+  transition:
+    left var(--dur-base) var(--ease-out),
+    top var(--dur-base) var(--ease-out);
+}
+.tour-dialog:focus { outline: none; }
+.tour-dialog:focus-visible { box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.45), var(--focus-ring), var(--shadow-deep); }
+@keyframes tour-in {
+  from { opacity: 0; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+.tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tour-count {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.tour-kicker {
+  margin: 2px 0 0;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.tour-title {
+  margin: 2px 0 6px;
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.tour-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tour-img {
+  display: block;
+  width: 100%;
+  margin: 4px 0 8px;
+  border-radius: var(--radius-sm);
+}
+.tour-progress {
+  height: 3px;
+  margin: 12px 0 10px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--white-rgb) / 0.08);
+  overflow: hidden;
+}
+.tour-progress i {
+  display: block;
+  height: 100%;
+  background: var(--gold-grad-h);
+  transition: width var(--dur-base) var(--ease-out);
+}
+.tour-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--gold-grad);
+  color: var(--bg-0);
+  font: 600 13px/1 var(--font-body);
+  cursor: pointer;
+}
+.tour-btn svg { width: 15px; height: 15px; }
+.tour-btn.is-ghost {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.tour-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.tour-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tour-btn:disabled { opacity: 0.45; cursor: default; }
+
+.tour-x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.tour-x svg { width: 16px; height: 16px; }
+.tour-x:hover { color: var(--parchment); background: rgb(var(--white-rgb) / 0.06); }
+.tour-x:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------- список туров ---------- */
+
+.tour-panel-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 5990;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(var(--black-rgb) / 0.55);
+}
+.tour-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(680px, calc(100vh - 32px));
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4), var(--shadow-deep);
+  color: var(--text);
+}
+.tour-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tour-panel-head > svg { width: 22px; height: 22px; color: var(--gold-3); }
+.tour-panel-head h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+.tour-panel-sub {
+  margin: 4px 0 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.tour-panel-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.tour-search {
+  display: flex;
+  flex: 1 1 200px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--black-rgb) / 0.35);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.tour-search svg { width: 15px; height: 15px; color: var(--text-dim); }
+.tour-search input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 14px var(--font-body);
+}
+.tour-search input:focus { outline: none; }
+.tour-search:focus-within { box-shadow: var(--focus-ring); }
+.tour-filter {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.tour-filter button {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-dim);
+  font: 13px var(--font-body);
+  cursor: pointer;
+}
+.tour-filter button.is-on { background: rgb(var(--gold-2-rgb) / 0.22); color: var(--parchment); }
+.tour-filter button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.tour-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.tour-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgb(var(--white-rgb) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.tour-item.is-done .tour-item-main { opacity: 0.55; }
+.tour-item-main { flex: 1; min-width: 0; }
+.tour-item h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--parchment);
+  font-size: 15px;
+}
+.tour-item p { margin: 2px 0 0; font-size: 13px; }
+.tour-item p.tour-item-state { color: var(--text-dim); font-size: 12px; }
+.tour-done-ico { width: 16px; height: 16px; color: var(--success); }
+.tour-tag {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--gold-2-rgb) / 0.14);
+  color: var(--gold-3);
+  font-size: 11px;
+  font-weight: 500;
+}
+.tour-item-acts { display: flex; gap: 6px; }
+.tour-item-acts .tour-btn.is-ghost { padding: 4px 8px; }
+.tour-empty { padding: 16px; color: var(--text-dim); text-align: center; }
+.tour-panel-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* ---------- предложение и сообщение ---------- */
+
+.tour-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5980;
+  display: flex;
+  gap: 10px;
+  width: min(340px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px 10px 12px 14px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4), var(--shadow-deep);
+  color: var(--text);
+  font-size: 13px;
+  animation: tour-in var(--dur-slow) var(--ease-out);
+}
+.tour-toast-ico { flex: none; width: 22px; height: 22px; color: var(--gold-3); }
+.tour-toast-body { display: grid; flex: 1; gap: 4px; }
+.tour-toast-body b { color: var(--parchment); font-size: 14px; }
+.tour-toast-body span { color: var(--text-dim); }
+.tour-toast-acts { display: flex; gap: 6px; margin-top: 6px; }
+.tour-notice { padding-right: 14px; }
+
+/* в комнате снизу хотбар и ширма — поднимаем предложение повыше */
+:root[data-room] .tour-toast { bottom: 96px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot,
+  .tour-dialog,
+  .tour-progress i { transition: none; }
+  .tour-dialog,
+  .tour-toast { animation: none; }
+}
+
+/* пункт «Обучение» в боковом меню — кнопка в облике ссылки */
+.sidebar-link--tours {
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}

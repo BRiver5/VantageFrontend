@@ -125,9 +125,10 @@ export function KnowledgeProvider({ children }: { children: ReactNode }) {
       update,
       updateMany,
       remove,
+      reload,
       setCurrent,
     }),
-    [notes, error, isOpen, current, create, update, updateMany, remove],
+    [notes, error, isOpen, current, create, update, updateMany, remove, reload],
   )
   return (
     <Ctx.Provider value={value}>

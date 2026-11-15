@@ -12,32 +12,16 @@ import { Img } from '../../media'
 import type { CharacterCard } from '../../types/rooms'
 import { heroHealth, healthText } from '../health'
 import { useRoom } from '../RoomProvider'
-import { describeEffect } from '../table/effects'
+import { describeEffect } from '../table/effectDefs'
 import { errText } from '../table/parts'
 import { useEffectControl } from '../table/useEffects'
 import { durationText, effectsOfCard, selectParty, type PartyMember } from './partyData'
-
-const PREF = 'vantage.partyHud.open'
-
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(PREF) !== '0'
-  } catch {
-    return true
-  }
-}
-
-function writeOpen(open: boolean) {
-  try {
-    localStorage.setItem(PREF, open ? '1' : '0')
-  } catch {
-    /* хранилище недоступно — просто не запоминаем */
-  }
-}
+import { setDeviceSettings, useDeviceSettings } from '../../settings/settings'
 
 export function PartyHud() {
   const { data, isDm } = useRoom()
-  const [open, setOpen] = useState(readOpen)
+  // развёрнута ли панель — настройка устройства
+  const open = useDeviceSettings().partyHudOpen
   const [picked, setPicked] = useState<string | null>(null)
   const mine = data?.me.room_character_id ?? null
   const characters = data?.characters
@@ -50,10 +34,7 @@ export function PartyHud() {
   // чьи эффекты: игроку — свой герой; мастеру — выбранный или тот, чей ход
   const fxCard = isDm ? (party.find((m) => m.card.id === picked) ?? party.find((m) => m.current))?.card : party.find((m) => m.mine)?.card
   const toggle = () => {
-    setOpen((v) => {
-      writeOpen(!v)
-      return !v
-    })
+    setDeviceSettings({ partyHudOpen: !open })
   }
   const onPick = (m: PartyMember) => {
     if (isDm) setPicked((p) => (p === m.card.id ? null : m.card.id))
@@ -61,7 +42,7 @@ export function PartyHud() {
   }
 
   return (
-    <aside className={`pt-hud${open ? '' : ' is-closed'}`} aria-label="Отряд">
+    <aside className={`pt-hud${open ? '' : ' is-closed'}`} aria-label="Отряд" data-tour="party-bar">
       {open && fxCard && <EffectsPanel key={fxCard.id} card={fxCard} canRemove={isDm} own={!isDm} onClose={isDm ? () => setPicked(null) : undefined} />}
       <div className="pt-bar">
         <button type="button" className="pt-toggle" onClick={toggle} aria-expanded={open} title={open ? 'Свернуть отряд' : 'Показать отряд'} aria-label={open ? 'Свернуть отряд' : 'Показать отряд'}>
@@ -88,7 +69,7 @@ function PartyChip({ m, picked, onPick }: { m: PartyMember; picked: boolean; onP
   const src = parsePortrait(card.avatar_url).src
   const temp = card.hp.temp ?? 0
   const max = Math.max(1, card.hp.max)
-  const effects = effectsOfCard(card).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
+  const effects = effectsOfCard(card).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left, code: e.code }))
   const pp = card.passive_perception
   const tone = hp.kind !== 'hidden' ? hp.band : 'healthy'
   const where = m.tokenId ? 'Показать на карте' : 'Нет на карте'
@@ -166,7 +147,7 @@ function EffectsPanel({ card, canRemove, own, onClose }: { card: CharacterCard; 
       </header>
       <ul className="pt-fx-list">
         {list.map((e, i) => {
-          const shown = describeEffect(e.label, { id: e.id, rounds: e.rounds_left })
+          const shown = describeEffect(e.label, { id: e.id, rounds: e.rounds_left, code: e.code })
           const Icon = shown.def.icon
           const key = e.id || `${e.label}-${i}`
           const expanded = openId === key

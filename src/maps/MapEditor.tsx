@@ -420,7 +420,7 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
   const paletteTab: PaletteKind = firstKind === 'objects' || firstKind === 'tokens' ? firstKind : 'walls'
 
   return (
-    <div className={`me-shell${tool === 'asset' ? ' has-lib' : ''}`} role="dialog" aria-label={`Конструктор: ${map.name}`}>
+    <div className={`me-shell${tool === 'asset' ? ' has-lib' : ''}`} data-tour="map-editor" role="dialog" aria-label={`Конструктор: ${map.name}`}>
       <EditorHeader name={map.name} state={state} patchProps={patchProps} save={save} onClose={onClose} />
 
       <ToolBar tool={tool} setTool={setTool} setDraft={setDraft} />
@@ -436,10 +436,10 @@ export function MapEditor({ mapId, onClose }: { mapId: string; onClose: () => vo
         {tip && <p className="me-tip">{tip}</p>}
         {tool === 'terrain' && <TerrainBrush brush={brush} setBrush={setBrush} />}
         <div className="me-float" role="group" aria-label="Панели конструктора">
-          <button type="button" className={showList ? 'is-on' : ''} aria-pressed={showList} title="Объекты сцены" onClick={() => setShowList((v) => !v)}>
+          <button type="button" className={showList ? 'is-on' : ''} aria-pressed={showList} data-tour="map-editor-list" title="Объекты сцены" onClick={() => setShowList((v) => !v)}>
             <List aria-hidden="true" /> Список
           </button>
-          <button type="button" className={showPalette ? 'is-on' : ''} aria-pressed={showPalette} title="Палитра: свойства новых и массовая правка" onClick={() => setShowPalette((v) => !v)}>
+          <button type="button" className={showPalette ? 'is-on' : ''} aria-pressed={showPalette} data-tour="map-editor-palette" title="Палитра: свойства новых и массовая правка" onClick={() => setShowPalette((v) => !v)}>
             <Paintbrush aria-hidden="true" /> Палитра
           </button>
         </div>

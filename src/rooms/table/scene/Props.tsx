@@ -4,7 +4,8 @@ import type { AnyCreature, RoomItem } from '../../../types/rooms'
 import { isFullCreature } from '../../../types/rooms'
 import { useRoom } from '../../RoomProvider'
 import { creatureArt, creatureHp, creatureName, Hex, itemArt, itemName, originFromEvent, seed, type Origin } from '../parts'
-import { auraClass, describeEffect, EffectSigils } from '../effects'
+import { EffectSigils } from '../effects'
+import { auraClass, creatureEffects, showEffect } from '../effectDefs'
 import { Img } from '../../../media'
 import { slideFrom } from './motion'
 import { type Bubble, RollBubble } from './Seat'
@@ -48,7 +49,7 @@ export function Token({ c, count, onOpen }: { c: AnyCreature; count: number; onO
   const dy = (seed(c.id, 2) * 22 - 11).toFixed(0)
   const r = (seed(c.id, 4) * 16 - 8).toFixed(1)
   const hidden = isFullCreature(c) && c.on_screen_only
-  const fx = (isFullCreature(c) ? c.conditions.map((e) => e.label) : (c.effects ?? [])).map((l) => describeEffect(l))
+  const fx = creatureEffects(c).map(showEffect)
   return (
     <button
       type="button"

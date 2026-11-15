@@ -6,10 +6,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError, getSheet, roomCharacterRef } from '../../api'
 import type { AnyCreature, CharacterCard } from '../../types/rooms'
-import { isFullCreature } from '../../types/rooms'
 import { useRoom } from '../RoomProvider'
 import { addEffect, combatEffects, removeEffect } from '../roomsApi'
-import { describeEffect, type EffectDraft, type ShownEffect } from './effects'
+import { cardEffects, creatureEffects, describeEffect, showEffect, type EffectDraft, type ShownEffect } from './effectDefs'
 
 export interface EffectTargetRef {
   card?: CharacterCard | null
@@ -39,13 +38,9 @@ export function useTargetEffects({ card, creature }: EffectTargetRef): ShownEffe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, card?.id, isDm, key])
   return useMemo(() => {
-    if (creature) {
-      if (isFullCreature(creature)) return (creature.conditions ?? []).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
-      if (creature.effects_detail?.length) return creature.effects_detail.map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
-      return (creature.effects ?? []).map((l) => describeEffect(l))
-    }
-    if (detail?.length) return detail.map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
-    return labels.map((l) => describeEffect(l, ids[l]))
+    if (creature) return creatureEffects(creature).map(showEffect)
+    if (detail?.length) return cardEffects(card).map(showEffect)
+    return labels.map((l, i) => describeEffect(l, { ...ids[l], code: card?.effect_codes?.[i] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creature, key, ids, detail])
 }
@@ -61,11 +56,11 @@ export function useEffectControl({ card, creature }: EffectTargetRef) {
     if (!target) return
     if (combat && unit) {
       // в бою — на участника без действующего: в журнале нет «Брина: Отравлен → Брина»
-      await combatEffects(roomId, combat.id, [unit.id], { label: d.label, expires: d.expires, rounds_left: d.rounds_left, save_ability: d.save_ability ?? null, save_dc: d.save_dc ?? null })
+      await combatEffects(roomId, combat.id, [unit.id], { label: d.label, code: d.code ?? null, expires: d.expires, rounds_left: d.rounds_left, save_ability: d.save_ability ?? null, save_dc: d.save_dc ?? null })
       return
     }
     try {
-      await addEffect(roomId, target, { label: d.label, expires: d.expires === 'rounds' || d.expires === 'save_ends' ? 'never' : d.expires, rounds_left: null, concentration: d.concentration })
+      await addEffect(roomId, target, { label: d.label, code: d.code ?? null, expires: d.expires === 'rounds' || d.expires === 'save_ends' ? 'never' : d.expires, rounds_left: null, concentration: d.concentration })
     } catch (e) {
       if (e instanceof ApiError && (e.status === 404 || e.status === 405)) throw new Error(SERVER_LATER)
       throw e

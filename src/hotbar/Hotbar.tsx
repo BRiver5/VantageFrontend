@@ -112,7 +112,7 @@ export function Hotbar() {
   const accepts = (e: DragEvent) => Array.from(e.dataTransfer.types).includes(HOTBAR_MIME)
 
   return (
-    <nav className="hb" aria-label="Панель быстрых действий">
+    <nav className="hb" aria-label="Панель быстрых действий" data-tour="hotbar">
       <div className="hb-pages" role="radiogroup" aria-label="Страница панели">
         {Array.from({ length: PAGES }, (_, p) => (
           <button

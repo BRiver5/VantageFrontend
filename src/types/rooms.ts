@@ -138,6 +138,8 @@ export interface CharacterCard {
   passive_perception?: number | null
   hp: { current: number; max: number; temp: number }
   effects: string[]
+  /** коды тех же эффектов по порядку (src/rules/codes.ts); null — свой эффект. У старых карточек нет */
+  effect_codes?: (string | null)[]
   /** те же эффекты с id: для DELETE …/effects/{id} */
   effects_detail?: EffectBrief[]
 }
@@ -145,6 +147,8 @@ export interface CharacterCard {
 export interface EffectBrief {
   id: string
   label: string
+  /** код состояния (src/rules/codes.ts); null/нет — свой эффект или старые данные */
+  code?: string | null
   expires: string
   rounds_left: number | null
 }
@@ -285,6 +289,8 @@ export interface ActiveEffect {
   id: string
   grant_id: string | null
   label: string
+  /** код состояния (src/rules/codes.ts); у своих эффектов null */
+  code?: string | null
   modifiers: Modifier[]
   expires: EffectExpiry
   rounds_left: number | null
@@ -341,6 +347,8 @@ export interface CreaturePlayerView {
   name: string
   image_url: string | null
   effects: string[]
+  /** коды тех же эффектов по порядку; null — свой эффект */
+  effect_codes?: (string | null)[]
   hp?: { current: number; max: number; temp: number }
   hp_band?: HpBand
   ac?: number

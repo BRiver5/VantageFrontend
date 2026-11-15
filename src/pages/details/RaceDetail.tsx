@@ -44,6 +44,7 @@ import { splitRaceArticle } from '../../raceArticle'
 import { Img } from '../../media'
 import { Chip, DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
+import { countLabel, plural } from '../../lib/plural'
 
 function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
   const [broken, setBroken] = useState(false)
@@ -151,8 +152,8 @@ export function RaceDetailBody({
         <RaceFact icon={Feather} label="Полёт" value={r.flight_speed > 0 ? `${r.flight_speed} фт.` : null} />
         <RaceFact icon={Waves} label="Плавание" value={r.swimming_speed > 0 ? `${r.swimming_speed} фт.` : null} />
         <RaceFact icon={Mountain} label="Лазание" value={r.climbing_speed > 0 ? `${r.climbing_speed} фт.` : null} />
-        <RaceFact icon={Hourglass} label="Зрелость" value={r.age_of_adulthood ? `${r.age_of_adulthood} лет` : null} />
-        <RaceFact icon={Hourglass} label="Живут до" value={r.max_age ? `${r.max_age} лет` : null} />
+        <RaceFact icon={Hourglass} label="Зрелость" value={r.age_of_adulthood ? countLabel(r.age_of_adulthood, ['год', 'года', 'лет']) : null} />
+        <RaceFact icon={Hourglass} label="Живут до" value={r.max_age ? `${r.max_age} ${plural(r.max_age, ['года', 'лет', 'лет'])}` : null} />
       </div>
 
       {r.languages && r.languages.length > 0 && (

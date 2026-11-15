@@ -3,6 +3,7 @@
  */
 import type { BattleMap } from '../../maps/types'
 import type { CharacterCard, CombatView, CombatantView, EffectBrief } from '../../types/rooms'
+import { plural } from '../../lib/plural'
 
 /* ---------- отряд ---------- */
 
@@ -40,10 +41,10 @@ export function selectParty(characters: CharacterCard[], opts: { mine: string | 
 
 /* ---------- эффекты ---------- */
 
-/** Эффекты героя с id и длительностью; у старых карточек — только подписи */
+/** Эффекты героя с id, кодом и длительностью; у старых карточек — только подписи (код — из effect_codes, если есть) */
 export function effectsOfCard(card: CharacterCard): EffectBrief[] {
   if (card.effects_detail?.length) return card.effects_detail
-  return (card.effects ?? []).map((label) => ({ id: '', label, expires: 'never', rounds_left: null }))
+  return (card.effects ?? []).map((label, i) => ({ id: '', label, code: card.effect_codes?.[i] ?? null, expires: 'never', rounds_left: null }))
 }
 
 const EXPIRES_RU: Record<string, string> = {
@@ -61,13 +62,7 @@ export function durationText(e: Pick<EffectBrief, 'expires' | 'rounds_left'>): s
   return EXPIRES_RU[e.expires] ?? 'пока не снимут'
 }
 
-export function roundWord(n: number): string {
-  const d = n % 10
-  const dd = n % 100
-  if (d === 1 && dd !== 11) return 'раунд'
-  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return 'раунда'
-  return 'раундов'
-}
+export const roundWord = (n: number): string => plural(n, ['раунд', 'раунда', 'раундов'])
 
 /* ---------- чей ход ---------- */
 

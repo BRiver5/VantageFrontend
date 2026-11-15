@@ -23,6 +23,12 @@ describe('lookOf', () => {
     expect(lookOf(['в огне'])).toEqual({ burning: true })
     expect(lookOf(['Благословение', 'Оглох', ''])).toBeNull()
   })
+  it('prefers server codes over labels', () => {
+    expect(lookOf([{ label: 'Удержание чудовища', code: 'paralyzed' }])).toEqual({ grey: true })
+    expect(lookOf([{ label: 'Пламя дракона', code: 'burning' }])).toEqual({ burning: true })
+    expect(lookOf([{ label: 'Невидимость', code: null }])).toEqual({ invisible: true })
+    expect(lookOf([{ label: 'Метка охотника', code: null }])).toBeNull()
+  })
   it('defeated wins over prone and grey; a downed hero lies grey', () => {
     expect(lookOf(['Сбит с ног', 'Отравлен'], { defeated: true })).toEqual({ dead: true, poisoned: true })
     expect(lookOf([], { down: true })).toEqual({ prone: true, grey: true })
@@ -43,5 +49,11 @@ describe('tokenLooks', () => {
     const m = map([tk('a', { character_id: 'h1' }), tk('b', { creature_id: 'cr1' }), tk('c', { creature_id: 'cr2' }), tk('d', { combatant_id: 'u3' }), tk('e', { character_id: 'h2' }), tk('f')])
     const looks = tokenLooks(m, { characters: [card('h1', ['Невидим']), card('h2', [], 0)], creatures: [goblin, ogre, wolf], combat })
     expect(looks).toEqual({ a: { invisible: true }, b: { poisoned: true }, c: { dead: true }, d: { dead: true }, e: { prone: true, grey: true } })
+  })
+  it('reads codes from cards and creature views', () => {
+    const hero: CharacterCard = { ...card('h1', ['Сеть']), effects_detail: [{ id: 'e1', label: 'Сеть', code: 'petrified', expires: 'never', rounds_left: null }] }
+    const imp: CreaturePlayerView = { id: 'cr1', name: 'Бес', image_url: null, effects: ['Мерцание'], effect_codes: ['invisible'] }
+    const looks = tokenLooks(map([tk('a', { character_id: 'h1' }), tk('b', { creature_id: 'cr1' })]), { characters: [hero], creatures: [imp], combat: null })
+    expect(looks).toEqual({ a: { stone: true }, b: { invisible: true } })
   })
 })

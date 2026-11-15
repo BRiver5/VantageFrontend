@@ -21,11 +21,12 @@ export function ToolBar({ tool, setTool, setDraft }: { tool: Tool; setTool: (t: 
     { id: 'sound', label: 'Звук', key: 'A', icon: <AudioLines aria-hidden="true" /> },
   ]
   return (
-    <nav className="me-tools" aria-label="Инструменты">
+    <nav className="me-tools" aria-label="Инструменты" data-tour="map-editor-tools">
       {TOOLS.map((t) => (
         <button
           key={t.id}
           type="button"
+          data-tour={`map-tool-${t.id}`}
           className={tool === t.id ? 'is-on' : ''}
           aria-pressed={tool === t.id}
           onClick={() => {

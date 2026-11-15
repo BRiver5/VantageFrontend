@@ -37,6 +37,7 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { Img } from '../../media'
+import { countLabel } from '../../lib/plural'
 
 const spellName = (s: Spell) => s.spell_name
 const circleLabel = (n: number) => (n === 0 ? 'заговор' : `${n} круг`)
@@ -264,7 +265,7 @@ export default function SpellsStep({
         {slots.length > 0 && (
           <div className="cw-slots">
             {slots.map(([circle, count]) => (
-              <span key={circle} className="cw-slot" title={`${circle} круг: ${count} ячеек`}>
+              <span key={circle} className="cw-slot" title={`${circle} круг: ${countLabel(count, ['ячейка', 'ячейки', 'ячеек'])}`}>
                 <i>{circle}</i>
                 {Array.from({ length: count }, (_, j) => (
                   <span key={j} className="cw-slot-gem" />

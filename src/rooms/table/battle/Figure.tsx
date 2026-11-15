@@ -4,7 +4,8 @@ import { parsePortrait } from '../../../characters/portrait'
 import type { CombatantView } from '../../../types/rooms'
 import { useRoom } from '../../RoomProvider'
 import { cardRatio, creatureHp, HpArc, originFromEvent, seed, Silhouette, useHeroArt, type Origin } from '../parts'
-import { auraClass, describeEffect, EffectSigils, SURPRISED } from '../effects'
+import { EffectSigils } from '../effects'
+import { auraClass, showEffect, SURPRISED } from '../effectDefs'
 import { Img } from '../../../media'
 import { type Floater, artOf, effectsOf, legendaryOf, nameOf, sizeK } from './combatMath'
 import { Pips } from './Pips'
@@ -57,7 +58,7 @@ export function Figure({
   const hp = c.card ? { ratio: cardRatio(c.card), current: c.card.hp.current, max: c.card.hp.max, temp: c.card.hp.temp } : c.creature ? creatureHp(c.creature) : { ratio: null }
   const k = sizeK(c)
   const effects = effectsOf(c)
-  const shown = [...(surprised ? [SURPRISED] : []), ...effects.map((l) => describeEffect(l))]
+  const shown = [...(surprised ? [SURPRISED] : []), ...effects.map(showEffect)]
   const legend = legendaryOf(c)
   const cls = [
     'bt-fig',

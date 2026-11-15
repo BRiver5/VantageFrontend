@@ -16,6 +16,7 @@ import type { AnyCreature, CharacterCard, HpBand, RoomItem } from '../../types/r
 import { isFullCreature } from '../../types/rooms'
 import { Img } from '../../media'
 import { BAND_LABEL, BAND_RATIO } from '../health'
+import { countLabel } from '../../lib/plural'
 
 /* ---------- данные ---------- */
 
@@ -293,7 +294,7 @@ export function HpArc({
   const y = 8 + 44 * Math.sin(t)
   const label = exact ? `Хиты: ${current} из ${max}` : band ? `Состояние: ${BAND_RU[band]}` : 'Хиты неизвестны'
   return (
-    <span className={`bt-arc is-${tone}`} role="img" aria-label={label} title={exact && step > 1 ? `Одно деление: ${step} хитов` : undefined}>
+    <span className={`bt-arc is-${tone}`} role="img" aria-label={label} title={exact && step > 1 ? `Одно деление: ${countLabel(step, ['хит', 'хита', 'хитов'])}` : undefined}>
       <svg viewBox="0 0 200 66" aria-hidden="true">
         <path className="bt-arc-track" d={ARC} pathLength={100} />
         {band && (
@@ -402,9 +403,9 @@ export function Emerge({
 
 /* ---------- круглая кнопка шапки ---------- */
 
-export function Round({ icon: Icon, label, badge, on, alert, onClick }: { icon: LucideIcon; label: string; badge?: number; on?: boolean; alert?: boolean; onClick: () => void }) {
+export function Round({ icon: Icon, label, badge, on, alert, onClick, tour }: { icon: LucideIcon; label: string; badge?: number; on?: boolean; alert?: boolean; onClick: () => void; tour?: string }) {
   return (
-    <button type="button" className={`tb-round${on ? ' is-on' : ''}${alert ? ' is-alert' : ''}`} onClick={onClick} aria-label={label} aria-expanded={on} title={label}>
+    <button type="button" className={`tb-round${on ? ' is-on' : ''}${alert ? ' is-alert' : ''}`} onClick={onClick} aria-label={label} aria-expanded={on} title={label} data-tour={tour}>
       <Icon aria-hidden="true" />
       {badge ? <em>{badge}</em> : null}
     </button>

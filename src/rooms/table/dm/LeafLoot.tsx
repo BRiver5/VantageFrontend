@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Backpack, Coins, Crown, Gem, ImagePlus, Package, Plus, Search, Trash2 } from 'lucide-react'
+import { Backpack, Coins, Crown, Gem, ImagePlus, Package, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { realImage, uploadMedia, type Equipment, type Item } from '../../../api'
 import { useCatalogList } from '../../../create/useCatalog'
 import type { RoomItem, ScreenItemTemplate } from '../../../types/rooms'
 import { useRoom } from '../../RoomProvider'
-import { claimItem, createTemplate, deleteTemplate, issueItem, issueTemplate, listTemplates } from '../../roomsApi'
+import { claimItem, createTemplate, deleteTemplate, issueItem, issueTemplate, listTemplates, patchTemplate } from '../../roomsApi'
+import { DirectoryList } from '../../../ui/directory/DirectoryList'
+import { useDirectory } from '../../../ui/directory/useDirectory'
 import { errText, Hex, itemArt, itemName } from '../parts'
 import { Img } from '../../../media'
 import { type Pick, useList } from './common'
@@ -158,7 +160,29 @@ export function LeafLoot() {
     return src.filter((p) => !needle || p.name.toLocaleLowerCase('ru').includes(needle)).sort((a, b) => a.name.localeCompare(b.name, 'ru')).slice(0, 60)
   }, [tab, q, equipment, magic, tpl.items])
 
-  const screen = data?.items.filter((i) => i.holder === 'screen') ?? []
+  const screen = useMemo(() => data?.items.filter((i) => i.holder === 'screen') ?? [], [data?.items])
+  // у своих заготовок и у вещей за ширмой — свои папки (виды item_templates и items)
+  const ownDir = useDirectory('item_templates')
+  const dir = useDirectory('items')
+  const { folderOf, sortOf } = dir
+  const { folderOf: ownFolderOf, sortOf: ownSortOf } = ownDir
+  const own = useMemo(() => (tpl.items ?? []).map((t) => ({ t, id: t.id, name: t.name, folderId: ownFolderOf(t), sortOrder: ownSortOf(t.id) })), [tpl.items, ownFolderOf, ownSortOf])
+  const behind = useMemo(() => screen.map((it) => ({ it, id: it.id, name: itemName(it), folderId: folderOf(it), sortOrder: sortOf(it.id) })), [screen, folderOf, sortOf])
+  const pickTemplate = (t: ScreenItemTemplate) => {
+    setPick({ source: 'template', kind: t.base_kind, id: t.id, name: t.name, sub: t.description.slice(0, 40), art: t.image_url })
+    setDone(null)
+    setScreenPick(null)
+  }
+  const give = (it: RoomItem, characterId: string) => {
+    setGiving(true)
+    setError(null)
+    claimItem(roomId, it.id, characterId)
+      .then(
+        () => setScreenPick(null),
+        (e) => setError(errText(e)),
+      )
+      .finally(() => setGiving(false))
+  }
 
   return (
     <div className="sc-loot">
@@ -176,10 +200,12 @@ export function LeafLoot() {
             </button>
           ))}
         </div>
-        <label className="sc-search">
-          <Search aria-hidden="true" />
-          <input type="search" value={q} placeholder="Найти предмет…" onChange={(e) => setQ(e.target.value)} />
-        </label>
+        {tab !== 'own' && (
+          <label className="sc-search">
+            <Search aria-hidden="true" />
+            <input type="search" value={q} placeholder="Найти предмет…" onChange={(e) => setQ(e.target.value)} />
+          </label>
+        )}
         <button type="button" className={`tb-goldbtn${creating ? '' : ' is-quiet'}`} aria-pressed={creating} onClick={() => setCreating((v) => !v)}>
           <Plus aria-hidden="true" /> Свой предмет
         </button>
@@ -201,6 +227,45 @@ export function LeafLoot() {
         />
       )}
 
+      {tab === 'own' ? (
+        <DirectoryList
+          listId="loot-own"
+          label="Свои предметы"
+          items={own}
+          folders={ownDir.folders}
+          ops={ownDir.ops}
+          selectedId={pick?.source === 'template' ? pick.id : null}
+          query={q}
+          onQueryChange={setQ}
+          searchPlaceholder="Найти предмет…"
+          renderItem={({ t }) => (
+            <>
+              <span className="dir-thumb">{t.image_url ? <Img src={t.image_url} alt="" loading="lazy" draggable={false} /> : t.base_kind === 'magic_item' ? <Gem aria-hidden="true" /> : <Backpack aria-hidden="true" />}</span>
+              <span className="dir-name" title={t.description.slice(0, 80)}>
+                {t.name}
+              </span>
+            </>
+          )}
+          actions={{
+            open: ({ t }) => pickTemplate(t),
+            rename: async ({ t }, name) => {
+              await patchTemplate(roomId, t.id, { name })
+              await tpl.reload()
+            },
+            duplicate: async ({ t }) => {
+              await createTemplate(roomId, { name: `${t.name} (копия)`, description: t.description, base_kind: t.base_kind, base_ref: t.base_ref, overrides: t.overrides, image_url: t.image_url, tags: t.tags })
+              await tpl.reload()
+            },
+            exportJson: ({ t }) => t,
+            remove: async ({ t }) => {
+              await deleteTemplate(roomId, t.id)
+              if (pick?.id === t.id) setPick(null)
+              await tpl.reload()
+            },
+          }}
+          empty={tpl.items ? <p className="tb-hint">Придумайте предмет один раз и выдавайте сколько угодно.</p> : null}
+        />
+      ) : (
       <ul className="sc-tiles">
         {list.map((p) => (
           <li key={`${p.source}-${p.id}`}>
@@ -237,42 +302,41 @@ export function LeafLoot() {
             )}
           </li>
         ))}
-        {tab === 'own' && list.length === 0 && <li className="tb-hint">Придумайте предмет один раз и выдавайте сколько угодно.</li>}
       </ul>
+      )}
       </div>
 
       {screen.length > 0 && (
-        <div className="sc-behind">
+        <div className="sc-behind is-column">
           <span>За ширмой:</span>
-          {screen.map((it) => (
-            <button key={it.id} type="button" className={`sc-mini-item${screenPick?.id === it.id ? ' is-on' : ''}`} onClick={() => setScreenPick(screenPick?.id === it.id ? null : it)} title={itemName(it)}>
-              {itemArt(it) ? <Img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}
-              {itemName(it)}
-              {it.quantity > 1 && <em>×{it.quantity}</em>}
-            </button>
-          ))}
+          <DirectoryList
+            listId="loot-screen"
+            label="Предметы за ширмой"
+            className="sc-behind-list"
+            items={behind}
+            folders={dir.folders}
+            ops={dir.ops}
+            selectedId={screenPick?.id ?? null}
+            searchPlaceholder="Найти за ширмой…"
+            renderItem={({ it }) => (
+              <>
+                <span className="dir-thumb">{itemArt(it) ? <Img src={itemArt(it) as string} alt="" /> : <Package aria-hidden="true" />}</span>
+                <span className="dir-name">{itemName(it)}</span>
+                {it.quantity > 1 && <i className="dir-count">×{it.quantity}</i>}
+              </>
+            )}
+            actions={{
+              open: ({ it }) => setScreenPick(screenPick?.id === it.id ? null : it),
+              extra: ({ it }) => (data?.characters ?? []).map((c) => ({ id: `give-${c.id}`, label: `Отдать: ${c.name}`, icon: <UserRound />, disabled: giving, run: () => give(it, c.id) })),
+              permissions: 'items',
+              exportJson: ({ it }) => it,
+            }}
+          />
           {screenPick && (
             <span className="sc-give-heroes">
               отдать:
               {data?.characters.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="sc-mini"
-                  title={c.name}
-                  aria-label={`Отдать: ${c.name}`}
-                  disabled={giving}
-                  onClick={() => {
-                    setGiving(true)
-                    setError(null)
-                    claimItem(roomId, screenPick.id, c.id)
-                      .then(
-                        () => setScreenPick(null),
-                        (e) => setError(errText(e)),
-                      )
-                      .finally(() => setGiving(false))
-                  }}
-                >
+                <button key={c.id} type="button" className="sc-mini" title={c.name} aria-label={`Отдать: ${c.name}`} disabled={giving} onClick={() => give(screenPick, c.id)}>
                   <Hex raw={c.avatar_url} name={c.name} />
                 </button>
               ))}

@@ -26,6 +26,7 @@ import {
   type ImportResult,
   type Snapshot,
 } from './api'
+import { countLabel, plural } from '../../lib/plural'
 
 const REASON_RU: Record<string, string> = {
   manual: 'вручную',
@@ -172,8 +173,8 @@ function ImportPane() {
                     <b>{labelOf(t)}</b>
                   </label>
                   <span className="ar-diff">
-                    {row.add.length > 0 && <i className="is-add">+{row.add.length} новых</i>}
-                    {row.update.length > 0 && <i className="is-upd">{row.update.length} перезапишется</i>}
+                    {row.add.length > 0 && <i className="is-add">+{countLabel(row.add.length, ['новая запись', 'новые записи', 'новых записей'])}</i>}
+                    {row.update.length > 0 && <i className="is-upd">{row.update.length} {plural(row.update.length, ['перезапишется', 'перезапишутся', 'перезапишутся'])}</i>}
                   </span>
                   {(row.add.length > 0 || row.update.length > 0) && (
                     <details>
@@ -189,7 +190,7 @@ function ImportPane() {
             <label className="ar-warn">
               <AlertTriangle aria-hidden="true" />
               <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
-              Перезаписать {overwrites} существующих записей (их прежний вид останется в снимке)
+              Перезаписать {countLabel(overwrites, ['существующую запись', 'существующие записи', 'существующих записей'])} (их прежний вид останется в снимке)
             </label>
           )}
           <button

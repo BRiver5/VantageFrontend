@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext'
 import { RichText, useLinkedText } from '../terms/terms'
 import { deleteComment, editComment, getReviews, likeComment, postComment, rate, reportComment, unrate, type RatingSummary, type ReviewComment, type ReviewEntity, type Reviews } from './api'
 import { matches } from '../input/keybindings'
+import { countLabel } from '../lib/plural'
 
 const MAX = 2000
 const PAGE = 20
@@ -24,14 +25,6 @@ function errText(e: unknown): string {
     if (e.status === 404) return 'Не найдено: возможно, комментарий скрыт или удалён'
   }
   return e instanceof Error ? e.message : 'Не получилось'
-}
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
-  return many
 }
 
 function ago(iso: string): string {
@@ -73,7 +66,7 @@ export function Stars({ value, onPick, size = 'md', label }: { value: number | n
 export function RatingMark({ rating }: { rating?: { average: number | null; count: number } | null }) {
   if (!rating?.count || rating.average == null) return null
   return (
-    <span className="rv-mark" title={`Средняя оценка ${rating.average.toFixed(1)} из 5 · ${rating.count} ${plural(rating.count, 'оценка', 'оценки', 'оценок')}`}>
+    <span className="rv-mark" title={`Средняя оценка ${rating.average.toFixed(1)} из 5 · ${countLabel(rating.count, ['оценка', 'оценки', 'оценок'])}`}>
       <Star aria-hidden="true" />
       {rating.average.toFixed(1)}
       <i>{rating.count}</i>
@@ -231,7 +224,7 @@ export function ReviewsPanel({ entity, id, title = 'Оценки и обсужд
         <div className="rv-avg">
           <b>{s?.average != null ? s.average.toFixed(1) : '—'}</b>
           <Stars value={s?.average ?? 0} size="md" />
-          <i>{s?.count ? `${s.count} ${plural(s.count, 'оценка', 'оценки', 'оценок')}` : 'оценок пока нет'}</i>
+          <i>{s?.count ? countLabel(s.count, ['оценка', 'оценки', 'оценок']) : 'оценок пока нет'}</i>
         </div>
         <ul className="rv-hist" aria-label="Распределение оценок">
           {[5, 4, 3, 2, 1].map((n) => {
@@ -289,7 +282,7 @@ export function ReviewsPanel({ entity, id, title = 'Оценки и обсужд
       {data && data.total > 0 && (
         <div className="rv-bar-top">
           <span>
-            {data.total} {plural(data.total, 'обсуждение', 'обсуждения', 'обсуждений')}
+            {countLabel(data.total, ['обсуждение', 'обсуждения', 'обсуждений'])}
           </span>
           <span className="rv-sort" role="radiogroup" aria-label="Порядок">
             <button type="button" role="radio" aria-checked={sort === 'new'} className={sort === 'new' ? 'is-on' : ''} onClick={() => setSort('new')}>
@@ -512,7 +505,7 @@ function CommentItem({
         )}
         {!isReply && hiddenReplies > 0 && onOpenThread && (
           <button type="button" className="rv-thread" onClick={onOpenThread}>
-            Показать ещё {hiddenReplies} {plural(hiddenReplies, 'ответ', 'ответа', 'ответов')}
+            Показать ещё {countLabel(hiddenReplies, ['ответ', 'ответа', 'ответов'])}
           </button>
         )}
       </div>

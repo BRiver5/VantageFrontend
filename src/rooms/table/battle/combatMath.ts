@@ -4,6 +4,7 @@ import { type ForcedDie } from '../../../dice/diceControl'
 import { facesOf } from '../../../dice/bonusDice'
 import type { CombatActionResult, CombatantView, RolledDice } from '../../../types/rooms'
 import { isFullCreature } from '../../../types/rooms'
+import { cardEffects, creatureEffects, type EffectEntry } from '../effectDefs'
 import { creatureArt, creatureName, creatureSize } from '../parts'
 
 export const errText = (e: unknown) => {
@@ -76,12 +77,9 @@ export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(re
 
 /* ---------- фигура ---------- */
 
-/** Эффекты на участнике: у героя — подписи карточки, у существа — состояния */
-export function effectsOf(c: CombatantView): string[] {
-  if (c.card) return c.card.effects ?? []
-  const cr = c.creature
-  if (!cr) return []
-  return isFullCreature(cr) ? (cr.conditions ?? []).map((e) => e.label) : (cr.effects ?? [])
+/** Эффекты на участнике (подпись + код): у героя — из карточки, у существа — состояния */
+export function effectsOf(c: CombatantView): EffectEntry[] {
+  return c.card ? cardEffects(c.card) : creatureEffects(c.creature)
 }
 
 /** Легендарные счётчики: мастеру — из существа, игроку — если открыты действия */

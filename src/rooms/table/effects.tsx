@@ -4,93 +4,14 @@
  * отравленный в зелёной дымке, окаменевший серый, невидимый мерцает, сбитый с ног
  * завален набок, оглушённого обходят звёзды. Одно и то же на столе и в бою.
  *
- * Сервер хранит эффекты подписями (у героя в карточке — строки), поэтому
- * состояние узнаём по началу слова: «Отравлен», «отравление» → poisoned.
+ * Состояние узнаём по коду (src/rules/codes.ts), у старых данных — по подписи;
+ * таблица печатей и разбор — в effectDefs.ts.
  */
 import { useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  ArrowDownToLine,
-  BatteryLow,
-  CircleAlert,
-  CircleSlash,
-  EarOff,
-  EyeOff,
-  FastForward,
-  FlaskConical,
-  Ghost,
-  Hand,
-  Heart,
-  Link2,
-  Moon,
-  Mountain,
-  Snowflake,
-  Sparkle,
-  Sparkles,
-  Sun,
-  Wind,
-  X,
-  Zap,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import type { EffectExpiry, StatKey } from '../../types/rooms'
-
-export interface ConditionDef {
-  key: string
-  label: string
-  /** по началу подписи узнаём состояние */
-  match: RegExp
-  icon: LucideIcon
-  /** класс ауры на фигуре */
-  aura: string
-  hint: string
-}
-
-export const CONDITIONS: ConditionDef[] = [
-  { key: 'poisoned', label: 'Отравлен', match: /^отравл/i, icon: FlaskConical, aura: 'poison', hint: 'помеха к атакам и проверкам' },
-  { key: 'blinded', label: 'Ослеплён', match: /^ослепл/i, icon: EyeOff, aura: 'blind', hint: 'не видит, атаки по нему с преимуществом' },
-  { key: 'charmed', label: 'Очарован', match: /^очаров/i, icon: Heart, aura: 'charm', hint: 'не нападает на очаровавшего' },
-  { key: 'deafened', label: 'Оглох', match: /^оглох/i, icon: EarOff, aura: 'deaf', hint: 'не слышит' },
-  { key: 'frightened', label: 'Испуган', match: /^(испуг|напуг|страх)/i, icon: Ghost, aura: 'fear', hint: 'помеха, пока видит источник страха' },
-  { key: 'grappled', label: 'Схвачен', match: /^схвач/i, icon: Hand, aura: 'grapple', hint: 'скорость 0' },
-  { key: 'incapacitated', label: 'Недееспособен', match: /^недеесп/i, icon: CircleSlash, aura: 'daze', hint: 'ни действий, ни реакций' },
-  { key: 'invisible', label: 'Невидим', match: /^невидим/i, icon: Wind, aura: 'invisible', hint: 'его не видно без особых чувств' },
-  { key: 'paralyzed', label: 'Парализован', match: /^парализ/i, icon: Snowflake, aura: 'freeze', hint: 'недееспособен, критуют вблизи' },
-  { key: 'petrified', label: 'Окаменел', match: /^окамен/i, icon: Mountain, aura: 'stone', hint: 'превращён в камень' },
-  { key: 'prone', label: 'Сбит с ног', match: /^(сбит|лежит|ничком)/i, icon: ArrowDownToLine, aura: 'prone', hint: 'вблизи по нему с преимуществом' },
-  { key: 'restrained', label: 'Опутан', match: /^(опута|скова)/i, icon: Link2, aura: 'bind', hint: 'скорость 0, помеха к атакам' },
-  { key: 'stunned', label: 'Ошеломлён', match: /^(ошелом|оглуш)/i, icon: Zap, aura: 'stun', hint: 'недееспособен, проваливает спасы Сил и Лов' },
-  { key: 'unconscious', label: 'Без сознания', match: /^без\s*созн/i, icon: Moon, aura: 'sleep', hint: 'падает и роняет всё из рук' },
-  { key: 'exhaustion', label: 'Истощение', match: /^истощ/i, icon: BatteryLow, aura: 'tired', hint: 'уровни истощения складываются' },
-  { key: 'concentration', label: 'Концентрация', match: /^концентрац/i, icon: Sparkles, aura: 'conc', hint: 'держит заклинание' },
-  { key: 'blessed', label: 'Благословение', match: /^благослов/i, icon: Sun, aura: 'bless', hint: '+к4 к атакам и спасброскам' },
-  { key: 'hasted', label: 'Ускорение', match: /^ускор/i, icon: FastForward, aura: 'haste', hint: 'двойная скорость, +2 КД' },
-]
-
-const GENERIC: Omit<ConditionDef, 'label' | 'match'> = { key: 'other', icon: Sparkle, aura: 'magic', hint: '' }
-
-/** Застигнут врасплох: не состояние 5e, но в первом раунде видно так же */
-export const SURPRISED: ShownEffect = { label: 'Врасплох', title: 'Застигнут врасплох', def: { key: 'surprised', icon: CircleAlert, aura: 'surprise', hint: 'в первом раунде без действий и реакций' } }
-
-export interface ShownEffect {
-  /** подпись как на сервере */
-  label: string
-  /** что показать: без «Концентрация:» */
-  title: string
-  def: Omit<ConditionDef, 'label' | 'match'>
-  id?: string
-  rounds?: number | null
-}
-
-export function describeEffect(label: string, extra?: { id?: string; rounds?: number | null }): ShownEffect {
-  const clean = label.trim()
-  const def = CONDITIONS.find((c) => c.match.test(clean)) ?? GENERIC
-  const title = def.key === 'concentration' ? clean.replace(/^концентрац[а-яё]*:?\s*/i, '') || 'Концентрация' : clean
-  return { label: clean, title, def, id: extra?.id, rounds: extra?.rounds }
-}
-
-/** Классы аур для фигуры: по одному на состояние */
-export const auraClass = (list: ShownEffect[]) => [...new Set(list.map((e) => `fx-${e.def.aura}`))].join(' ')
+import { Sparkle, X } from 'lucide-react'
+import type { StatKey } from '../../types/rooms'
+import { CONDITIONS, type EffectDraft, type ShownEffect } from './effectDefs'
 
 /**
  * Печати по ободу: стоят дугой над жетоном или фигурой и чуть покачиваются.
@@ -185,15 +106,6 @@ export function EffectList({ effects, onRemove, onAdd }: { effects: ShownEffect[
   )
 }
 
-export interface EffectDraft {
-  label: string
-  expires: EffectExpiry
-  rounds_left: number | null
-  save_ability?: StatKey | null
-  save_dc?: number | null
-  concentration: boolean
-}
-
 const SAVE_RU: { key: StatKey; label: string }[] = [
   { key: 'str', label: 'Сил' },
   { key: 'dex', label: 'Лов' },
@@ -213,7 +125,8 @@ export function ConditionPicker({ title, inCombat, onApply, onClose }: { title: 
   const [dc, setDc] = useState(13)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const name = label.trim() || CONDITIONS.find((c) => c.key === pick)?.label || ''
+  const custom = label.trim()
+  const name = custom || CONDITIONS.find((c) => c.key === pick)?.label || ''
 
   const apply = async () => {
     if (!name) return
@@ -222,6 +135,8 @@ export function ConditionPicker({ title, inCombat, onApply, onClose }: { title: 
     try {
       await onApply({
         label: name,
+        // выбранная печать — код; своя подпись — без кода (сервер выведет его сам, если узнает)
+        code: custom ? null : pick,
         expires: how,
         rounds_left: how === 'rounds' ? rounds : null,
         ...(how === 'save_ends' ? { save_ability: ability, save_dc: dc } : {}),

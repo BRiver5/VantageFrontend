@@ -3,14 +3,18 @@ import { Link, NavLink } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
+  GraduationCap,
   LogIn,
   Search,
+  Settings,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { VantageLogo } from '../ornaments'
 import { useOpenSearch } from '../search/GlobalSearch'
 import { CATEGORIES } from './categories'
+import { openSettings } from '../settings/open'
+import { openToursPanel } from '../tours/store'
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -58,12 +62,13 @@ export function Sidebar() {
 
         <SidebarSearch expanded={expanded} />
 
-        <nav className="sidebar-nav" aria-label="Разделы каталога">
+        <nav className="sidebar-nav" aria-label="Разделы каталога" data-tour="sidebar-nav">
           {CATEGORIES.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
               to={path}
               title={label}
+              data-tour={`nav-${path.slice(1)}`}
               className={({ isActive }) => `sidebar-link${isActive ? ' is-active' : ''}`}
             >
               <Icon aria-hidden="true" className="sidebar-link-icon" />
@@ -73,17 +78,26 @@ export function Sidebar() {
         </nav>
 
         <div className="sidebar-foot">
+          <button type="button" className="sidebar-link sidebar-link--settings" title="Настройки" onClick={() => openSettings()}>
+            <Settings aria-hidden="true" className="sidebar-link-icon" />
+            <span className="sidebar-link-label">Настройки</span>
+          </button>
+          <button type="button" className="sidebar-link sidebar-link--tours" title="Обучение: туры по интерфейсу" onClick={openToursPanel} data-tour="sidebar-tours">
+            <GraduationCap aria-hidden="true" className="sidebar-link-icon" />
+            <span className="sidebar-link-label">Обучение</span>
+          </button>
           {!ready ? null : user ? (
             <NavLink
               to="/me"
               title={user.nickname}
+              data-tour="sidebar-account"
               className={({ isActive }) => `sidebar-link sidebar-link--auth${isActive ? ' is-active' : ''}`}
             >
               <UserRound aria-hidden="true" className="sidebar-link-icon" />
               <span className="sidebar-link-label">{user.nickname}</span>
             </NavLink>
           ) : (
-            <Link to="/login" title="Войти" className="sidebar-link sidebar-link--auth">
+            <Link to="/login" title="Войти" className="sidebar-link sidebar-link--auth" data-tour="sidebar-account">
               <LogIn aria-hidden="true" className="sidebar-link-icon" />
               <span className="sidebar-link-label">Войти</span>
             </Link>
@@ -114,7 +128,7 @@ export function Sidebar() {
 function SidebarSearch({ expanded }: { expanded: boolean }) {
   const openSearch = useOpenSearch()
   return (
-    <button type="button" className="sidebar-search" onClick={() => openSearch()} title="Поиск по сайту (Ctrl+K)">
+    <button type="button" className="sidebar-search" onClick={() => openSearch()} title="Поиск по сайту (Ctrl+K)" data-tour="sidebar-search">
       <Search aria-hidden="true" className="sidebar-link-icon" />
       {expanded && (
         <>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Map as MapIcon, Presentation, Star, Trash2, Upload } from 'lucide-react'
 import { uploadMedia } from '../../../api'
 import type { BattleMap } from '../../../types/rooms'
@@ -8,6 +8,8 @@ import { createMap, deleteMap, listMaps, patchMap } from '../../roomsApi'
 import { errText } from '../parts'
 import { Img } from '../../../media'
 import { MapsShelf } from '../../../maps/MapsShelf'
+import { DirectoryList } from '../../../ui/directory/DirectoryList'
+import { useDirectory } from '../../../ui/directory/useDirectory'
 import { useList } from './common'
 
 /* ---------- карты и показ ---------- */
@@ -20,6 +22,12 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
   const list = (items ?? []).filter((m) => !onlyQuick || m.quick_access)
   // карта, по которой идёт запрос: её кнопки не жмутся второй раз
   const [pending, setPending] = useState<string | null>(null)
+  // свои папки картинок (вид scene_images, не общие с боевыми картами); быстрый доступ (onlyQuick) — прежние плитки
+  const dir = useDirectory('scene_images', { disabled: onlyQuick })
+  const { folderOf, sortOf } = dir
+  const entries = useMemo(() => (onlyQuick ? [] : (items ?? []).map((m) => ({ m, id: m.id, name: m.name, folderId: folderOf(m), sortOrder: sortOf(m.id) }))), [onlyQuick, items, folderOf, sortOf])
+  const show = (m: BattleMap) => act(m.id, () => showToAll(roomId, m.image_url ?? '', m.name), () => setSent(m.id))
+  const star = (m: BattleMap) => act(m.id, () => patchMap(roomId, m.id, { quick_access: !m.quick_access }), () => void reload())
   const act = (id: string, fn: () => Promise<unknown>, after?: () => void) => {
     if (pending) return
     setError(null)
@@ -64,7 +72,7 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
               </label>
             </li>
           )}
-          {list.map((m) => (
+          {onlyQuick && list.map((m) => (
             <li key={m.id}>
               <div className="sc-map">
                 {m.image_url ? <Img src={m.image_url} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}
@@ -89,6 +97,53 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
           ))}
           {onlyQuick && items && list.length === 0 && <li className="tb-hint">Отметьте карту звездой в разделе «Карты».</li>}
         </ul>
+        {!onlyQuick && (
+          <DirectoryList
+            listId="maps-images"
+            label="Картинки для показа"
+            items={entries}
+            folders={dir.folders}
+            ops={dir.ops}
+            searchPlaceholder="Найти картинку…"
+            renderItem={({ m }) => (
+              <>
+                <span className="dir-thumb">{m.image_url ? <Img src={m.image_url} alt="" loading="lazy" draggable={false} /> : <MapIcon aria-hidden="true" />}</span>
+                <span className="dir-name">{m.name}</span>
+              </>
+            )}
+            rowActions={({ m }) => (
+              <>
+                <button type="button" className="tb-goldbtn" disabled={!m.image_url || pending === m.id} onClick={() => show(m)}>
+                  <Presentation aria-hidden="true" /> {sent === m.id ? 'Показано' : 'Показать'}
+                </button>
+                <button type="button" className={`sc-iconbtn${m.quick_access ? ' is-on' : ''}`} aria-pressed={m.quick_access} aria-label="Быстрый доступ" title="Быстрый доступ" disabled={pending === m.id} onClick={() => star(m)}>
+                  <Star aria-hidden="true" />
+                </button>
+              </>
+            )}
+            actions={{
+              extra: ({ m }) => [
+                { id: 'show', label: 'Показать всем', icon: <Presentation />, disabled: !m.image_url || pending === m.id, run: () => show(m) },
+                { id: 'star', label: m.quick_access ? 'Убрать из быстрого доступа' : 'В быстрый доступ', icon: <Star />, run: () => star(m) },
+              ],
+              rename: async ({ m }, name) => {
+                await patchMap(roomId, m.id, { name })
+                await reload()
+              },
+              duplicate: async ({ m }) => {
+                await createMap(roomId, { name: `${m.name} (копия)`, image_url: m.image_url, grid: m.grid, quick_access: m.quick_access })
+                await reload()
+              },
+              exportJson: ({ m }) => m,
+              remove: async ({ m }) => {
+                await deleteMap(roomId, m.id)
+                await reload()
+              },
+            }}
+            empty={items && items.length === 0 ? <p className="tb-hint">Загрузите картинку, чтобы показать её всем.</p> : null}
+          />
+        )}
+        {dir.error && !onlyQuick && <p className="tb-err">{dir.error}</p>}
         {error && <p className="tb-err">{error}</p>}
       </div>
       {!onlyQuick && (

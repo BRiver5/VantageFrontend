@@ -1,0 +1,436 @@
+/* Центр настроек и «Управление» (src/settings) + глобальные настройки интерфейса */
+
+/* ---------- масштаб шрифта: --ui-font-scale ставит src/settings/apply.ts ---------- */
+:root {
+  font-size: calc(100% * var(--ui-font-scale, 1));
+}
+body {
+  font-size: calc(18px * var(--ui-font-scale, 1));
+}
+
+/* ---------- «меньше движения» из профиля: как prefers-reduced-motion ---------- */
+:root[data-reduce-motion] {
+  --dur-fast: 0s;
+  --dur-base: 0s;
+  --dur-slow: 0s;
+  scroll-behavior: auto;
+}
+:root[data-reduce-motion] *,
+:root[data-reduce-motion] *::before,
+:root[data-reduce-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---------- кнопка в боковом меню ---------- */
+.sidebar-link--settings {
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.sidebar-link--settings:hover,
+.sidebar-link--settings:focus-visible {
+  color: var(--gold-3);
+}
+
+/* ---------- окно ---------- */
+.st-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal, 100) + 20);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(var(--black-rgb) / 0.55);
+  animation: st-fade var(--dur-base) ease;
+}
+@keyframes st-fade {
+  from {
+    opacity: 0;
+  }
+}
+.st-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(860px, calc(100dvh - 32px));
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-deep);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+}
+.st-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.st-head h2 {
+  margin: 0 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--gold-3);
+}
+.st-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.st-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.st-tab svg {
+  width: 1em;
+  height: 1em;
+}
+.st-tab.is-on {
+  color: var(--gold-3);
+  border-bottom-color: var(--gold-2);
+}
+.st-tab:focus-visible,
+.st-btn:focus-visible,
+.st-icon:focus-visible,
+.st-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.st-body {
+  overflow-y: auto;
+  padding: 14px 16px 18px;
+  overscroll-behavior: contain;
+}
+
+/* ---------- поиск, кнопки ---------- */
+.st-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-2);
+}
+.st-search svg {
+  width: 1em;
+  height: 1em;
+  color: var(--text-dim);
+}
+.st-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+.st-search:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.st-btn svg {
+  width: 1em;
+  height: 1em;
+}
+.st-btn:hover:not(:disabled) {
+  border-color: var(--gold-2);
+}
+.st-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.st-btn.is-danger {
+  border-color: var(--danger);
+  color: var(--danger-soft);
+}
+.st-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.st-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.st-icon:hover {
+  color: var(--gold-3);
+  background: var(--bg-3);
+}
+.st-close {
+  margin-left: auto;
+}
+.st-link {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--gold-3);
+  font: inherit;
+  font-size: 0.85em;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.st-empty,
+.st-note {
+  color: var(--text-dim);
+  font-size: 0.9em;
+}
+
+/* ---------- настройки ---------- */
+.st-settings {
+  display: grid;
+  gap: 16px;
+}
+.st-section {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+.st-section > header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.st-section > header svg {
+  width: 1.1em;
+  height: 1.1em;
+  color: var(--gold-2);
+}
+.st-section h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+.st-scope {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 0.8em;
+}
+.st-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.08);
+}
+.st-row-text {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.st-row-text b {
+  font-weight: 600;
+}
+.st-row-text i {
+  font-style: normal;
+  color: var(--text-dim);
+  font-size: 0.85em;
+}
+.st-toggle {
+  cursor: pointer;
+}
+.st-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--gold-2);
+}
+.st-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.st-slider input {
+  width: min(200px, 50vw);
+  accent-color: var(--gold-2);
+}
+.st-slider output {
+  min-width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.st-row select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-1);
+  color: var(--text);
+  font: inherit;
+}
+.st-reset {
+  justify-self: start;
+  margin-top: 8px;
+}
+.st-section .rm-panel {
+  padding: 0;
+}
+
+/* ---------- управление ---------- */
+.st-controls {
+  display: grid;
+  gap: 14px;
+}
+.st-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.st-confirm {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--danger-soft);
+}
+.st-group h3 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--gold-3);
+}
+.st-actions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 6px 0;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.08);
+}
+.st-action-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+}
+.st-conflict,
+.st-locked {
+  display: inline-grid;
+  color: #e8c547;
+  cursor: help;
+}
+.st-locked {
+  color: var(--text-dim);
+}
+.st-conflict svg,
+.st-locked svg {
+  width: 15px;
+  height: 15px;
+}
+.st-combos {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.st-combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.st-combo kbd {
+  padding: 2px 8px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  font-family: inherit;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.st-combo.is-conflict kbd {
+  border-color: #e8c547;
+  color: #f3dc85;
+}
+.st-combo.is-capturing kbd {
+  border-color: var(--gold-2);
+  color: var(--gold-3);
+  animation: st-pulse 1.2s ease-in-out infinite;
+}
+@keyframes st-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+.st-none {
+  color: var(--text-dim);
+  font-size: 0.85em;
+}
+
+@media (max-width: 560px) {
+  .st-layer {
+    padding: 0;
+  }
+  .st-dialog {
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .st-scope {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-combo.is-capturing kbd {
+    animation: none;
+  }
+}

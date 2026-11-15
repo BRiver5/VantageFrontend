@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { Corners } from '../ornaments'
 import { critClass, type DieResult } from './DiceShapeIcons'
 import { playAddResult, playComparing } from './diceSounds'
+import { useReducedMotion } from '../settings/motion'
 
 interface DiceResultOverlayProps {
   dice: DieResult[]
@@ -103,9 +104,7 @@ export default function DiceResultOverlay({ dice, clash, onClose }: DiceResultOv
     return seq
   }, [dice, total, isClash])
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reducedMotion = useReducedMotion()
 
   const animationDone = isClash
     ? clashPhase === 'hold' || skipped
