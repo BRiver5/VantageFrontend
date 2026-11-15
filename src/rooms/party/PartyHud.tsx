@@ -12,7 +12,7 @@ import { Img } from '../../media'
 import type { CharacterCard } from '../../types/rooms'
 import { heroHealth, healthText } from '../health'
 import { useRoom } from '../RoomProvider'
-import { describeEffect } from '../table/effects'
+import { describeEffect } from '../table/effectDefs'
 import { errText } from '../table/parts'
 import { useEffectControl } from '../table/useEffects'
 import { durationText, effectsOfCard, selectParty, type PartyMember } from './partyData'
@@ -88,7 +88,7 @@ function PartyChip({ m, picked, onPick }: { m: PartyMember; picked: boolean; onP
   const src = parsePortrait(card.avatar_url).src
   const temp = card.hp.temp ?? 0
   const max = Math.max(1, card.hp.max)
-  const effects = effectsOfCard(card).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left }))
+  const effects = effectsOfCard(card).map((e) => describeEffect(e.label, { id: e.id, rounds: e.rounds_left, code: e.code }))
   const pp = card.passive_perception
   const tone = hp.kind !== 'hidden' ? hp.band : 'healthy'
   const where = m.tokenId ? 'Показать на карте' : 'Нет на карте'
@@ -166,7 +166,7 @@ function EffectsPanel({ card, canRemove, own, onClose }: { card: CharacterCard; 
       </header>
       <ul className="pt-fx-list">
         {list.map((e, i) => {
-          const shown = describeEffect(e.label, { id: e.id, rounds: e.rounds_left })
+          const shown = describeEffect(e.label, { id: e.id, rounds: e.rounds_left, code: e.code })
           const Icon = shown.def.icon
           const key = e.id || `${e.label}-${i}`
           const expanded = openId === key

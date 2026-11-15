@@ -19,7 +19,8 @@ import { claimItem } from '../roomsApi'
 import { CreatureCard, HeroCard, LootCard } from './Cards'
 import { cardRatio, errText, Hex, hpTone, originFromEvent, originOf, relayArt, relayKey, useHeroArt, type Origin } from './parts'
 import { TopBar } from './TopBar'
-import { auraClass, describeEffect, EffectSigils } from './effects'
+import { EffectSigils } from './effects'
+import { auraClass, cardEffects, showEffect } from './effectDefs'
 import { Img } from '../../media'
 import { COIN_ORDER, COIN_RU, bubbleOf, flyTo, relay } from './scene/motion'
 import { NotesMapOpen } from './scene/Notes'
@@ -287,9 +288,9 @@ export function TableScene({ onSheet }: { onSheet?: () => void }) {
               <i>{me.name}</i>
               <u>{me.level} уровень</u>
             </span>
-            <span className={`tb-mysheet-token ${auraClass(me.effects.map((l) => describeEffect(l)))}`}>
+            <span className={`tb-mysheet-token ${auraClass(cardEffects(me).map(showEffect))}`}>
               <Hex raw={myArt} name={me.name} tone={hpTone(cardRatio(me)) === 'down' ? 'down' : undefined} />
-              <EffectSigils effects={me.effects.map((l) => describeEffect(l))} />
+              <EffectSigils effects={cardEffects(me).map(showEffect)} />
               <b>
                 {me.hp.current}
                 <i>/{me.hp.max}</i>

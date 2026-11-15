@@ -24,7 +24,8 @@ describe('selectParty', () => {
 describe('effects', () => {
   it('prefers detail with ids and falls back to labels', () => {
     expect(effectsOfCard(card('a', { effects: ['Отравлен'], effects_detail: [{ id: 'e1', label: 'Отравлен', expires: 'rounds', rounds_left: 3 }] }))[0].id).toBe('e1')
-    expect(effectsOfCard(card('a', { effects: ['Отравлен'] }))).toEqual([{ id: '', label: 'Отравлен', expires: 'never', rounds_left: null }])
+    expect(effectsOfCard(card('a', { effects: ['Отравлен'] }))).toEqual([{ id: '', label: 'Отравлен', code: null, expires: 'never', rounds_left: null }])
+    expect(effectsOfCard(card('a', { effects: ['Сеть'], effect_codes: ['restrained'] }))[0].code).toBe('restrained')
   })
   it('describes duration in Russian', () => {
     expect(durationText({ expires: 'rounds', rounds_left: 1 })).toBe('ещё 1 раунд')

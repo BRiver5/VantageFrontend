@@ -342,7 +342,7 @@ export const revealContent = (id: string, contentId: string) =>
 
 /* ---------- состояния вне боя (запрошено у бэкенда, см. docs/BACKEND_REQUESTS.md) ---------- */
 
-type EffectBody = { label: string; expires: string; rounds_left: number | null; concentration?: boolean; save_ability?: string | null; save_dc?: number | null; modifiers?: unknown[] }
+type EffectBody = { label: string; code?: string | null; expires: string; rounds_left: number | null; concentration?: boolean; save_ability?: string | null; save_dc?: number | null; modifiers?: unknown[] }
 type EffectTarget = { kind: 'character' | 'creature'; id: string }
 const effPath = (id: string, t: EffectTarget) => r(id, `/${t.kind === 'character' ? 'characters' : 'creatures'}/${t.id}/effects`)
 /** Наложить эффект на героя или существо (мастер) */
