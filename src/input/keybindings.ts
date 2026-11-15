@@ -34,10 +34,12 @@ export interface KeyAction {
   defaults: readonly string[]
   /** лишние модификаторы не мешают срабатыванию */
   loose?: boolean
+  /** переназначить нельзя: сочетание держит весь интерфейс */
+  locked?: boolean
 }
 
 export const ACTIONS = [
-  { id: 'dialog.close', label: 'Закрыть окно или меню', category: 'general', defaults: ['Escape'], loose: true },
+  { id: 'dialog.close', label: 'Закрыть окно или меню', category: 'general', defaults: ['Escape'], loose: true, locked: true },
   { id: 'search.open', label: 'Открыть поиск (в комнате — и команды)', category: 'general', defaults: ['Ctrl+K'], loose: true },
   { id: 'search.quick', label: 'Открыть поиск вне поля ввода', category: 'general', defaults: ['/'] },
 
@@ -250,15 +252,20 @@ export function loadOverrides(): void {
   overrides = readStorage()
 }
 
+/** Закреплённое действие: его сочетания не меняются */
+export const isLocked = (id: ActionId): boolean => !!BY_ID.get(id)?.locked
+
 /** Действующие сочетания действия */
 export function combosOf(id: ActionId): readonly string[] {
+  if (isLocked(id)) return getAction(id).defaults
   return current()[id] ?? getAction(id).defaults
 }
 
-export const isOverridden = (id: ActionId): boolean => current()[id] !== undefined
+export const isOverridden = (id: ActionId): boolean => !isLocked(id) && current()[id] !== undefined
 
 /** Назначить сочетания; пустой список — действие без клавиш. Совпало с умолчанием — переназначение снимается */
 export function setCombos(id: ActionId, combos: readonly string[]): void {
+  if (isLocked(id)) return
   const list = [...new Set(combos.map(normalizeCombo).filter((x): x is string => !!x))]
   const next = { ...current() }
   const defaults = getAction(id).defaults.map(normalizeCombo)

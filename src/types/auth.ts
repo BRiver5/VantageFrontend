@@ -8,10 +8,18 @@ export type DicePreferences = {
   number_color: string
 }
 
+/** Доступность, общая для всех устройств человека (настройки «Мой профиль») */
+export type InterfacePreferences = {
+  reduce_motion: boolean
+  photosensitive: boolean
+}
+
 export type UserPreferences = {
   dice: DicePreferences
   locale: Locale
   default_character_visibility: CharacterVisibility
+  /** нет у старых ответов сервера — тогда значения по умолчанию */
+  interface?: InterfacePreferences
 }
 
 export type UserMe = {
@@ -62,8 +70,10 @@ export type PatchMeBody = {
   avatar_url?: string | null
   avatar_character_id?: string | null
   bio?: string
-  preferences?: Partial<UserPreferences> & {
+  /** частичное обновление на любой глубине: остальные поля сервер не трогает */
+  preferences?: Partial<Omit<UserPreferences, 'dice' | 'interface'>> & {
     dice?: Partial<DicePreferences>
+    interface?: Partial<InterfacePreferences>
   }
 }
 

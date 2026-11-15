@@ -13,16 +13,8 @@ import { searchAssets, assetTitle, uploadAsset, type Asset } from '../maps/asset
 import type { RoomAudioState } from '../types/rooms'
 import { useRoom, useRoomEvents } from './RoomProvider'
 import { audioControl, getAudio, playAudio, playSfx, putPads } from './roomsApi'
+import { setDeviceSettings, useDeviceSettings } from '../settings/settings'
 
-const LOCAL_KEY = 'vantage-room-volume'
-const readLocal = () => {
-  try {
-    const v = Number(localStorage.getItem(LOCAL_KEY))
-    return Number.isFinite(v) && localStorage.getItem(LOCAL_KEY) !== null ? v : 0.8
-  } catch {
-    return 0.8
-  }
-}
 
 /** Плеер: невидим, пока всё играет; кнопка — если браузер не дал звук */
 export function RoomAudioPlayer() {
@@ -31,7 +23,8 @@ export function RoomAudioPlayer() {
   const offset = useRef(0) // серверное время − местное, мс
   const cur = useRef<{ el: HTMLAudioElement; url: string } | null>(null)
   const [blocked, setBlocked] = useState(false)
-  const [local, setLocal] = useState(readLocal)
+  // «Громкость у меня» — настройка устройства (тот же ползунок есть в центре настроек)
+  const local = useDeviceSettings().musicVolume
   const [open, setOpen] = useState(false)
 
   // сверка часов: при входе
@@ -141,17 +134,8 @@ export function RoomAudioPlayer() {
                 step={0.05}
                 value={local}
                 aria-label="Громкость у меня"
-                onChange={(e) => {
-                  const v = Number(e.target.value)
-                  setLocal(v)
-                  try {
-                    localStorage.setItem(LOCAL_KEY, String(v))
-                  } catch {
-                    /* приватный режим */
-                  }
-                  // p2/layers: звуки местности тоже слушают «Громкость у меня»
-                  window.dispatchEvent(new Event('vantage-volume'))
-                }}
+                // p2/layers: звуки местности тоже слушают «Громкость у меня» (подписка на настройки)
+                onChange={(e) => setDeviceSettings({ musicVolume: Number(e.target.value) })}
               />
             </span>
           )}

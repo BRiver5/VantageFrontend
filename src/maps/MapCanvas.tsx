@@ -28,6 +28,9 @@ import { drawSelection } from './render/selection'
 import { drawPingEdges, drawPingMarkers } from './render/pings'
 import { pingLife } from './pings'
 import { isPingCalm, prefersReducedMotion } from './pingSettings'
+import { getDeviceSettings, subscribeSettings } from '../settings/settings'
+import { lightsStill } from '../settings/motion'
+import { createFrameCap } from './render/fpsCap'
 import { drawRuler } from './render/ruler'
 import { drawTokens } from './render/tokens'
 import { drawTargetBox, drawTargets } from './render/targets'
@@ -81,6 +84,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   useEffect(() => {
     dirty.current = true
   }, [map, viewer, overlays])
+  // настройки (производительность, щадящий режим) поменялись — перерисовать
+  useEffect(() => subscribeSettings(() => (dirty.current = true)), [])
 
   const img = useCallback((url: string | null | undefined) => {
     if (!url) return null
@@ -212,9 +217,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   useEffect(() => {
     let raf = 0
     let last = performance.now()
+    // предел кадров из настроек устройства: лишние кадры пропускаем, dt копится
+    const cap = createFrameCap()
     const draw = () => {
       raf = requestAnimationFrame(draw)
       const now = performance.now()
+      const { maxFps, performance: perf } = getDeviceSettings()
+      if (!cap(now, maxFps)) return
       const dt = now - last
       last = now
       const c = canvas.current
@@ -224,15 +233,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       // анимированный свет и переход темноты сцены — каждый кадр (в щадящем режиме свет стоит)
       const amb = props.current.map.ambient
       const sNow = serverNow()
-      const flick = darknessMoving(amb, sNow) || (!isPingCalm() && lightsAnimating(props.current.map.lights, darknessAt(amb, sNow)))
+      const flick = darknessMoving(amb, sNow) || (!lightsStill() && lightsAnimating(props.current.map.lights, darknessAt(amb, sNow)))
       // кольцо хода бежит по кругу, пока движение не отключено
       const turning = !!props.current.overlays?.turn && !prefersReducedMotion()
-      // погода и живые состояния на жетонах (пульс, огонь, рябь) — каждый кадр
-      const living = WeatherLayer.active(props.current.map) || (!!props.current.overlays?.looksLive && !isPingCalm())
+      // погода и живые состояния на жетонах (пульс, огонь, рябь) — каждый кадр; в режиме производительности погоды нет
+      const living = (!perf && WeatherLayer.active(props.current.map)) || (!!props.current.overlays?.looksLive && !isPingCalm())
       if (!dirty.current && !busy && !flick && !turning && !living) return
       dirty.current = false
       const { map: m, viewer: vw, overlays: ov = {}, artOf: art } = props.current
-      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      // режим производительности: холст в CSS-пикселях
+      const dpr = Math.min(perf ? 1 : 2, window.devicePixelRatio || 1)
       const W = c.clientWidth
       const H = c.clientHeight
       if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
@@ -332,7 +342,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       if (ov.sounds?.length || ov.listener) drawSoundMarkers(ctx, ov.sounds ?? [], pxPerFt(g), v, ov.layerSelected, ov.listener)
 
       // погода: над сценой, под темнотой; под крышами и в зонах «без погоды» её нет
-      weather.current!.draw(ctx, m, v, W, H, dt, isPingCalm())
+      if (!perf) weather.current!.draw(ctx, m, v, W, H, dt, isPingCalm())
 
       // свет и обзор: темнота отдельным слоем (переоткрывает ctx.save камеры — с той же тряской)
       drawDarkness(ctx, c, dark, m, vw, { x: v.x + sh.x, y: v.y + sh.y, k: v.k }, dpr, pos, now, sights)

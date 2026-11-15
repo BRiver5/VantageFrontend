@@ -14,6 +14,7 @@ import { Award, Dices, Gem, Shield, Sparkles, Star } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Corners } from '../../ornaments'
 import { playAddResult, playComparing } from '../diceSounds'
+import { useReducedMotion } from '../../settings/motion'
 import type { RollBonusCard, RollMode } from '../../characters/rollBonuses'
 
 export interface TheaterDie {
@@ -84,7 +85,7 @@ const keptIndex = (dice: TheaterDie[], mode: RollMode) =>
   dice.length < 2 || mode === 'normal' ? 0 : mode === 'adv' ? (dice[0].value >= dice[1].value ? 0 : 1) : dice[0].value <= dice[1].value ? 0 : 1
 
 export function RollTheater({ spec, onDone }: { spec: RollSpec; onDone: (o: RollOutcome) => void }) {
-  const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduced = useReducedMotion()
   // кости, режим и бонусы меняются реакциями — держим их в состоянии
   const [dice, setDice] = useState(spec.dice)
   const [mode, setMode] = useState<RollMode>(spec.mode)

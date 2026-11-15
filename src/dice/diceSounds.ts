@@ -1,13 +1,12 @@
 import addResultSrc from '../assets/sound_effects/add_result_final.mp3'
 import comparingSrc from '../assets/sound_effects/comparing_final.mp3'
+import { getDeviceSettings, setDeviceSettings } from '../settings/settings'
+import { prefersReducedMotion } from '../settings/motion'
 import drop1Src from '../assets/sound_effects/drop_1.mp3'
 import drop2Src from '../assets/sound_effects/drop_2.mp3'
 import drop3Src from '../assets/sound_effects/drop_3.mp3'
 
 type DropId = 1 | 2 | 3
-
-const VOLUME_KEY = 'vantage-dice-volume'
-const DEFAULT_VOLUME = 0.5
 
 const DROP_SRC: Record<DropId, string> = {
   1: drop1Src,
@@ -24,45 +23,18 @@ const DROP_COMBOS: DropId[][] = [
   [1, 2],
 ]
 
-let mutedByMotion = false
-let userVolume = DEFAULT_VOLUME
-let volumeLoaded = false
-
-function loadVolume() {
-  if (volumeLoaded) return
-  volumeLoaded = true
-  try {
-    const raw = localStorage.getItem(VOLUME_KEY)
-    if (raw != null) {
-      const v = Number(raw)
-      if (!Number.isNaN(v)) userVolume = Math.max(0, Math.min(1, v))
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
+/** громкость кубиков — «Звуки интерфейса» в настройках устройства */
 export function getDiceVolume(): number {
-  loadVolume()
-  return userVolume
+  return getDeviceSettings().interfaceVolume
 }
 
 export function setDiceVolume(value: number) {
-  loadVolume()
-  userVolume = Math.max(0, Math.min(1, value))
-  try {
-    localStorage.setItem(VOLUME_KEY, String(userVolume))
-  } catch {
-    /* ignore */
-  }
+  setDeviceSettings({ interfaceVolume: value })
 }
 
 function isMuted(): boolean {
   if (typeof window === 'undefined') return true
-  if (!mutedByMotion) {
-    mutedByMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  }
-  return mutedByMotion
+  return prefersReducedMotion()
 }
 
 function currentVolume(): number {
