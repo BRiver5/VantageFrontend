@@ -19,7 +19,7 @@ import {
   subscribeSettings,
 } from './settings'
 import { isPhotosensitive, lightsStill, prefersReducedMotion } from './motion'
-import { getDiceVolume, setDiceVolume } from '../dice/diceSounds'
+import { diceSoundVolume, getDiceVolume, setDiceVolume } from '../dice/diceSounds'
 import { ambienceVolume, roomVolume } from '../maps/sounds/prefs'
 import { getPingCalmSetting, isPingCalm, setPingCalmSetting } from '../maps/pingSettings'
 
@@ -110,6 +110,17 @@ describe('device scope', () => {
     setDeviceSettings({ musicVolume: 0.4, ambienceVolume: 0.7 })
     expect(roomVolume()).toBe(0.4)
     expect(ambienceVolume()).toBe(0.7)
+  })
+
+  it('dice sound follows only the interface volume, not reduce motion', () => {
+    vi.stubGlobal('window', {})
+    setDiceVolume(0.6)
+    setUserSettings({ reduceMotion: true })
+    expect(diceSoundVolume()).toBe(0.6)
+    setDiceVolume(0)
+    expect(diceSoundVolume()).toBe(0)
+    vi.unstubAllGlobals()
+    vi.stubGlobal('localStorage', storage)
   })
 
   it('performance mode stills the lights', () => {
