@@ -15,6 +15,7 @@ import type { ProgressMap } from './types'
 import { TourOverlay } from './TourOverlay'
 import { TourPanel } from './TourPanel'
 import { clearTourNotice, dismissOffer, getTourUi, offerTour, progressStore, setTourNavigator, startTour, useTourUi } from './store'
+import { countLabel } from '../lib/plural'
 
 /** «Первый вход» предлагаем только недавно зарегистрированным (и гостям) */
 const NEW_USER_DAYS = 30
@@ -95,7 +96,7 @@ function TourOffer({ id }: { id: string }) {
       <div className="tour-toast-body">
         <b>Показать, как тут всё устроено?</b>
         <span>
-          Тур «{tour.title}» — {tour.steps.length} коротких шагов
+          Тур «{tour.title}» — {countLabel(tour.steps.length, ['короткий шаг', 'коротких шага', 'коротких шагов'])}
         </span>
         <div className="tour-toast-acts">
           <button type="button" className="tour-btn" onClick={() => startTour(id)}>

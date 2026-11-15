@@ -3,6 +3,7 @@
  */
 import type { BattleMap } from '../../maps/types'
 import type { CharacterCard, CombatView, CombatantView, EffectBrief } from '../../types/rooms'
+import { plural } from '../../lib/plural'
 
 /* ---------- отряд ---------- */
 
@@ -61,13 +62,7 @@ export function durationText(e: Pick<EffectBrief, 'expires' | 'rounds_left'>): s
   return EXPIRES_RU[e.expires] ?? 'пока не снимут'
 }
 
-export function roundWord(n: number): string {
-  const d = n % 10
-  const dd = n % 100
-  if (d === 1 && dd !== 11) return 'раунд'
-  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return 'раунда'
-  return 'раундов'
-}
+export const roundWord = (n: number): string => plural(n, ['раунд', 'раунда', 'раундов'])
 
 /* ---------- чей ход ---------- */
 

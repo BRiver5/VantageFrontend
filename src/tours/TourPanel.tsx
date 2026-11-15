@@ -8,6 +8,7 @@ import { contextReady } from './dom'
 import { closeToursPanel, progressStore, startTour, useTourProgress } from './store'
 import type { TourAudience } from './types'
 import { formatKeys } from './keys'
+import { countLabel } from '../lib/plural'
 
 type Filter = 'any' | Exclude<TourAudience, 'all'>
 
@@ -94,7 +95,7 @@ export function TourPanel() {
                   </h3>
                   <p>{formatKeys(t.summary)}</p>
                   <p className="tour-item-state">
-                    {done ? 'Пройден' : paused ? `Остановились на шаге ${Math.min(p.step + 1, t.steps.length)} из ${t.steps.length}` : `${t.steps.length} шагов`}
+                    {done ? 'Пройден' : paused ? `Остановились на шаге ${Math.min(p.step + 1, t.steps.length)} из ${t.steps.length}` : countLabel(t.steps.length, ['шаг', 'шага', 'шагов'])}
                     {!ready && <> · {CONTEXT_HINT[t.context]}</>}
                   </p>
                 </div>

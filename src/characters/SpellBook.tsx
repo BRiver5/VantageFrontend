@@ -20,6 +20,7 @@ import type { Spellcasting } from '../types/character'
 import { SheetModal } from './SheetModal'
 import type { SheetPlay, SheetRoller } from './sheetPlay'
 import { Img } from '../media'
+import { plural } from '../lib/plural'
 
 type Known = Spellcasting['spells_known'][number]
 
@@ -119,7 +120,7 @@ export function Constellation({
 
   return (
     <div className={`cw-sky${left === 0 ? ' is-empty' : ''}${locked ? ' is-locked' : ''}${left > max ? ' is-over' : ''}`}>
-      <svg viewBox="0 0 100 60" aria-label={`${circle} круг: ${left} из ${max} ячеек`}>
+      <svg viewBox="0 0 100 60" aria-label={`${circle} круг: ${left} из ${max} ${plural(max, ['ячейки', 'ячеек', 'ячеек'])}`}>
         <g className="cw-sky-dust" aria-hidden="true">
           {DUST.map(([x, y], i) => (
             <circle key={i} cx={(x + circle * 13) % 100} cy={y} r={i % 3 === 0 ? 0.7 : 0.45} />

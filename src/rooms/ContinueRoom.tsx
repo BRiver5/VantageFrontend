@@ -12,6 +12,7 @@ import { parsePortrait } from '../characters/portrait'
 import { Img } from '../media'
 import type { RoomListItem, RoomState } from '../types/rooms'
 import { getRoomState, listRooms } from './roomsApi'
+import { countLabel } from '../lib/plural'
 
 const RANK: Record<string, number> = { active: 0, paused: 1, lobby: 2 }
 const STATUS: Record<string, string> = { active: 'идёт игра', paused: 'пауза', lobby: 'сбор отряда' }
@@ -101,17 +102,9 @@ export function ContinueRoom() {
       </Link>
       {(others > 0 || waiting.length > 0) && (
         <Link to="/rooms" className="cr-more">
-          {others > 0 ? `ещё ${others} ${plural(others, 'комната', 'комнаты', 'комнат')}` : `заявок ждёт: ${waiting.length}`}
+          {others > 0 ? `ещё ${countLabel(others, ['комната', 'комнаты', 'комнат'])}` : `заявок ждёт: ${waiting.length}`}
         </Link>
       )}
     </div>
   )
-}
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
-  return many
 }

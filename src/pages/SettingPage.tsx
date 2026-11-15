@@ -16,6 +16,7 @@ import { TomeSections } from './bookContentsUi'
 import { LootChips } from './home/LootChips'
 import { scrollToTomeSection } from '../contentSections'
 import { bgUrl } from '../media'
+import { countLabel } from '../lib/plural'
 
 export default function SettingPage() {
   const { id } = useParams<{ id: string }>()
@@ -79,7 +80,7 @@ export default function SettingPage() {
             <p className="setting-hero-desc">{setting.settings_description}</p>
           )}
           <div className="card-chips" style={{ marginTop: 14 }}>
-            <span className="chip"><BookOpen aria-hidden="true" />{books.length} книг</span>
+            <span className="chip"><BookOpen aria-hidden="true" />{countLabel(books.length, ['книга', 'книги', 'книг'])}</span>
             <span className="chip"><Landmark aria-hidden="true" />мир мультивселенной</span>
           </div>
         </div>
