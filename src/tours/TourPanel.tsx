@@ -6,7 +6,8 @@ import { CheckCircle2, GraduationCap, Play, RotateCcw, Search, X } from 'lucide-
 import { AUDIENCE_LABEL, CONTEXT_HINT, TOURS } from './content'
 import { contextReady } from './dom'
 import { closeToursPanel, progressStore, startTour, useTourProgress } from './store'
-import type { TourAudience } from './types'
+import type { TourAudience } from './types'
+import { formatKeys } from './keys'
 
 type Filter = 'any' | Exclude<TourAudience, 'all'>
 
@@ -91,7 +92,7 @@ export function TourPanel() {
                     {t.title}
                     <span className="tour-tag">{AUDIENCE_LABEL[t.audience]}</span>
                   </h3>
-                  <p>{t.summary}</p>
+                  <p>{formatKeys(t.summary)}</p>
                   <p className="tour-item-state">
                     {done ? 'Пройден' : paused ? `Остановились на шаге ${Math.min(p.step + 1, t.steps.length)} из ${t.steps.length}` : `${t.steps.length} шагов`}
                     {!ready && <> · {CONTEXT_HINT[t.context]}</>}

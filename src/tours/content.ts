@@ -1,7 +1,7 @@
 /**
  * Тексты туров. Якоря — атрибуты data-tour в разметке; если якоря нет на
  * экране (другая роль, телефон, пустая комната), шаг тихо пропускается.
- * Клавиши указаны по умолчанию: их можно переназначить в настройках.
+ * Клавиши — `{key:id}`: при показе подставляется текущая комбинация (tours/keys.ts).
  */
 import type { Tour, TourContextId } from './types'
 
@@ -15,7 +15,7 @@ export const TOURS: Tour[] = [
   {
     id: 'first-visit',
     title: 'Первый вход',
-    summary: 'Справочник, поиск по Ctrl+K и ваши персонажи',
+    summary: 'Справочник, поиск по {key:search.open} и ваши персонажи',
     audience: 'all',
     context: 'site',
     steps: [
@@ -33,7 +33,7 @@ export const TOURS: Tour[] = [
         selector: at('sidebar-search'),
         placement: 'right',
         title: 'Поиск по всему сайту',
-        text: 'Заклинание, монстр или термин находятся за пару букв. С любой страницы — Ctrl+K.',
+        text: 'Заклинание, монстр или термин находятся за пару букв. С любой страницы — {key:search.open}.',
       },
       {
         selector: at('nav-characters'),
@@ -148,7 +148,7 @@ export const TOURS: Tour[] = [
         selector: at('map-field'),
         placement: 'center',
         title: 'Ход по карте',
-        text: 'Перетащите свой жетон. Пока тащите, F ставит точку маршрута, Alt+F убирает её — цена пути видна сразу.',
+        text: 'Перетащите свой жетон. Пока тащите, {key:ruler.waypoint} ставит точку маршрута, {key:ruler.unwaypoint} убирает её — цена пути видна сразу.',
       },
       {
         selector: at('map-field'),
@@ -160,7 +160,7 @@ export const TOURS: Tour[] = [
         selector: at('ruler'),
         placement: 'left',
         title: 'Линейка',
-        text: 'R включает линейку: клики ставят точки, E и Q меняют высоту. Правый клик или Esc — сбросить.',
+        text: '{key:ruler.toggle} включает линейку: клики ставят точки, {key:ruler.up} и {key:ruler.down} меняют высоту. Правый клик или Esc — сбросить.',
       },
       {
         selector: at('map-field'),

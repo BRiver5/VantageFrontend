@@ -11,7 +11,8 @@ import { tourById } from './content'
 import { query, revealElement, runActions, waitForElement } from './dom'
 import { canGoBack, isLastStep, type TourRun } from './engine'
 import { placeDialog, type Box } from './placement'
-import { dispatchTour, tourNavigate } from './store'
+import { dispatchTour, tourNavigate } from './store'
+import { formatKeys } from './keys'
 
 const PAD = 6
 const WAIT_MS = 1500
@@ -170,7 +171,7 @@ export function TourOverlay({ run }: { run: TourRun }) {
           </h2>
           {step.image && <img className="tour-img" src={step.image.src} alt={step.image.alt} />}
           <p id={textId} className="tour-text">
-            {step.text}
+            {formatKeys(step.text)}
           </p>
           <div className="tour-progress" aria-hidden="true">
             <i style={{ width: `${((run.index + 1) / run.total) * 100}%` }} />
