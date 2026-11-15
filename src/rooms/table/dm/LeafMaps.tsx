@@ -22,8 +22,8 @@ export function LeafMaps({ onlyQuick = false }: { onlyQuick?: boolean }) {
   const list = (items ?? []).filter((m) => !onlyQuick || m.quick_access)
   // карта, по которой идёт запрос: её кнопки не жмутся второй раз
   const [pending, setPending] = useState<string | null>(null)
-  // папки — общие с боевыми картами (вид maps); быстрый доступ (onlyQuick) — прежние плитки
-  const dir = useDirectory('maps', { disabled: onlyQuick })
+  // свои папки картинок (вид scene_images, не общие с боевыми картами); быстрый доступ (onlyQuick) — прежние плитки
+  const dir = useDirectory('scene_images', { disabled: onlyQuick })
   const { folderOf, sortOf } = dir
   const entries = useMemo(() => (onlyQuick ? [] : (items ?? []).map((m) => ({ m, id: m.id, name: m.name, folderId: folderOf(m), sortOrder: sortOf(m.id) }))), [onlyQuick, items, folderOf, sortOf])
   const show = (m: BattleMap) => act(m.id, () => showToAll(roomId, m.image_url ?? '', m.name), () => setSent(m.id))

@@ -161,10 +161,12 @@ export function LeafLoot() {
   }, [tab, q, equipment, magic, tpl.items])
 
   const screen = useMemo(() => data?.items.filter((i) => i.holder === 'screen') ?? [], [data?.items])
-  // папки добычи общие для своих заготовок и вещей за ширмой (вид items)
+  // у своих заготовок и у вещей за ширмой — свои папки (виды item_templates и items)
+  const ownDir = useDirectory('item_templates')
   const dir = useDirectory('items')
   const { folderOf, sortOf } = dir
-  const own = useMemo(() => (tpl.items ?? []).map((t) => ({ t, id: t.id, name: t.name, folderId: folderOf(t), sortOrder: sortOf(t.id) })), [tpl.items, folderOf, sortOf])
+  const { folderOf: ownFolderOf, sortOf: ownSortOf } = ownDir
+  const own = useMemo(() => (tpl.items ?? []).map((t) => ({ t, id: t.id, name: t.name, folderId: ownFolderOf(t), sortOrder: ownSortOf(t.id) })), [tpl.items, ownFolderOf, ownSortOf])
   const behind = useMemo(() => screen.map((it) => ({ it, id: it.id, name: itemName(it), folderId: folderOf(it), sortOrder: sortOf(it.id) })), [screen, folderOf, sortOf])
   const pickTemplate = (t: ScreenItemTemplate) => {
     setPick({ source: 'template', kind: t.base_kind, id: t.id, name: t.name, sub: t.description.slice(0, 40), art: t.image_url })
@@ -230,8 +232,8 @@ export function LeafLoot() {
           listId="loot-own"
           label="Свои предметы"
           items={own}
-          folders={dir.folders}
-          ops={dir.ops}
+          folders={ownDir.folders}
+          ops={ownDir.ops}
           selectedId={pick?.source === 'template' ? pick.id : null}
           query={q}
           onQueryChange={setQ}

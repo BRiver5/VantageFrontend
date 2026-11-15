@@ -2,7 +2,8 @@
 import { request } from '../../api'
 import type { ServerFolder, SortMode } from './model'
 
-export type FolderKind = 'creatures' | 'items' | 'maps' | 'tables' | 'kb'
+/** item_templates — «Свои» заготовки добычи, scene_images — картинки для показа: у каждого списка свои папки */
+export type FolderKind = 'creatures' | 'items' | 'item_templates' | 'maps' | 'scene_images' | 'tables' | 'kb'
 
 export interface Placement {
   folder_id: string | null
