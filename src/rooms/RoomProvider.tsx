@@ -6,6 +6,8 @@
  * Номер события может прийти дважды (при sync) — пропускаем всё, что не больше
  * последнего обработанного. Пропущенный номер (дыра) значит потерю: событие не
  * применяем и просим sync, он доставит всё заново по порядку.
+ * Если журнал уже почищен и догнать нельзя (sync.reset), снимок перечитывается тем
+ * же GET /state и sync повторяется с его seq — см. StateReloader в roomSync.ts.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { ApiError } from '../api'
@@ -16,6 +18,7 @@ import { applyEvent, chatOf, describeEvent, fromSnapshot, mergeChat, pushLog, ty
 import { getRoomState, listClocks, listEventsOfType, listSharedNotes } from './roomsApi'
 import { getMap } from '../maps/api'
 import { RoomSocket, type FatalReason, type SocketStatus } from './roomSocket'
+import { StateReloader } from './roomSync'
 
 type Action =
   | { type: 'snapshot'; state: RoomState }
@@ -99,6 +102,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
   const meRef = useRef<string | null>(null)
   meRef.current = data?.me.user_id ?? null
   const refreshRef = useRef<(() => Promise<void>) | null>(null)
+  const reloaderRef = useRef<StateReloader | null>(null)
 
   const emit = useCallback((msg: RoomEventMessage) => {
     for (const fn of listeners.current) {
@@ -150,15 +154,32 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
     let cancelled = false
     lastSeq.current = 0
     syncPending.current = false
+    gapDuringSync.current = false
     setLoadError(null)
     setFatal(null)
+
+    /** Снимок заменяет локальное состояние; журнал экрана и чат сохраняются (fromSnapshot) */
+    const applyState = (state: RoomState) => {
+      lastSeq.current = state.seq
+      dispatch({ type: 'snapshot', state })
+      loadExtras(state.room.active_map_id)
+    }
+    const reloader = new StateReloader({
+      load: () => getRoomState(roomId),
+      apply: applyState,
+      resync: () => {
+        // события после снимка сервер пришлёт заново; применение идемпотентно
+        syncPending.current = true
+        socketRef.current?.requestSync()
+      },
+      onError: (e) => console.error('room reload', e),
+    })
+    reloaderRef.current = reloader
 
     getRoomState(roomId)
       .then((state) => {
         if (cancelled) return
-        lastSeq.current = state.seq
-        dispatch({ type: 'snapshot', state })
-        loadExtras(state.room.active_map_id)
+        applyState(state)
         const socket = new RoomSocket({
           roomId,
           getToken: getAccessToken,
@@ -169,7 +190,9 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
           onHello: () => {
             syncPending.current = true
           },
+          onReset: () => reloader.onReset(),
           onSynced: () => {
+            reloader.onSynced()
             if (gapDuringSync.current) {
               // иначе это событие потерялось бы до следующего события в комнате
               gapDuringSync.current = false
@@ -190,6 +213,8 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
 
     return () => {
       cancelled = true
+      reloader.dispose()
+      if (reloaderRef.current === reloader) reloaderRef.current = null
       socketRef.current?.stop()
       socketRef.current = null
     }
@@ -202,14 +227,10 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
     }
   }, [])
 
+  /** та же перезагрузка, что и при sync.reset: две сразу не идут */
   const refresh = useCallback(async () => {
-    const state = await getRoomState(roomId)
-    // события после снимка сервер пришлёт заново; применение идемпотентно
-    lastSeq.current = state.seq
-    dispatch({ type: 'snapshot', state })
-    syncPending.current = true
-    socketRef.current?.requestSync()
-  }, [roomId])
+    await reloaderRef.current?.reload()
+  }, [])
   refreshRef.current = refresh
 
   const value = useMemo<RoomContextValue>(

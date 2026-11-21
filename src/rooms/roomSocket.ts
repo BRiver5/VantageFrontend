@@ -26,12 +26,16 @@ export interface RoomSocketOptions {
   onSynced?: (serverSeq: number) => void
   /** hello пришёл: сервер подтвердил роль */
   onHello?: (info: { seq: number; role: string; user_id: string }) => void
+  /** sync.reset: журнал не догонит, нужен новый снимок; seq — текущий номер комнаты */
+  onReset?: (serverSeq: number) => void
 }
 
 /** Служебные сообщения, которые не относятся к событиям комнаты */
 type ControlMessage =
   | { type: 'hello'; seq: number; role: string; user_id: string }
   | { type: 'sync.done'; seq: number; has_more: boolean }
+  /** ответ на sync вместо событий: журнал почищен, перечитайте снимок */
+  | { type: 'sync.reset'; seq: number }
   | { type: 'pong' }
   | { type: 'ping' }
 
@@ -209,6 +213,18 @@ export class RoomSocket {
         }
         this.setStatus('open')
         this.opts.onSynced?.(m.seq)
+        return
+      }
+      case 'sync.reset': {
+        const m = msg as Extract<ControlMessage, { type: 'sync.reset' }>
+        if (typeof m.seq === 'number' && m.seq <= this.opts.getAfterSeq()) {
+          // мы уже не отстаём: перечитывать нечего, считаем sync законченным
+          this.setStatus('open')
+          this.opts.onSynced?.(m.seq)
+          return
+        }
+        // статус остаётся «syncing», пока снимок не перечитан и sync не повторён
+        this.opts.onReset?.(m.seq)
         return
       }
       case 'pong':
