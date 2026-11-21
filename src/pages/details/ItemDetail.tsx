@@ -18,7 +18,8 @@ import { Divider } from '../../ornaments'
 import { SourceBadge } from '../catalog/shared'
 import { PriceMark } from '../../coins'
 import { Img } from '../../media'
-import { Chip, DetailSection, Rich } from './shared'
+import { Chip, DetailSection, Rich, DetailTopline } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 import { rarityKeyOf, useBookRef, useOne } from './hooks'
 
 export function ItemArt({
@@ -54,9 +55,11 @@ export function ItemDetailPage() {
 
   return (
     <section className="book-page item-page">
-      <Link to="/items" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к сокровищнице
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="items" id={it.id} record={it} />}>
+        <Link to="/items" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к сокровищнице
+        </Link>
+      </DetailTopline>
 
       {/* центрированный герой: крупный арт со свечением редкости сзади и снизу */}
       <div className="item-hero" data-rarity={rarity}>

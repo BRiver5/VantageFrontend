@@ -34,7 +34,9 @@ import { isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } 
 import { MulticlassButton } from '../../multiclass'
 import { hasClassProficiencies, parseClassProficiencies } from '../../classProficiencies'
 import { Img } from '../../media'
-import { Chip, DetailSection, MobileFold, Rich, StatRow } from './shared'
+import { Chip, DetailSection, DetailTopline, MobileFold, Rich, StatRow } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
+import { useRecordEdition } from '../../editions/useEdition'
 import { useOne } from './hooks'
 import { SubclassHive } from './SubclassHive'
 
@@ -178,20 +180,26 @@ export function ClassDetailView({
 }) {
   const location = useLocation()
   const { data: c, error } = useOne<GameClass>('classes', id)
+  // подклассы — в той редакции, которую показывает класс
+  const edition = useRecordEdition('classes', c)
+  const listKey = `${id}:${edition}`
   // из кэша — чтобы при возврате с подкласса соты были на месте сразу (для морфа)
-  const [subclasses, setSubclasses] = useState<Subclass[]>(() => subclassListCache.get(id) || [])
+  const [subclasses, setSubclasses] = useState<Subclass[]>(() => subclassListCache.get(listKey) || [])
 
+  // пока класса нет, его редакция неизвестна — ждём, чтобы не спросить не ту
+  const ready = !!c
   useEffect(() => {
-    setSubclasses(subclassListCache.get(id) ?? [])
-    getSubList<Subclass>('classes', id, 'subclasses')
+    if (!ready) return
+    setSubclasses(subclassListCache.get(listKey) ?? [])
+    getSubList<Subclass>('classes', id, 'subclasses', edition)
       .then((list) => {
-        subclassListCache.set(id, list)
+        subclassListCache.set(listKey, list)
         // деталь подкласса откроется мгновенно (с обложкой) — нужно для морфа
         list.forEach((s) => cacheEntity('subclasses', s.id, s))
         setSubclasses(list)
       })
       .catch(() => {})
-  }, [id])
+  }, [id, edition, listKey, ready])
 
   // подкласс, с которого вернулись (морф-перелёт в его соту); гасим имя через ~1.5 c
   const [returningSub, setReturningSub] = useState<string | undefined>(
@@ -284,14 +292,18 @@ export function ClassDetailView({
   return (
     <OpenLinksInNewTab.Provider value={embedded}>
       <section className="book-page class-detail-page">
-        {embedded ? null : onBack ? (
-          <button type="button" className="back-link back-link--btn" onClick={onBack}>
-            <ArrowLeft aria-hidden="true" /> к классам
-          </button>
-        ) : (
-          <Link to="/classes" className="back-link">
-            <ArrowLeft aria-hidden="true" /> к классам
-          </Link>
+        {embedded ? null : (
+          <DetailTopline edition={<ElementEditionToggle resource="classes" id={c.id} record={c} />}>
+            {onBack ? (
+              <button type="button" className="back-link back-link--btn" onClick={onBack}>
+                <ArrowLeft aria-hidden="true" /> к классам
+              </button>
+            ) : (
+              <Link to="/classes" className="back-link">
+                <ArrowLeft aria-hidden="true" /> к классам
+              </Link>
+            )}
+          </DetailTopline>
         )}
 
         <header ref={heroRef} className={`class-detail-hero${c.is_caster ? ' is-caster' : ' is-martial'}`}>

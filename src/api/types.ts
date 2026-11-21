@@ -1,5 +1,15 @@
 import type { AbilityRef } from '../abilities/abilityData'
 
+/**
+ * Редакции записи каталога правил (см. docs/EDITIONS_2024.md на сервере):
+ * в каких редакциях она действует и общий ключ версий одного правила.
+ * У старых ответов полей нет — такая запись считается записью 2014.
+ */
+export interface EditionFields {
+  editions?: string[] | null
+  variant_group?: string | null
+}
+
 export interface Setting {
   id: string
   settings_title: string
@@ -39,7 +49,7 @@ export interface BookFull extends Book {
   new_spells_count: number
 }
 
-export interface GameClass {
+export interface GameClass extends EditionFields {
   id: string
   class_name: string
   description: string | null
@@ -62,7 +72,7 @@ export interface GameClass {
   abilities?: AbilityRef[] | null
 }
 
-export interface Subclass {
+export interface Subclass extends EditionFields {
   id: string
   subclass_name: string
   parent_class_id: string
@@ -76,7 +86,7 @@ export interface Subclass {
   abilities?: AbilityRef[] | null
 }
 
-export interface Subrace {
+export interface Subrace extends EditionFields {
   id: string
   subrace_name: string
   parent_race_id: string
@@ -103,7 +113,7 @@ export interface Subrace {
   abilities?: AbilityRef[] | null
 }
 
-export interface Race {
+export interface Race extends EditionFields {
   id: string
   race_name: string
   slug?: string | null
@@ -125,7 +135,7 @@ export interface Race {
   abilities?: AbilityRef[] | null
 }
 
-export interface Spell {
+export interface Spell extends EditionFields {
   id: string
   spell_name: string
   spell_level: number
@@ -178,7 +188,7 @@ export interface SpellMechanics {
 /** Черта/действие существа: обычно { name, description }, но ключи бывают любыми */
 export type CreatureTrait = Record<string, string | null | undefined>
 
-export interface Creature {
+export interface Creature extends EditionFields {
   id: string
   name: string
   description: string | null
@@ -227,7 +237,7 @@ export interface Creature {
   book_source_id: string | null
 }
 
-export interface Feat {
+export interface Feat extends EditionFields {
   id: string
   feat_name: string
   description: string | null
@@ -239,7 +249,7 @@ export interface Feat {
   abilities?: AbilityRef[] | null
 }
 
-export interface Item {
+export interface Item extends EditionFields {
   id: string
   item_name: string
   item_type: string | null
@@ -311,7 +321,7 @@ export interface DefenseProfile {
   damage_threshold: number | null
 }
 
-export interface Equipment {
+export interface Equipment extends EditionFields {
   id: string
   /** стабильный ключ вида «longbow-phb»; ссылки в грантах идут только по нему */
   slug: string
@@ -384,7 +394,7 @@ export interface MetaEnums {
   abilities: string[]
 }
 
-export interface Termin {
+export interface Termin extends EditionFields {
   id: string
   name: string
   description: string | null
@@ -392,7 +402,7 @@ export interface Termin {
   book_source_id: string | null
 }
 
-export interface Background {
+export interface Background extends EditionFields {
   id: string
   background_name: string
   description: string | null

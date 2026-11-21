@@ -204,10 +204,10 @@ describe('user scope', () => {
 
   it('server values win except pending ones', () => {
     hydrateUserSettings({ reduce_motion: true, photosensitive: true })
-    expect(getUserSettings()).toEqual({ reduceMotion: true, photosensitive: true })
+    expect(getUserSettings()).toMatchObject({ reduceMotion: true, photosensitive: true })
     setUserSettings({ photosensitive: false }) // без моста — ждёт отправки
     hydrateUserSettings({ reduce_motion: false, photosensitive: true })
-    expect(getUserSettings()).toEqual({ reduceMotion: false, photosensitive: false })
+    expect(getUserSettings()).toMatchObject({ reduceMotion: false, photosensitive: false })
   })
 
   it('missing server block means defaults', () => {
@@ -215,5 +215,48 @@ describe('user scope', () => {
     hydrateUserSettings({ reduce_motion: true, photosensitive: false })
     hydrateUserSettings(undefined)
     expect(getUserSettings()).toEqual(USER_DEFAULTS)
+  })
+
+  it('edition: default 2024, synced as edition / edition_sections', async () => {
+    expect(getUserSettings().edition).toBe('2024')
+    const sent: unknown[] = []
+    setUserSettingsSyncer(async (p) => void sent.push(p))
+    setUserSettings({ edition: '2014' })
+    await flushUserSettings()
+    setUserSettings({ editionSections: { spells: '2024' } })
+    await flushUserSettings()
+    expect(sent).toEqual([{ edition: '2014' }, { edition_sections: { spells: '2024' } }])
+    expect(hasPendingUserSettings()).toBe(false)
+  })
+
+  it('edition: global change prunes matching overrides and marks them for sync', () => {
+    setUserSettings({ editionSections: { spells: '2014', items: '2014' } })
+    setUserSettings({ editionSections: { spells: '2014' } })
+    setUserSettings({ edition: '2014' })
+    expect(getUserSettings().editionSections).toEqual({})
+    expect(JSON.parse(storage.getItem(USER_KEY)!).dirty).toEqual(expect.arrayContaining(['edition', 'editionSections']))
+  })
+
+  it('edition: junk is sanitized', () => {
+    setUserSettings({ edition: '1999' as never, editionSections: { spells: '2014', nope: '2014' } as never })
+    expect(getUserSettings().edition).toBe('2024')
+    expect(getUserSettings().editionSections).toEqual({ spells: '2014' })
+  })
+
+  it('edition: server value wins, a server without the fields keeps the local copy', () => {
+    setUserSettingsSyncer(async () => undefined)
+    hydrateUserSettings({ reduce_motion: false, photosensitive: false, edition: '2014', edition_sections: { feats: '2024' } })
+    expect(getUserSettings()).toMatchObject({ edition: '2014', editionSections: { feats: '2024' } })
+    // старый сервер: полей нет — местная копия остаётся
+    hydrateUserSettings({ reduce_motion: false, photosensitive: false })
+    expect(getUserSettings()).toMatchObject({ edition: '2014', editionSections: { feats: '2024' } })
+    hydrateUserSettings({ edition: '2024', edition_sections: {} })
+    expect(getUserSettings()).toMatchObject({ edition: '2024', editionSections: {} })
+  })
+
+  it('edition: an unsent local choice survives hydration', () => {
+    setUserSettings({ edition: '2014' }) // без моста — ждёт отправки
+    hydrateUserSettings({ edition: '2024' })
+    expect(getUserSettings().edition).toBe('2014')
   })
 })

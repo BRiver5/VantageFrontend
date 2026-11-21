@@ -19,7 +19,8 @@ import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
 import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { bgUrl } from '../../media'
-import { DetailSection, Rich } from './shared'
+import { DetailSection, Rich, DetailTopline } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 import { HeroHexArt } from './BackgroundDetail'
 
@@ -31,9 +32,11 @@ export function FeatDetailPage() {
 
   return (
     <section className="book-page bg-detail-page">
-      <Link to="/feats" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к чертам
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="feats" id={f.id} record={f} />}>
+        <Link to="/feats" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к чертам
+        </Link>
+      </DetailTopline>
       <FeatDetailBody f={f} />
       <ReviewsPanel entity="feats" id={f.id} />
     </section>

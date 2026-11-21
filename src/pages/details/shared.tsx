@@ -54,6 +54,7 @@ export function DetailShell({
   omitCover,
   heroNames,
   reviews,
+  edition,
   children,
 }: {
   backTo: string
@@ -88,14 +89,18 @@ export function DetailShell({
   heroNames?: { img?: string; title?: string }
   /** оценки и обсуждение под записью */
   reviews?: { entity: ReviewEntity; id: string }
+  /** переключатель редакции записи — справа от «назад» */
+  edition?: ReactNode
   children: ReactNode
 }) {
   const [broken, setBroken] = useState(false)
   return (
     <section className="book-page">
-      <Link to={backTo} className="back-link" onClick={onBackClick}>
-        <ArrowLeft aria-hidden="true" /> {backLabel}
-      </Link>
+      <DetailTopline edition={edition}>
+        <Link to={backTo} className="back-link" onClick={onBackClick}>
+          <ArrowLeft aria-hidden="true" /> {backLabel}
+        </Link>
+      </DetailTopline>
       <div className={`book-hero${heroDeco ? ' book-hero--deco' : ''}`}>
         {heroDeco}
         <Corners size={40} />
@@ -159,6 +164,17 @@ export function DetailShell({
       {children}
       {reviews && <ReviewsPanel entity={reviews.entity} id={reviews.id} />}
     </section>
+  )
+}
+
+/** Строка над героем: «назад» слева, переключатель редакции справа */
+export function DetailTopline({ edition, children }: { edition?: ReactNode; children: ReactNode }) {
+  if (!edition) return <>{children}</>
+  return (
+    <div className="detail-topline">
+      {children}
+      {edition}
+    </div>
   )
 }
 

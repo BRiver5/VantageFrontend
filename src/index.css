@@ -127,3 +127,4 @@
 @import './styles/components/settings.css' layer(components);
 @import './styles/components/tours.css' layer(components);
 @import './styles/components/directory.css' layer(components);
+@import './styles/components/edition-toggle.css' layer(components);

@@ -12,6 +12,13 @@ export type DicePreferences = {
 export type InterfacePreferences = {
   reduce_motion: boolean
   photosensitive: boolean
+  /** редакция правил всего сайта; у старых ответов сервера поля нет */
+  edition?: '2014' | '2024'
+  /**
+   * редакции разделов каталога, отличные от общей. Сервер может пока их не
+   * хранить — тогда поле не приходит, и действует местная копия
+   */
+  edition_sections?: Partial<Record<string, '2014' | '2024'>>
 }
 
 export type UserPreferences = {

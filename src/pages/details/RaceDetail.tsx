@@ -42,9 +42,11 @@ import { WorldBackdrop } from '../../creature/CreatureStage'
 import { useBookWorld, type BookWorld } from '../../worldArt'
 import { splitRaceArticle } from '../../raceArticle'
 import { Img } from '../../media'
-import { Chip, DetailSection, DetailShell, Rich } from './shared'
+import { Chip, DetailSection, DetailShell, Rich, DetailTopline } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { countLabel, plural } from '../../lib/plural'
+import { ElementEditionToggle } from '../../editions/EditionControls'
+import { useRecordEdition } from '../../editions/useEdition'
 
 function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
   const [broken, setBroken] = useState(false)
@@ -96,11 +98,13 @@ export function RaceDetailBody({
 }) {
   const book = useBookRef(r.book_source_id)
   const [subraces, setSubraces] = useState<Subrace[]>([])
+  // подрасы — в той редакции, которую показывает раса
+  const edition = useRecordEdition('races', r)
 
   useEffect(() => {
     setSubraces([])
-    getSubraces(r.id).then(setSubraces).catch(() => {})
-  }, [r.id])
+    getSubraces(r.id, edition).then(setSubraces).catch(() => {})
+  }, [r.id, edition])
   // тексты подрас из статьи — на их карточках, в статье расы они только мешают
   const article = useMemo(
     () => (isHtmlDescription(r.description) ? splitRaceArticle(r.description!, r.race_name, subraces).race : null),
@@ -234,9 +238,11 @@ export function RaceDetailPage() {
   return (
     <section className={`book-page race-detail-page${world ? ' has-world' : ''}`}>
       {world && <WorldBackdrop art={world.art} />}
-      <Link to="/races" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к расам
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="races" id={r.id} record={r} />}>
+        <Link to="/races" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к расам
+        </Link>
+      </DetailTopline>
       <RaceDetailBody race={r} world={world} />
       <ReviewsPanel entity="races" id={r.id} />
     </section>
@@ -292,6 +298,7 @@ export function SubraceDetailPage() {
   return (
     <DetailShell
       reviews={{ entity: 'subraces', id: sr.id }}
+      edition={<ElementEditionToggle resource="subraces" id={sr.id} record={sr} />}
       backTo={`/races/${sr.parent_race_id}`}
       backLabel={parent ? `к расе «${parent.race_name}»` : 'к расе'}
       kicker="подраса"

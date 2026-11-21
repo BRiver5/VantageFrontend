@@ -22,7 +22,8 @@ import {
   useEquipmentIndex,
 } from '../StartingEquipment'
 import { EquipmentContentsGallery } from '../../equipmentDrawer'
-import { Chip, DetailSection, Rich, StatRow } from './shared'
+import { Chip, DetailSection, Rich, StatRow, DetailTopline } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useContextualBack, useOne } from './hooks'
 import { ItemArt } from './ItemDetail'
 
@@ -50,9 +51,11 @@ export function EquipmentDetailPage() {
 
   return (
     <section className="book-page item-page">
-      <Link to={backTo} className="back-link">
-        <ArrowLeft aria-hidden="true" /> {backLabel}
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="equipment" id={eq.id} record={eq} />}>
+        <Link to={backTo} className="back-link">
+          <ArrowLeft aria-hidden="true" /> {backLabel}
+        </Link>
+      </DetailTopline>
 
       <div className="item-hero">
         <PriceMark cost={eq.cost} costCopper={eq.cost_copper} className="price-mark--hero" />

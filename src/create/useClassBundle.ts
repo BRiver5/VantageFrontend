@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getOne, getSubList } from '../api'
 import type { GameClass, Subclass } from '../api'
+import { useEdition } from '../editions/useEdition'
+import { shownEdition } from '../editions/edition'
 import { isHtmlDescription, parseFeatureEntries, resolveSubclassSectionHtml, type FeatureEntry } from '../classArticleHtml'
 
 export interface ClassBundle {
@@ -21,6 +23,7 @@ export function useClassBundle(classId: string | null): {
 } {
   const [bundle, setBundle] = useState<ClassBundle | null>(null)
   const [loading, setLoading] = useState(false)
+  const { edition } = useEdition('classes')
 
   useEffect(() => {
     if (!classId) {
@@ -29,10 +32,13 @@ export function useClassBundle(classId: string | null): {
     }
     let alive = true
     setLoading(true)
-    Promise.all([
-      getOne<GameClass>('classes', classId),
-      getSubList<Subclass>('classes', classId, 'subclasses'),
-    ])
+    // подклассы — в редакции самого класса (у героя мог остаться класс 2014)
+    getOne<GameClass>('classes', classId)
+      .then((cls) =>
+        getSubList<Subclass>('classes', classId, 'subclasses', shownEdition(cls.editions, edition)).then(
+          (subs) => [cls, subs] as const,
+        ),
+      )
       .then(([cls, subs]) => {
         if (!alive) return
         const features =
@@ -50,7 +56,7 @@ export function useClassBundle(classId: string | null): {
     return () => {
       alive = false
     }
-  }, [classId])
+  }, [classId, edition])
 
   return { bundle, loading }
 }

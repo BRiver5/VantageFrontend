@@ -12,6 +12,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Layers, Plus, Trash2, X } from 'lucide-react'
 import { getClasses, getOne, getSubList } from './api'
+import { shownEdition } from './editions/edition'
+import { resourceEdition } from './editions/store'
 import type { GameClass, Subclass } from './api'
 import { Corners } from './ornaments'
 import { ClassArticle } from './classArticle'
@@ -79,10 +81,13 @@ function MulticlassModal({ onClose, fromLabel }: { onClose: () => void; fromLabe
       const id = slot.classId
       if (!id || cache[id] || loading.current.has(id)) continue
       loading.current.add(id)
-      Promise.all([
-        getOne<GameClass>('classes', id),
-        getSubList<Subclass>('classes', id, 'subclasses'),
-      ])
+      // подклассы — в редакции самого класса
+      getOne<GameClass>('classes', id)
+        .then((cls) =>
+          getSubList<Subclass>('classes', id, 'subclasses', shownEdition(cls.editions, resourceEdition('classes'))).then(
+            (subs) => [cls, subs] as const,
+          ),
+        )
         .then(([cls, subs]) => {
           const features =
             cls.description && isHtmlDescription(cls.description)

@@ -28,7 +28,8 @@ import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { abilitiesFromSkills } from '../../skills'
 import { Img, bgUrl } from '../../media'
-import { DetailSection, MobileFold, Rich } from './shared'
+import { DetailSection, MobileFold, Rich, DetailTopline } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 
 /** Текст без разметки — для сравнения фрагментов описаний между собой */
@@ -104,9 +105,11 @@ export function BackgroundDetailPage() {
 
   return (
     <section className="book-page bg-detail-page">
-      <Link to="/backgrounds" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к предысториям
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="backgrounds" id={bg.id} record={bg} />}>
+        <Link to="/backgrounds" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к предысториям
+        </Link>
+      </DetailTopline>
       <BackgroundDetailBody bg={bg} />
       <ReviewsPanel entity="backgrounds" id={bg.id} />
     </section>

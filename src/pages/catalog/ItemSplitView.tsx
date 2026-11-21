@@ -9,9 +9,13 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import {
+  getOne,
   realImage,
 } from '../../api'
+import { ElementEditionToggle } from '../../editions/EditionControls'
+import type { Edition } from '../../editions/edition'
 import type {
   BookMap,
   Item,
@@ -93,6 +97,22 @@ export function ItemSplitView({
   switching: SwitchRoles
 }) {
   const [broken, setBroken] = useState(false)
+  const [, setSearchParams] = useSearchParams()
+  // другая редакция предмета: его версии нет в ленте (лента — в редакции
+  // раздела), поэтому берём запись по id и открываем её в «плеере»
+  const switchEdition = (targetId: string, ed: Edition) => {
+    getOne<Item>('items', targetId)
+      .then((item) => {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev)
+          next.set('ed', ed)
+          next.set('open', item.id)
+          return next
+        })
+        onSelect(item)
+      })
+      .catch(() => {})
+  }
   const [recQ, setRecQ] = useState('')
   // те же фильтры, что и в каталоге: ключ группы → выбранные варианты
   const [recSel, setRecSel] = useState<Record<string, string[]>>({})
@@ -138,9 +158,12 @@ export function ItemSplitView({
   return (
     <div className="item-tube">
       <div className="item-tube-main">
-        <button type="button" className="back-link back-link--btn item-tube-back" onClick={onClose}>
-          <ArrowLeft aria-hidden="true" /> к сокровищнице
-        </button>
+        <div className="detail-topline">
+          <button type="button" className="back-link back-link--btn item-tube-back" onClick={onClose}>
+            <ArrowLeft aria-hidden="true" /> к сокровищнице
+          </button>
+          <ElementEditionToggle resource="items" id={selected.id} record={selected} onSwitch={switchEdition} />
+        </div>
 
         {/* «плеер» — крупный предмет по центру */}
         <div className="item-hero item-tube-player" data-rarity={rarity} style={vt(heroName)}>
