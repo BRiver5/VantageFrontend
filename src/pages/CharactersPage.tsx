@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ArrowUpDown, ChevronLeft, Hexagon, Swords, VenetianMask, ChevronRight, Eye, FileUp, Globe, GripVertical, Lock, Plus, Search, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUpDown, ChevronLeft, Hexagon, Swords, VenetianMask, ChevronRight, Eye, FileUp, Globe, GripVertical, Lock, Plus, RefreshCcw, Search, Trash2, UserRound, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   createCharacter,
@@ -20,6 +20,8 @@ import {
 import { parsePortrait } from '../characters/portrait'
 import { parseLss, type LssHero } from '../characters/lssImport'
 import { LssImportDialog } from '../characters/LssImportDialog'
+import { ConvertEditionDialog, EditionBadge } from '../characters/EditionUi'
+import { convertActionFor, type ConvertAction } from '../characters/editionConvert'
 import { useCatalogList } from '../create/useCatalog'
 import type { CharacterVisibility } from '../types/auth'
 import { Img } from '../media'
@@ -75,12 +77,15 @@ function HeroBanner({
   classById,
   race,
   onDelete,
+  onConvert,
   arrange,
 }: {
   c: Character
   classById: Map<string, GameClass>
   race: Race | null
   onDelete: () => void
+  /** пересоздать по другой редакции правил */
+  onConvert: (action: ConvertAction) => void
   /** режим «свой порядок»: стрелки и перетаскивание вместо перехода в лист */
   arrange?: { first: boolean; last: boolean; onMove: (d: -1 | 1) => void; onDragStart: () => void; onDrop: () => void; dragging: boolean }
 }) {
@@ -97,6 +102,7 @@ function HeroBanner({
   const level = (c.classes ?? []).reduce((s, cl) => s + cl.level, 0) || 1
   const vis = VISIBILITY[c.visibility] ?? VISIBILITY.private
   const VisIcon = vis.icon
+  const convert = convertActionFor(c, true)
 
   const dragProps = arrange
     ? {
@@ -138,6 +144,7 @@ function HeroBanner({
         <span className="lobby-hero-vis" title={vis.label}>
           <VisIcon aria-hidden="true" />
         </span>
+        <EditionBadge edition={c.edition} className="lobby-hero-ed" />
         <span className="lobby-hero-plate">
           <span className="lobby-hero-name">{c.character_name || 'Без имени'}</span>
           <span className="lobby-hero-meta">
@@ -157,6 +164,18 @@ function HeroBanner({
       >
         <Trash2 aria-hidden="true" />
       </button>
+      {convert && (
+        <button
+          type="button"
+          className={`lobby-hero-convert${convert.prominent ? ' is-prominent' : ''}`}
+          aria-label={`${convert.label}: «${c.character_name || 'персонаж'}»`}
+          title={convert.label}
+          onClick={() => onConvert(convert)}
+        >
+          <RefreshCcw aria-hidden="true" />
+          {convert.prominent && <span>{convert.to}</span>}
+        </button>
+      )}
     </div>
   )
 }
@@ -168,6 +187,7 @@ export default function CharactersPage() {
   const [error, setError] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [converting, setConverting] = useState<{ c: Character; action: ConvertAction } | null>(null)
   const { items: classes } = useCatalogList<GameClass>('classes')
   const { items: races } = useCatalogList<Race>('races')
 
@@ -444,6 +464,7 @@ export default function CharactersPage() {
                   classById={classById}
                   race={c.race_id ? (raceById.get(c.race_id) ?? null) : null}
                   onDelete={() => void onDelete(c)}
+                  onConvert={(action) => setConverting({ c, action })}
                   arrange={
                     arranging
                       ? {
@@ -498,6 +519,17 @@ export default function CharactersPage() {
           />
         </label>
       </div>
+      {converting && (
+        <ConvertEditionDialog
+          character={converting.c}
+          action={converting.action}
+          onClose={() => setConverting(null)}
+          onDone={(created) => {
+            setConverting(null)
+            navigate(`/characters/${created.id}`)
+          }}
+        />
+      )}
       {lss && <LssImportDialog heroes={lss} onClose={() => setLss(null)} onDone={() => void reload()} />}
     </section>
   )

@@ -262,9 +262,45 @@ export type PendingDecision = {
   choice_key?: string | null
 }
 
+/** Редакция правил, по которой собран персонаж */
+export type CharacterEdition = '2014' | '2024'
+
+export type EditionIssueKind =
+  | 'class'
+  | 'subclass'
+  | 'race'
+  | 'subrace'
+  | 'background'
+  | 'feat'
+  | 'spell'
+  | 'item'
+  | 'ability'
+  | 'ability_scores'
+
+export type EditionIssueRef = { id: string | null; name: string; slug: string | null }
+export type EditionIssueOption = { id: string; name: string; slug: string | null }
+
+/**
+ * Что не удалось сопоставить при пересоздании персонажа по другой редакции:
+ * игрок оставляет старое или выбирает замену (POST …/edition-issues/{key}/resolve)
+ */
+export type EditionIssue = {
+  key: string
+  kind: EditionIssueKind
+  field: string
+  old: EditionIssueRef | null
+  options: EditionIssueOption[]
+  status: 'open' | 'kept' | 'replaced'
+  message: string
+}
+
 export type Character = {
   id: string
   schema_version: 2
+  /** нет у старых документов — значит 2014 */
+  edition?: CharacterEdition
+  /** вопросы после пересоздания по другой редакции; только читать */
+  edition_issues?: EditionIssue[]
   /** растёт на каждое действие движка */
   revision: number
   visibility: CharacterVisibility
@@ -320,6 +356,7 @@ const ENGINE_FIELDS = [
   'active_effects',
   'pending_decisions',
   'manual_overrides',
+  'edition_issues',
   'created_at',
   'updated_at',
 ] as const

@@ -1,8 +1,10 @@
 import type {
   Character,
+  CharacterEdition,
   CharacterInput,
 } from '../types/character'
 import { characterPayload } from '../types/character'
+import { catalogSearchPath, convertBody, entityName, resolveBody } from '../characters/editionConvert'
 import { request } from './http'
 import { ch } from './engine'
 
@@ -55,4 +57,38 @@ export function updateCharacter(id: string, body: CharacterInput): Promise<Chara
 
 export function deleteCharacter(id: string): Promise<void> {
   return request<void>(ch(id), { method: 'DELETE', auth: true })
+}
+
+/* ---------- Редакция правил ---------- */
+
+/**
+ * Пересоздать персонажа по другой редакции: сервер делает копию (имя + « (2024)»),
+ * оригинал остаётся. Что не сопоставилось — в edition_issues копии.
+ */
+export function convertCharacterEdition(id: string, to: CharacterEdition): Promise<Character> {
+  return request<Character>(ch(id, '/convert-edition'), {
+    method: 'POST',
+    body: convertBody(to),
+    auth: true,
+  })
+}
+
+/** Ответ на вопрос после пересоздания: оставить старое или заменить записью каталога */
+export function resolveEditionIssue(id: string, key: string, replacementId?: string | null): Promise<Character> {
+  return request<Character>(ch(id, `/edition-issues/${encodeURIComponent(key)}/resolve`), {
+    method: 'POST',
+    body: resolveBody(replacementId),
+    auth: true,
+  })
+}
+
+/** Поиск замены в разделе каталога нужной редакции */
+export async function searchEditionCatalog(
+  resource: string,
+  q: string,
+  edition: CharacterEdition,
+  signal?: AbortSignal,
+): Promise<{ id: string; name: string }[]> {
+  const page = await request<{ id: string }[] | { items: { id: string }[] }>(catalogSearchPath(resource, q, edition), { signal })
+  return itemsOf(page).map((x) => ({ id: x.id, name: entityName(x as Record<string, unknown>) }))
 }
