@@ -82,9 +82,15 @@ export const leaveRoom = (id: string) => post<{ status: string }>(r(id, '/leave'
 /** Снимок для вашей роли и номер события, с которого сокет догонит остальное */
 export const getRoomState = (id: string, quality?: ImageQuality) => get<RoomState>(r(id, '/state'), quality)
 
-export async function getRoomEvents(id: string, afterSeq = 0, limit = 200): Promise<RoomEventMessage[]> {
-  const res = await get<{ items: RoomEventMessage[] }>(r(id, `/events?after_seq=${afterSeq}&limit=${limit}`))
-  return res?.items ?? []
+/** Страница журнала. reset: журнал уже почищен и догнать с after_seq нельзя — перечитайте /state */
+export interface RoomEventsPage {
+  items: RoomEventMessage[]
+  reset: boolean
+}
+
+export async function getRoomEvents(id: string, afterSeq = 0, limit = 200): Promise<RoomEventsPage> {
+  const res = await get<{ items?: RoomEventMessage[]; reset?: boolean }>(r(id, `/events?after_seq=${afterSeq}&limit=${limit}`))
+  return { items: res?.items ?? [], reset: res?.reset === true }
 }
 
 /** В комнате кости бросает сервер; всем показываем значения из события dice.rolled */
