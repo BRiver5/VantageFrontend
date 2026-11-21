@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { CODEX } from './categories'
+import { GlobalEditionToggle } from '../editions/EditionControls'
 
 /* ---------- Нижняя панель телефона ---------- */
 
@@ -79,6 +80,10 @@ export function AppTabBar() {
           <button type="button" className="app-codex-scrim" aria-label="Закрыть кодекс" onClick={() => setCodexOpen(false)} />
           <div id="app-codex" className="app-codex" role="dialog" aria-label="Разделы кодекса">
             <p className="app-codex-title gold-text">Кодекс</p>
+            <div className="app-codex-edition">
+              <span>Редакция правил</span>
+              <GlobalEditionToggle />
+            </div>
             <nav className="app-codex-grid" aria-label="Разделы каталога">
               {CODEX.map(({ path, label, icon: Icon }) => (
                 <NavLink

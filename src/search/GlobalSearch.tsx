@@ -30,7 +30,8 @@ import {
   BookMarked,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { searchCatalog, type SearchHit, type SearchResult } from '../api'
+import { searchCatalog, searchEdition, type SearchHit, type SearchResult } from '../api'
+import { useUserSettings } from '../settings/settings'
 import { matches } from '../input/keybindings'
 import { rankByQuery } from './fuzzy'
 import { notifyPaletteOpen, usePaletteCommands, type PaletteCommand } from './paletteCommands'
@@ -133,6 +134,9 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
   const [expanded, setExpanded] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const query = q.trim()
+  // редакция поиска (раздела или общая): подписка на настройки — смена перезапрашивает
+  useUserSettings()
+  const edition = searchEdition(entity ? [entity] : undefined)
 
   // запрос с задержкой; прежний обрывается
   useEffect(() => {
@@ -146,7 +150,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
     const t = setTimeout(() => {
       setLoading(true)
       setError(null)
-      searchCatalog(query, { entities: entity ? [entity] : undefined, limit: PAGE, signal: ctrl.signal })
+      searchCatalog(query, { entities: entity ? [entity] : undefined, limit: PAGE, signal: ctrl.signal, edition })
         .then((r) => {
           setResult(r)
           setActive(0)
@@ -163,7 +167,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
       clearTimeout(t)
       ctrl.abort()
     }
-  }, [query, entity])
+  }, [query, entity, edition])
 
   const items = useMemo(() => result?.items ?? [], [result])
   // действия комнаты — над находками кодекса; стрелки ходят по общему списку
@@ -179,7 +183,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
     if (!result) return
     setMore(true)
     try {
-      const r = await searchCatalog(query, { entities: entity ? [entity] : undefined, skip: result.items.length, limit: PAGE })
+      const r = await searchCatalog(query, { entities: entity ? [entity] : undefined, skip: result.items.length, limit: PAGE, edition })
       setResult({ ...r, items: [...result.items, ...r.items] })
     } catch {
       setError('Не удалось догрузить.')

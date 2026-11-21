@@ -22,7 +22,8 @@ import { SourceBadge } from '../catalog/shared'
 import { DieChipIcon } from '../../dice/diceAssets'
 import { CreatureBoard } from '../../creature/CreatureBoard'
 import { CreatureStage, WorldBackdrop } from '../../creature/CreatureStage'
-import { Chip, DetailSection, Rich, Traits } from './shared'
+import { Chip, DetailSection, Rich, Traits, DetailTopline } from './shared'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 
 /** Мир кампании книги — кроме «родного» для 5e Фаэруна, где живёт большинство существ */
@@ -50,9 +51,11 @@ export function CreatureDetailPage() {
   return (
     <section className={`book-page beast-page${world ? ' has-world' : ''}`}>
       {world && <WorldBackdrop art={world.art} />}
-      <Link to="/bestiary" className="back-link">
-        <ArrowLeft aria-hidden="true" /> к бестиарию
-      </Link>
+      <DetailTopline edition={<ElementEditionToggle resource="creatures" id={c.id} record={c} />}>
+        <Link to="/bestiary" className="back-link">
+          <ArrowLeft aria-hidden="true" /> к бестиарию
+        </Link>
+      </DetailTopline>
       <CreatureStage
         c={c}
         image={image}

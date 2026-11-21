@@ -15,6 +15,7 @@ import { useOpenSearch } from '../search/GlobalSearch'
 import { CATEGORIES } from './categories'
 import { openSettings } from '../settings/open'
 import { openToursPanel } from '../tours/store'
+import { GlobalEditionToggle } from '../editions/EditionControls'
 
 const SIDEBAR_KEY = 'vantage-sidebar-expanded'
 
@@ -78,6 +79,10 @@ export function Sidebar() {
         </nav>
 
         <div className="sidebar-foot">
+          <div className="sidebar-edition" data-tour="sidebar-edition">
+            <span className="sidebar-edition-label">Редакция</span>
+            <GlobalEditionToggle size={expanded ? 'normal' : 'compact'} labels={expanded ? 'both' : 'active'} />
+          </div>
           <button type="button" className="sidebar-link sidebar-link--settings" title="Настройки" onClick={() => openSettings()}>
             <Settings aria-hidden="true" className="sidebar-link-icon" />
             <span className="sidebar-link-label">Настройки</span>

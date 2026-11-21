@@ -14,6 +14,7 @@
  * значения побеждают, кроме ещё не отправленных.
  */
 import { useSyncExternalStore } from 'react'
+import { DEFAULT_EDITION, isEdition, pruneSectionEditions, sanitizeSectionEditions, type Edition, type SectionEditions } from '../editions/edition'
 
 /* ---------- устройство ---------- */
 
@@ -55,19 +56,45 @@ export type UserSettings = {
   reduceMotion: boolean
   /** фоточувствительность: без вспышек и мигания */
   photosensitive: boolean
+  /** редакция правил всего сайта */
+  edition: Edition
+  /**
+   * Разделы каталога со своей редакцией — только отличия от общей
+   * (раздел без записи идёт за общей), см. editions/edition.ts
+   */
+  editionSections: SectionEditions
 }
 
 export const USER_DEFAULTS: Readonly<UserSettings> = Object.freeze({
   reduceMotion: false,
   photosensitive: false,
+  edition: DEFAULT_EDITION,
+  editionSections: Object.freeze({}) as SectionEditions,
 })
 
 /** Как поле профиля называется на сервере (preferences.interface) */
-export type ServerInterfacePrefs = { reduce_motion: boolean; photosensitive: boolean }
+export type ServerInterfacePrefs = {
+  reduce_motion: boolean
+  photosensitive: boolean
+  edition: Edition
+  edition_sections: SectionEditions
+}
 const SERVER_NAME: Record<keyof UserSettings, keyof ServerInterfacePrefs> = {
   reduceMotion: 'reduce_motion',
   photosensitive: 'photosensitive',
+  edition: 'edition',
+  editionSections: 'edition_sections',
 }
+
+const USER_KEYS = Object.keys(SERVER_NAME) as (keyof UserSettings)[]
+
+/**
+ * Поля, которых старый сервер может не знать: нет в ответе — значит «сервер
+ * не хранит», а не «по умолчанию», и местная копия остаётся.
+ */
+const KEEP_WHEN_MISSING: ReadonlySet<keyof UserSettings> = new Set(['edition', 'editionSections'])
+
+const sameValue = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b)
 
 /* ---------- ключи хранилища ---------- */
 
@@ -111,9 +138,13 @@ export function sanitizeDevice(raw: unknown): DeviceSettings {
 
 export function sanitizeUser(raw: unknown): UserSettings {
   const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+  const edition = isEdition(o.edition) ? o.edition : USER_DEFAULTS.edition
   return {
     reduceMotion: bool(o.reduceMotion, USER_DEFAULTS.reduceMotion),
     photosensitive: bool(o.photosensitive, USER_DEFAULTS.photosensitive),
+    edition,
+    // переопределение, совпавшее с общей, не хранится: раздел просто идёт за общей
+    editionSections: pruneSectionEditions(sanitizeSectionEditions(o.editionSections), edition),
   }
 }
 
@@ -164,7 +195,7 @@ type UserCache = { values: UserSettings; dirty: (keyof UserSettings)[] }
 function readUser(): UserCache {
   const saved = parse(getItem(USER_KEY)) as { values?: unknown; dirty?: unknown } | null
   if (saved && typeof saved === 'object') {
-    const dirty = Array.isArray(saved.dirty) ? saved.dirty.filter((k): k is keyof UserSettings => k === 'reduceMotion' || k === 'photosensitive') : []
+    const dirty = Array.isArray(saved.dirty) ? saved.dirty.filter((k): k is keyof UserSettings => (USER_KEYS as unknown[]).includes(k)) : []
     return { values: sanitizeUser(saved.values), dirty }
   }
   // прежний щадящий режим пингов — теперь «фоточувствительность» профиля
@@ -242,7 +273,8 @@ function writeUser(cache: UserCache) {
 export function setUserSettings(patch: Partial<UserSettings>): void {
   const cur = usr()
   const values = sanitizeUser({ ...cur.values, ...patch })
-  const changed = (Object.keys(patch) as (keyof UserSettings)[]).filter((k) => k in values)
+  // и то, что поменялось следом (смена общей редакции снимает совпавшие разделы)
+  const changed = USER_KEYS.filter((k) => k in patch || !sameValue(values[k], cur.values[k]))
   writeUser({ values, dirty: [...new Set([...cur.dirty, ...changed])] })
   emit()
   void flushUserSettings()
@@ -260,16 +292,16 @@ export function flushUserSettings(): Promise<void> {
     if (!syncer || cur.dirty.length === 0) return
     const sent = { ...cur.values }
     const keys = [...cur.dirty]
-    const body: Partial<ServerInterfacePrefs> = {}
+    const body: Record<string, unknown> = {}
     for (const k of keys) body[SERVER_NAME[k]] = sent[k]
     try {
-      await syncer(body)
+      await syncer(body as Partial<ServerInterfacePrefs>)
     } catch {
       return // останется «не отправлено»; повторим при следующем изменении или входе
     }
     const now = usr()
     // за время запроса значение могло снова поменяться — тогда оно остаётся грязным
-    writeUser({ values: now.values, dirty: now.dirty.filter((k) => !keys.includes(k) || now.values[k] !== sent[k]) })
+    writeUser({ values: now.values, dirty: now.dirty.filter((k) => !keys.includes(k) || !sameValue(now.values[k], sent[k])) })
   }
   flushing = run().finally(() => {
     flushing = null
@@ -286,13 +318,16 @@ export function setUserSettingsSyncer(fn: Syncer | null): void {
 /** Профиль пришёл с сервера: его значения, кроме ещё не отправленных */
 export function hydrateUserSettings(server: Partial<ServerInterfacePrefs> | null | undefined): void {
   const cur = usr()
-  const values = { ...cur.values }
-  for (const k of Object.keys(SERVER_NAME) as (keyof UserSettings)[]) {
+  const raw: Record<string, unknown> = { ...cur.values }
+  for (const k of USER_KEYS) {
     if (cur.dirty.includes(k)) continue
     const v = server?.[SERVER_NAME[k]]
-    values[k] = typeof v === 'boolean' ? v : USER_DEFAULTS[k]
+    if (v === undefined || v === null) {
+      if (!KEEP_WHEN_MISSING.has(k)) raw[k] = USER_DEFAULTS[k]
+    } else raw[k] = v
   }
-  const same = (Object.keys(values) as (keyof UserSettings)[]).every((k) => values[k] === cur.values[k])
+  const values = sanitizeUser(raw)
+  const same = USER_KEYS.every((k) => sameValue(values[k], cur.values[k]))
   writeUser({ values, dirty: cur.dirty })
   if (!same) emit()
 }

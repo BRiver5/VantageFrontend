@@ -11,6 +11,7 @@ import type {
 import { SourceBadge } from '../catalog/shared'
 import { DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 
 export function TerminDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +23,7 @@ export function TerminDetailPage() {
   return (
     <DetailShell
       backTo="/termins"
+      edition={<ElementEditionToggle resource="termins" id={t.id} record={t} />}
       backLabel="к терминам"
       kicker="термин"
       title={t.name}

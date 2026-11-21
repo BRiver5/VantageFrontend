@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { fetchAll, getBookMap, getSubraces } from '../api'
 import type { BookMap, Subrace } from '../api'
+import { useEdition } from '../editions/useEdition'
 
 export interface CatalogState<T> {
   items: T[]
@@ -15,6 +16,8 @@ export interface CatalogState<T> {
  */
 export function useCatalogList<T>(resource: string, enabled = true): CatalogState<T> {
   const [state, setState] = useState<CatalogState<T>>({ items: [], loading: enabled, error: null })
+  // редакция раздела ресурса: смена — перезапрос
+  const { edition } = useEdition(resource)
 
   useEffect(() => {
     if (!enabled) {
@@ -23,7 +26,7 @@ export function useCatalogList<T>(resource: string, enabled = true): CatalogStat
     }
     let alive = true
     setState({ items: [], loading: true, error: null })
-    fetchAll<T>(resource)
+    fetchAll<T>(resource, { edition })
       .then((items) => {
         if (alive) setState({ items, loading: false, error: null })
       })
@@ -39,7 +42,7 @@ export function useCatalogList<T>(resource: string, enabled = true): CatalogStat
     return () => {
       alive = false
     }
-  }, [resource, enabled])
+  }, [resource, enabled, edition])
 
   return state
 }
@@ -48,6 +51,7 @@ export function useCatalogList<T>(resource: string, enabled = true): CatalogStat
 export function useSubraces(raceId: string | null): { items: Subrace[]; loading: boolean } {
   const [items, setItems] = useState<Subrace[]>([])
   const [loading, setLoading] = useState(false)
+  const { edition } = useEdition('races')
 
   useEffect(() => {
     if (!raceId) {
@@ -56,7 +60,7 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
     }
     let alive = true
     setLoading(true)
-    getSubraces(raceId)
+    getSubraces(raceId, edition)
       .then((list) => {
         if (alive) setItems(list)
       })
@@ -69,7 +73,7 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
     return () => {
       alive = false
     }
-  }, [raceId])
+  }, [raceId, edition])
 
   return { items, loading }
 }
@@ -81,12 +85,13 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
 export function useRacesWithSubraces(raceIds: string[]): Set<string> {
   const [withSubs, setWithSubs] = useState<Set<string>>(() => new Set())
   const key = raceIds.join(',')
+  const { edition } = useEdition('races')
 
   useEffect(() => {
     if (!key) return
     let alive = true
     for (const id of key.split(',')) {
-      getSubraces(id)
+      getSubraces(id, edition)
         .then((list) => {
           if (alive && list.length > 0) setWithSubs((prev) => new Set(prev).add(id))
         })
@@ -97,7 +102,7 @@ export function useRacesWithSubraces(raceIds: string[]): Set<string> {
     return () => {
       alive = false
     }
-  }, [key])
+  }, [key, edition])
 
   return withSubs
 }

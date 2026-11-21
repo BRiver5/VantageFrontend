@@ -12,11 +12,18 @@ export function SettingsSync() {
   const iface = user?.preferences?.interface
   const reduce = iface?.reduce_motion
   const photo = iface?.photosensitive
+  const edition = iface?.edition
+  // объект приходит новым на каждый ответ — сравниваем по содержимому
+  const sections = iface?.edition_sections ? JSON.stringify(iface.edition_sections) : undefined
 
   useEffect(() => {
     if (!userId) return
-    hydrateUserSettings(reduce === undefined && photo === undefined ? null : { reduce_motion: reduce, photosensitive: photo })
-  }, [userId, reduce, photo])
+    hydrateUserSettings(
+      reduce === undefined && photo === undefined && edition === undefined && sections === undefined
+        ? null
+        : { reduce_motion: reduce, photosensitive: photo, edition, edition_sections: sections ? JSON.parse(sections) : undefined },
+    )
+  }, [userId, reduce, photo, edition, sections])
 
   useEffect(() => {
     if (!userId) return

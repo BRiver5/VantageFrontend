@@ -1,0 +1,304 @@
+/* Переключатель редакции правил 2014 ⇄ 2024 (src/ui/EditionToggle.tsx)
+
+   Дорожка — вытянутый шестигранник, её концы скошены под 60°, как стороны
+   правильного гекса; камень — правильный шестигранник «плоской гранью вверх»,
+   поэтому в крайних положениях он ложится в остриё дорожки вплотную.
+   Перекат: сдвиг на две стороны гекса (2·--s) и поворот на 120° — ровно столько
+   повернулся бы гекс, катясь по полу; грани камня чередуются через 60°, так что
+   в конце он выглядит как в начале. Слева — серебро (2014), справа — золото (2024). */
+
+.ed-toggle {
+  --s: 9px; /* сторона камня */
+  --g: 3px; /* зазор камня до стенок */
+  --kw: calc(var(--s) * 2);
+  --kh: calc(var(--s) * 1.7321);
+  --th: calc(var(--kh) + var(--g) * 2);
+  --tip: calc(var(--th) * 0.2887);
+  --pad: calc(var(--g) * 1.1547);
+  --roll: 0.52s;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 4px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.ed-toggle--compact {
+  --s: 6px;
+  --g: 2px;
+  gap: 6px;
+  padding: 2px 3px;
+}
+
+.ed-toggle:focus-visible {
+  outline: 2px solid rgb(var(--gold-3-rgb) / 0.75);
+  outline-offset: 2px;
+}
+
+/* ---------- подписи ---------- */
+
+.ed-toggle-year {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  opacity: 0.62;
+  transition: color var(--dur-base) ease, opacity var(--dur-base) ease;
+}
+.ed-toggle--compact .ed-toggle-year {
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+}
+.ed-toggle-year.is-current {
+  opacity: 1;
+  font-weight: 700;
+}
+.ed-toggle[data-edition='2014'] .ed-toggle-year.is-current {
+  color: var(--silver-3);
+}
+.ed-toggle[data-edition='2024'] .ed-toggle-year.is-current {
+  color: var(--gold-3);
+}
+
+/* ---------- дорожка ---------- */
+
+.ed-toggle-track {
+  position: relative;
+  flex: none;
+  width: calc(var(--kw) * 2 + var(--pad) * 2);
+  height: var(--th);
+  clip-path: polygon(var(--tip) 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, var(--tip) 100%, 0 50%);
+  /* оклад: серебро слева, золото справа */
+  background: linear-gradient(90deg, var(--silver-1), var(--silver-0) 42%, var(--gold-0) 58%, var(--gold-2));
+  transition: filter var(--dur-base) ease;
+}
+/* внутренность дорожки — на пиксель меньше, та же форма */
+.ed-toggle-track::before,
+.ed-toggle-track::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  clip-path: polygon(var(--tip) 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, var(--tip) 100%, 0 50%);
+}
+.ed-toggle-track::before {
+  background:
+    linear-gradient(180deg, rgb(var(--black-rgb) / 0.45), transparent 60%),
+    var(--surface-1);
+}
+/* отсвет со стороны текущей редакции */
+.ed-toggle-track::after {
+  background: radial-gradient(ellipse 60% 120% at 22% 50%, rgb(var(--silver-2-rgb) / 0.3), transparent 70%);
+  transition: background var(--dur-slow) ease;
+}
+.ed-toggle[data-edition='2024'] .ed-toggle-track::after {
+  background: radial-gradient(ellipse 60% 120% at 78% 50%, rgb(var(--gold-2-rgb) / 0.38), transparent 70%);
+}
+
+.ed-toggle:hover:not([aria-disabled='true']) .ed-toggle-track {
+  filter: brightness(1.18);
+}
+
+/* ---------- камень ---------- */
+
+.ed-toggle-knob {
+  position: absolute;
+  z-index: 1;
+  left: var(--pad);
+  top: var(--g);
+  width: var(--kw);
+  height: var(--kh);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  transform: translateX(0) rotate(0deg);
+  transition: transform var(--roll) cubic-bezier(0.5, 0.05, 0.3, 1);
+  will-change: transform;
+}
+.ed-toggle[aria-checked='true'] .ed-toggle-knob {
+  transform: translateX(var(--kw)) rotate(120deg);
+}
+
+/* грани: светлая и тёмная через 60°, начиная от вершин — серебро и золото
+   наложены друг на друга и сменяются прозрачностью */
+.ed-toggle-knob::before,
+.ed-toggle-knob::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--roll) ease;
+}
+.ed-toggle-knob::before {
+  background: repeating-conic-gradient(from 30deg, var(--silver-4) 0deg 60deg, var(--silver-1) 60deg 120deg);
+}
+.ed-toggle-knob::after {
+  background: repeating-conic-gradient(from 30deg, var(--gold-4) 0deg 60deg, var(--gold-1) 60deg 120deg);
+  opacity: 0;
+}
+.ed-toggle[aria-checked='true'] .ed-toggle-knob::after {
+  opacity: 1;
+}
+
+/* площадка камня — маленький гекс в центре */
+.ed-toggle-gem {
+  position: absolute;
+  z-index: 1;
+  inset: 26% 26%;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: radial-gradient(circle at 40% 35%, var(--silver-4), var(--silver-2) 75%);
+  transition: background var(--roll) ease;
+}
+.ed-toggle[aria-checked='true'] .ed-toggle-gem {
+  background: radial-gradient(circle at 40% 35%, var(--gold-4), var(--gold-3) 75%);
+}
+
+/* ---------- состояния ---------- */
+
+.ed-toggle[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+.ed-toggle[aria-disabled='true'] .ed-toggle-track {
+  filter: saturate(0.25) brightness(0.8);
+}
+.ed-toggle[aria-disabled='true'] .ed-toggle-year:not(.is-current) {
+  opacity: 0.32;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.ed-toggle[aria-busy='true'] {
+  cursor: progress;
+}
+.ed-toggle[aria-busy='true'] .ed-toggle-knob {
+  opacity: 0.6;
+}
+
+/* меньше движения: камень встаёт на место сразу, не катится */
+@media (prefers-reduced-motion: reduce) {
+  .ed-toggle-knob,
+  .ed-toggle-knob::before,
+  .ed-toggle-knob::after,
+  .ed-toggle-gem {
+    transition: none;
+  }
+}
+:root[data-reduce-motion] .ed-toggle-knob,
+:root[data-reduce-motion] .ed-toggle-knob::before,
+:root[data-reduce-motion] .ed-toggle-knob::after,
+:root[data-reduce-motion] .ed-toggle-gem {
+  transition: none;
+}
+
+/* ---------- места: главное меню, кодекс, шапки ---------- */
+
+/* боковое меню: строка «Редакция» над настройками */
+.sidebar-edition {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 10px 0 14px;
+  margin-bottom: 4px;
+}
+.sidebar-edition-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sidebar-wrap.is-collapsed .sidebar-edition {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 0;
+}
+.sidebar-wrap.is-collapsed .sidebar-edition-label {
+  display: none;
+}
+
+/* кодекс на телефоне: под заголовком */
+.app-codex-edition {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 2px 0 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* шапка раздела каталога: под подзаголовком, по центру */
+.section-edition {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  min-height: 26px;
+}
+
+/* «как везде» — вернуть раздел к общей редакции */
+.edition-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--silver-2-rgb) / 0.1);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.edition-reset:hover {
+  color: var(--gold-3);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.5);
+}
+.edition-reset:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.edition-reset svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* запись: переключатель в шапке детали */
+.element-edition {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+/* строка над героем детали: «назад» слева, редакция справа */
+.detail-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 22px;
+}
+.detail-topline .back-link {
+  margin-bottom: 0;
+}
+.item-tube-main > .detail-topline {
+  margin-bottom: 10px;
+}

@@ -9,6 +9,9 @@
 import { useEffect, useState } from 'react'
 import { fetchAll } from './api'
 import type { Spell } from './api'
+import type { Edition } from './editions/edition'
+import { resourceEdition } from './editions/store'
+import { useEdition } from './editions/useEdition'
 
 /** Название к общему виду: строчные, без [english], без пунктуации, ё→е. */
 export function normSpellName(name: string): string {
@@ -21,11 +24,13 @@ export function normSpellName(name: string): string {
     .trim()
 }
 
-let cache: Promise<Map<string, string>> | null = null
+/** по редакции: в 2014 и 2024 одно название ведёт на разные записи */
+const cache = new Map<Edition, Promise<Map<string, string>>>()
 
-export function loadSpellIndex(): Promise<Map<string, string>> {
-  if (!cache) {
-    cache = fetchAll<Spell>('spells')
+export function loadSpellIndex(edition: Edition = resourceEdition('spells')): Promise<Map<string, string>> {
+  let entry = cache.get(edition)
+  if (!entry) {
+    entry = fetchAll<Spell>('spells', { edition })
       .then((spells) => {
         const byName = new Map<string, string>()
         for (const s of spells) {
@@ -34,21 +39,26 @@ export function loadSpellIndex(): Promise<Map<string, string>> {
         }
         return byName
       })
-      .catch(() => new Map<string, string>())
+      .catch(() => {
+        cache.delete(edition)
+        return new Map<string, string>()
+      })
+    cache.set(edition, entry)
   }
-  return cache
+  return entry
 }
 
 export function useSpellIndex(): Map<string, string> {
   const [index, setIndex] = useState<Map<string, string>>(() => new Map())
+  const { edition } = useEdition('spells')
   useEffect(() => {
     let alive = true
-    loadSpellIndex().then((m) => {
+    loadSpellIndex(edition).then((m) => {
       if (alive) setIndex(m)
     })
     return () => {
       alive = false
     }
-  }, [])
+  }, [edition])
   return index
 }

@@ -51,6 +51,8 @@ import { CardLink } from './catalog/shared'
 import { FilterMenu } from './catalog/FilterMenu'
 import { SortMenu } from './catalog/SortMenu'
 import { ItemSplitView } from './catalog/ItemSplitView'
+import { SectionEditionToggle } from '../editions/EditionControls'
+import { useEdition } from '../editions/useEdition'
 import { classCard, raceCard, featCard, backgroundCard, spellCard, creatureCard, equipmentCard, terminCard, itemCard } from './catalog/cards/renderers'
 
 /* ---------- Фильтры предысторий ---------- */
@@ -78,6 +80,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none',
   )
   const { app } = useAppShell()
+  // редакция раздела: своя или общая; смена — перезапрос с первого листа
+  const { edition } = useEdition(cfg.resource)
+  const prevEditionRef = useRef(edition)
+  useEffect(() => {
+    if (prevEditionRef.current === edition) return
+    prevEditionRef.current = edition
+    setPage(0)
+  }, [edition])
   // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
   const [filterSel, setFilterSel] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
@@ -297,7 +307,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
     if (!cfg.noPaging && !activeSort && activeGroups.length === 0) {
-      fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined })
+      fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined, edition })
         .then((res) => {
           if (stale) return
           setItems(res.items)
@@ -310,7 +320,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     } else {
       // ни сортировка, ни фильтры не поддерживаются сервером — тянем весь список
       // и обрабатываем на клиенте, иначе фильтр видел бы только текущую страницу
-      fetchAll<T>(cfg.resource, { q: query || undefined })
+      fetchAll<T>(cfg.resource, { q: query || undefined, edition })
         .then((all) => {
           if (stale) return
           setAllItems(all)
@@ -330,7 +340,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     return () => {
       stale = true
     }
-  }, [cfg.resource, cfg.sorts, cfg.filters, cfg.noPaging, page, query, sortKey, filterSel])
+  }, [cfg.resource, cfg.sorts, cfg.filters, cfg.noPaging, page, query, sortKey, filterSel, edition])
 
   // кладём загруженные записи в кэш — деталь откроется мгновенно (нужно морфу)
   useEffect(() => {
@@ -413,6 +423,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       <div className="section-head">
         <h1 className="section-title gold-text">{cfg.title}</h1>
         <p className="section-sub">{cfg.sub}</p>
+        <SectionEditionToggle section={cfg.resource} />
       </div>
 
       <div className="quest-bar">

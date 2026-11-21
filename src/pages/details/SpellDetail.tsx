@@ -17,6 +17,7 @@ import { SpellSchoolMark, spellSchoolIcon } from '../../spellSchools'
 import { useAppShell } from '../../shell'
 import { Chip, DetailSection, DetailShell, HexBadge, Rich } from './shared'
 import { useBookRef, useContextualBack, useOne } from './hooks'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 
 export function SpellDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -38,6 +39,7 @@ export function SpellDetailPage() {
   return (
     <DetailShell
       reviews={{ entity: 'spells', id: s.id }}
+      edition={<ElementEditionToggle resource="spells" id={s.id} record={s} />}
       backTo={backTo}
       backLabel={backLabel}
       kicker={s.school ? `школа: ${s.school}` : 'заклинание'}

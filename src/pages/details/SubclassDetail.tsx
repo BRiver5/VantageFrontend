@@ -22,6 +22,7 @@ import { resolveSubclassSectionHtml } from '../../classArticleHtml'
 import { Chip, DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { SUB_HERO, type VTDocument } from './SubclassHive'
+import { ElementEditionToggle } from '../../editions/EditionControls'
 
 export function SubclassDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -68,6 +69,7 @@ export function SubclassDetailPage() {
   return (
     <DetailShell
       reviews={{ entity: 'subclasses', id: sc.id }}
+      edition={<ElementEditionToggle resource="subclasses" id={sc.id} record={sc} />}
       backTo={`/classes/${sc.parent_class_id}`}
       backLabel={parent ? `к классу «${parent.class_name}»` : 'к классу'}
       onBackClick={backToClass}

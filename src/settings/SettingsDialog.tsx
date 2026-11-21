@@ -10,6 +10,8 @@ import { Keyboard, Monitor, Search, Settings, UserRound, Users, X } from 'lucide
 import { useAuth } from '../auth/AuthContext'
 import type { CharacterVisibility } from '../types/auth'
 import { useFocusTrap } from '../ui/focusTrap'
+import { EditionToggle } from '../ui/EditionToggle'
+import { countLabel } from '../lib/plural'
 import { ControlsPanel } from './ControlsPanel'
 import { systemPrefersReducedMotion } from './motion'
 import type { SettingsTab } from './open'
@@ -178,7 +180,26 @@ function SettingsPanel({ room }: { room?: ReactNode }) {
   ].filter((r) => fits(query, r.label, r.hint ?? '', r.keywords ?? ''))
 
   const motionHint = osMotion ? 'Уже включено системой: в настройках устройства просили меньше движения' : 'Без анимаций и плавных переходов — вдобавок к настройке системы'
+  const overrides = Object.keys(prefs.editionSections).length
+  const editionHint = overrides
+    ? `Для всего сайта; ${countLabel(overrides, ['раздел', 'раздела', 'разделов'])} со своей редакцией`
+    : 'Для всего сайта; у разделов и записей можно выбрать свою'
   const userRows: Row[] = [
+    {
+      key: 'edition',
+      label: 'Редакция правил',
+      hint: editionHint,
+      keywords: 'редакция правила 2014 2024 dnd phb версия',
+      node: (
+        <div className="st-row">
+          <span className="st-row-text">
+            <b>Редакция правил</b>
+            <i>{editionHint}</i>
+          </span>
+          <EditionToggle value={prefs.edition} onChange={(edition) => setUserSettings({ edition })} />
+        </div>
+      ),
+    },
     {
       key: 'motion',
       label: 'Меньше движения',
