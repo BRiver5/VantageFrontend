@@ -37,7 +37,8 @@ export function AttackRow({
     const b = p.bonus + dmgExtra
     return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
   }
-  const props = [a.range, ...a.properties].filter(Boolean).join(' · ')
+  // правила движка («Боевые искусства») — рядом со свойствами: видно, откуда кость и Ловкость
+  const props = [a.range, ...a.properties, ...(a.rules ?? [])].filter(Boolean).join(' · ')
   const rollHit = () =>
     void rollD20(`${a.name}, попадание`, hit, a.key, {
       ...ctx,

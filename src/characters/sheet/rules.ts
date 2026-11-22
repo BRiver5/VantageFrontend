@@ -59,7 +59,7 @@ export const SOURCE_GROUPS: { title: string; sources: string[] }[] = [
   { title: 'Прочее', sources: ['other'] },
 ]
 
-export type SheetAttack = Pick<AttackEntry, 'name' | 'type' | 'attack_bonus' | 'damage' | 'damage_type' | 'range' | 'properties'> & {
+export type SheetAttack = Pick<AttackEntry, 'name' | 'type' | 'attack_bonus' | 'damage' | 'damage_type' | 'range' | 'properties' | 'ability' | 'rules'> & {
   key: string
   versatile: string | null
   image: string | null
