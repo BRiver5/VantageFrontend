@@ -171,7 +171,8 @@ export default function CharacterSheet({
   const perAction = extras?.perAction ?? attacksPerAction(cls.name, level)
   const combat = sheet.combat
   const spell = sheet.spellcasting
-  const hasMagic = spell.is_spellcaster || spell.spells_known.length > 0
+  // ячейки, выданные вручную персонажу без класса-заклинателя, тоже открывают книгу
+  const hasMagic = spell.is_spellcaster || spell.spells_known.length > 0 || Object.values(spell.spell_slots).some((x) => x.max > 0)
 
   const attacks = buildAttacks(sheet, mod, pb)
 

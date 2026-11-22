@@ -61,10 +61,16 @@ export type AttackEntry = {
   range: string
   properties: string[]
   inventory_instance_id?: string | null
+  /** у атаки оружием: числа вписаны вручную — движок их не пересчитывает */
+  manual?: boolean
+  /** скрыта из листа (оружие в сумке и в бою не нужно) */
+  hidden?: boolean
   /** только в листе (движок): чем бьёт оружие — Сила или Ловкость */
   ability?: 'str' | 'dex' | null
   /** только в листе (движок): правила, изменившие атаку («Боевые искусства») */
   rules?: string[]
+  /** только в листе (движок): оружие надето; false — лежит в сумке */
+  equipped?: boolean
   /** только в листе (движок): урон двуручным хватом универсального оружия */
   versatile?: string | null
 }
@@ -194,6 +200,10 @@ export type SheetView = {
     shield: boolean
   }
   attacks: AttackEntry[]
+  /** оружие инвентаря с числами движка без настроек игрока — для «Правки листа» */
+  liveWeapons?: AttackEntry[]
+  /** ячейки по пулам как с сервера (обычные и договора отдельно) — для «Правки листа» */
+  slotPools?: SheetSlot[]
   proficiencies: {
     armor: string[]
     weapons: string[]
@@ -235,6 +245,8 @@ export type EngineExtras = {
   flags: { key: string; label: string }[]
   /** вычисляемые величины способностей: var.* */
   vars: { key: string; label: string; value: string }[]
+  /** все правила и величины, включая скрытые игроком, — для «Правки листа» */
+  allRules?: { key: string; label: string; value?: string; kind: 'flag' | 'var' }[]
   /** теги преимущества и помехи: ['str'] в ярости, ['melee_str'] у Безрассудной атаки */
   adv: { check: string[]; save: string[]; attack: string[] }
   disadv: { check: string[]; save: string[]; attack: string[] }
@@ -288,6 +300,28 @@ export type PendingDecision = {
   choice_key?: string | null
 }
 
+/** Свой бонус из «Правки листа»: вклад в значение движка */
+export type CustomModifier = {
+  label: string
+  /** путь движка: char.ac, char.abilities.str.score, char.skills.stealth.bonus… */
+  target: string
+  op: 'add' | 'max' | 'union'
+  value: number | string | string[]
+  enabled: boolean
+}
+
+/** Своя предыстория вместо каталожной */
+export type CustomBackground = {
+  name: string
+  description: string
+  /** ключи навыков: stealth, athletics… */
+  skills: string[]
+  tools: string[]
+  languages: string[]
+  feature_name: string
+  feature_text: string
+}
+
 /** Редакция правил, по которой собран персонаж */
 export type CharacterEdition = '2014' | '2024'
 
@@ -320,6 +354,16 @@ export type Character = {
   active_effects: unknown[]
   pending_decisions: PendingDecision[]
   manual_overrides: Record<string, unknown>
+  /** отклонённые решения «grant_id|choice_key» — сервер их больше не предлагает */
+  dismissed_decisions?: string[]
+
+  /** настройка листа игроком */
+  custom_modifiers?: CustomModifier[]
+  custom_background?: CustomBackground | null
+  /** свои строки «Помнить за столом» */
+  custom_rules?: string[]
+  /** скрытые особые правила и величины: ключи char.flags.* / var.* без префикса */
+  hidden_rules?: string[]
 
   inventory: CharacterInventory
   attacks: AttackEntry[]

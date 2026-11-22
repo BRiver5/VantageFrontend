@@ -57,7 +57,7 @@ function GiveItem({ r }: { r: DrawnResult }) {
         </button>
       ))}
       {done && (
-        <span className="rt-done" role="status">
+        <span className="rtb-done" role="status">
           <Check aria-hidden="true" /> {done}
         </span>
       )}
@@ -81,7 +81,7 @@ function AddCreature({ r }: { r: DrawnResult }) {
         <Skull aria-hidden="true" /> добавить за ширму
       </button>
       {done && (
-        <span className="rt-done" role="status">
+        <span className="rtb-done" role="status">
           <Check aria-hidden="true" /> {done}
         </span>
       )}
@@ -94,11 +94,11 @@ function Result({ r }: { r: DrawnResult }) {
   const kb = useKnowledge()
   const nested = r.nested
   return (
-    <li className="rt-card">
-      {r.image && <Img className="rt-card-art" src={r.image} alt="" />}
-      <div className="rt-card-body">
-        <span className="rt-card-type">{TYPE_RU[r.type]}</span>
-        <b className="rt-card-text">{r.text || '—'}</b>
+    <li className="rtb-card">
+      {r.image && <Img className="rtb-card-art" src={r.image} alt="" />}
+      <div className="rtb-card-body">
+        <span className="rtb-card-type">{TYPE_RU[r.type]}</span>
+        <b className="rtb-card-text">{r.text || '—'}</b>
         {r.ref_id && (r.type === 'item' ? <GiveItem r={r} /> : r.type === 'creature' ? <AddCreature r={r} /> : null)}
         {r.ref_id && r.type === 'kb_page' && kb && (
           <div className="rt-act">
@@ -121,7 +121,7 @@ export function DrawCards({ draw, nested = false }: { draw: TableDraw; nested?: 
         {nested && <span>«{draw.table_name}»</span>}
         {draw.forced ? <em>выбран мастером</em> : draw.roll && <em>{draw.roll.expression} = {draw.roll.total}</em>}
       </p>
-      <ul className="rt-cards">
+      <ul className="rtb-cards">
         {draw.results.map((r, i) => (
           <Result key={`${r.id}-${i}`} r={r} />
         ))}

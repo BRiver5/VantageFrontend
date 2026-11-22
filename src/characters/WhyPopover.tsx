@@ -32,6 +32,7 @@ const KIND: Record<string, { icon: LucideIcon; label: string }> = {
   item: { icon: Gem, label: 'предмет' },
   form: { icon: PawPrint, label: 'облик' },
   override: { icon: UserCog, label: 'мастер' },
+  custom: { icon: UserCog, label: 'своё' },
   core: { icon: BookOpen, label: 'правила' },
   ability: { icon: Sparkles, label: 'умение' },
 }

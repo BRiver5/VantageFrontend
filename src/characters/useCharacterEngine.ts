@@ -33,6 +33,7 @@ import type {
   Character,
   CharacterInput,
   LogEntry,
+  PendingDecision,
   Prompt,
   RunInputs,
   RunResult,
@@ -372,8 +373,17 @@ export function useCharacterEngine(id: string | undefined) {
     [cid, applySheet, onConflict],
   )
 
+  /** Отклонить решение насовсем: сервер запоминает ключ, и после перезагрузки оно не вернётся */
   const dismiss = useCallback(
-    (decisionId: string) => simple(() => dismissPending(cid, decisionId), applySheet),
+    (d: Pick<PendingDecision, 'id' | 'grant_id' | 'choice_key'>) =>
+      simple(
+        () => dismissPending(cid, d.id),
+        (s) => {
+          applySheet(s)
+          const key = `${d.grant_id}|${d.choice_key ?? ''}`
+          setCharacter((c) => (c ? { ...c, dismissed_decisions: [...new Set([...(c.dismissed_decisions ?? []), key])] } : c))
+        },
+      ),
     [cid, simple, applySheet],
   )
 

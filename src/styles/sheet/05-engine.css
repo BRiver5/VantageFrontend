@@ -138,16 +138,17 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 
 .rb { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 4px 0 16px; }
 .rb-card {
+  --rb-edge: rgb(var(--gold-2-rgb) / 0.4);
   position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 190px;
   padding: 10px 16px 10px 10px;
-  border: 1px solid rgb(var(--gold-2-rgb) / 0.4);
-  background:
-    radial-gradient(120% 140% at 0% 50%, rgb(var(--gold-2-rgb) / 0.16), transparent 60%),
-    linear-gradient(180deg, rgb(var(--bg-2-rgb) / 0.92), rgb(var(--bg-0-rgb) / 0.92));
+  /* контур — псевдоэлементами: border у клипованной плашки торчит точками из острых углов */
+  border: none;
+  background: none;
   clip-path: var(--hex-wide-blunt);
   color: var(--text);
   font: inherit;
@@ -155,9 +156,25 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
 }
+.rb-card::before,
+.rb-card::after {
+  content: '';
+  position: absolute;
+  clip-path: var(--hex-wide-blunt);
+  pointer-events: none;
+}
+.rb-card::before { inset: 0; z-index: -2; background: var(--rb-edge); }
+.rb-card::after {
+  inset: 1px;
+  z-index: -1;
+  background:
+    radial-gradient(120% 140% at 0% 50%, rgb(var(--gold-2-rgb) / 0.16), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+}
 .rb-card:hover { transform: translateY(-2px); filter: brightness(1.12); }
 .rb-card.is-empty { filter: saturate(0.35) brightness(0.8); }
-.rb-card.is-active { border-color: rgba(224, 112, 112, 0.7); animation: rb-glow 1.8s ease-in-out infinite; }
+.rb-card.is-active { --rb-edge: rgba(224, 112, 112, 0.7); }
+.rb-card.is-active::after { animation: rb-glow 1.8s ease-in-out infinite; }
 @keyframes rb-glow {
   0%, 100% { box-shadow: inset 0 0 18px rgba(224, 112, 112, 0.18); }
   50% { box-shadow: inset 0 0 32px rgba(224, 112, 112, 0.42); }
@@ -373,7 +390,7 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 @media (prefers-reduced-motion: reduce) {
   .cw-dmg-pop { animation: none; }
 }
-.cw-hphex-own { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; color: #f0b880; }
+.cw-hphex-own { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; max-width: 220px; font-size: 0.72rem; line-height: 1.25; text-align: center; color: #f0b880; }
 .cw-hphex-own svg { width: 12px; height: 12px; }
 .cw-form-badge {
   display: inline-flex;
@@ -494,8 +511,41 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 .eng-banner.is-conflict > svg { color: #9cc8f0; }
 
 .eng-pending { border-color: rgb(var(--gold-3-rgb) / 0.5); background: rgb(var(--gold-2-rgb) / 0.1); }
-.eng-pending-title { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); letter-spacing: 0.06em; color: var(--gold-3); }
+.eng-pending-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.eng-pending-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-display);
+  font-size: inherit;
+  letter-spacing: 0.06em;
+  color: var(--gold-3);
+  cursor: pointer;
+}
+.eng-pending-title:hover { color: var(--gold-4); }
 .eng-pending-title svg { width: 16px; height: 16px; }
+.eng-pending-title .eng-pending-caret { width: 14px; height: 14px; transition: transform 0.18s ease; }
+.eng-pending.is-collapsed .eng-pending-caret { transform: rotate(-90deg); }
+.eng-pending.is-collapsed,
+.eng-pending.is-empty { padding-top: 6px; padding-bottom: 6px; }
+.eng-pending.is-empty { border-style: dashed; background: none; }
+.eng-pending-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.eng-pending-restore:hover:not(:disabled) { color: var(--gold-3); }
+.eng-pending-restore svg { width: 13px; height: 13px; }
 .eng-pending ul { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .eng-pending li { display: flex; align-items: center; gap: 10px; }
 .eng-pending li > span { display: flex; flex-direction: column; flex: 1; min-width: 0; }

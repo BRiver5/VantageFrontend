@@ -13,36 +13,41 @@
 /* ---------- верхняя полоса: назад, сохранение, видимость, правка ---------- */
 
 .cw-live-top {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 16px;
 }
-.cw-live-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.cw-live-actions .cs-btn svg { width: 16px; height: 16px; }
-.cw-save { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
-.cw-save svg { width: 15px; height: 15px; }
-.cw-save--saving svg,
-.cw-save--pending svg { animation: cw-spin 0.9s linear infinite; }
-.cw-save--saved { color: #8fd194; }
-.cw-save--error { color: #ee8d82; }
-.cw-save--view { color: var(--silver-2); font-style: italic; }
-
-.cw-vis {
+.cw-live-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
+/* видимость — в строке «к персонажам», над «Правкой листа» */
+.cw-live-top > .cw-vis {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px 6px 12px;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 26px 8px 20px;
   clip-path: var(--hex-chip);
   --hex-in: linear-gradient(180deg, var(--bg-3), var(--bg-1));
-  --hex-edge: rgb(var(--silver-2-rgb) / 0.26);
+  --hex-edge: rgb(var(--gold-2-rgb) / 0.45);
   background: var(--hex-edge);
   color: var(--gold-3);
+  cursor: pointer;
 }
-.cw-vis svg { width: 15px; height: 15px; }
-.cw-vis select { appearance: none; border: none; background: transparent; color: var(--text); font: inherit; font-size: 0.84rem; cursor: pointer; }
+.cw-vis:hover { --hex-edge: rgb(var(--gold-3-rgb) / 0.75); }
+.cw-vis svg { width: 18px; height: 18px; flex: none; }
+.cw-vis select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
 .cw-vis select:focus { outline: none; }
+.cw-vis:focus-within { --hex-edge: var(--gold-3); }
+.cw-vis .cw-vis-caret { width: 14px; height: 14px; margin-left: -4px; color: var(--text-dim); pointer-events: none; }
 .cw-vis select option { background: var(--bg-1); }
 
 /* ---------- лицо в рамке ---------- */

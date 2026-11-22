@@ -5,6 +5,8 @@ import {
   Dumbbell,
   GraduationCap,
   NotebookPen,
+  SlidersHorizontal,
+  Sparkles,
   Swords,
   UserRound,
   Wand2,
@@ -31,6 +33,22 @@ export function combatField(character: Character, view: SheetView, path: string,
 
 export const COMBAT_PATHS = { ac: 'char.ac', hp: 'char.hp.max', pb: 'char.pb' } as const
 
+/** Ячейки, которые игрок может задать вручную (оверрайд максимума) */
+export const SLOT_PATHS = [
+  ...Array.from({ length: 9 }, (_, i) => `slots.spell.${i + 1}.max`),
+  'slots.pact.max',
+  'slots.pact.level',
+] as const
+
+/** Текущее значение ячеек по пути — из пулов листа */
+export function slotValue(view: SheetView, path: string): number {
+  const pools = view.slotPools ?? []
+  if (path === 'slots.pact.max') return pools.find((s) => s.pool === 'pact')?.max ?? 0
+  if (path === 'slots.pact.level') return pools.find((s) => s.pool === 'pact')?.level ?? 0
+  const lvl = Number(/^slots\.spell\.(\d)\.max$/.exec(path)?.[1])
+  return pools.find((s) => s.pool === 'spell' && s.level === lvl)?.max ?? 0
+}
+
 export const COINS = [
   ['pp', 'Платиновые'],
   ['gp', 'Золотые'],
@@ -46,6 +64,8 @@ export const SECTIONS: { id: string; title: string; icon: LucideIcon }[] = [
   { id: 'abilities', title: 'Характеристики', icon: Dumbbell },
   { id: 'attacks', title: 'Атаки', icon: Swords },
   { id: 'magic', title: 'Заклинания', icon: Wand2 },
+  { id: 'bonuses', title: 'Свои бонусы', icon: SlidersHorizontal },
+  { id: 'rules', title: 'Особые правила', icon: Sparkles },
   { id: 'feats', title: 'Черты', icon: BookOpen },
   { id: 'purse', title: 'Кошелёк', icon: Coins },
   { id: 'persona', title: 'Личность', icon: NotebookPen },

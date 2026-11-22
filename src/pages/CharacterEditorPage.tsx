@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   CloudOff,
   Coffee,
@@ -404,7 +405,9 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
       canPlay={owner}
       busy={eng.busy}
       onDecide={(d) => eng.decide(d.id, d.label)}
-      onDismiss={(d) => void eng.dismiss(d.id)}
+      onDismiss={(d) => void eng.dismiss(d)}
+      dismissedCount={character.dismissed_decisions?.length ?? 0}
+      onRestore={() => patchDoc(() => ({ dismissed_decisions: [] }))}
     />
   )
   const warningsNode = admin && sheet.warnings.length > 0 && (
@@ -490,10 +493,29 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
     <section className={`cw cw-live${pic.background ? ' has-world' : ''}`}>
       {!hudMode && pic.background && <WorldBackdrop key={pic.background} art={pic.background} />}
       {!hudMode && <header className="cw-live-top">
-        <Link to={room?.backTo.to ?? '/characters'} className="back-link back-link--btn">
-          <ChevronLeft aria-hidden="true" /> {room ? room.backTo.label : 'к персонажам'}
-        </Link>
-        <EditionBadge edition={character.edition} />
+        <span className="cw-live-nav">
+          <Link to={room?.backTo.to ?? '/characters'} className="back-link back-link--btn">
+            <ChevronLeft aria-hidden="true" /> {room ? room.backTo.label : 'к персонажам'}
+          </Link>
+          <EditionBadge edition={character.edition} />
+        </span>
+        {owner && !room && (
+          <label className="cw-vis" title="Кто видит лист">
+            <VisIcon aria-hidden="true" />
+            <select
+              value={character.visibility}
+              aria-label="Кто видит лист"
+              onChange={(e) => patchDoc(() => ({ visibility: e.target.value as CharacterVisibility }))}
+            >
+              {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => (
+                <option key={v} value={v}>
+                  {VISIBILITY[v].label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="cw-vis-caret" aria-hidden="true" />
+          </label>
+        )}
         <div className="cw-live-actions">
           {status && StatusIcon && (
             <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">
@@ -517,22 +539,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
           )}
           {owner && (
             <>
-              {!room && (
-              <label className="cw-vis" title={vis.label}>
-                <VisIcon aria-hidden="true" />
-                <select
-                  value={character.visibility}
-                  aria-label="Кто видит лист"
-                  onChange={(e) => patchDoc(() => ({ visibility: e.target.value as CharacterVisibility }))}
-                >
-                  {(Object.keys(VISIBILITY) as CharacterVisibility[]).map((v) => (
-                    <option key={v} value={v}>
-                      {VISIBILITY[v].label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              )}
               <span className="cw-live-group" role="group" aria-label="Отдых и журнал">
                 <button type="button" className="cw-mini-btn" onClick={() => setRestOpen(true)} disabled={eng.busy} title="Кости хитов, ресурсы короткого отдыха">
                   <Coffee aria-hidden="true" /> короткий отдых

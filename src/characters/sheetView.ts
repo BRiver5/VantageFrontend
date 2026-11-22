@@ -5,6 +5,7 @@
  * документе больше нет — их подставляет каталог (`Names`).
  */
 import { ABILITY_KEYS, ABILITY_SHORT, DEFAULT_SKILLS } from '../types/character'
+import { flagLabel } from './sheet/flagLabels'
 import type {
   AbilityName,
   AttackEntry,
@@ -75,6 +76,12 @@ function featureSource(kind: string): FeatureEntry['source'] {
 }
 
 /** «snake_case» → «Snake case», когда в каталоге нет подписи */
+/** Одна строка на подпись: несколько флагов одной способности без словаря сливаются */
+function dedupeLabels<T extends { label: string }>(list: T[]): T[] {
+  const seen = new Set<string>()
+  return list.filter((x) => (seen.has(x.label) ? false : (seen.add(x.label), true)))
+}
+
 const humanize = (key: string) => {
   const t = key.replace(/[._]+/g, ' ').trim()
   return t.charAt(0).toUpperCase() + t.slice(1)
@@ -97,13 +104,15 @@ function varText(v: unknown): string {
 }
 
 /**
- * Атаки оружием: строки документа (снимок при создании) получают живые числа движка
- * (`char.attacks.weapons`: уровень, владения, Боевые искусства монаха), а надетое оружие
- * без строки (добавлено в инвентарь позже) — появляется в списке. Ручные атаки не трогаются.
+ * Атаки оружием: каждое оружие инвентаря (надетое и в сумке) — строка с живыми числами
+ * движка (`char.attacks.weapons`: уровень, владения, Боевые искусства монаха). Строка
+ * документа с тем же предметом задаёт своё название, а с `manual` — и все числа; `hidden`
+ * убирает атаку из листа. Строка проданного/выброшенного оружия пропадает, если она не
+ * ручная. Ручные атаки без предмета не трогаются. Без данных движка — документ как есть.
  */
 export function mergeWeaponAttacks(own: AttackEntry[], engine: EngineWeaponAttack[] | undefined): AttackEntry[] {
-  const list = (engine ?? []).filter((w) => w && w.instance_id)
-  if (!list.length) return own
+  if (engine === undefined) return own.filter((a) => !a.hidden)
+  const list = engine.filter((w) => w && w.instance_id)
   const byId = new Map(list.map((w) => [w.instance_id, w]))
   const live = (w: EngineWeaponAttack): AttackEntry => ({
     name: w.name,
@@ -117,15 +126,21 @@ export function mergeWeaponAttacks(own: AttackEntry[], engine: EngineWeaponAttac
     ability: w.ability,
     rules: w.rules,
     versatile: w.versatile,
+    equipped: w.equipped,
   })
   const seen = new Set<string>()
-  const merged = own.map((a) => {
+  const merged: AttackEntry[] = []
+  for (const a of own) {
     const w = a.inventory_instance_id ? byId.get(a.inventory_instance_id) : undefined
-    if (!w) return a
-    seen.add(w.instance_id)
-    return { ...live(w), name: a.name || w.name }
-  })
-  return [...merged, ...list.filter((w) => w.equipped && !seen.has(w.instance_id)).map(live)]
+    if (w) seen.add(w.instance_id)
+    if (a.hidden) continue
+    if (!a.inventory_instance_id) merged.push(a)
+    else if (a.manual) merged.push({ ...a, equipped: w?.equipped })
+    else if (w) merged.push({ ...live(w), name: a.name || w.name })
+  }
+  const rest = list.filter((w) => !seen.has(w.instance_id))
+  // надетое — сразу за строками документа, оружие из сумки — в конце
+  return [...merged, ...rest.filter((w) => w.equipped).map(live), ...rest.filter((w) => !w.equipped).map(live)]
 }
 
 /** Подписи состояний: сервер отдаёт английские ключи (poisoned, prone…) */
@@ -225,6 +240,19 @@ export function buildSheetView(
     // отключённые игроком сервер отдаёт с enabled: false — в списке они приглушены
     disabled: a.enabled === false,
   }))
+  // своя предыстория: её умение — строкой-напоминанием
+  const cbg = character.background_id ? null : character.custom_background
+  if (cbg && (cbg.feature_name.trim() || cbg.feature_text.trim())) {
+    features.push({
+      name: cbg.feature_name.trim() || 'Умение предыстории',
+      source: 'background',
+      level: null,
+      description: cbg.feature_text,
+      feature_source: null,
+      source_name: cbg.name.trim() || 'Своя предыстория',
+      source_editions: [],
+    })
+  }
   // черта, за которой у движка нет умения, остаётся строкой из каталога
   const featSources = new Set(sheet.abilities.filter((a) => a.source_kind === 'feat').map((a) => a.source_id))
   const feats = character.feat_ids.filter((id) => !featSources.has(id))
@@ -271,18 +299,38 @@ export function buildSheetView(
         .map(([path, v]) => [path.slice(prefix.length), v as number]),
     )
 
+  const hidden = new Set(character.hidden_rules ?? [])
+  const abilityNames = new Map(sheet.abilities.map((a) => [a.slug, a.name]))
+  /** название способности, выставившей флаг: подпись, если в словаре его нет */
+  const flagSource = (path: string) => {
+    for (const c of sheet.breakdown[path] ?? []) {
+      const name = abilityNames.get(c.source)
+      if (name) return name
+    }
+    return undefined
+  }
+
+  const allFlags = dedupeLabels(
+    Object.entries(sheet.values)
+      .filter(([path, v]) => path.startsWith('char.flags.') && v !== false && v !== 0 && v != null && v !== '')
+      .map(([path]) => ({ key: path.slice(11), label: flagLabel(path.slice(11), labels[path], flagSource(path)) })),
+  )
+  const allVars = Object.entries(sheet.values)
+    .filter(([path, v]) => path.startsWith('var.') && v != null && v !== '' && v !== false)
+    .map(([path, v]) => ({ key: path.slice(4), label: labels[path] ?? humanize(path.slice(4)), value: varText(v) }))
+    .filter((x) => x.value && x.value !== '0')
+
   const extras: EngineExtras = {
     perAction: num('char.attacks.per_action', 1),
     critMin: num('char.attacks.crit_min', 20),
     unarmedDie: num('char.attacks.unarmed_die', 1),
     maneuvers: list('char.maneuvers'),
-    flags: Object.entries(sheet.values)
-      .filter(([path, v]) => path.startsWith('char.flags.') && v !== false && v !== 0 && v != null && v !== '')
-      .map(([path]) => ({ key: path.slice(11), label: labels[path] ?? humanize(path.slice(11)) })),
-    vars: Object.entries(sheet.values)
-      .filter(([path, v]) => path.startsWith('var.') && v != null && v !== '' && v !== false)
-      .map(([path, v]) => ({ key: path.slice(4), label: labels[path] ?? humanize(path.slice(4)), value: varText(v) }))
-      .filter((x) => x.value && x.value !== '0'),
+    flags: [
+      ...allFlags.filter((f) => !hidden.has(f.key)),
+      ...(character.custom_rules ?? []).filter((t) => t.trim()).map((t, i) => ({ key: `custom:${i}`, label: t.trim() })),
+    ],
+    vars: allVars.filter((v) => !hidden.has(v.key)),
+    allRules: [...allVars.map((v) => ({ ...v, kind: 'var' as const })), ...allFlags.map((f) => ({ ...f, kind: 'flag' as const }))],
     adv: { check: list('char.adv.check'), save: list('char.adv.save'), attack: list('char.adv.attack') },
     disadv: { check: list('char.disadv.check'), save: list('char.disadv.save'), attack: list('char.disadv.attack') },
     attackBonus: tagged('char.attack_bonus.'),
@@ -304,7 +352,9 @@ export function buildSheetView(
       total_level: num('char.level', classes.reduce((s, c) => s + c.level, 0)),
       background: character.background_id
         ? { name: names.background(character.background_id) ?? '—', source: character.background_id }
-        : null,
+        : character.custom_background?.name
+          ? { name: character.custom_background.name, source: null }
+          : null,
       alignment: character.alignment ?? '',
       experience_points: num('char.xp', character.experience_points),
       gender: character.gender,
@@ -333,6 +383,8 @@ export function buildSheetView(
       shield: num('char.armor.shield') > 0,
     },
     attacks: [...mergeWeaponAttacks(character.attacks, raw('char.attacks.weapons') as EngineWeaponAttack[] | undefined), ...naturalAttacks],
+    liveWeapons: mergeWeaponAttacks([], (raw('char.attacks.weapons') as EngineWeaponAttack[] | undefined) ?? []),
+    slotPools: sheet.slots,
     proficiencies: {
       armor: list('char.prof.armor'),
       weapons: list('char.prof.weapons'),
@@ -373,7 +425,7 @@ function sourceLabel(source: string, names?: Record<string, string>): string {
   if (names?.[source]) return names[source]
   const [kind, rest] = source.includes(':') ? source.split(/:(.*)/s) : ['', source]
   const name = (rest || source).replace(/^[a-z0-9]+\./, '').replace(/[._]/g, ' ')
-  const kinds: Record<string, string> = { race: 'раса', subrace: 'подраса', item: 'предмет', form: 'облик', class: 'класс', feat: 'черта' }
+  const kinds: Record<string, string> = { race: 'раса', subrace: 'подраса', item: 'предмет', form: 'облик', class: 'класс', feat: 'черта', custom: 'своё' }
   return kind ? `${kinds[kind] ?? kind}: ${name}` : name
 }
 
@@ -395,7 +447,7 @@ export interface WhyRow {
   text: string
 }
 
-const SOURCE_KINDS = new Set(['race', 'subrace', 'class', 'subclass', 'background', 'feat', 'item', 'form'])
+const SOURCE_KINDS = new Set(['race', 'subrace', 'class', 'subclass', 'background', 'feat', 'item', 'form', 'custom'])
 
 /** Вклады в значение по пути — для поп-апа; пустой список — расшифровки нет */
 export function contributionsOf(

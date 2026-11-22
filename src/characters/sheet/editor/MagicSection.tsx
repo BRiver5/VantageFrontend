@@ -2,7 +2,8 @@
 import { Trash2, Wand2 } from 'lucide-react'
 import type { Spell } from '../../../api'
 import type { Character, SpellKnown } from '../../../types/character'
-import { CatalogSearch, EdSection, Toggle } from '../../editorFields'
+import { AutoNum, CatalogSearch, EdSection, Toggle } from '../../editorFields'
+import type { CombatField } from '../editorData'
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
 
@@ -12,11 +13,46 @@ type Props = {
   knownSpellNames: Set<string>
   spellsByCircle: { s: SpellKnown; i: number }[][]
   setSpells: (fn: (list: SpellKnown[]) => SpellKnown[]) => void
+  /** максимум ячеек по путям slots.* — авто или вручную */
+  slots: Record<string, CombatField>
+  setSlot: (path: string, field: CombatField) => void
 }
 
-export function MagicSection({ c, spellCatalog, knownSpellNames, spellsByCircle, setSpells }: Props) {
+export function MagicSection({ c, spellCatalog, knownSpellNames, spellsByCircle, setSpells, slots, setSlot }: Props) {
+  const slotField = (path: string, label: string, max: number) => {
+    const f = slots[path]
+    if (!f) return null
+    return (
+      <AutoNum
+        key={path}
+        label={label}
+        auto={f.auto}
+        computed={f.computed}
+        value={f.value}
+        min={0}
+        max={max}
+        onAuto={(auto) => setSlot(path, { ...f, auto, value: auto ? f.computed : f.value })}
+        onChange={(v) => setSlot(path, { ...f, auto: false, value: v })}
+      />
+    )
+  }
   return (
-    <EdSection id="magic" icon={Wand2} title="Заклинания" lead="Список известных и подготовленных заклинаний. Ячейки и Сл считает сервер.">
+    <EdSection
+      id="magic"
+      icon={Wand2}
+      title="Заклинания"
+      lead="Известные и подготовленные заклинания и ячейки. Ячейки сервер считает по классам — у мультикласса или по решению мастера их можно вписать вручную."
+    >
+      <div className="ed-sub">
+        <h5>Ячейки заклинаний</h5>
+        <div className="ed-grid">{Array.from({ length: 9 }, (_, i) => slotField(`slots.spell.${i + 1}.max`, `${ROMAN[i + 1]} круг`, 9))}</div>
+        <div className="ed-grid">
+          {slotField('slots.pact.max', 'Ячейки договора', 9)}
+          {slotField('slots.pact.level', 'Круг ячеек договора', 5)}
+        </div>
+      </div>
+      <div className="ed-sub">
+        <h5>Список заклинаний</h5>
       <CatalogSearch
         items={spellCatalog}
         label={(s) => s.spell_name}
@@ -64,6 +100,7 @@ export function MagicSection({ c, spellCatalog, knownSpellNames, spellsByCircle,
           ),
         )}
         {c.spells.length === 0 && <p className="ed-empty">Заклинаний нет — найдите их в каталоге выше.</p>}
+      </div>
       </div>
     </EdSection>
   )
