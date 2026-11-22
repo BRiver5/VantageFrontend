@@ -691,7 +691,7 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 .cw-rules-flags li::before { content: "•"; position: absolute; left: 0; color: var(--gold-2); }
 
 
-/* ---------- редакция правил: значок, пересоздание, вопросы после переноса ---------- */
+/* ---------- редакция правил: значок ---------- */
 
 .ed-badge {
   display: inline-grid;
@@ -707,52 +707,3 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 }
 .ed-badge--2024 { border-color: rgb(var(--gold-3-rgb) / 0.6); color: var(--gold-3); }
 .cw-live-top > .ed-badge { margin-right: auto; }
-
-.ed-convert p { margin: 0 0 10px; }
-.ed-convert ul { margin: 0; padding-left: 18px; color: var(--text-dim); }
-.ed-convert li + li { margin-top: 4px; }
-
-.ed-issues-lead { margin: 4px 0 0; color: var(--text-dim); font-size: 0.78rem; }
-.ed-issues .ed-issue { align-items: flex-start; flex-wrap: wrap; }
-.ed-issues .ed-issue > .cw-spin { width: 14px; height: 14px; margin-top: 4px; }
-.ed-issues-more { margin-top: 8px; }
-.ed-issues-more svg { width: 14px; height: 14px; }
-
-.ed-issues-kept { margin-top: 8px; font-size: 0.76rem; color: var(--text-dim); }
-.ed-issues-kept summary { cursor: pointer; }
-.ed-issues-kept ul { margin: 4px 0 0; padding-left: 18px; }
-.ed-issues-kept.is-solo { margin: 0 0 12px; padding: 4px 14px; }
-
-.ed-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
-.ed-pick-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: min(100%, 320px);
-  padding: 4px 8px;
-  border: 1px solid rgb(var(--gold-2-rgb) / 0.4);
-  background: rgb(var(--bg-0-rgb) / 0.6);
-}
-.ed-pick-search svg { flex: none; width: 14px; height: 14px; color: var(--text-dim); }
-.ed-pick-search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; outline: none; }
-.ed-pick-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 220px; overflow-y: auto; }
-.ed-pick-list button {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid rgb(var(--gold-2-rgb) / 0.4);
-  background: rgb(var(--gold-2-rgb) / 0.08);
-  color: var(--parchment);
-  font: inherit;
-  cursor: pointer;
-}
-.ed-pick-list button:hover:not(:disabled) { border-color: var(--gold-3); }
-.ed-pick-list button:disabled { opacity: 0.5; cursor: default; }
-.ed-pick-list button i { font-size: 0.68rem; }
-.ed-pick-empty { color: var(--text-dim); font-size: 0.78rem; }
-
-@media (max-width: 640px) {
-  .ed-issues .ed-issue > .cs-btn,
-  .ed-issues .ed-issue > .cw-mini-btn { flex: 1 1 auto; }
-}
