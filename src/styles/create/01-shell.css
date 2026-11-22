@@ -226,3 +226,24 @@
   white-space: nowrap;
 }
 
+
+/* ---------- редакция героя и каталогов шагов ---------- */
+.cw-hero-ed,
+.cw-step-ed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+.cw-hero-ed { margin-top: 8px; }
+.cw-step-ed { margin: 4px auto 14px; }
+.cw-hero-ed-label,
+.cw-step-ed-label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.74rem; }
+.cw-hero-ed-note,
+.cw-step-ed-note { font-style: italic; }
+.cw-step-ed.is-mixed .cw-step-ed-label { color: var(--gold-3); }
+.cw-step-eds { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 28px; }
+.cw-step-eds .cw-step-ed { margin-inline: 0; }

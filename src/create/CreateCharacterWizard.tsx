@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
 import { ApiError, createCharacter, isLegacySchemaError, levelUp } from '../api'
 import { useAuth } from '../auth/AuthContext'
@@ -41,6 +41,8 @@ import LevelUpStep from './steps/LevelUpStep'
 import ReviewStep from './steps/ReviewStep'
 import SpellsStep from './steps/SpellsStep'
 import { casterKind } from './dnd5e'
+import { childEdition, editionFromSearch, mixedSteps, stepEdition, withHeroEdition } from './createEdition'
+import { EditionToggle } from '../ui/EditionToggle'
 
 type StepId =
   | 'race'
@@ -97,9 +99,11 @@ function Stepper({
 export default function CreateCharacterWizard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
+  // редакция героя — из «Новый герой» (?ed=2014); по умолчанию 2024
   const [draft, setDraft] = useState<CharacterDraft>(() =>
-    initialDraft(user?.preferences?.default_character_visibility ?? 'private'),
+    initialDraft(user?.preferences?.default_character_visibility ?? 'private', editionFromSearch(location.search)),
   )
   const [stepIdx, setStepIdx] = useState(0)
   const [maxVisited, setMaxVisited] = useState(0)
@@ -110,14 +114,16 @@ export default function CreateCharacterWizard() {
     setDraft((prev) => ({ ...prev, ...patch }))
   }, [])
 
-  const { items: subraces } = useSubraces(draft.race?.id ?? null)
+  // подрасы — в редакции шага расы, если раса в ней есть, иначе в её собственной
+  const raceEdition = stepEdition(draft, 'races')
+  const { items: subraces } = useSubraces(draft.race?.id ?? null, childEdition(draft.race, raceEdition))
   // ветви, которые заменяют расу, не обязательны: базовый народ можно оставить
   const subraceOptional = subraces.length > 0 && subraces.every((sr) => sr.replaces_race)
-  const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null)
+  const { bundle, loading: classLoading } = useClassBundle(draft.cls?.id ?? null, stepEdition(draft, 'classes'))
   const subclassFeatures = useSubclassFeatures(bundle, draft.subclass?.id ?? null)
   const equipmentIndex = useEquipmentIndex()
   // каталог заклинаний — и для расовых (у любого класса), и для подкласса
-  const { items: spellCatalog } = useCatalogList<Spell>('spells')
+  const { items: spellCatalog } = useCatalogList<Spell>('spells', true, stepEdition(draft, 'spells'))
   const granted = useMemo(
     () =>
       grantedSpells(
@@ -275,6 +281,16 @@ export default function CreateCharacterWizard() {
         <h1 className="section-title gold-text cw-title">
           <ScrollText aria-hidden="true" /> Создание героя
         </h1>
+        <div className="cw-hero-ed">
+          <span className="cw-hero-ed-label">Правила героя</span>
+          <EditionToggle
+            size="compact"
+            value={draft.edition}
+            onChange={(e) => setDraft((prev) => ({ ...prev, ...withHeroEdition(prev, e) }))}
+            title={`Герой создаётся по правилам ${draft.edition}. Каталог каждого шага можно переключить отдельно`}
+          />
+          {mixedSteps(draft).length > 0 && <span className="cw-hero-ed-note">есть шаги из другой редакции</span>}
+        </div>
       </header>
 
       <Stepper steps={steps} current={safeIdx} maxVisited={maxVisited} onJump={go} />

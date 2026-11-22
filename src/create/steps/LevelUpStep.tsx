@@ -30,6 +30,8 @@ import type { FeatureEntry } from '../../classArticleHtml'
 import { useDice } from '../../dice/diceControl'
 import CelebrationOverlay, { type CelebrationScene } from '../CelebrationOverlay'
 import { useCatalogList } from '../useCatalog'
+import { stepEdition } from '../createEdition'
+import { StepEdition } from './StepEdition'
 import type { GrantedSpell } from '../grantedSpells'
 import type { PrereqContext } from '../prereq'
 import { StepHeader } from './ui'
@@ -110,9 +112,9 @@ export default function LevelUpStep({
   // тяжёлые списки грузим один раз на весь шаг и только если они вообще нужны
   // заговоры выбирают здесь и «готовящие» классы — каталог нужен любому заклинателю
   const spellsEnabled = kind !== 'none'
-  const { items: allSpells, loading: spellsLoading } = useCatalogList<Spell>('spells', spellsEnabled)
+  const { items: allSpells, loading: spellsLoading } = useCatalogList<Spell>('spells', spellsEnabled, stepEdition(draft, 'spells'))
   const featsEnabled = asiLevels(className).some((l) => l <= draft.targetLevel)
-  const { items: allFeats } = useCatalogList<Feat>('feats', featsEnabled)
+  const { items: allFeats } = useCatalogList<Feat>('feats', featsEnabled, stepEdition(draft, 'feats'))
 
   const scores = useMemo(() => finalScores(draft), [draft])
   // характеристики без усилений текущего уровня — чтобы показать «было → стало»
@@ -317,6 +319,12 @@ export default function LevelUpStep({
         title="Путь наверх"
         lead="Каждый уровень принимается отдельно: бросьте кость хитов и заберите то, что он даёт."
       />
+      {(featsEnabled || spellsEnabled) && (
+        <div className="cw-step-eds">
+          {featsEnabled && <StepEdition draft={draft} update={update} section="feats" />}
+          {spellsEnabled && <StepEdition draft={draft} update={update} section="spells" />}
+        </div>
+      )}
 
       {/* дорога уровней: золото заливает линию до последнего принятого */}
       {!opts.onlyLatest && <LevelRoad levels={draft.levels} level={level} doneCount={doneCount} nextPending={nextPending} setCursor={setCursor} />}

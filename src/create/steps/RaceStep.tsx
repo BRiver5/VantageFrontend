@@ -24,6 +24,8 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { useBookMap, useCatalogList, useRacesWithSubraces } from '../useCatalog'
+import { keptChoiceNote, stepEdition } from '../createEdition'
+import { StepEdition } from './StepEdition'
 import { Img } from '../../media'
 
 const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']
@@ -147,9 +149,10 @@ export function RaceModal({
 }
 
 export default function RaceStep({ draft, update }: StepProps) {
-  const { items: races, loading, error } = useCatalogList<Race>('races')
+  const edition = stepEdition(draft, 'races')
+  const { items: races, loading, error } = useCatalogList<Race>('races', true, edition)
   const raceIds = useMemo(() => races.map((r) => r.id), [races])
-  const withSubraces = useRacesWithSubraces(raceIds)
+  const withSubraces = useRacesWithSubraces(raceIds, edition)
   const [open, setOpen] = useState<Race | null>(null)
 
   const books = useBookMap()
@@ -197,6 +200,12 @@ export default function RaceStep({ draft, update }: StepProps) {
   return (
     <div className="cw-step cw-step--picker">
       <StepHeader title="Из какого ты народа?" />
+      <StepEdition
+        draft={draft}
+        update={update}
+        section="races"
+        note={keptChoiceNote(draft.race && raceName(draft.race), loading || races.some((r) => r.id === draft.race?.id))}
+      />
 
       <PickToolbar picker={picker} groups={groups} placeholder="Искать расу…" />
 

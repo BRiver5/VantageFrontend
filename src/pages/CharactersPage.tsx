@@ -26,6 +26,18 @@ import { useCatalogList } from '../create/useCatalog'
 import type { CharacterVisibility } from '../types/auth'
 import { Img } from '../media'
 import { HexSelect } from '../hexSelect'
+import { EditionToggle } from '../ui/EditionToggle'
+import { DEFAULT_EDITION, isEdition, type Edition } from '../editions/edition'
+import {
+  EDITION_FILTER_KEY,
+  countByEdition,
+  editionEmptyText,
+  editionFilterOptions,
+  matchesEditionFilter,
+  sanitizeEditionFilter,
+  type EditionFilter,
+} from '../characters/editionFilter'
+import { NEW_HERO_EDITION_KEY, newHeroHref } from '../create/createEdition'
 
 type SortKey = 'custom' | 'name' | 'level-desc' | 'level-asc' | 'new' | 'updated'
 const SORT_KEY = 'vantage-heroes-sort'
@@ -56,10 +68,10 @@ const VISIBILITY: Record<CharacterVisibility, { icon: LucideIcon; label: string 
 }
 
 /** Пустой угловатый слот с «+» — ведёт в мастер создания */
-function EmptySlot({ main = false }: { main?: boolean }) {
+function EmptySlot({ main = false, to }: { main?: boolean; to: string }) {
   return (
     <Link
-      to="/characters/new"
+      to={to}
       className={`lobby-slot${main ? ' lobby-slot--main' : ''}`}
       aria-label="Создать персонажа"
     >
@@ -260,6 +272,16 @@ export default function CharactersPage() {
   const [classF, setClassF] = useState('')
   const [raceF, setRaceF] = useState('')
   const [levelF, setLevelF] = useState('')
+  // редакция: фильтр и редакция нового героя запоминаются на устройстве
+  const [edF, setEdF] = useState<EditionFilter>(() => sanitizeEditionFilter(readPref<unknown>(EDITION_FILTER_KEY, 'all')))
+  const [newEd, setNewEd] = useState<Edition>(() => {
+    const v = readPref<unknown>(NEW_HERO_EDITION_KEY, DEFAULT_EDITION)
+    return isEdition(v) ? v : DEFAULT_EDITION
+  })
+  useEffect(() => savePref(EDITION_FILTER_KEY, edF), [edF])
+  useEffect(() => savePref(NEW_HERO_EDITION_KEY, newEd), [newEd])
+  const edCounts = useMemo(() => countByEdition(items), [items])
+  const newHref = newHeroHref(newEd)
   const [sort, setSort] = useState<SortKey>(() => readPref<SortKey>(SORT_KEY, 'custom'))
   const [order, setOrder] = useState<string[]>(() => readPref<string[]>(ORDER_KEY, []))
   const [arranging, setArranging] = useState(false)
@@ -277,6 +299,7 @@ export default function CharactersPage() {
     const needle = q.trim().toLocaleLowerCase('ru')
     const [lo, hi] = levelF ? levelF.split('-').map(Number) : [0, 99]
     const list = custom.filter((c) => {
+      if (!matchesEditionFilter(c, edF)) return false
       if (needle) {
         const hay = [c.character_name, ...(c.classes ?? []).map((cl) => classById.get(cl.class_id)?.class_name), c.race_id ? raceById.get(c.race_id)?.race_name : ''].join(' ').toLocaleLowerCase('ru')
         if (!hay.includes(needle)) return false
@@ -298,8 +321,9 @@ export default function CharactersPage() {
     return cmp ? [...list].sort(cmp) : list
     // levelOf — чистая функция
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [custom, q, classF, raceF, levelF, sort, classById, raceById])
-  const filtered = !!(q.trim() || classF || raceF || levelF)
+  }, [custom, q, classF, raceF, levelF, edF, sort, classById, raceById])
+  const otherFilters = !!(q.trim() || classF || raceF || levelF)
+  const filtered = otherFilters || edF !== 'all'
 
   // свой порядок: сдвиг стрелкой или перетаскиванием
   const move = (id: string, to: number) => {
@@ -367,8 +391,23 @@ export default function CharactersPage() {
 
       {error && <p className="auth-error">{error}</p>}
 
-      {items.length > 1 && (
+      {(items.length > 1 || edF !== 'all') && (
         <div className="lobby-tools" role="search">
+          <div className="lobby-ed-filter" role="radiogroup" aria-label="Редакция правил">
+            {editionFilterOptions(edCounts).map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={edF === o.value}
+                className={`sort-btn${edF === o.value ? ' is-active' : ''}`}
+                title={o.title}
+                onClick={() => setEdF(o.value)}
+              >
+                {o.label} <span className="lobby-ed-count">{o.count}</span>
+              </button>
+            ))}
+          </div>
           <label className="lobby-search">
             <Search aria-hidden="true" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Имя, класс или раса" aria-label="Поиск по персонажам" />
@@ -438,7 +477,21 @@ export default function CharactersPage() {
               <ChevronRight aria-hidden="true" />
             </button>
           )}
-          {filtered && shown.length === 0 && <p className="lobby-none">Никого не нашлось — попробуйте другие фильтры.</p>}
+          {filtered && shown.length === 0 && !isEmpty && (
+            <div className="lobby-none">
+              <p>{editionEmptyText(otherFilters ? 'all' : edF)}</p>
+              {!otherFilters && edF !== 'all' && (
+                <p className="lobby-none-actions">
+                  <Link to={newHeroHref(edF)} className="sort-btn">
+                    <Plus aria-hidden="true" /> Создать по правилам {edF}
+                  </Link>
+                  <button type="button" className="sort-btn" onClick={() => setEdF('all')}>
+                    Показать всех
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
           <div
             className="lobby-row"
             ref={rowRef}
@@ -452,10 +505,10 @@ export default function CharactersPage() {
             }}
           >
             {Array.from({ length: sideFree }, (_, i) => (
-              <EmptySlot key={`l${i}`} />
+              <EmptySlot key={`l${i}`} to={newHref} />
             ))}
             {isEmpty ? (
-              <EmptySlot main />
+              <EmptySlot main to={newHref} />
             ) : (
               shown.map((c, i) => (
                 <HeroBanner
@@ -484,7 +537,7 @@ export default function CharactersPage() {
               ))
             )}
             {Array.from({ length: sideFree }, (_, i) => (
-              <EmptySlot key={`r${i}`} />
+              <EmptySlot key={`r${i}`} to={newHref} />
             ))}
           </div>
         </div>
@@ -492,9 +545,18 @@ export default function CharactersPage() {
 
       <footer className="lobby-actions">
         <span className="lobby-actions-line" aria-hidden="true" />
-        <Link to="/characters/new" className="lobby-start">
-          <Plus aria-hidden="true" /> {isEmpty ? 'Создать первого' : 'Новый герой'}
-        </Link>
+        <div className="lobby-start-group">
+          <Link to={newHref} className="lobby-start">
+            <Plus aria-hidden="true" /> {isEmpty ? 'Создать первого' : 'Новый герой'}
+          </Link>
+          <EditionToggle
+            size="compact"
+            value={newEd}
+            onChange={setNewEd}
+            className="lobby-start-ed"
+            title={`Новый герой — по правилам ${newEd}`}
+          />
+        </div>
         <span className="lobby-actions-line" aria-hidden="true" />
       </footer>
       <div className="lobby-import">

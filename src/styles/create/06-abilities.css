@@ -444,3 +444,27 @@ button.cw-rollslot:focus-visible { outline: none; filter: brightness(1.25); }
 .cw-ability-bonus { font-size: 0.74rem; color: var(--gold-2); font-style: normal; }
 .cw-abilities-foot { justify-content: center; }
 
+
+/* ---------- повышение характеристик предыстории 2024 ---------- */
+.cw-bgasi { margin-bottom: 18px; }
+.cw-bgasi-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 12px; }
+.cw-bgasi-title { color: var(--gold-3); font-family: var(--font-display); }
+.cw-bgasi-modes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cw-bgasi-rows { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+.cw-bgasi-row { display: inline-flex; align-items: center; gap: 6px; }
+.cw-bgasi-name { min-width: 7.5em; }
+.cw-bgasi-pick { padding-inline: 14px; font-variant-numeric: tabular-nums; }
+.cw-bgasi-fixed { color: var(--gold-3); font-variant-numeric: tabular-nums; }
+.cw-bgasi-status { margin: 12px 0 0; color: var(--text-dim); font-size: 0.86rem; }
+.cw-bgasi-note {
+  margin: 0 auto 16px;
+  max-width: 72ch;
+  padding: 10px 14px;
+  border-left: 2px solid rgb(var(--gold-2-rgb) / 0.6);
+  background: rgb(var(--gold-2-rgb) / 0.06);
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+@media (max-width: 600px) {
+  .cw-bgasi-rows { flex-direction: column; }
+}

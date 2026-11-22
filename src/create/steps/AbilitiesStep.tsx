@@ -24,6 +24,8 @@ import {
 import { finalScores, racialBonuses } from '../deriveCharacter'
 import { useDice } from '../../dice/diceControl'
 import { FactChip, StepHeader, StepPanel } from './ui'
+import { backgroundAsiOptions, backgroundBonuses, originAsiNote } from '../originAsi'
+import { BackgroundAsiPanel, OriginAsiHint } from './BackgroundAsiPanel'
 
 const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
   { id: 'roll', label: 'Броски костей', hint: '6 раз по 4к6, младшая кость отбрасывается' },
@@ -38,6 +40,12 @@ function dropLowest(values: number[]): { kept: number[]; dropped: number; total:
   const dropped = sorted[0] ?? 0
   const kept = sorted.slice(1)
   return { kept, dropped, total: kept.reduce((s, v) => s + v, 0) }
+}
+
+/** У расы бонусы на выбор (MPMM, полуэльф): поле origin.ability_patterns с сервера */
+function hasFlexibleBoosts(src: unknown): boolean {
+  const origin = (src as { origin?: { ability_patterns?: unknown[] } } | null)?.origin
+  return Array.isArray(origin?.ability_patterns) && origin.ability_patterns.length > 0
 }
 
 const MAX_ROLLS = 6
@@ -270,6 +278,16 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
   const [diceError, setDiceError] = useState<string | null>(null)
 
   const racial = useMemo(() => racialBonuses(draft), [draft])
+  // предыстория 2024 повышает характеристики по выбору; у 2014 — нет
+  const bgOpts = useMemo(() => backgroundAsiOptions(draft.background), [draft.background])
+  const bgBonus = useMemo(() => backgroundBonuses(draft.background, draft.backgroundAsi), [draft.background, draft.backgroundAsi])
+  const originNote = originAsiNote({
+    racial,
+    raceFlexible: hasFlexibleBoosts(draft.subrace?.replaces_race ? draft.subrace : draft.race),
+    hasRace: !!draft.race,
+    hasBackground: !!draft.background,
+    background: draft.background,
+  })
   const usesPool = draft.abilityMethod === 'roll' || draft.abilityMethod === 'array'
   const spent = pointBuySpent(draft.baseScores)
   const scores = useMemo(() => finalScores(draft), [draft])
@@ -417,8 +435,11 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
     <div className="cw-step">
       <StepHeader
         title="Из чего ты сделан?"
-        lead="Расовые бонусы добавляются поверх, а навыки справа сразу пересчитываются."
+        lead="Бонусы расы и предыстории добавляются поверх, а навыки справа сразу пересчитываются."
       />
+
+      {bgOpts && <BackgroundAsiPanel key={draft.background?.id} draft={draft} update={update} opts={bgOpts} />}
+      <OriginAsiHint note={originNote} />
 
       <div className="cw-methods" role="tablist" aria-label="Способ получения характеристик">
         {METHODS.map((m) => (
@@ -510,8 +531,9 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
           {ABILITY_KEYS.map((key) => {
             const label = ABILITY_LABELS[key]
             const base = draft.baseScores[key]
-            const bonus = racial[key] ?? 0
-            const total = Math.min(20, (base ?? 8) + bonus)
+            const raceBonus = racial[key] ?? 0
+            const bgBonusHere = bgBonus[key] ?? 0
+            const total = Math.min(20, (base ?? 8) + raceBonus + bgBonusHere)
             const empty = usesPool && base == null
 
             return (
@@ -551,7 +573,8 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
                 )}
 
                 <span className="cw-ability-total">
-                  {bonus > 0 && <i className="cw-ability-bonus">+{bonus} от расы</i>}
+                  {raceBonus > 0 && <i className="cw-ability-bonus">+{raceBonus} от расы</i>}
+                  {bgBonusHere > 0 && <i className="cw-ability-bonus">+{bgBonusHere} от предыстории</i>}
                   <b>{total}</b>
                   <em>{formatMod(abilityMod(total))}</em>
                 </span>
@@ -572,6 +595,11 @@ export default function AbilitiesStep({ draft, update }: StepProps) {
         {Object.entries(racial).map(([k, v]) => (
           <FactChip key={k}>
             {ABILITY_RU[k] ?? k} +{v} от расы
+          </FactChip>
+        ))}
+        {Object.entries(bgBonus).map(([k, v]) => (
+          <FactChip key={`bg-${k}`}>
+            {ABILITY_LABELS[k as AbilityName].label} +{v} от предыстории
           </FactChip>
         ))}
       </div>
