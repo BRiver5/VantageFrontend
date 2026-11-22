@@ -138,3 +138,21 @@
   color: var(--text);
 }
 
+
+/* ---------- область заклинания на сетке 5 фт ---------- */
+.spell-area { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin: 0; }
+.spell-area-grid { flex: none; max-width: 100%; height: auto; padding: 6px; border: 1px solid rgb(var(--gold-2-rgb) / 0.3); background: rgb(var(--bg-0-rgb) / 0.6); }
+.spell-area-grid rect { fill: rgb(var(--silver-2-rgb) / 0.06); stroke: rgb(var(--silver-2-rgb) / 0.16); stroke-width: 0.6; }
+.spell-area-grid rect.is-on { fill: rgb(var(--gold-3-rgb) / 0.42); stroke: rgb(var(--gold-3-rgb) / 0.8); }
+.spell-area-grid rect.is-caster { fill: rgba(132, 190, 232, 0.25); stroke: rgba(132, 190, 232, 0.8); }
+.spell-area-caster { fill: #8fc3e8; }
+.spell-area-point { fill: var(--parchment); stroke: var(--bg-0); stroke-width: 1.5; }
+.spell-area figcaption { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.spell-area figcaption b { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); letter-spacing: 0.03em; }
+.spell-area-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 0.82rem; color: var(--text-dim); }
+.spell-area-legend i { display: inline-block; width: 12px; height: 12px; border: 1px solid; vertical-align: middle; }
+.spell-area-legend i.is-on { background: rgb(var(--gold-3-rgb) / 0.42); border-color: rgb(var(--gold-3-rgb) / 0.8); }
+.spell-area-legend i.is-caster { border-radius: 50%; background: #8fc3e8; border-color: #8fc3e8; }
+.spell-area-legend i.is-point { width: 8px; height: 8px; border-radius: 50%; background: var(--parchment); border-color: var(--bg-0); }
+.spell-area-legend em { font-style: normal; opacity: 0.8; }
+.spell-area-big { margin: 0; color: var(--text-dim); }

@@ -34,7 +34,6 @@ import type {
 import { Divider } from '../../ornaments'
 import { SourceBadge } from '../catalog/shared'
 import { TermDesc } from '../../terms/terms'
-import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
 import { RaceBoosts, boostInfo } from '../../raceBoosts'
 import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
 import { isHtmlDescription } from '../../classArticleHtml'
@@ -183,11 +182,6 @@ export function RaceDetailBody({
         </DetailSection>
       )}
 
-<AbilitiesMissingFrom
-  refs={r.abilities}
-  text={article ?? r.description ?? ''}
-  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
-/>
 
       {!embedded && subraces.length > 0 && (
         <DetailSection title={`Подрасы — ${subraces.length}`}>
@@ -317,11 +311,6 @@ export function SubraceDetailPage() {
         </>
       }
     >
-      <AbilitiesMissingFrom
-  refs={sr.abilities}
-  text={`${article ?? ''} ${sr.description ?? ''} ${sr.traits ?? ''}`}
-  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
-/>
       {article && (
         <section className="detail-section">
           <ClassArticle html={article} cutSubclasses={false} backLabel={sr.subrace_name} />

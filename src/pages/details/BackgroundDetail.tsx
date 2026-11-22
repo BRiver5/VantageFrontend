@@ -200,7 +200,7 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
       )}
 
       {!bg.description && (bg.abilities?.length ?? 0) > 0 && (
-        <MobileFold title="Способности и механика">
+        <MobileFold title="Особенности">
           <AbilityList refs={bg.abilities} />
         </MobileFold>
       )}

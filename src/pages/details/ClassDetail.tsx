@@ -482,7 +482,7 @@ export function ClassDetailView({
           </div>
         )}
         {legacy.list.length > 0 && (
-          <DetailSection title={`Подклассы 2014 редакции — ${legacy.list.length}`}>
+          <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} (2014) — ${legacy.list.length}`}>
             <p className="class-legacy-note">
               {legacy.missing > 0 && <>Нет в 2024: {legacy.missing}. </>}
               {legacy.pairs.length > 0 && (

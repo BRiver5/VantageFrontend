@@ -16,7 +16,6 @@ import type {
 } from '../../api'
 import { SourceBadge } from '../catalog/shared'
 import { whenRouteCommitted } from '../catalog/transitions'
-import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
 import { ClassArticle } from '../../classArticle'
 import { resolveSubclassSectionHtml } from '../../classArticleHtml'
 import { Chip, DetailSection, DetailShell, Rich } from './shared'
@@ -119,11 +118,6 @@ export function SubclassDetailPage() {
           <Rich text={sc.description} />
         </DetailSection>
       )}
-      <AbilitiesMissingFrom
-  refs={sc.abilities}
-  text={`${subclassHtml ?? ''} ${sc.description ?? ''}`}
-  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
-/>
     </DetailShell>
   )
 }
