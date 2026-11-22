@@ -5,6 +5,10 @@ import {
   docEditions,
   editionHref,
   editionParamFor,
+  otherEditionCaption,
+  otherEditionOf,
+  preferredEditionFirst,
+  withRecordEdition,
   planElementEdition,
   pruneSectionEditions,
   resolveEdition,
@@ -145,6 +149,51 @@ describe('api params', () => {
     expect(p.get('edition')).toBe('2014')
     expect(p.getAll('entities')).toEqual(['spells'])
     expect(searchQueryParams('меч', { edition: null }).has('edition')).toBe(false)
+  })
+})
+
+describe('search across editions', () => {
+  it('asks for the other edition only with a search query and an edition', () => {
+    expect(catalogParams('spells', { q: 'огонь', edition: '2024', otherEditions: true }).get('other_editions')).toBe('1')
+    expect(catalogParams('spells', { edition: '2024', otherEditions: true }).has('other_editions')).toBe(false)
+    expect(catalogParams('spells', { q: 'огонь', edition: null, otherEditions: true }).has('other_editions')).toBe(false)
+    expect(catalogParams('books', { q: 'x', otherEditions: true }).has('other_editions')).toBe(false)
+    expect(catalogParams('spells', { q: 'огонь', edition: '2024' }).has('other_editions')).toBe(false)
+
+    const p = searchQueryParams('меч', { edition: '2014', otherEditions: true })
+    expect(p.get('edition')).toBe('2014')
+    expect(p.get('other_editions')).toBe('1')
+    expect(searchQueryParams('меч', { edition: null, otherEditions: true }).has('other_editions')).toBe(false)
+    expect(searchQueryParams('меч', { edition: '2024' }).has('other_editions')).toBe(false)
+  })
+
+  it('reads the flag and builds the caption', () => {
+    expect(otherEditionOf({ other_edition: '2014' })).toBe('2014')
+    expect(otherEditionOf({ other_edition: null })).toBeNull()
+    expect(otherEditionOf({ other_edition: '3.5' })).toBeNull()
+    expect(otherEditionOf({})).toBeNull()
+    expect(otherEditionOf(null)).toBeNull()
+    expect(otherEditionCaption('2014')).toBe('из редакции 2014')
+    expect(otherEditionCaption('2024')).toBe('из редакции 2024')
+  })
+
+  it('keeps the selected edition first without reordering inside parts', () => {
+    const list = [
+      { id: 'o1', other_edition: '2014' as const },
+      { id: 'a' },
+      { id: 'o2', other_edition: '2014' as const },
+      { id: 'b', other_edition: null },
+    ]
+    expect(preferredEditionFirst(list).map((x) => x.id)).toEqual(['a', 'b', 'o1', 'o2'])
+    const plain = [{ id: 'x' }, { id: 'y' }]
+    expect(preferredEditionFirst(plain)).toEqual(plain)
+    expect(preferredEditionFirst(plain)).not.toBe(plain)
+  })
+
+  it('links other-edition records with ?ed=', () => {
+    expect(withRecordEdition('/spells/a', { other_edition: '2014' })).toBe('/spells/a?ed=2014')
+    expect(withRecordEdition('/spells/a?x=1#top', { other_edition: '2024' })).toBe('/spells/a?x=1&ed=2024#top')
+    expect(withRecordEdition('/spells/a', { other_edition: null })).toBe('/spells/a')
   })
 })
 

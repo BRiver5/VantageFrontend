@@ -79,9 +79,12 @@ export function CardLink({
   vtName,
   onOpen,
   heroNav,
+  className,
   children,
 }: {
   to: string
+  /** дополнительный класс слота (например, запись другой редакции в поиске) */
+  className?: string
   vtName?: string
   onOpen?: (slot: HTMLElement) => void
   /** FLIP-переход на отдельную страницу (расы), пока нет path-inline */
@@ -123,7 +126,7 @@ export function CardLink({
   return (
     <Link
       to={to}
-      className="card-slot"
+      className={className ? `card-slot ${className}` : 'card-slot'}
       style={vtName ? ({ viewTransitionName: vtName } as CSSProperties) : undefined}
       onClick={onClick}
     >

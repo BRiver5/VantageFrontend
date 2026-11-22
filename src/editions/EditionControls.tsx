@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { RotateCcw } from 'lucide-react'
 import { getEditions } from '../api/catalog'
 import { EditionToggle, type EditionToggleSize } from '../ui/EditionToggle'
-import { editionHref, planElementEdition, sectionOf, type Edition, type EditionsMap } from './edition'
+import { editionHref, otherEditionCaption, planElementEdition, sectionOf, type Edition, type EditionsMap } from './edition'
 import { useEdition, useGlobalEdition, useUrlEdition } from './useEdition'
 
 export function GlobalEditionToggle({ size = 'normal', labels }: { size?: EditionToggleSize; labels?: 'both' | 'active' | 'none' }) {
@@ -141,4 +141,13 @@ export function ElementEditionToggle({
       />
     </span>
   )
+}
+
+/**
+ * Подпись найденной записи другой редакции: «из редакции 2014» — мелким
+ * красным курсивом. Обычный текст, поэтому читается и скринридером.
+ */
+export function OtherEditionNote({ edition, className }: { edition: Edition | null | undefined; className?: string }) {
+  if (!edition) return null
+  return <span className={`edition-note${className ? ` ${className}` : ''}`}>{otherEditionCaption(edition)}</span>
 }

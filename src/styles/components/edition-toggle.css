@@ -302,3 +302,20 @@
 .item-tube-main > .detail-topline {
   margin-bottom: 10px;
 }
+
+/* Подпись найденной записи другой редакции: «из редакции 2014» (поиск) */
+.edition-note {
+  display: block;
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* в сетке каталога — строкой под карточкой, карточка забирает остальную высоту */
+.card-slot--other-edition { flex-direction: column; gap: 4px; }
+.card-slot--other-edition > .edition-note { flex: none; padding-inline: 4px; }

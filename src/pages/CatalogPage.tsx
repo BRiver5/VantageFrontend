@@ -51,7 +51,8 @@ import { CardLink } from './catalog/shared'
 import { FilterMenu } from './catalog/FilterMenu'
 import { SortMenu } from './catalog/SortMenu'
 import { ItemSplitView } from './catalog/ItemSplitView'
-import { SectionEditionToggle } from '../editions/EditionControls'
+import { OtherEditionNote, SectionEditionToggle } from '../editions/EditionControls'
+import { otherEditionOf, preferredEditionFirst, withRecordEdition } from '../editions/edition'
 import { useEdition } from '../editions/useEdition'
 import { classCard, raceCard, featCard, backgroundCard, spellCard, creatureCard, equipmentCard, terminCard, itemCard } from './catalog/cards/renderers'
 
@@ -188,7 +189,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         () => {
           skipUrlSyncRef.current = true
           setSelected(item)
-          navigate(`${cfg.base}/${item.id}`)
+          navigate(withRecordEdition(`${cfg.base}/${item.id}`, item))
           queueMicrotask(() => {
             skipUrlSyncRef.current = false
           })
@@ -196,6 +197,19 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         { scrollTop: true },
       )
       return
+    }
+    // запись другой редакции (из поиска) открывается в своей: ?ed= — как у ссылки на запись.
+    // Своё ?ed= не трогаем: его ставит переключатель редакции записи перед выбором варианта.
+    const itemEd = otherEditionOf(item)
+    if (itemEd) {
+      setSearchParams(
+        (prevParams) => {
+          const next = new URLSearchParams(prevParams)
+          next.set('ed', itemEd)
+          return next
+        },
+        { replace: true },
+      )
     }
     const prev = selected
     const outgoingId = prev && prev.id !== item.id ? prev.id : null
@@ -307,7 +321,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
     if (!cfg.noPaging && !activeSort && activeGroups.length === 0) {
-      fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined, edition })
+      // поиск находит и записи другой редакции — после записей выбранной, с подписью
+      fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined, edition, otherEditions: true })
         .then((res) => {
           if (stale) return
           setItems(res.items)
@@ -320,7 +335,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     } else {
       // ни сортировка, ни фильтры не поддерживаются сервером — тянем весь список
       // и обрабатываем на клиенте, иначе фильтр видел бы только текущую страницу
-      fetchAll<T>(cfg.resource, { q: query || undefined, edition })
+      fetchAll<T>(cfg.resource, { q: query || undefined, edition, otherEditions: true })
         .then((all) => {
           if (stale) return
           setAllItems(all)
@@ -330,6 +345,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
             ? all.filter((it) => activeGroups.every((g) => g.match(it, filterSel[g.key], bm)))
             : all
           if (activeSort) list = [...list].sort((a, b) => activeSort.cmp(a, b, bm))
+          // сортировка не смешивает редакции: записи другой (поиск) — всё равно после своих
+          list = preferredEditionFirst(list)
           setTotal(list.length)
           setItems(cfg.noPaging ? list : list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
           setError(null)
@@ -378,10 +395,13 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       )
   }, [groupByBook, items, bookMap])
 
-  const renderCard = (item: T) => (
+  const renderCard = (item: T) => {
+    const otherEd = otherEditionOf(item)
+    return (
     <CardLink
       key={item.id}
-      to={`${cfg.base}/${item.id}`}
+      to={withRecordEdition(`${cfg.base}/${item.id}`, item)}
+      className={otherEd ? 'card-slot--other-edition' : undefined}
       // у предметов рамка безымянная у incoming; path-portrait летит через class-hero-*
       vtName={
         cfg.inlineDetail && cfg.inlineUrl !== 'path' && switching?.incomingId !== item.id
@@ -398,8 +418,10 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       heroNav={cfg.heroNav}
     >
       {cfg.card(item, bookMap, switching?.incomingId === item.id ? 'incoming' : undefined)}
+      <OtherEditionNote edition={otherEd} />
     </CardLink>
-  )
+    )
+  }
 
   // раскрытая деталь в оболочке — только selected (не pathId: он отстаёт от navigate)
   if (cfg.inlineDetail && selected) {
