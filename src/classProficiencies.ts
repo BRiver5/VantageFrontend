@@ -17,7 +17,8 @@ const LABEL_MAP: Record<string, keyof ClassProficiencies> = {
 }
 
 function normLabel(s: string): string {
-  return s.replace(/:$/, '').trim().toLocaleLowerCase('ru')
+  // сначала пробелы: у 2014 подпись «Доспехи: » — с пробелом после двоеточия
+  return s.trim().replace(/:$/, '').trim().toLocaleLowerCase('ru')
 }
 
 function isProficiencyBoundary(el: Element): boolean {
