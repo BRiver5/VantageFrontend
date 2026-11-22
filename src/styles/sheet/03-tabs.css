@@ -23,7 +23,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, filter 0.15s ease, background 0.15s ease;
 }
 .cw-tab svg { width: 16px; height: 16px; }
 .cw-tab em { font-style: normal; font-family: var(--font-body); font-size: 0.72rem; letter-spacing: 0; color: var(--text-dim); }
@@ -32,8 +32,12 @@
   color: var(--bg-0);
   --hex-in: linear-gradient(180deg, var(--gold-3), var(--gold-2));
   --hex-edge: var(--gold-1);
-  box-shadow: var(--glow-gold);
+  /* тень по форме шестигранника: box-shadow у кнопки без clip-path рисует прямоугольную рамку */
+  box-shadow: none;
+  filter: drop-shadow(0 0 10px rgb(var(--gold-3-rgb) / 0.3));
 }
+.cw-tab:focus { outline: none; }
+.cw-tab:focus-visible { filter: drop-shadow(0 0 6px rgb(var(--gold-3-rgb) / 0.75)); }
 .cw-tab.is-on em { color: rgb(var(--bg-0-rgb) / 0.7); }
 
 .cw-page { animation: page-route-in 0.25s ease; }

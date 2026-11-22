@@ -1,8 +1,12 @@
 /** Раздел «Происхождение»: раса, подраса, предыстория и внешность */
 import { Compass } from 'lucide-react'
 import type { Background, Race, Subrace } from '../../../api'
-import type { Character } from '../../../types/character'
-import { AreaField, EdField, EdSection, TextField } from '../../editorFields'
+import { DEFAULT_SKILLS } from '../../../types/character'
+import type { Character, CustomBackground } from '../../../types/character'
+import { AreaField, ChipList, EdField, EdSection, TextField } from '../../editorFields'
+
+const CUSTOM = '__custom'
+const EMPTY_BG: CustomBackground = { name: '', description: '', skills: [], tools: [], languages: [], feature_name: '', feature_text: '' }
 
 type Props = {
   c: Character
@@ -54,8 +58,17 @@ export function OriginSection({ c, set, raceCatalog, bgCatalog, subraces, origin
           </select>
         </EdField>
         <EdField label="Предыстория" as="label">
-          <select className="ed-input ed-select" value={c.background_id ?? ''} onChange={(e) => set({ background_id: e.target.value || null })}>
+          <select
+            className="ed-input ed-select"
+            value={c.background_id ?? (c.custom_background ? CUSTOM : '')}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === CUSTOM) set({ background_id: null, custom_background: c.custom_background ?? { ...EMPTY_BG } })
+              else set({ background_id: v || null, custom_background: null })
+            }}
+          >
             <option value="">—</option>
+            <option value={CUSTOM}>✎ Своя предыстория…</option>
             {[...bgCatalog]
               .sort((a, b) => a.background_name.localeCompare(b.background_name, 'ru'))
               .map((b) => (
@@ -66,6 +79,9 @@ export function OriginSection({ c, set, raceCatalog, bgCatalog, subraces, origin
           </select>
         </EdField>
       </div>
+      {!c.background_id && c.custom_background && (
+        <CustomBackgroundFields bg={c.custom_background} onChange={(patch) => set({ custom_background: { ...c.custom_background!, ...patch } })} />
+      )}
       {originChanged && <p className="ed-warn">Смена расы или предыстории заменит выданные ими умения — сервер пересоберёт их при сохранении.</p>}
       <div className="ed-sub">
         <h5>Внешность</h5>
@@ -94,5 +110,46 @@ export function OriginSection({ c, set, raceCatalog, bgCatalog, subraces, origin
         </div>
       </div>
     </EdSection>
+  )
+}
+
+/** Своя предыстория: название, навыки, инструменты, языки и умение-напоминание */
+function CustomBackgroundFields({ bg, onChange }: { bg: CustomBackground; onChange: (patch: Partial<CustomBackground>) => void }) {
+  const skills = new Set(bg.skills)
+  return (
+    <div className="ed-sub">
+      <h5>Своя предыстория</h5>
+      <div className="ed-grid">
+        <TextField label="Название" value={bg.name} onChange={(v) => onChange({ name: v })} />
+        <TextField label="Умение предыстории" value={bg.feature_name} onChange={(v) => onChange({ feature_name: v })} />
+      </div>
+      <EdField label="Навыки" hint={`${skills.size} выбрано`} wide>
+        <div className="ed-chips ed-chips--pick">
+          {DEFAULT_SKILLS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className={`ed-chip ed-chip--pick${skills.has(s.key) ? ' is-on' : ''}`}
+              aria-pressed={skills.has(s.key)}
+              onClick={() => onChange({ skills: skills.has(s.key) ? bg.skills.filter((k) => k !== s.key) : [...bg.skills, s.key] })}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </EdField>
+      <div className="ed-grid">
+        <EdField label="Инструменты">
+          <ChipList items={bg.tools} onChange={(v) => onChange({ tools: v })} placeholder="Воровские инструменты…" />
+        </EdField>
+        <EdField label="Языки">
+          <ChipList items={bg.languages} onChange={(v) => onChange({ languages: v })} placeholder="Эльфийский…" />
+        </EdField>
+      </div>
+      <div className="ed-grid">
+        <AreaField label="Умение: описание" rows={3} value={bg.feature_text} onChange={(v) => onChange({ feature_text: v })} />
+        <AreaField label="О предыстории" rows={3} value={bg.description} onChange={(v) => onChange({ description: v })} />
+      </div>
+    </div>
   )
 }

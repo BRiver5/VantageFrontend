@@ -17,7 +17,8 @@ import { bgAsiAnswer } from './originAsi'
 
 /** Очередь решений визарда: ASI по уровням и навыки первого уровня */
 interface Queue {
-  asi: { asi: Partial<Record<AbilityName, number>>; feat: boolean }[]
+  /** по уровням персонажа: решение `asi_4` берёт выбор 4-го уровня */
+  asi: { level: number; asi: Partial<Record<AbilityName, number>>; feat: boolean }[]
   skills: string[] | null
   /** ответ на повышение характеристик предыстории: { mode: '2,1', a: 'str', b: 'dex' } */
   bgAsi: Record<string, string> | null
@@ -25,13 +26,22 @@ interface Queue {
 
 const values = (inp: PromptInput) => new Set((inp.options ?? []).map((o) => String(o.value)))
 
+/** Уровень решения ASI по ключу выбора: asi_4 → 4; без числа — null */
+export function asiLevelOf(choiceKey: string | null | undefined): number | null {
+  const m = /(?:^|_)(\d{1,2})$/.exec(choiceKey ?? '')
+  return m ? Number(m[1]) : null
+}
+
 /** Ответ на поп-ап ASI: mode + a (+ b); null — не наш случай */
-function asiAnswer(prompt: Prompt, q: Queue): Record<string, unknown> | null {
+function asiAnswer(prompt: Prompt, q: Queue, choiceKey?: string | null): Record<string, unknown> | null {
   const mode = prompt.inputs.find((i) => i.key === 'mode')
   if (!mode) return null
   const modes = values(mode)
   if (!modes.has('plus2') && !modes.has('plus11')) return null
-  const next = q.asi[0]
+  // свой уровень, если ключ выбора его называет; иначе — по очереди
+  const lvl = asiLevelOf(choiceKey)
+  const idx = lvl != null && q.asi.some((x) => x.level === lvl) ? q.asi.findIndex((x) => x.level === lvl) : 0
+  const next = q.asi[idx]
   if (!next) return null
   const a = prompt.inputs.find((i) => i.key === 'a')
   const b = prompt.inputs.find((i) => i.key === 'b')
@@ -48,7 +58,7 @@ function asiAnswer(prompt: Prompt, q: Queue): Record<string, unknown> | null {
   // характеристики должны быть среди вариантов сервера
   if (answer.a && a?.options && !values(a).has(String(answer.a))) return null
   if (answer.b && b?.options && !values(b).has(String(answer.b))) return null
-  q.asi.shift()
+  q.asi.splice(idx, 1)
   return answer
 }
 
@@ -83,29 +93,42 @@ function skillsAnswer(prompt: Prompt, q: Queue): Record<string, unknown> | null 
 
 export async function autoResolveDecisions(characterId: string, draft: CharacterDraft): Promise<void> {
   const q: Queue = {
+    // «Взять черту» — это ответ на ASI, даже если id черты не нашёлся (её добавят на листе)
     asi: draft.levels
-      .filter((l) => l.featId || Object.values(l.asi).some(Boolean))
-      .map((l) => ({ asi: l.asi, feat: !!l.featId })),
+      .filter((l) => l.featId || l.featName !== null || Object.values(l.asi).some(Boolean))
+      .map((l) => ({ level: l.level, asi: l.asi, feat: !!l.featId || l.featName !== null })),
     skills: draft.levels[0]?.skills.length ? [...draft.levels[0].skills] : null,
     bgAsi: bgAsiAnswer(draft.background, draft.backgroundAsi),
   }
   const idle = () => !q.asi.length && !q.skills && !q.bgAsi
   if (idle()) return
 
-  const sheet = await getSheet(characterId)
-  for (const d of sheet.pending_decisions) {
-    if (d.kind !== 'choice') continue
-    if (idle()) break
-    try {
-      const first = await resolvePending(characterId, d.id, {})
-      if (first.status !== 'needs_input' || !first.prompt) continue
-      const bg = bgAsiPromptAnswer(first.prompt, q.bgAsi)
-      if (bg) q.bgAsi = null
-      const answer = bg ?? asiAnswer(first.prompt, q) ?? skillsAnswer(first.prompt, q)
-      if (!answer) continue
-      await resolvePending(characterId, d.id, { [first.prompt.key]: answer })
-    } catch {
-      // не вышло — решение останется на листе, игрок ответит сам
+  // два прохода: ответ на один выбор может выдать следующий (черта → её выборы),
+  // а решение, не принятое из-за гонки ревизий, получает второй шанс
+  const tried = new Set<string>()
+  for (let pass = 0; pass < 2 && !idle(); pass++) {
+    const sheet = await getSheet(characterId)
+    // ASI — первыми: их ответы привязаны к уровню, остальные ничего у них не заберут
+    const choices = sheet.pending_decisions
+      .filter((d) => d.kind === 'choice' && !tried.has(`${d.grant_id}|${d.choice_key}`))
+      .sort((a, b) => Number(asiLevelOf(b.choice_key) != null) - Number(asiLevelOf(a.choice_key) != null))
+    for (const d of choices) {
+      if (idle()) break
+      try {
+        const first = await resolvePending(characterId, d.id, {})
+        if (first.status !== 'needs_input' || !first.prompt) continue
+        const bg = bgAsiPromptAnswer(first.prompt, q.bgAsi)
+        if (bg) q.bgAsi = null
+        const answer = bg ?? asiAnswer(first.prompt, q, d.choice_key) ?? skillsAnswer(first.prompt, q)
+        if (!answer) {
+          tried.add(`${d.grant_id}|${d.choice_key}`)
+          continue
+        }
+        await resolvePending(characterId, d.id, { [first.prompt.key]: answer })
+        tried.add(`${d.grant_id}|${d.choice_key}`)
+      } catch {
+        // не вышло — второй проход попробует снова, иначе решение останется на листе
+      }
     }
   }
 }

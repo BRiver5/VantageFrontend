@@ -312,6 +312,10 @@
 .ed-chip button svg { width: 12px; height: 12px; }
 .ed-chip-input { flex: 1; min-width: 120px; padding: 2px 4px; border: none; background: none; color: var(--text); font: inherit; font-size: 0.85rem; }
 .ed-chip-input:focus { outline: none; }
+.ed-chips--pick { border: none; padding: 0; background: none; }
+.ed-chip--pick { padding: 3px 10px; border: 1px solid rgb(var(--silver-2-rgb) / 0.2); background: transparent; color: var(--text-dim); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.ed-chip--pick:hover { color: var(--parchment); border-color: rgb(var(--gold-2-rgb) / 0.4); }
+.ed-chip--pick.is-on { background: rgb(var(--gold-2-rgb) / 0.18); border-color: rgb(var(--gold-2-rgb) / 0.6); color: var(--gold-4); }
 .ed-search { position: relative; margin: 8px 0; }
 .ed-search-box { position: relative; display: block; }
 .ed-search-box svg { position: absolute; top: 50%; left: 10px; width: 15px; height: 15px; translate: 0 -50%; color: var(--text-dim); pointer-events: none; }
@@ -385,6 +389,54 @@
 .ed-ro b { font-weight: 600; }
 .ed-ro i { font-style: normal; color: var(--text-dim); }
 .ed-ro em { margin-left: auto; font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: #8fc3e8; }
+
+/* оружие из инвентаря: строка-настройка над живыми числами движка */
+.ed-weapons { display: flex; flex-direction: column; gap: 8px; }
+.ed-weapon {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.2));
+}
+.ed-weapon.is-hidden { opacity: 0.55; border-style: dashed; }
+.ed-weapon-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ed-weapon-head > svg { width: 15px; height: 15px; color: var(--gold-2); flex: none; }
+.ed-weapon-name { flex: 1 1 180px; min-width: 0; }
+.ed-weapon-tag { font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: #8fc3e8; }
+.ed-weapon-tag.is-warn { color: #ee8d82; }
+.ed-weapon-live { margin: 0; font-size: 0.84rem; color: var(--text-dim); }
+.ed-weapon-live b { color: var(--parchment); font-weight: 600; }
+.ed-weapon-nums { grid-template-columns: 130px 104px 92px minmax(80px, 1fr) 84px; }
+
+/* свои бонусы */
+.ed-table--mods .ed-tr { grid-template-columns: 30px minmax(120px, 1.2fr) minmax(160px, 1.4fr) 104px 30px; }
+.ed-mod-off { opacity: 0.5; }
+
+/* ячейки заклинаний */
+.ed-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ed-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.16);
+}
+.ed-slot.is-manual { border-color: rgb(var(--gold-2-rgb) / 0.5); }
+.ed-slot-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 0.8rem; }
+.ed-slot-head i { font-style: normal; font-size: 0.7rem; color: var(--text-dim); }
+
+/* особые правила: скрыть / свои строки */
+.ed-rules { display: flex; flex-direction: column; gap: 4px; }
+.ed-rule { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 0.86rem; border-bottom: 1px dashed rgb(var(--silver-2-rgb) / 0.12); }
+.ed-rule > span { flex: 1; min-width: 0; }
+.ed-rule.is-hidden > span { opacity: 0.5; text-decoration: line-through; }
+.ed-rule .ed-input { flex: 1; }
+@media (max-width: 760px) {
+  .ed-weapon-nums,
+  .ed-table--mods .ed-tr { grid-template-columns: 1fr 1fr; }
+}
 
 /* характеристики */
 .ed-abils { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 10px; }
@@ -534,7 +586,7 @@
   .cw-hstage-left .cw-orb { flex-direction: row-reverse; text-align: left; }
   .cw-art { height: 240px; }
   .cw-art-face { width: 200px; }
-  .cw-live-top { justify-content: center; }
+  .cw-live-actions { justify-content: center; }
   .cw-tab { padding: 7px 14px 7px 12px; font-size: 0.74rem; }
   .cw-skill-cols { grid-template-columns: minmax(0, 1fr); }
   .cw-wpn { grid-template-columns: 48px minmax(0, 1fr); }

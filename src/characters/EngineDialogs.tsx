@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { BellRing, Check, Coffee, Loader2, ScrollText, Undo2, X } from 'lucide-react'
+import { BellRing, Check, ChevronDown, Coffee, Loader2, RotateCcw, ScrollText, Undo2, X } from 'lucide-react'
 import { listEvents } from '../api'
 import type { Character, CharacterEvent, PendingDecision, Sheet } from '../types/character'
 import { Stepper } from './editorFields'
@@ -236,45 +236,94 @@ export function JournalDrawer(props: JournalProps) {
 
 /* ---------- отложенные решения ---------- */
 
+const PENDING_COLLAPSED_KEY = 'vantage.pending.collapsed'
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(PENDING_COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Плашка «Требует решения». Сворачивается в одну строку (запоминается на устройстве);
+ * «×» отклоняет решение насовсем — сервер его больше не предложит, а «вернуть
+ * отклонённые» снова покажет все.
+ */
 export function PendingBanner({
   decisions,
   canPlay,
   busy,
   onDecide,
   onDismiss,
+  dismissedCount = 0,
+  onRestore,
 }: {
   decisions: PendingDecision[]
   canPlay: boolean
   busy: boolean
   onDecide: (d: PendingDecision) => void
   onDismiss: (d: PendingDecision) => void
+  /** сколько решений отклонено насовсем */
+  dismissedCount?: number
+  onRestore?: () => void
 }) {
-  if (decisions.length === 0) return null
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggle = () =>
+    setCollapsed((v) => {
+      try {
+        localStorage.setItem(PENDING_COLLAPSED_KEY, v ? '0' : '1')
+      } catch {
+        /* без хранилища — просто на эту сессию */
+      }
+      return !v
+    })
+  const restore =
+    canPlay && onRestore && dismissedCount > 0 ? (
+      <button type="button" className="eng-pending-restore" disabled={busy} onClick={onRestore} title="Снова показать отклонённые решения">
+        <RotateCcw aria-hidden="true" /> вернуть отклонённые · {dismissedCount}
+      </button>
+    ) : null
+  if (decisions.length === 0) return restore ? <div className="eng-pending is-empty">{restore}</div> : null
   return (
-    <div className="eng-pending" role="region" aria-label="Требует решения">
-      <span className="eng-pending-title">
-        <BellRing aria-hidden="true" /> Требует решения · {decisions.length}
+    <div className={`eng-pending${collapsed ? ' is-collapsed' : ''}`} role="region" aria-label="Требует решения">
+      <span className="eng-pending-head">
+        <button type="button" className="eng-pending-title" onClick={toggle} aria-expanded={!collapsed} title={collapsed ? 'Развернуть' : 'Свернуть'}>
+          <BellRing aria-hidden="true" /> Требует решения · {decisions.length}
+          <ChevronDown className="eng-pending-caret" aria-hidden="true" />
+        </button>
+        {restore}
       </span>
-      <ul>
-        {decisions.map((d) => (
-          <li key={d.id}>
-            <span>
-              <b>{d.label}</b>
-              <i>{d.kind === 'listener' ? 'реакция на событие' : 'выбор при получении умения'}</i>
-            </span>
-            {canPlay && (
-              <>
-                <button type="button" className="cs-btn" disabled={busy} onClick={() => onDecide(d)}>
-                  Решить
-                </button>
-                <button type="button" className="cw-mini-btn" disabled={busy} onClick={() => onDismiss(d)} title="Отклонить">
-                  <X aria-hidden="true" />
-                </button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      {!collapsed && (
+        <ul>
+          {decisions.map((d) => (
+            <li key={d.id}>
+              <span>
+                <b>{d.label}</b>
+                <i>{d.kind === 'listener' ? 'реакция на событие' : 'выбор при получении умения'}</i>
+              </span>
+              {canPlay && (
+                <>
+                  <button type="button" className="cs-btn" disabled={busy} onClick={() => onDecide(d)}>
+                    Решить
+                  </button>
+                  <button
+                    type="button"
+                    className="cw-mini-btn"
+                    disabled={busy}
+                    onClick={() => onDismiss(d)}
+                    title="Отклонить: больше не напоминать"
+                    aria-label="Отклонить решение"
+                  >
+                    <X aria-hidden="true" />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

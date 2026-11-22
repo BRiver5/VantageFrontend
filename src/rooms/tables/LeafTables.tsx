@@ -186,7 +186,7 @@ export function LeafTables() {
         )}
         {(error || list.error || dir.error) && <p className="tb-err">{error || list.error || dir.error}</p>}
       </nav>
-      <div className="rt-main">
+      <div className="rtb-main">
         {!current ? (
           <p className="tb-hint">Выберите таблицу слева.</p>
         ) : editing ? (

@@ -14,13 +14,14 @@ import { createPortal } from 'react-dom'
 import { Check, X } from 'lucide-react'
 import { getSubList, type Background, type Feat, type GameClass, type Race, type Spell, type Subclass } from '../api'
 import { useCatalogList, useSubraces } from '../create/useCatalog'
-import type { AttackEntry, Character, CharacterInput, ClassLevel, SheetView, SpellKnown } from '../types/character'
+import type { AttackEntry, Character, CharacterInput, ClassLevel, CustomModifier, SheetView, SpellKnown } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
-import { COMBAT_PATHS, type CombatField, SECTIONS, combatField } from './sheet/editorData'
+import { COMBAT_PATHS, type CombatField, SECTIONS, SLOT_PATHS, combatField, slotValue } from './sheet/editorData'
 import { signed } from './sheet/rules'
 import { AbilitiesSection } from './sheet/editor/AbilitiesSection'
 import { AttacksSection } from './sheet/editor/AttacksSection'
+import { BonusesSection } from './sheet/editor/BonusesSection'
 import { ClassesSection } from './sheet/editor/ClassesSection'
 import { FeatsSection } from './sheet/editor/FeatsSection'
 import { HeroSection } from './sheet/editor/HeroSection'
@@ -28,6 +29,7 @@ import { MagicSection } from './sheet/editor/MagicSection'
 import { OriginSection } from './sheet/editor/OriginSection'
 import { PersonaSection } from './sheet/editor/PersonaSection'
 import { PurseSection } from './sheet/editor/PurseSection'
+import { RulesSection } from './sheet/editor/RulesSection'
 
 export function SheetEditor({
   character,
@@ -52,6 +54,12 @@ export function SheetEditor({
     [character, view],
   )
   const [combat, setCombat] = useState(combatInit)
+  const slotsInit = useMemo(
+    () => Object.fromEntries(SLOT_PATHS.map((p) => [p, combatField(character, view, p, slotValue(view, p))])) as Record<string, CombatField>,
+    [character, view],
+  )
+  const [slots, setSlots] = useState(slotsInit)
+  const setSlot = useCallback((path: string, field: CombatField) => setSlots((prev) => ({ ...prev, [path]: field })), [])
   const initialPic = useMemo(() => parsePortrait(character.avatar_url), [character])
   const [pic, setPic] = useState(initialPic)
   const face = pic.face ?? DEFAULT_FACE
@@ -82,6 +90,7 @@ export function SheetEditor({
   const setClass = (i: number, patch: Partial<ClassLevel>) => setClasses((list) => list.map((cl, j) => (j === i ? { ...cl, ...patch } : cl)))
   const setAttacks = (fn: (list: AttackEntry[]) => AttackEntry[]) => setC((p) => ({ ...p, attacks: fn(p.attacks) }))
   const setSpells = (fn: (list: SpellKnown[]) => SpellKnown[]) => setC((p) => ({ ...p, spells: fn(p.spells) }))
+  const setMods = (fn: (list: CustomModifier[]) => CustomModifier[]) => setC((p) => ({ ...p, custom_modifiers: fn(p.custom_modifiers ?? []) }))
   const level = c.classes.reduce((s, cl) => s + cl.level, 0)
 
   /* ---------- сохранить / закрыть ---------- */
@@ -104,8 +113,9 @@ export function SheetEditor({
     put(COMBAT_PATHS.ac, combat.ac, combatInit.ac)
     put(COMBAT_PATHS.hp, combat.hp, combatInit.hp)
     put(COMBAT_PATHS.pb, combat.pb, combatInit.pb)
+    for (const p of SLOT_PATHS) put(p, slots[p], slotsInit[p])
     return out
-  }, [combat, combatInit])
+  }, [combat, combatInit, slots, slotsInit])
   const dirty = Object.keys(patch).length > 0 || Object.keys(overrides).length > 0
 
   const requestClose = useCallback(() => {
@@ -153,9 +163,9 @@ export function SheetEditor({
     attacks: c.attacks.length || undefined,
     magic: c.spells.length || undefined,
     feats: c.feat_ids.length || undefined,
+    bonuses: c.custom_modifiers?.length || undefined,
+    rules: c.custom_rules?.length || undefined,
   }
-  const weaponAttacks = c.attacks.filter((a) => a.inventory_instance_id)
-  const ownAttacks = c.attacks.map((a, i) => ({ a, i })).filter(({ a }) => !a.inventory_instance_id)
   const spellsByCircle = Array.from({ length: 10 }, (_, lvl) => c.spells.map((s, i) => ({ s, i })).filter(({ s }) => s.level === lvl))
   const knownSpellNames = useMemo(() => new Set(c.spells.map((s) => s.name)), [c.spells])
   const featNames = useMemo(() => new Set(c.feat_ids.map((id) => featCatalog.find((f) => f.id === id)?.feat_name ?? id)), [c.feat_ids, featCatalog])
@@ -207,8 +217,8 @@ export function SheetEditor({
 
         <div className="ed-main" ref={mainRef} onScroll={onScroll}>
           <p className="ed-lead-note">
-            КД, максимум хитов и бонус мастерства сервер считает по расе, классам и предметам — их можно оставить на
-            «авто» или вписать вручную. Спасброски, навыки и ячейки по-прежнему только с сервера.
+            КД, максимум хитов, бонус мастерства и ячейки сервер считает по расе, классам и предметам — их можно оставить
+            на «авто» или вписать вручную. Остальное усиливается своими бонусами: они прибавятся к листу.
           </p>
 
           {/* ---------- герой ---------- */}
@@ -224,10 +234,24 @@ export function SheetEditor({
           <AbilitiesSection c={c} set={set} view={view} combat={combat} setCombat={setCombat} />
 
           {/* ---------- атаки ---------- */}
-          <AttacksSection weaponAttacks={weaponAttacks} ownAttacks={ownAttacks} setAttacks={setAttacks} />
+          <AttacksSection attacks={c.attacks} liveWeapons={view.liveWeapons ?? []} setAttacks={setAttacks} />
 
           {/* ---------- магия ---------- */}
-          <MagicSection c={c} spellCatalog={spellCatalog} knownSpellNames={knownSpellNames} spellsByCircle={spellsByCircle} setSpells={setSpells} />
+          <MagicSection
+            c={c}
+            spellCatalog={spellCatalog}
+            knownSpellNames={knownSpellNames}
+            spellsByCircle={spellsByCircle}
+            setSpells={setSpells}
+            slots={slots}
+            setSlot={setSlot}
+          />
+
+          {/* ---------- свои бонусы ---------- */}
+          <BonusesSection mods={c.custom_modifiers ?? []} setMods={setMods} />
+
+          {/* ---------- особые правила ---------- */}
+          <RulesSection c={c} set={set} view={view} />
 
           {/* ---------- черты ---------- */}
           <FeatsSection c={c} set={set} featCatalog={featCatalog} featNames={featNames} />

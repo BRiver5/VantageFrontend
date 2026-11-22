@@ -343,15 +343,15 @@ export function HeroStage({
                 </span>
               )}
             </div>
-            {form && (
-              <span className="cw-hphex-own" title="Свои хиты — вернутся, когда облик спадёт">
-                <PawPrint aria-hidden="true" /> {form.name} · свои {combat.hit_points.current}/{combat.hit_points.max}
-              </span>
-            )}
             {stage?.onHpJournal && (
               <button type="button" className="cw-hphex-log" onClick={stage.onHpJournal} title="Журнал хитов: урон, лечение, отдых">
                 <ScrollText aria-hidden="true" /> журнал хитов
               </button>
+            )}
+            {form && (
+              <span className="cw-hphex-own" title="Свои хиты — вернутся, когда облик спадёт">
+                <PawPrint aria-hidden="true" /> {form.name} · свои {combat.hit_points.current}/{combat.hit_points.max}
+              </span>
             )}
           </div>
         </div>

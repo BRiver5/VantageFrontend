@@ -38,7 +38,7 @@ export function AttackRow({
     return p.n ? `${p.n}к${p.sides}${b ? signed(b) : ''}` : String(Math.max(1, b))
   }
   // правила движка («Боевые искусства») — рядом со свойствами: видно, откуда кость и Ловкость
-  const props = [a.range, ...a.properties, ...(a.rules ?? [])].filter(Boolean).join(' · ')
+  const props = [a.equipped === false ? 'в сумке' : '', a.range, ...a.properties, ...(a.rules ?? [])].filter(Boolean).join(' · ')
   const rollHit = () =>
     void rollD20(`${a.name}, попадание`, hit, a.key, {
       ...ctx,

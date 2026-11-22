@@ -87,9 +87,22 @@ describe('mergeWeaponAttacks', () => {
     expect(b).toBe(manual)
   })
 
-  it('надетое оружие без строки появляется, ненадетое — нет', () => {
-    const list = mergeWeaponAttacks([], [engineWeapon({}), engineWeapon({ instance_id: 'sword', name: 'Длинный меч', equipped: false })])
-    expect(list.map((a) => a.name)).toEqual(['Кунай'])
+  it('оружие без строки появляется само: надетое первым, из сумки — следом', () => {
+    const list = mergeWeaponAttacks([], [engineWeapon({ instance_id: 'sickle', name: 'Серп', equipped: false }), engineWeapon({})])
+    expect(list.map((a) => [a.name, a.equipped])).toEqual([
+      ['Кунай', true],
+      ['Серп', false],
+    ])
+  })
+
+  it('ручная строка оружия сохраняет свои числа, скрытая — пропадает', () => {
+    const own = { ...snapshot, manual: true, attack_bonus: 9, damage: '2d4+5' }
+    expect(mergeWeaponAttacks([own], [engineWeapon({})])[0]).toMatchObject({ attack_bonus: 9, damage: '2d4+5' })
+    expect(mergeWeaponAttacks([{ ...snapshot, hidden: true }], [engineWeapon({})])).toEqual([])
+  })
+
+  it('строка проданного оружия пропадает, своя атака остаётся', () => {
+    expect(mergeWeaponAttacks([snapshot, manual], [])).toEqual([manual])
   })
 
   it('без данных движка — строки документа как есть', () => {
