@@ -4,6 +4,8 @@ import {
   appendEdition,
   docEditions,
   editionHref,
+  editionRedirectHref,
+  withEditionParam,
   editionParamFor,
   otherEditionCaption,
   otherEditionOf,
@@ -247,5 +249,38 @@ describe('one record', () => {
     expect(editionHref({ pathname: '/classes/a', search: '?subclass=x&ed=2014' }, 'a', 'b', '2024')).toBe('/classes/b?subclass=x&ed=2024')
     expect(editionHref({ pathname: '/items', search: '?open=a&page=2' }, 'a', 'b', '2014')).toBe('/items?open=b&page=2&ed=2014')
     expect(editionHref({ pathname: '/spells/a', search: '?ed=2014', hash: '#x' }, 'a', 'b', null)).toBe('/spells/b#x')
+  })
+})
+
+describe('переключение записи «на месте» (классы)', () => {
+  const A = 'e3ab' // Монах 2014
+  const B = '8d88' // Монах 2024
+
+  it('editionHref снимает параметры прежней версии (?subclass=) только при смене записи', () => {
+    expect(editionHref({ pathname: `/classes/${B}`, search: '?subclass=x&page=2' }, B, A, '2014', ['subclass'])).toBe(
+      `/classes/${A}?page=2&ed=2014`,
+    )
+    expect(editionHref({ pathname: `/classes/${A}`, search: '?subclass=x' }, A, A, '2024', ['subclass'])).toBe(
+      `/classes/${A}?subclass=x&ed=2024`,
+    )
+  })
+
+  it('авто-переход на версию раздела не перебивает переход переключателя и «Назад»', () => {
+    // запись ещё прежняя (B), а адрес уже новой (A?ed=2014) — уводить некуда и незачем
+    expect(editionRedirectHref({ pathname: `/classes/${A}`, search: '?ed=2014' }, B, A, '2014')).toBeNull()
+    // «Назад» на /classes/B, пока рисуется A — тоже не трогаем
+    expect(editionRedirectHref({ pathname: `/classes/${B}`, search: '' }, A, B, null)).toBeNull()
+    // открыт 2014 без ?ed= при разделе 2024 — уводим на 2024
+    expect(editionRedirectHref({ pathname: `/classes/${A}`, search: '' }, A, B, null)).toBe(`/classes/${B}`)
+    // в ?open= (предметы) — тоже
+    expect(editionRedirectHref({ pathname: '/items', search: `?open=${A}` }, A, B, null)).toBe(`/items?open=${B}`)
+    expect(editionRedirectHref({ pathname: `/classes/${A}`, search: '' }, A, null, null)).toBeNull()
+  })
+
+  it('withEditionParam: ссылка на запись другой редакции держит её ?ed=', () => {
+    expect(withEditionParam('/subclasses/s1', ['2014'], '2024')).toBe('/subclasses/s1?ed=2014')
+    expect(withEditionParam('/classes/c?subclass=s1', null, '2024')).toBe('/classes/c?subclass=s1&ed=2014')
+    expect(withEditionParam('/subclasses/s2', ['2024'], '2024')).toBe('/subclasses/s2')
+    expect(withEditionParam('/subraces/r?ed=2014#x', ['2014', '2024'], '2024')).toBe('/subraces/r#x')
   })
 })

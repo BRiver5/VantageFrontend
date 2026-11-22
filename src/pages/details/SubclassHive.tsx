@@ -17,6 +17,7 @@ import { Corners } from '../../ornaments'
 import { whenRouteCommitted } from '../catalog/transitions'
 import { OpenLinksInNewTab } from '../../classArticle'
 import { Img } from '../../media'
+import { useEditionLink } from '../../editions/useEdition'
 import { HEX_DWELL_MS, layoutHive } from '../../ui/hive'
 
 export type VTDocument = Document & {
@@ -44,8 +45,9 @@ function subclassPreview(text: string | null | undefined): string {
 }
 
 function SubclassHexExpand({ sc, onOpen }: { sc: Subclass; onOpen?: (e: ReactMouseEvent<HTMLAnchorElement>) => void }) {
+  const link = useEditionLink('subclasses')
   return (
-    <Link to={`/subclasses/${sc.id}`} className="hex-expand hex-expand--sub" onClick={onOpen}>
+    <Link to={link(`/subclasses/${sc.id}`, sc)} className="hex-expand hex-expand--sub" onClick={onOpen}>
       <div className="hex-expand-inner">
         <Corners size={20} />
         <div className="hex-expand-title">
@@ -97,6 +99,7 @@ function SubclassHex({
   onToggle?: (id: string) => void
 }) {
   const navigate = useNavigate()
+  const link = useEditionLink('subclasses')
   const cellRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -123,7 +126,7 @@ function SubclassHex({
   const open = (e?: ReactMouseEvent<HTMLElement>) => {
     if (e && (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
     e?.preventDefault()
-    const to = `/subclasses/${sc.id}`
+    const to = link(`/subclasses/${sc.id}`, sc)
     if (newTab) {
       window.open(to, '_blank', 'noopener')
       return

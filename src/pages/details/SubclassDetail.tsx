@@ -23,6 +23,7 @@ import { Chip, DetailSection, DetailShell, Rich } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { SUB_HERO, type VTDocument } from './SubclassHive'
 import { ElementEditionToggle } from '../../editions/EditionControls'
+import { useEditionLink } from '../../editions/useEdition'
 
 export function SubclassDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,13 +31,15 @@ export function SubclassDetailPage() {
   const { data: sc, error } = useOne<Subclass>('subclasses', id)
   const book = useBookRef(sc?.book_source_id)
   const { data: parent } = useOne<GameClass>('classes', sc?.parent_class_id)
+  // класс — той же редакции, что и подкласс (подкласс 2014 ведёт к классу 2014)
+  const editionLink = useEditionLink('classes')
 
   // возврат к соте с тем же морфом-перелётом, что и при открытии (обложка «летит»
   // обратно в свою соту на странице класса). Соту помечаем через location.state.
   const backToClass = (e: ReactMouseEvent<HTMLAnchorElement>) => {
     if (!sc || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     e.preventDefault()
-    const to = `/classes/${sc.parent_class_id}`
+    const to = editionLink(`/classes/${sc.parent_class_id}`, sc)
     const state = { returningSubclass: sc.id }
     const doc = document as VTDocument
     if (!doc.startViewTransition) {
@@ -70,7 +73,7 @@ export function SubclassDetailPage() {
     <DetailShell
       reviews={{ entity: 'subclasses', id: sc.id }}
       edition={<ElementEditionToggle resource="subclasses" id={sc.id} record={sc} />}
-      backTo={`/classes/${sc.parent_class_id}`}
+      backTo={editionLink(`/classes/${sc.parent_class_id}`, sc)}
       backLabel={parent ? `к классу «${parent.class_name}»` : 'к классу'}
       onBackClick={backToClass}
       kicker={sc.subclass_flavor ?? 'подкласс'}
@@ -89,7 +92,7 @@ export function SubclassDetailPage() {
     >
       <div className="subclass-actions">
         {/* выбрать подкласс → страница класса с умениями подкласса в таблице/списке */}
-        <Link to={`/classes/${sc.parent_class_id}?subclass=${sc.id}`} className="spell-cta">
+        <Link to={editionLink(`/classes/${sc.parent_class_id}?subclass=${sc.id}`, sc)} className="spell-cta">
           <Check aria-hidden="true" />
           Выбрать подкласс
         </Link>

@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { RotateCcw } from 'lucide-react'
 import { getEditions } from '../api/catalog'
 import { EditionToggle, type EditionToggleSize } from '../ui/EditionToggle'
-import { editionHref, otherEditionCaption, planElementEdition, sectionOf, type Edition, type EditionsMap } from './edition'
+import { editionHref, editionRedirectHref, otherEditionCaption, planElementEdition, sectionOf, type Edition, type EditionsMap } from './edition'
 import { useEdition, useGlobalEdition, useUrlEdition } from './useEdition'
 
 export function GlobalEditionToggle({ size = 'normal', labels }: { size?: EditionToggleSize; labels?: 'both' | 'active' | 'none' }) {
@@ -103,12 +103,15 @@ export function ElementEditionToggle({
   record,
   onSwitch,
   className,
+  dropParams,
 }: {
   resource: string
   id: string | undefined
   record: { editions?: readonly string[] | null } | null | undefined
   onSwitch?: (targetId: string, edition: Edition) => void
   className?: string
+  /** параметры адреса, относящиеся к прежней версии записи (?subclass= у класса) */
+  dropParams?: readonly string[]
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -116,8 +119,9 @@ export function ElementEditionToggle({
 
   // запись не той редакции, а нужная версия есть — переходим на неё
   useEffect(() => {
-    if (!id || !plan.redirectId) return
-    navigate(editionHref(location, id, plan.redirectId, plan.urlEd), { replace: true, state: location.state })
+    if (!id) return
+    const to = editionRedirectHref(location, id, plan.redirectId, plan.urlEd)
+    if (to) navigate(to, { replace: true, state: location.state })
   }, [id, plan.redirectId, plan.urlEd, location, navigate])
 
   if (!id) return null
@@ -125,7 +129,7 @@ export function ElementEditionToggle({
   const change = (next: Edition) => {
     if (!plan.targetId) return
     if (onSwitch) onSwitch(plan.targetId, next)
-    else navigate(editionHref(location, id, plan.targetId, next), { state: location.state })
+    else navigate(editionHref(location, id, plan.targetId, next, dropParams), { state: location.state })
   }
 
   return (

@@ -6,7 +6,7 @@
 import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUserSettings } from '../settings/settings'
-import { isEdition, sectionEditionOf, sectionOf, shownEdition, type Edition, type EditionSection } from './edition'
+import { isEdition, sectionEditionOf, sectionOf, shownEdition, withEditionParam, type Edition, type EditionSection } from './edition'
 import { setGlobalEdition, setSectionEdition } from './store'
 
 /** Общая редакция сайта и её смена */
@@ -46,6 +46,18 @@ export function useUrlEdition(): Edition | null {
   const [params] = useSearchParams()
   const ed = params.get('ed')
   return isEdition(ed) ? ed : null
+}
+
+/**
+ * Ссылки на записи раздела, которые держат их редакцию: (путь, запись) → путь с ?ed=,
+ * если запись не той редакции, что действует в разделе (см. withEditionParam).
+ */
+export function useEditionLink(resource: string): (path: string, record: { editions?: readonly string[] | null } | null | undefined) => string {
+  const { edition } = useEdition(resource)
+  return useCallback(
+    (path, record) => (record ? withEditionParam(path, record.editions, edition) : path),
+    [edition],
+  )
 }
 
 /**

@@ -46,7 +46,7 @@ import { Chip, DetailSection, DetailShell, Rich, DetailTopline } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { countLabel, plural } from '../../lib/plural'
 import { ElementEditionToggle } from '../../editions/EditionControls'
-import { useRecordEdition } from '../../editions/useEdition'
+import { useEditionLink, useRecordEdition } from '../../editions/useEdition'
 
 function RaceDetailPortrait({ src, alt }: { src: string | null; alt: string }) {
   const [broken, setBroken] = useState(false)
@@ -100,6 +100,7 @@ export function RaceDetailBody({
   const [subraces, setSubraces] = useState<Subrace[]>([])
   // подрасы — в той редакции, которую показывает раса
   const edition = useRecordEdition('races', r)
+  const editionLink = useEditionLink('subraces')
 
   useEffect(() => {
     setSubraces([])
@@ -211,7 +212,7 @@ export function RaceDetailBody({
                   {body}
                 </div>
               ) : (
-                <Link key={sr.id} to={`/subraces/${sr.id}`} className="subrace-card">
+                <Link key={sr.id} to={editionLink(`/subraces/${sr.id}`, sr)} className="subrace-card">
                   {body}
                   <span className="subrace-card-go">
                     подробнее <ArrowRight aria-hidden="true" />
@@ -272,6 +273,8 @@ function structureTraitText(text: string | null | undefined): string {
 export function SubraceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: sr, error } = useOne<Subrace>('subraces', id)
+  // раса — той же редакции, что и подраса
+  const editionLink = useEditionLink('races')
   const book = useBookRef(sr?.book_source_id)
   const { data: parent } = useOne<Race>('races', sr?.parent_race_id)
   const article = useMemo(
@@ -299,7 +302,7 @@ export function SubraceDetailPage() {
     <DetailShell
       reviews={{ entity: 'subraces', id: sr.id }}
       edition={<ElementEditionToggle resource="subraces" id={sr.id} record={sr} />}
-      backTo={`/races/${sr.parent_race_id}`}
+      backTo={editionLink(`/races/${sr.parent_race_id}`, sr)}
       backLabel={parent ? `к расе «${parent.race_name}»` : 'к расе'}
       kicker="подраса"
       title={sr.subrace_name}
