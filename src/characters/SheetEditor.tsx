@@ -16,6 +16,7 @@ import { getSubList, type Background, type Feat, type GameClass, type Race, type
 import { useCatalogList, useSubraces } from '../create/useCatalog'
 import type { AttackEntry, Character, CharacterInput, ClassLevel, CustomModifier, SheetView, SpellKnown } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
+import { useBothEditions } from './useNames'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
 import { COMBAT_PATHS, type CombatField, SECTIONS, SLOT_PATHS, combatField, slotValue } from './sheet/editorData'
 import { signed } from './sheet/rules'
@@ -65,9 +66,10 @@ export function SheetEditor({
   const face = pic.face ?? DEFAULT_FACE
   const setFace = useCallback((next: FaceCrop) => setPic((p) => ({ ...p, face: next })), [])
 
-  const { items: classCatalog } = useCatalogList<GameClass>('classes')
-  const { items: raceCatalog } = useCatalogList<Race>('races')
-  const { items: bgCatalog } = useCatalogList<Background>('backgrounds')
+  // обе редакции: у героя может быть раса 2014 при классе 2024
+  const classCatalog = useBothEditions<GameClass>('classes')
+  const raceCatalog = useBothEditions<Race>('races')
+  const bgCatalog = useBothEditions<Background>('backgrounds')
   const { items: spellCatalog } = useCatalogList<Spell>('spells')
   const { items: featCatalog } = useCatalogList<Feat>('feats')
   const { items: subraces } = useSubraces(c.race_id)

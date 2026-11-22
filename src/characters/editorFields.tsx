@@ -273,11 +273,11 @@ export function Segmented<T extends string | number>({
 
 export function Toggle({ on, onChange, label, title }: { on: boolean; onChange: (v: boolean) => void; label?: ReactNode; title?: string }) {
   return (
-    <button type="button" role="switch" aria-checked={on} className={`ed-toggle${on ? ' is-on' : ''}`} onClick={() => onChange(!on)} title={title}>
-      <span className="ed-toggle-track" aria-hidden="true">
+    <button type="button" role="switch" aria-checked={on} className={`ed-switch${on ? ' is-on' : ''}`} onClick={() => onChange(!on)} title={title}>
+      <span className="ed-switch-track" aria-hidden="true">
         <span />
       </span>
-      {label && <span className="ed-toggle-label">{label}</span>}
+      {label && <span className="ed-switch-label">{label}</span>}
     </button>
   )
 }

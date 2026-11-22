@@ -20,7 +20,32 @@
 }
 .cw-live-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
 /* видимость — в строке «к персонажам», над «Правкой листа» */
-.cw-live-top > .cw-vis {
+.cw-live-top > .cw-vis { grid-column: 2; grid-row: 1; justify-self: end; }
+.cw-live-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.cw-live-actions .cs-btn svg { width: 16px; height: 16px; }
+/* статус сохранения — тихая подпись слева от кнопок, а не крупный текст */
+.cw-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  padding: 3px 10px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.2);
+  border-radius: 999px;
+  background: rgb(var(--bg-1-rgb) / 0.6);
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.cw-save svg { width: 13px; height: 13px; }
+.cw-save--saving svg,
+.cw-save--pending svg { animation: cw-spin 0.9s linear infinite; }
+.cw-save--saved { color: #8fd194; border-color: rgba(143, 209, 148, 0.3); }
+.cw-save--error { color: #ee8d82; border-color: rgba(238, 141, 130, 0.4); }
+.cw-save--view { color: var(--silver-2); font-style: italic; }
+
+.cw-vis {
   display: inline-flex;
   align-items: center;
   gap: 9px;
