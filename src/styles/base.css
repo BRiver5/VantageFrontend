@@ -546,6 +546,99 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   top: 66px;
 }
 
+/* ---------- логотип — бургер-меню со всеми разделами ---------- */
+
+button.sidebar-brand {
+  padding: 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar-brand-logo { position: relative; display: grid; place-items: center; flex-shrink: 0; }
+.sidebar-burger {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.6);
+  border-radius: 50%;
+  background: var(--bg-1);
+  color: var(--gold-3);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.sidebar-burger svg { width: 11px; height: 11px; }
+.sidebar-top.is-menu-open .sidebar-burger,
+.sidebar-brand:hover .sidebar-burger { background: var(--gold-2); color: var(--bg-0); transform: scale(1.12); }
+.sidebar-brand:focus-visible { outline: 1px solid var(--gold-3); outline-offset: 2px; }
+
+.sidebar-menu {
+  position: fixed;
+  top: 12px;
+  left: calc(var(--sidebar-w) - 6px);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(460px, calc(100vw - var(--sidebar-w) - 24px));
+  max-height: calc(100vh - 24px);
+  padding: 20px 22px 22px;
+  overflow-y: auto;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.45);
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgb(var(--gold-2-rgb) / 0.1), transparent 60%),
+    linear-gradient(180deg, rgb(var(--bg-2-rgb) / 0.98), rgb(var(--bg-0-rgb) / 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: sidebar-menu-in 0.18s ease;
+}
+@keyframes sidebar-menu-in { from { opacity: 0; transform: translateX(-8px); } }
+.sidebar-menu-group { display: flex; flex-direction: column; gap: 10px; }
+.sidebar-menu-title {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-3);
+}
+.sidebar-menu-title::after { content: ''; display: block; height: 1px; margin-top: 6px; background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.4), transparent); }
+.sidebar-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sidebar-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.sidebar-menu-link svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--gold-2); stroke-width: 1.7; }
+.sidebar-menu-link:hover,
+.sidebar-menu-link:focus-visible { color: var(--parchment); border-color: rgb(var(--gold-2-rgb) / 0.55); background: rgb(var(--gold-2-rgb) / 0.08); outline: none; }
+.sidebar-menu-link.is-active { color: var(--gold-4); border-color: rgb(var(--gold-2-rgb) / 0.7); background: rgb(var(--gold-2-rgb) / 0.14); }
+
+/* главное в рейле — крупно, без прокрутки */
+.sidebar-main { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+.sidebar-link--big,
+.sidebar-link--play { min-height: 60px; font-size: 1.18rem; }
+.sidebar-link--big .sidebar-link-icon,
+.sidebar-link--play .sidebar-link-icon { width: 26px; height: 26px; }
+.sidebar-link--play { color: var(--gold-3); }
+.sidebar-link--play::before { opacity: 0.55; transform: scaleX(1); }
+.sidebar-wrap.is-collapsed .sidebar-link-icon { width: 26px; height: 26px; }
+.sidebar-wrap.is-collapsed .sidebar-link--big,
+.sidebar-wrap.is-collapsed .sidebar-link--play { min-height: 64px; }
+.sidebar-wrap.is-collapsed .sidebar-link--big .sidebar-link-icon,
+.sidebar-wrap.is-collapsed .sidebar-link--play .sidebar-link-icon { width: 30px; height: 30px; }
+
 /* совместимость со старыми селекторами бренд/кнопок каталога */
 .brand-logo {
   display: block;

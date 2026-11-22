@@ -26,7 +26,6 @@ import {
   hasStartingEquipment,
 } from '../StartingEquipment'
 import { DIE_NUM_IMAGE_URLS, DieChipIcon, hitDieType } from '../../dice/diceAssets'
-import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
 import { parseClassTable, stripClassTable } from '../../classTable'
 import type { ClassTable } from '../../classTable'
 import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
@@ -204,6 +203,38 @@ export function ClassDetailView({
       })
       .catch(() => {})
   }, [id, edition, listKey, ready])
+
+  // у класса 2024 — ещё подклассы 2014, которых в 2024 нет или которые там переработаны
+  const [legacySubs, setLegacySubs] = useState<Subclass[]>([])
+  useEffect(() => {
+    setLegacySubs([])
+    if (!ready || edition !== '2024') return
+    let alive = true
+    getSubList<Subclass>('classes', id, 'subclasses', '2014')
+      .then((list) => {
+        if (!alive) return
+        list.forEach((s) => cacheEntity('subclasses', s.id, s))
+        setLegacySubs(list)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [id, edition, ready])
+  const legacy = useMemo(() => {
+    const ids = new Set(subclasses.map((s) => s.id))
+    // пара 2024 ссылается на подкласс 2014 через variant_group (= его id)
+    const renamed = new Map(subclasses.filter((s) => s.variant_group).map((s) => [s.variant_group!, s.subclass_name]))
+    const list = legacySubs.filter((s) => !ids.has(s.id))
+    const key = (s: Subclass) => s.variant_group || s.id
+    // сначала те, которых в 2024 нет, потом переработанные
+    list.sort((a, b) => Number(renamed.has(key(a))) - Number(renamed.has(key(b))))
+    return {
+      list,
+      missing: list.filter((s) => !renamed.has(key(s))).length,
+      pairs: list.filter((s) => renamed.has(key(s))).map((s) => [s.subclass_name, renamed.get(key(s))!] as const),
+    }
+  }, [legacySubs, subclasses])
 
   // подкласс, с которого вернулись (морф-перелёт в его соту); гасим имя через ~1.5 c
   const [returningSub, setReturningSub] = useState<string | undefined>(
@@ -438,11 +469,6 @@ export function ClassDetailView({
             )}
           </>
         )}
-        <AbilitiesMissingFrom
-  refs={c.abilities}
-  text={c.description ?? ''}
-  render={(list) => <DetailSection title="Способности и механика">{list}</DetailSection>}
-/>
         {subclasses.length > 0 && (
           <div ref={subsRef}>
             <DetailSection title={`${SUBCLASS_GROUP_LABEL[c.class_name] ?? 'Подклассы'} — ${subclasses.length}`}>
@@ -454,6 +480,26 @@ export function ClassDetailView({
               />
             </DetailSection>
           </div>
+        )}
+        {legacy.list.length > 0 && (
+          <DetailSection title={`Подклассы 2014 редакции — ${legacy.list.length}`}>
+            <p className="class-legacy-note">
+              {legacy.missing > 0 && <>Нет в 2024: {legacy.missing}. </>}
+              {legacy.pairs.length > 0 && (
+                <>
+                  Переработаны в 2024:{' '}
+                  {legacy.pairs.map(([old2014, new2024], i) => (
+                    <span key={old2014}>
+                      {i > 0 && ', '}
+                      «{old2014}» → «{new2024}»
+                    </span>
+                  ))}
+                  .
+                </>
+              )}
+            </p>
+            <SubclassHive subclasses={legacy.list} selectedId={subclassId} onToggle={toggleSubclass} />
+          </DetailSection>
         )}
         {!embedded && <ReviewsPanel entity="classes" id={c.id} />}
       </section>

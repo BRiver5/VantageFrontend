@@ -180,3 +180,6 @@ a.detail-hex:hover { filter: brightness(1.08) drop-shadow(0 0 10px rgb(var(--sil
   filter: none;
 }
 
+
+/* подклассы 2014 у класса 2024: что в 2024 переработано, чего нет */
+.class-legacy-note { margin: 0 0 14px; font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); }
