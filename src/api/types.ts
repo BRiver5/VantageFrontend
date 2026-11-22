@@ -472,6 +472,11 @@ export interface SearchHit {
   snippet: string | null
   match: string
   score: number
+  /** редакции записи; null — сущность вне редакций */
+  editions?: string[] | null
+  variant_group?: string | null
+  /** запись только другой редакции (поиск с other_editions); null — есть в выбранной */
+  other_edition?: '2014' | '2024' | null
 }
 
 export interface SearchResult {

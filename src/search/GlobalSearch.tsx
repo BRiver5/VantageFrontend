@@ -31,6 +31,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { searchCatalog, searchEdition, type SearchHit, type SearchResult } from '../api'
+import { OtherEditionNote } from '../editions/EditionControls'
+import { otherEditionOf, preferredEditionFirst, withRecordEdition } from '../editions/edition'
 import { useUserSettings } from '../settings/settings'
 import { matches } from '../input/keybindings'
 import { rankByQuery } from './fuzzy'
@@ -150,7 +152,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
     const t = setTimeout(() => {
       setLoading(true)
       setError(null)
-      searchCatalog(query, { entities: entity ? [entity] : undefined, limit: PAGE, signal: ctrl.signal, edition })
+      searchCatalog(query, { entities: entity ? [entity] : undefined, limit: PAGE, signal: ctrl.signal, edition, otherEditions: true })
         .then((r) => {
           setResult(r)
           setActive(0)
@@ -169,7 +171,8 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
     }
   }, [query, entity, edition])
 
-  const items = useMemo(() => result?.items ?? [], [result])
+  // записи выбранной редакции — первыми, найденные только в другой — следом, с подписью
+  const items = useMemo(() => preferredEditionFirst(result?.items ?? []), [result])
   // действия комнаты — над находками кодекса; стрелки ходят по общему списку
   const cmds = useMemo(() => (commands ? rankByQuery(query, commands, query ? 8 : 60) : []), [commands, query])
   const total = cmds.length + items.length
@@ -183,7 +186,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
     if (!result) return
     setMore(true)
     try {
-      const r = await searchCatalog(query, { entities: entity ? [entity] : undefined, skip: result.items.length, limit: PAGE, edition })
+      const r = await searchCatalog(query, { entities: entity ? [entity] : undefined, skip: result.items.length, limit: PAGE, edition, otherEditions: true })
       setResult({ ...r, items: [...result.items, ...r.items] })
     } catch {
       setError('Не удалось догрузить.')
@@ -199,7 +202,8 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
       return
     }
     onClose()
-    navigate(`${meta.path}/${hit.id}`)
+    // запись другой редакции открывается в своей: ?ed= — её переключатель покажет ту же редакцию
+    navigate(withRecordEdition(`${meta.path}/${hit.id}`, hit))
   }
 
   useEffect(() => {
@@ -322,6 +326,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
                           <Mark text={hit.title} q={query} />
                           {hit.alias && <i> · {hit.alias}</i>}
                         </b>
+                        <OtherEditionNote edition={otherEditionOf(hit)} />
                         {hit.snippet && (
                           <span className={`gs-hit-snippet${open ? ' is-full' : ''}`}>
                             <Mark text={hit.snippet} q={query} />

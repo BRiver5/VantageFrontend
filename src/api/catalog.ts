@@ -15,22 +15,25 @@ export type EditionOpt = Edition | null | undefined
 export const requestEdition = (resource: string, edition: EditionOpt): Edition | null =>
   edition === undefined ? resourceEdition(resource) : edition
 
+/**
+ * Опции списка каталога. `otherEditions` — при поиске (`q`) найти и записи
+ * только другой редакции: сервер ставит их после записей выбранной, с полем
+ * `other_edition`. Без `q` или без редакции не действует.
+ */
+export type CatalogListOpts = { skip?: number; limit?: number; q?: string; edition?: EditionOpt; otherEditions?: boolean }
+
 /** Параметры списка каталога: страница, поиск и редакция (если ресурс её понимает) */
-export function catalogParams(
-  resource: string,
-  opts: { skip?: number; limit?: number; q?: string; edition?: EditionOpt } = {},
-): URLSearchParams {
+export function catalogParams(resource: string, opts: CatalogListOpts = {}): URLSearchParams {
   const params = new URLSearchParams()
   params.set('skip', String(opts.skip ?? 0))
   params.set('limit', String(opts.limit ?? 50))
   if (opts.q) params.set('q', opts.q)
-  return appendEdition(params, resource, requestEdition(resource, opts.edition))
+  appendEdition(params, resource, requestEdition(resource, opts.edition))
+  if (opts.otherEditions && opts.q && params.has('edition')) params.set('other_editions', '1')
+  return params
 }
 
-export async function fetchPage<T>(
-  resource: string,
-  opts: { skip?: number; limit?: number; q?: string; edition?: EditionOpt } = {},
-): Promise<Paged<T>> {
+export async function fetchPage<T>(resource: string, opts: CatalogListOpts = {}): Promise<Paged<T>> {
   const params = catalogParams(resource, opts)
   const res = await fetch(`${API_BASE}/${resource}?${params}`)
   if (!res.ok) throw new Error(`${resource}: ${res.status}`)
@@ -59,14 +62,14 @@ export async function getBookMap(): Promise<BookMap> {
  * нужно для клиентской сортировки, т.к. бэкенд её не поддерживает.
  * cap ограничивает на случай аномально большого каталога.
  */
-export async function fetchAll<T>(resource: string, opts: { q?: string; edition?: EditionOpt } = {}, cap = 3000): Promise<T[]> {
+export async function fetchAll<T>(resource: string, opts: { q?: string; edition?: EditionOpt; otherEditions?: boolean } = {}, cap = 3000): Promise<T[]> {
   // редакцию фиксируем на весь обход: смена посреди него не смешает страницы
   const edition = requestEdition(resource, opts.edition)
-  const first = await fetchPage<T>(resource, { skip: 0, limit: 500, q: opts.q, edition })
+  const first = await fetchPage<T>(resource, { skip: 0, limit: 500, q: opts.q, edition, otherEditions: opts.otherEditions })
   const all = [...first.items]
   const total = Math.min(first.total, cap)
   while (all.length < total) {
-    const page = await fetchPage<T>(resource, { skip: all.length, limit: 500, q: opts.q, edition })
+    const page = await fetchPage<T>(resource, { skip: all.length, limit: 500, q: opts.q, edition, otherEditions: opts.otherEditions })
     if (page.items.length === 0) break
     all.push(...page.items)
   }
@@ -305,15 +308,24 @@ export function searchEdition(entities: string[] | undefined): Edition {
   return one && isEditionSection(one) ? sectionEdition(one) : globalEdition()
 }
 
-export function searchQueryParams(q: string, opts: { entities?: string[]; skip?: number; limit?: number; edition?: EditionOpt } = {}): URLSearchParams {
+/**
+ * Опции поиска. `otherEditions` — найти и записи только другой редакции:
+ * сервер ставит их после всех записей выбранной, с полем `other_edition`.
+ */
+export type SearchOpts = { entities?: string[]; skip?: number; limit?: number; edition?: EditionOpt; otherEditions?: boolean }
+
+export function searchQueryParams(q: string, opts: SearchOpts = {}): URLSearchParams {
   const params = new URLSearchParams({ q, skip: String(opts.skip ?? 0), limit: String(opts.limit ?? 20) })
   for (const e of opts.entities ?? []) params.append('entities', e)
   const edition = opts.edition === undefined ? searchEdition(opts.entities) : opts.edition
-  if (edition) params.set('edition', edition)
+  if (edition) {
+    params.set('edition', edition)
+    if (opts.otherEditions) params.set('other_editions', '1')
+  }
   return params
 }
 
 /** Поиск по каталогу: русский, английский, неверная раскладка и опечатки */
-export function searchCatalog(q: string, opts: { entities?: string[]; skip?: number; limit?: number; signal?: AbortSignal; edition?: EditionOpt } = {}): Promise<SearchResult> {
+export function searchCatalog(q: string, opts: SearchOpts & { signal?: AbortSignal } = {}): Promise<SearchResult> {
   return request<SearchResult>(`/search?${searchQueryParams(q, opts)}`, { auth: 'optional', signal: opts.signal })
 }

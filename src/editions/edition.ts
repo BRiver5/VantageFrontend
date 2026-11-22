@@ -249,3 +249,38 @@ export function editionHref(loc: { pathname: string; search: string; hash?: stri
 
 /** «Редакция правил: 2024» — подпись переключателя */
 export const editionLabel = (e: Edition): string => `Редакция правил: ${e}`
+
+/* ---------- поиск: и другая редакция ---------- */
+
+/**
+ * Найденная запись только другой редакции (режим поиска `other_editions`):
+ * её редакция или `null`, если запись есть в выбранной.
+ */
+export function otherEditionOf(item: unknown): Edition | null {
+  const v = item && typeof item === 'object' ? (item as { other_edition?: unknown }).other_edition : null
+  return isEdition(v) ? v : null
+}
+
+/** «из редакции 2014» — подпись найденной записи другой редакции */
+export const otherEditionCaption = (e: Edition): string => `из редакции ${e}`
+
+/**
+ * Записи выбранной редакции — первыми, другой — следом; порядок внутри
+ * каждой части сохраняется (сервер уже так отдаёт, но клиентская
+ * сортировка списка не должна их перемешать).
+ */
+export function preferredEditionFirst<T>(items: readonly T[]): T[] {
+  const own: T[] = []
+  const other: T[] = []
+  for (const it of items) (otherEditionOf(it) ? other : own).push(it)
+  return other.length ? [...own, ...other] : [...items]
+}
+
+/** Адрес записи с ?ed= её редакции, если она из другой редакции; иначе как есть */
+export function withRecordEdition(path: string, item: unknown): string {
+  const ed = otherEditionOf(item)
+  if (!ed) return path
+  const [base, hash = ''] = path.split('#')
+  const sep = base.includes('?') ? '&' : '?'
+  return `${base}${sep}ed=${ed}${hash ? `#${hash}` : ''}`
+}
