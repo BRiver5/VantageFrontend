@@ -23,7 +23,6 @@ import {
   Lock,
   Moon,
   PencilLine,
-  RefreshCcw,
   RefreshCw,
   ScrollText,
   TriangleAlert,
@@ -34,8 +33,7 @@ import type { LucideIcon } from 'lucide-react'
 import { castSpellFromSheet, createCharacter, getOne, realImage, type Creature } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { ActionDialog } from '../characters/ActionDialog'
-import { ConvertEditionDialog, EditionBadge, EditionIssuesBanner } from '../characters/EditionUi'
-import { convertActionFor, groupIssues } from '../characters/editionConvert'
+import { EditionBadge } from '../characters/EditionBadge'
 import CharacterSheet, { type SheetTab } from '../characters/CharacterSheet'
 import { JournalDrawer, JournalModal, PendingBanner, ShortRestDialog } from '../characters/EngineDialogs'
 import type { EngineView } from '../characters/EnginePanel'
@@ -119,7 +117,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
   const [restOpen, setRestOpen] = useState(false)
   const [copying, setCopying] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
-  const [convertOpen, setConvertOpen] = useState(false)
   const navigate = useNavigate()
   const { app: hudMode } = useAppShell()
 
@@ -356,9 +353,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
   const flow = eng.flow
   const banner = eng.conflict ?? eng.notice
   const canCopy = ready && !owner && !room
-  // пересоздать по другой редакции — свой лист вне комнаты
-  const convert = convertActionFor(character, owner && !room)
-  const openIssues = groupIssues(character.edition_issues).open.length
 
   /** Чужой лист целиком — новый персонаж текущего игрока */
   const copyToMe = async () => {
@@ -413,9 +407,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
       onDismiss={(d) => void eng.dismiss(d.id)}
     />
   )
-  const issuesNode = (
-    <EditionIssuesBanner key="edition-issues" character={character} canEdit={owner && !room} onResolved={eng.applyCharacter} />
-  )
   const warningsNode = admin && sheet.warnings.length > 0 && (
     <details key="warnings" className="eng-warnings">
       <summary>Предупреждения движка · {sheet.warnings.length}</summary>
@@ -435,13 +426,8 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
       warningsNode,
     ].filter(Boolean),
     noticeKey: [banner, save === 'error' ? eng.saveError : ''].filter(Boolean).join('|'),
-    decisions: (
-      <>
-        {issuesNode}
-        {pendingNode}
-      </>
-    ),
-    decisionCount: sheet.pending_decisions.length + openIssues,
+    decisions: pendingNode,
+    decisionCount: sheet.pending_decisions.length,
     onJournal: owner ? () => setJournalOpen(true) : undefined,
     onLongRest: owner ? longRest : undefined,
     backTo: room?.backTo,
@@ -471,11 +457,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
         {canEditSheet && (
           <button type="button" className="hud-menu-item" onClick={() => setEditOpen(true)}>
             <PencilLine aria-hidden="true" /> Правка листа
-          </button>
-        )}
-        {convert && (
-          <button type="button" className="hud-menu-item" onClick={() => setConvertOpen(true)} disabled={eng.busy}>
-            <RefreshCcw aria-hidden="true" /> {convert.label}
           </button>
         )}
         {owner && !room && (
@@ -578,17 +559,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
                   <PencilLine aria-hidden="true" /> Правка листа
                 </button>
               )}
-              {convert && (
-                <button
-                  type="button"
-                  className={convert.prominent ? 'cs-btn' : 'cw-mini-btn'}
-                  onClick={() => setConvertOpen(true)}
-                  disabled={eng.busy}
-                  title="Копия героя по другой редакции правил; оригинал остаётся"
-                >
-                  <RefreshCcw aria-hidden="true" /> {convert.label}
-                </button>
-              )}
             </>
           )}
         </div>
@@ -603,8 +573,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
           </button>
         </div>
       )}
-
-      {!hudMode && issuesNode}
 
       {!hudMode && pendingNode}
 
@@ -678,17 +646,6 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
           canUndo={owner}
           onUndo={(eventId) => void eng.undo(eventId)}
           onClose={() => setHpJournalOpen(false)}
-        />
-      )}
-      {convertOpen && convert && (
-        <ConvertEditionDialog
-          character={character}
-          action={convert}
-          onClose={() => setConvertOpen(false)}
-          onDone={(created) => {
-            setConvertOpen(false)
-            navigate(`/characters/${created.id}`)
-          }}
         />
       )}
       {editOpen && (

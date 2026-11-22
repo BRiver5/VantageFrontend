@@ -217,24 +217,6 @@ export function useCharacterEngine(id: string | undefined) {
     setCharacter(next)
   }, [])
 
-  /**
-   * Документ, который вернул отдельный маршрут сервера (ответ на вопрос редакции):
-   * несохранённые правки остаются поверх, лист перезапрашивается
-   */
-  const applyCharacter = useCallback(
-    async (c: Character) => {
-      const next = { ...c, ...pendingPatch.current } as Character
-      latest.current = next
-      setCharacter(next)
-      try {
-        setSheet(await getSheet(ref))
-      } catch (e) {
-        setNotice(errorText(e))
-      }
-    },
-    [ref],
-  )
-
   // уход со страницы не теряет последнюю правку
   useEffect(() => {
     const onUnload = (e: BeforeUnloadEvent) => {
@@ -459,7 +441,6 @@ export function useCharacterEngine(id: string | undefined) {
     reload,
     patchDoc,
     patchLocal,
-    applyCharacter,
     action,
     decide,
     answer,
