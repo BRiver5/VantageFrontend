@@ -24,6 +24,8 @@ import {
 import { finalScores } from '../deriveCharacter'
 import type { StepProps } from '../draft'
 import { useCatalogList } from '../useCatalog'
+import { stepEdition } from '../createEdition'
+import { StepEdition } from './StepEdition'
 import type { GrantedSpell } from '../grantedSpells'
 import {
   ChoiceModal,
@@ -155,7 +157,7 @@ export default function SpellsStep({
   const kind = casterKind(className, draft.cls?.is_caster)
   const prepares = isPreparedCaster(className)
   const isWizard = className.toLocaleLowerCase('ru') === 'волшебник'
-  const { items: allSpells, loading, error } = useCatalogList<Spell>('spells', kind !== 'none')
+  const { items: allSpells, loading, error } = useCatalogList<Spell>('spells', kind !== 'none', stepEdition(draft, 'spells'))
   const [details, setDetails] = useState<Spell | null>(null)
   const closeDetails = useCallback(() => setDetails(null), [])
 
@@ -237,6 +239,7 @@ export default function SpellsStep({
   return (
     <div className="cw-step cw-spells-step">
       <StepHeader title="Книга заклинаний" />
+      <StepEdition draft={draft} update={update} section="spells" />
 
       {kind !== 'none' && (
       <div className="cw-spells-top">

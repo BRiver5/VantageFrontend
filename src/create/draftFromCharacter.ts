@@ -21,7 +21,8 @@ export function draftFromCharacter(
 ): CharacterDraft {
   const own = character.classes.find((c) => c.class_id === cls.id)
   const classLevel = own?.level ?? 0
-  const draft = initialDraft(character.visibility)
+  // каталоги черт и заклинаний — в редакции героя (без поля — 2014)
+  const draft = initialDraft(character.visibility, character.edition === '2024' ? '2024' : '2014')
   const score = (k: AbilityName) => {
     const v = sheet.values[`char.abilities.${ABILITY_SHORT[k]}.score`]
     return typeof v === 'number' ? v : (character.base_scores[ABILITY_SHORT[k]] ?? 10)

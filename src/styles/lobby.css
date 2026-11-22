@@ -667,3 +667,21 @@
 @media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
   .lobby-hero-ed { top: 8px; left: 36px; font-size: 0.6rem; padding: 0 5px; }
 }
+
+/* ---------- редакция правил: фильтр ряда и «Новый герой» ---------- */
+.lobby-ed-filter { display: inline-flex; align-items: center; gap: 4px; }
+.lobby-ed-filter .sort-btn { padding-inline: 16px; }
+.lobby-ed-count { min-width: 1.4em; color: var(--text-dim); font-size: 0.82em; font-variant-numeric: tabular-nums; text-align: center; }
+.lobby-ed-filter .is-active .lobby-ed-count { color: var(--gold-3); }
+
+div.lobby-none { display: grid; justify-items: center; gap: 12px; text-align: center; }
+div.lobby-none > p { margin: 0; }
+.lobby-none-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-style: normal; }
+.lobby-none-actions .sort-btn { text-decoration: none; }
+
+.lobby-start-group { display: inline-flex; align-items: center; gap: 12px; }
+
+@media (max-width: 720px) {
+  .lobby-ed-filter { flex: 1 1 100%; justify-content: center; }
+  .lobby-start-group { flex-direction: column; gap: 8px; }
+}

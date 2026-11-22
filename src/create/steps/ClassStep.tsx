@@ -19,6 +19,8 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { useBookMap, useCatalogList } from '../useCatalog'
+import { keptChoiceNote, stepEdition } from '../createEdition'
+import { StepEdition } from './StepEdition'
 import { Img } from '../../media'
 
 const className = (c: GameClass) => c.class_name
@@ -127,7 +129,7 @@ function ClassModal({
 }
 
 export default function ClassStep({ draft, update }: StepProps) {
-  const { items, loading, error } = useCatalogList<GameClass>('classes')
+  const { items, loading, error } = useCatalogList<GameClass>('classes', true, stepEdition(draft, 'classes'))
   const [open, setOpen] = useState<GameClass | null>(null)
 
   const books = useBookMap()
@@ -172,6 +174,12 @@ export default function ClassStep({ draft, update }: StepProps) {
   return (
     <div className="cw-step cw-step--picker">
       <StepHeader title="Чьё ремесло ты избрал?" />
+      <StepEdition
+        draft={draft}
+        update={update}
+        section="classes"
+        note={keptChoiceNote(draft.cls?.class_name, loading || items.some((c) => c.id === draft.cls?.id))}
+      />
 
       <PickToolbar picker={picker} groups={groups} placeholder="Искать класс…" />
 

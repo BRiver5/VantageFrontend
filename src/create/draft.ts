@@ -7,6 +7,7 @@ import type { Background, CharacterVisibility, GameClass, Race, Spell, Subclass,
 import type { AbilityName, InventoryItemInstance } from '../types/character'
 import { ABILITY_KEYS } from '../types/character'
 import type { GearPick } from './startingGear'
+import { DEFAULT_EDITION, type Edition, type SectionEditions } from '../editions/edition'
 
 /** Способ получения характеристик */
 export type AbilityMethod = 'roll' | 'array' | 'pointbuy' | 'manual'
@@ -52,11 +53,21 @@ export interface LevelChoice {
 }
 
 export interface CharacterDraft {
+  /** редакция правил героя — уходит в `edition` персонажа */
+  edition: Edition
+  /**
+   * Шаги, чей каталог показан в другой редакции (раса из 2014 при герое 2024).
+   * Только отличия от `edition`; см. createEdition.ts.
+   */
+  catalogEditions: SectionEditions
+
   race: Race | null
   subrace: Subrace | null
   cls: GameClass | null
   subclass: Subclass | null
   background: Background | null
+  /** повышение характеристик предыстории 2024: { strength: 2, dexterity: 1 } */
+  backgroundAsi: Partial<Record<AbilityName, number>>
 
   targetLevel: number
 
@@ -140,13 +151,16 @@ export function scoreOf(scores: Record<AbilityName, number | null>, key: Ability
   return scores[key] ?? 8
 }
 
-export function initialDraft(visibility: CharacterVisibility): CharacterDraft {
+export function initialDraft(visibility: CharacterVisibility, edition: Edition = DEFAULT_EDITION): CharacterDraft {
   return {
+    edition,
+    catalogEditions: {},
     race: null,
     subrace: null,
     cls: null,
     subclass: null,
     background: null,
+    backgroundAsi: {},
     targetLevel: 1,
     abilityMethod: 'roll',
     baseScores: blankScores(),

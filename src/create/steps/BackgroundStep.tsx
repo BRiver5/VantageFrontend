@@ -21,6 +21,8 @@ import {
   type PickFilterGroup,
 } from './ui'
 import { useBookMap, useCatalogList } from '../useCatalog'
+import { keptChoiceNote, stepEdition } from '../createEdition'
+import { StepEdition } from './StepEdition'
 import { abilitiesFromSkills, skillKeysFromNames } from '../../skills'
 import { ABILITY_KEYS, ABILITY_LABELS, DEFAULT_SKILLS } from '../../types/character'
 import { Img } from '../../media'
@@ -118,7 +120,11 @@ function BackgroundModal({
 }
 
 export default function BackgroundStep({ draft, update }: StepProps) {
-  const { items, loading, error } = useCatalogList<Background>('backgrounds')
+  const { items, loading, error } = useCatalogList<Background>('backgrounds', true, stepEdition(draft, 'backgrounds'))
+  // другая предыстория — свои три характеристики: прежнее распределение не годится
+  const pick = (bg: Background | null) => {
+    if (bg?.id !== draft.background?.id) update({ background: bg, backgroundAsi: {} })
+  }
   const [open, setOpen] = useState<Background | null>(null)
 
   const books = useBookMap()
@@ -156,6 +162,12 @@ export default function BackgroundStep({ draft, update }: StepProps) {
   return (
     <div className="cw-step cw-step--picker">
       <StepHeader title="Кем ты был до приключений?" />
+      <StepEdition
+        draft={draft}
+        update={update}
+        section="backgrounds"
+        note={keptChoiceNote(draft.background?.background_name, loading || items.some((b) => b.id === draft.background?.id))}
+      />
 
       <PickToolbar
         picker={picker}
@@ -166,7 +178,7 @@ export default function BackgroundStep({ draft, update }: StepProps) {
             <button
               type="button"
               className="cs-btn cs-btn--ghost"
-              onClick={() => update({ background: null })}
+              onClick={() => pick(null)}
             >
               Без предыстории
             </button>
@@ -183,7 +195,7 @@ export default function BackgroundStep({ draft, update }: StepProps) {
             key={bg.id}
             bg={bg}
             selected={draft.background?.id === bg.id}
-            onSelect={() => update({ background: bg })}
+            onSelect={() => pick(bg)}
             onDetails={() => setOpen(bg)}
           />
         ))}
@@ -194,7 +206,7 @@ export default function BackgroundStep({ draft, update }: StepProps) {
           bg={open}
           selected={draft.background?.id === open.id}
           onChoose={() => {
-            update({ background: open })
+            pick(open)
             setOpen(null)
           }}
           onClose={close}

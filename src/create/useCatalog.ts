@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { fetchAll, getBookMap, getSubraces } from '../api'
 import type { BookMap, Subrace } from '../api'
 import { useEdition } from '../editions/useEdition'
+import type { Edition } from '../editions/edition'
 
 export interface CatalogState<T> {
   items: T[]
@@ -13,11 +14,13 @@ export interface CatalogState<T> {
 /**
  * Весь список ресурса (расы, классы, предыстории) — он помещается в память.
  * `enabled: false` откладывает запрос: списки заклинаний и черт нужны не всем.
+ * `editionOverride` — редакция шага конструктора; без неё — редакция раздела.
  */
-export function useCatalogList<T>(resource: string, enabled = true): CatalogState<T> {
+export function useCatalogList<T>(resource: string, enabled = true, editionOverride?: Edition): CatalogState<T> {
   const [state, setState] = useState<CatalogState<T>>({ items: [], loading: enabled, error: null })
-  // редакция раздела ресурса: смена — перезапрос
-  const { edition } = useEdition(resource)
+  // редакция раздела ресурса (или шага): смена — перезапрос
+  const section = useEdition(resource).edition
+  const edition = editionOverride ?? section
 
   useEffect(() => {
     if (!enabled) {
@@ -48,10 +51,11 @@ export function useCatalogList<T>(resource: string, enabled = true): CatalogStat
 }
 
 /** Подрасы выбранной расы; пустой массив — у расы их нет, шаг пропускается */
-export function useSubraces(raceId: string | null): { items: Subrace[]; loading: boolean } {
+export function useSubraces(raceId: string | null, editionOverride?: Edition): { items: Subrace[]; loading: boolean } {
   const [items, setItems] = useState<Subrace[]>([])
   const [loading, setLoading] = useState(false)
-  const { edition } = useEdition('races')
+  const section = useEdition('races').edition
+  const edition = editionOverride ?? section
 
   useEffect(() => {
     if (!raceId) {
@@ -82,10 +86,11 @@ export function useSubraces(raceId: string | null): { items: Subrace[]; loading:
  * id рас, у которых есть подрасы, — для пометки на карточке и фильтра.
  * Запросы идут отдельно от списка рас, поэтому сетка их не ждёт.
  */
-export function useRacesWithSubraces(raceIds: string[]): Set<string> {
+export function useRacesWithSubraces(raceIds: string[], editionOverride?: Edition): Set<string> {
   const [withSubs, setWithSubs] = useState<Set<string>>(() => new Set())
   const key = raceIds.join(',')
-  const { edition } = useEdition('races')
+  const section = useEdition('races').edition
+  const edition = editionOverride ?? section
 
   useEffect(() => {
     if (!key) return

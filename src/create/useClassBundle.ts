@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getOne, getSubList } from '../api'
 import type { GameClass, Subclass } from '../api'
 import { useEdition } from '../editions/useEdition'
-import { shownEdition } from '../editions/edition'
+import { shownEdition, type Edition } from '../editions/edition'
 import { isHtmlDescription, parseFeatureEntries, resolveSubclassSectionHtml, type FeatureEntry } from '../classArticleHtml'
 
 export interface ClassBundle {
@@ -16,14 +16,18 @@ export interface ClassBundle {
   features: FeatureEntry[]
 }
 
-/** Полные данные выбранного класса; null, пока класс не выбран или грузится */
-export function useClassBundle(classId: string | null): {
+/**
+ * Полные данные выбранного класса; null, пока класс не выбран или грузится.
+ * `editionOverride` — редакция шага класса в конструкторе.
+ */
+export function useClassBundle(classId: string | null, editionOverride?: Edition): {
   bundle: ClassBundle | null
   loading: boolean
 } {
   const [bundle, setBundle] = useState<ClassBundle | null>(null)
   const [loading, setLoading] = useState(false)
-  const { edition } = useEdition('classes')
+  const section = useEdition('classes').edition
+  const edition = editionOverride ?? section
 
   useEffect(() => {
     if (!classId) {

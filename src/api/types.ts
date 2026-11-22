@@ -418,6 +418,9 @@ export interface Background extends EditionFields {
   book_source_id: string | null
   /** способности, которые источник выдаёт персонажу (slug и уровень) */
   abilities?: AbilityRef[] | null
+  /** 2024: три характеристики предыстории ('str', 'dex', 'cha') и схемы повышения ([[2, 1], [1, 1, 1]]) */
+  ability_score_options?: string[] | null
+  ability_score_patterns?: number[][] | null
 }
 
 export interface Paged<T> {

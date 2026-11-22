@@ -22,6 +22,7 @@ import type {
 import type { FeatureEntry } from '../classArticleHtml'
 import { scoreOf, type CharacterDraft, type LevelChoice } from './draft'
 import { featureText } from './featureText'
+import { backgroundBonuses } from './originAsi'
 import type { GrantedSpell } from './grantedSpells'
 import { customInventory, inventoryItem, resolveGear, weaponAttack, wornDefense } from './startingGear'
 import {
@@ -79,14 +80,26 @@ export function racialBonuses(draft: CharacterDraft): Partial<Record<AbilityName
   return out
 }
 
-/** Итоговые характеристики: база + раса + усиления, не выше 20 */
+/**
+ * Бонусы происхождения: раса (2014) и предыстория (2024). В смешанном герое
+ * сервер применяет оба источника — предпросмотр тоже.
+ */
+export function originBonuses(draft: CharacterDraft): Partial<Record<AbilityName, number>> {
+  const out = { ...racialBonuses(draft) }
+  for (const [k, v] of Object.entries(backgroundBonuses(draft.background, draft.backgroundAsi))) {
+    if (v) out[k as AbilityName] = (out[k as AbilityName] ?? 0) + v
+  }
+  return out
+}
+
+/** Итоговые характеристики: база + раса + предыстория + усиления, не выше 20 */
 export function finalScores(draft: CharacterDraft): Record<AbilityName, number> {
-  const racial = racialBonuses(draft)
+  const origin = originBonuses(draft)
   const asi = asiTotals(draft.levels)
   return Object.fromEntries(
     ABILITY_KEYS.map((k) => [
       k,
-      Math.min(20, scoreOf(draft.baseScores, k) + (racial[k] ?? 0) + (asi[k] ?? 0)),
+      Math.min(20, scoreOf(draft.baseScores, k) + (origin[k] ?? 0) + (asi[k] ?? 0)),
     ]),
   ) as Record<AbilityName, number>
 }
@@ -437,6 +450,8 @@ export function draftToInput(draft: CharacterDraft, preview: SheetView): Charact
   const age = parseInt(draft.age, 10)
   return {
     character_name: draft.name.trim() || 'Новый герой',
+    // редакция героя; записи каталога других редакций (раса 2014 у героя 2024) — по своим id
+    edition: draft.edition,
     visibility: draft.visibility,
     race_id: draft.race?.id ?? null,
     subrace_id: draft.subrace?.id ?? null,
