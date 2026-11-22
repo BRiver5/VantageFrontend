@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
+  DoorOpen,
   GraduationCap,
+  Home,
   LogIn,
+  Menu,
+  ScrollText,
   Search,
   Settings,
   UserRound,
@@ -12,7 +16,7 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { VantageLogo } from '../ornaments'
 import { useOpenSearch } from '../search/GlobalSearch'
-import { CATEGORIES } from './categories'
+import { CODEX } from './categories'
 import { openSettings } from '../settings/open'
 import { openToursPanel } from '../tours/store'
 import { GlobalEditionToggle } from '../editions/EditionControls'
@@ -54,28 +58,25 @@ export function Sidebar() {
       aria-label="Навигация"
     >
       <div className="sidebar">
-        <div className="sidebar-top">
-          <Link to="/" className="sidebar-brand" title="Vantage">
-            <VantageLogo size={expanded ? 38 : 34} />
-            <span className="sidebar-brand-name gold-text">Vantage</span>
-          </Link>
-        </div>
+        <SidebarMenu expanded={expanded} />
 
         <SidebarSearch expanded={expanded} />
 
-        <nav className="sidebar-nav" aria-label="Разделы каталога" data-tour="sidebar-nav">
-          {CATEGORIES.map(({ path, label, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              title={label}
-              data-tour={`nav-${path.slice(1)}`}
-              className={({ isActive }) => `sidebar-link${isActive ? ' is-active' : ''}`}
-            >
-              <Icon aria-hidden="true" className="sidebar-link-icon" />
-              <span className="sidebar-link-label">{label}</span>
-            </NavLink>
-          ))}
+        {/* главное — крупно: играть и герои; остальные разделы — в меню под логотипом */}
+        <nav className="sidebar-main" aria-label="Главное">
+          <NavLink to="/rooms" title="Играть" className={({ isActive }) => `sidebar-link sidebar-link--play${isActive ? ' is-active' : ''}`}>
+            <DoorOpen aria-hidden="true" className="sidebar-link-icon" />
+            <span className="sidebar-link-label">Играть</span>
+          </NavLink>
+          <NavLink
+            to="/characters"
+            title="Персонажи"
+            data-tour="nav-characters"
+            className={({ isActive }) => `sidebar-link sidebar-link--big${isActive ? ' is-active' : ''}`}
+          >
+            <ScrollText aria-hidden="true" className="sidebar-link-icon" />
+            <span className="sidebar-link-label">Персонажи</span>
+          </NavLink>
         </nav>
 
         <div className="sidebar-foot">
@@ -142,5 +143,91 @@ function SidebarSearch({ expanded }: { expanded: boolean }) {
         </>
       )}
     </button>
+  )
+}
+
+const MENU_CLOSE_DELAY = 220
+
+/**
+ * Логотип — бургер-меню: наведение (или клик, или фокус с клавиатуры) открывает панель
+ * со всеми разделами сайта — «Играть» и весь справочник. Панель живёт рядом с сайдбаром,
+ * закрывается, когда курсор ушёл, по Esc и после перехода.
+ */
+function SidebarMenu({ expanded }: { expanded: boolean }) {
+  const [open, setOpen] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const location = useLocation()
+
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
+  const show = useCallback(() => {
+    cancel()
+    setOpen(true)
+  }, [])
+  const hideSoon = useCallback(() => {
+    cancel()
+    timer.current = setTimeout(() => setOpen(false), MENU_CLOSE_DELAY)
+  }, [])
+
+  // переход по ссылке — меню закрывается
+  useEffect(() => setOpen(false), [location.pathname])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+  useEffect(() => cancel, [])
+
+  const item = (path: string, label: string, Icon: typeof Home, end = false) => (
+    <NavLink key={path} to={path} end={end} data-tour={`nav-${path.slice(1) || 'home'}`} className={({ isActive }) => `sidebar-menu-link${isActive ? ' is-active' : ''}`}>
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
+    </NavLink>
+  )
+
+  return (
+    <div className={`sidebar-top${open ? ' is-menu-open' : ''}`} onMouseEnter={show} onMouseLeave={hideSoon}>
+      <button
+        type="button"
+        className="sidebar-brand"
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-controls="sidebar-menu"
+        title="Все разделы"
+        data-tour="sidebar-nav"
+        onClick={() => setOpen((v) => !v)}
+        onFocus={show}
+      >
+        <span className="sidebar-brand-logo">
+          <VantageLogo size={expanded ? 40 : 38} />
+          <span className="sidebar-burger" aria-hidden="true">
+            <Menu />
+          </span>
+        </span>
+        <span className="sidebar-brand-name gold-text">Vantage</span>
+      </button>
+
+      {open && (
+        <div id="sidebar-menu" className="sidebar-menu" role="menu" aria-label="Все разделы" onMouseEnter={show} onMouseLeave={hideSoon} onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hideSoon()
+        }}>
+          <div className="sidebar-menu-group">
+            <span className="sidebar-menu-title">Играть</span>
+            <div className="sidebar-menu-grid">
+              {item('/', 'Главная', Home, true)}
+              {item('/rooms', 'Комнаты', DoorOpen)}
+              {item('/characters', 'Персонажи', ScrollText)}
+            </div>
+          </div>
+          <div className="sidebar-menu-group">
+            <span className="sidebar-menu-title">Справочник</span>
+            <div className="sidebar-menu-grid">{CODEX.map(({ path, label, icon }) => item(path, label, icon))}</div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

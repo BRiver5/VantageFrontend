@@ -497,8 +497,9 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
           <Link to={room?.backTo.to ?? '/characters'} className="back-link back-link--btn">
             <ChevronLeft aria-hidden="true" /> {room ? room.backTo.label : 'к персонажам'}
           </Link>
-          <EditionBadge edition={character.edition} />
         </span>
+        <span className="cw-live-meta">
+          <EditionBadge edition={character.edition} className="ed-badge--sheet" />
         {owner && !room && (
           <label className="cw-vis" title="Кто видит лист">
             <VisIcon aria-hidden="true" />
@@ -516,6 +517,7 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
             <ChevronDown className="cw-vis-caret" aria-hidden="true" />
           </label>
         )}
+        </span>
         <div className="cw-live-actions">
           {status && StatusIcon && (
             <span className={`cw-save cw-save--${owner ? save : 'view'}`} role="status">

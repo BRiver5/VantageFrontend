@@ -20,7 +20,20 @@
 }
 .cw-live-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
 /* видимость — в строке «к персонажам», над «Правкой листа» */
-.cw-live-top > .cw-vis { grid-column: 2; grid-row: 1; justify-self: end; }
+.cw-live-meta { grid-column: 2; grid-row: 1; justify-self: end; display: inline-flex; align-items: center; gap: 12px; }
+/* редакция героя — заметная плашка рядом с видимостью */
+.ed-badge.ed-badge--sheet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 18px;
+  border-width: 1.5px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  box-shadow: 0 0 16px rgb(var(--gold-3-rgb) / 0.16), inset 0 0 12px rgb(var(--gold-3-rgb) / 0.08);
+}
 .cw-live-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .cw-live-actions .cs-btn svg { width: 16px; height: 16px; }
 /* статус сохранения — тихая подпись слева от кнопок, а не крупный текст */
