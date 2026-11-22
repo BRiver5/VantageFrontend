@@ -82,3 +82,9 @@ export const ATTACK_TYPES: { value: AttackEntry['type']; label: string }[] = [
 export const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 
 export const fmtXp = (n: number) => n.toLocaleString('ru')
+
+/** Подпись записи каталога в списке обеих редакций: «Монах (2024)»; общая запись — без пометки */
+export function edLabel(name: string, editions: string[] | null | undefined): string {
+  const eds = editions?.length ? editions : ['2014']
+  return eds.length === 1 ? `${name} (${eds[0]})` : name
+}

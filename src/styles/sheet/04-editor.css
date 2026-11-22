@@ -287,12 +287,12 @@
 .ed-seg--sm button { height: 24px; padding: 0 8px; font-size: 0.74rem; }
 
 /* переключатель */
-.ed-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; color: var(--text-dim); font: inherit; font-size: 0.78rem; cursor: pointer; }
-.ed-toggle-track { position: relative; width: 30px; height: 16px; flex-shrink: 0; border-radius: 999px; background: rgb(var(--silver-2-rgb) / 0.25); transition: background 0.18s ease; }
-.ed-toggle-track span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--silver-2); transition: transform 0.18s ease, background 0.18s ease; }
-.ed-toggle.is-on { color: var(--text); }
-.ed-toggle.is-on .ed-toggle-track { background: var(--gold-2); }
-.ed-toggle.is-on .ed-toggle-track span { transform: translateX(14px); background: #fff; }
+.ed-switch { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; color: var(--text-dim); font: inherit; font-size: 0.78rem; cursor: pointer; }
+.ed-switch-track { position: relative; width: 30px; height: 16px; flex-shrink: 0; border-radius: 999px; background: rgb(var(--silver-2-rgb) / 0.25); transition: background 0.18s ease; }
+.ed-switch-track span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--silver-2); transition: transform 0.18s ease, background 0.18s ease; }
+.ed-switch.is-on { color: var(--text); }
+.ed-switch.is-on .ed-switch-track { background: var(--gold-2); }
+.ed-switch.is-on .ed-switch-track span { transform: translateX(14px); background: #fff; }
 
 /* чипы и поиск по каталогу */
 .ed-chips {

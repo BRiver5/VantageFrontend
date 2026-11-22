@@ -1,4 +1,5 @@
 /** Раздел «Класс и уровень»: классы, подклассы, мультикласс */
+import { edLabel } from '../editorData'
 import { GraduationCap, Plus, Trash2 } from 'lucide-react'
 import type { GameClass, Subclass } from '../../../api'
 import type { Character, ClassLevel } from '../../../types/character'
@@ -53,7 +54,7 @@ export function ClassesSection({ c, level, classCatalog, subclasses, setClasses,
                 <option value="">— класс —</option>
                 {classCatalog.map((x) => (
                   <option key={x.id} value={x.id}>
-                    {x.class_name}
+                    {edLabel(x.class_name, x.editions)}
                   </option>
                 ))}
               </select>

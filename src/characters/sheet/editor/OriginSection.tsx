@@ -1,4 +1,5 @@
 /** Раздел «Происхождение»: раса, подраса, предыстория и внешность */
+import { edLabel } from '../editorData'
 import { Compass } from 'lucide-react'
 import type { Background, Race, Subrace } from '../../../api'
 import { DEFAULT_SKILLS } from '../../../types/character'
@@ -37,7 +38,7 @@ export function OriginSection({ c, set, raceCatalog, bgCatalog, subraces, origin
               .sort((a, b) => a.race_name.localeCompare(b.race_name, 'ru'))
               .map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.race_name}
+                  {edLabel(r.race_name, r.editions)}
                 </option>
               ))}
           </select>
@@ -73,7 +74,7 @@ export function OriginSection({ c, set, raceCatalog, bgCatalog, subraces, origin
               .sort((a, b) => a.background_name.localeCompare(b.background_name, 'ru'))
               .map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.background_name}
+                  {edLabel(b.background_name, b.editions)}
                 </option>
               ))}
           </select>
