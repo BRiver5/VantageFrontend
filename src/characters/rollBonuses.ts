@@ -139,7 +139,7 @@ export function rollMode(view: SheetView, ctx: RollContext | undefined): { mode:
 }
 
 /** Теги атаки оружием по её свойствам: силовая ли, дальняя, тяжёлая, метательная */
-export function attackTags(a: Pick<AttackEntry, 'type' | 'properties'>, view: SheetView): { tags: string[]; ability: AbilityName } {
+export function attackTags(a: Pick<AttackEntry, 'type' | 'properties' | 'ability'>, view: SheetView): { tags: string[]; ability: AbilityName } {
   const props = a.properties.map((p) => p.toLocaleLowerCase('ru'))
   const has = (stem: string) => props.some((p) => p.startsWith(stem))
   const str = view.ability_scores.strength.modifier ?? 0
@@ -148,7 +148,8 @@ export function attackTags(a: Pick<AttackEntry, 'type' | 'properties'>, view: Sh
   if (a.type === 'ranged') {
     return { tags: ['weapon', 'ranged', 'ranged_weapon', ...(has('тяж') ? ['heavy'] : [])], ability: 'dexterity' }
   }
-  const finesseDex = has('фехтов') && dex > str
+  // движок сам выбрал характеристику (Ловкость оружия монаха); иначе — по «Фехтовальное»
+  const finesseDex = a.ability ? a.ability === 'dex' : has('фехтов') && dex > str
   const tags = ['weapon', 'melee_weapon', ...(finesseDex ? ['melee_dex'] : ['melee_str']), ...(has('тяж') ? ['heavy'] : []), ...(has('метат') ? ['thrown_weapon'] : [])]
   return { tags, ability: finesseDex ? 'dexterity' : 'strength' }
 }

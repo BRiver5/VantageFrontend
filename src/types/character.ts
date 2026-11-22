@@ -61,6 +61,29 @@ export type AttackEntry = {
   range: string
   properties: string[]
   inventory_instance_id?: string | null
+  /** только в листе (движок): чем бьёт оружие — Сила или Ловкость */
+  ability?: 'str' | 'dex' | null
+  /** только в листе (движок): правила, изменившие атаку («Боевые искусства») */
+  rules?: string[]
+  /** только в листе (движок): урон двуручным хватом универсального оружия */
+  versatile?: string | null
+}
+
+/** Атака оружием, посчитанная движком (`char.attacks.weapons`, app/engine/weapons.py) */
+export type EngineWeaponAttack = {
+  instance_id: string
+  name: string
+  type: 'melee' | 'ranged'
+  attack_bonus: number
+  damage: string
+  versatile: string | null
+  damage_type: string
+  range: string
+  properties: string[]
+  ability: 'str' | 'dex'
+  proficient: boolean
+  equipped: boolean
+  rules: string[]
 }
 
 export type FeatureEntry = {
@@ -70,6 +93,9 @@ export type FeatureEntry = {
   level?: number | null
   description: string
   feature_source?: string | null
+  /** название источника по id гранта (класс мультикласса, раса, черта, предмет) и его редакции */
+  source_name?: string | null
+  source_editions?: string[]
   /** умение движка: grant_id, slug, статус автоматизации и активно ли сейчас */
   grant_id?: string
   slug?: string
@@ -380,6 +406,9 @@ export type SheetAbility = {
   implementation_status: string
   source_kind: string
   source_id: string | null
+  /** название источника гранта и его редакции: «Следопыт» + ['2024'] */
+  source_name?: string | null
+  source_editions?: string[]
   active: boolean
   /** false — отключена игроком: механика не действует, но в листе остаётся */
   enabled?: boolean

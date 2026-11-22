@@ -11,6 +11,7 @@ import type {
   Character,
   Contribution,
   EngineExtras,
+  EngineWeaponAttack,
   FeatureEntry,
   GrantedSpell,
   NaturalAttack,
@@ -93,6 +94,38 @@ function varText(v: unknown): string {
     return JSON.stringify(v)
   }
   return ''
+}
+
+/**
+ * Атаки оружием: строки документа (снимок при создании) получают живые числа движка
+ * (`char.attacks.weapons`: уровень, владения, Боевые искусства монаха), а надетое оружие
+ * без строки (добавлено в инвентарь позже) — появляется в списке. Ручные атаки не трогаются.
+ */
+export function mergeWeaponAttacks(own: AttackEntry[], engine: EngineWeaponAttack[] | undefined): AttackEntry[] {
+  const list = (engine ?? []).filter((w) => w && w.instance_id)
+  if (!list.length) return own
+  const byId = new Map(list.map((w) => [w.instance_id, w]))
+  const live = (w: EngineWeaponAttack): AttackEntry => ({
+    name: w.name,
+    type: w.type,
+    attack_bonus: w.attack_bonus,
+    damage: w.damage,
+    damage_type: w.damage_type,
+    range: w.range,
+    properties: w.properties,
+    inventory_instance_id: w.instance_id,
+    ability: w.ability,
+    rules: w.rules,
+    versatile: w.versatile,
+  })
+  const seen = new Set<string>()
+  const merged = own.map((a) => {
+    const w = a.inventory_instance_id ? byId.get(a.inventory_instance_id) : undefined
+    if (!w) return a
+    seen.add(w.instance_id)
+    return { ...live(w), name: a.name || w.name }
+  })
+  return [...merged, ...list.filter((w) => w.equipped && !seen.has(w.instance_id)).map(live)]
 }
 
 /** Подписи состояний: сервер отдаёт английские ключи (poisoned, prone…) */
@@ -183,6 +216,8 @@ export function buildSheetView(
     level: null,
     description: a.description,
     feature_source: a.source_id,
+    source_name: a.source_name ?? null,
+    source_editions: a.source_editions ?? [],
     grant_id: a.grant_id,
     slug: a.slug,
     implementation_status: a.implementation_status,
@@ -297,7 +332,7 @@ export function buildSheetView(
       inspiration: num('char.inspiration') > 0,
       shield: num('char.armor.shield') > 0,
     },
-    attacks: [...character.attacks, ...naturalAttacks],
+    attacks: [...mergeWeaponAttacks(character.attacks, raw('char.attacks.weapons') as EngineWeaponAttack[] | undefined), ...naturalAttacks],
     proficiencies: {
       armor: list('char.prof.armor'),
       weapons: list('char.prof.weapons'),
