@@ -233,7 +233,14 @@ export function planElementEdition(o: {
  * параметре вроде ?open=) меняется на новый, ?ed= — на выбранную редакцию
  * (`null` — убрать).
  */
-export function editionHref(loc: { pathname: string; search: string; hash?: string }, currentId: string, targetId: string, ed: Edition | null): string {
+export function editionHref(
+  loc: { pathname: string; search: string; hash?: string },
+  currentId: string,
+  targetId: string,
+  ed: Edition | null,
+  /** параметры, привязанные к прежней версии (например ?subclass= класса) — убрать */
+  drop: readonly string[] = [],
+): string {
   const segs = loc.pathname.split('/')
   const at = segs.lastIndexOf(currentId)
   const params = new URLSearchParams(loc.search)
@@ -241,10 +248,31 @@ export function editionHref(loc: { pathname: string; search: string; hash?: stri
   else {
     for (const [k, v] of [...params.entries()]) if (v === currentId) params.set(k, targetId)
   }
+  if (targetId !== currentId) for (const k of drop) params.delete(k)
   if (ed) params.set('ed', ed)
   else params.delete('ed')
   const qs = params.toString()
   return `${segs.join('/')}${qs ? `?${qs}` : ''}${loc.hash ?? ''}`
+}
+
+/**
+ * Адрес записи-«не той» редакции, на который стоит уводить сам (замена адреса).
+ * `null` — уводить не надо: адрес уже другой записи (страница ещё рисует прежнюю,
+ * пока догружается новая — переход по переключателю или «Назад»), или он не
+ * меняется. Иначе такой переход затёр бы выбор, сделанный переключателем.
+ */
+export function editionRedirectHref(
+  loc: { pathname: string; search: string; hash?: string },
+  currentId: string,
+  redirectId: string | null,
+  ed: Edition | null,
+): string | null {
+  if (!redirectId || redirectId === currentId) return null
+  const inPath = loc.pathname.split('/').includes(currentId)
+  const inParams = [...new URLSearchParams(loc.search).values()].includes(currentId)
+  if (!inPath && !inParams) return null
+  const href = editionHref(loc, currentId, redirectId, ed)
+  return href === `${loc.pathname}${loc.search}${loc.hash ?? ''}` ? null : href
 }
 
 /** «Редакция правил: 2024» — подпись переключателя */
@@ -274,6 +302,23 @@ export function preferredEditionFirst<T>(items: readonly T[]): T[] {
   const other: T[] = []
   for (const it of items) (otherEditionOf(it) ? other : own).push(it)
   return other.length ? [...own, ...other] : [...items]
+}
+
+/**
+ * Ссылка на конкретную запись (подкласс из сот класса, класс со страницы подкласса,
+ * подраса расы): если запись показывает не ту редакцию, что действует в разделе
+ * (`wanted`), — с ?ed= её редакции. Иначе страница записи сама увела бы на версию
+ * редакции раздела и отменила выбор, сделанный переключателем записи.
+ */
+export function withEditionParam(path: string, recordEditions: readonly string[] | null | undefined, wanted: Edition): string {
+  const ed = shownEdition(recordEditions, wanted)
+  const [base, hash = ''] = path.split('#')
+  const [p, qs = ''] = base.split('?')
+  const params = new URLSearchParams(qs)
+  if (ed === wanted) params.delete('ed')
+  else params.set('ed', ed)
+  const q = params.toString()
+  return `${p}${q ? `?${q}` : ''}${hash ? `#${hash}` : ''}`
 }
 
 /** Адрес записи с ?ed= её редакции, если она из другой редакции; иначе как есть */

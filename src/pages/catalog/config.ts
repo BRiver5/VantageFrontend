@@ -131,3 +131,25 @@ export function pageFromSearch(params: URLSearchParams): number {
   if (!Number.isFinite(raw) || raw < 1) return 0
   return Math.floor(raw) - 1
 }
+
+/**
+ * Параметры адреса каталога для открытой записи (`?open=`) и листа (`?page=`).
+ * `undefined` — параметр не трогать (раздел им не пользуется). Возвращает новые
+ * параметры или `null`, если адрес и так такой: тогда не навигируем вовсе — холостой
+ * replace относительно ещё не обновлённого пути затирает только что открытую запись.
+ */
+export function catalogSearch(
+  current: URLSearchParams,
+  want: { open?: string | null; page?: number },
+): URLSearchParams | null {
+  const next = new URLSearchParams(current)
+  if (want.open !== undefined) {
+    if (want.open) next.set('open', want.open)
+    else next.delete('open')
+  }
+  if (want.page !== undefined) {
+    if (want.page > 0) next.set('page', String(want.page + 1))
+    else next.delete('page')
+  }
+  return next.toString() === current.toString() ? null : next
+}

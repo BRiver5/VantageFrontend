@@ -36,7 +36,7 @@ import { hasClassProficiencies, parseClassProficiencies } from '../../classProfi
 import { Img } from '../../media'
 import { Chip, DetailSection, DetailTopline, MobileFold, Rich, StatRow } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
-import { useRecordEdition } from '../../editions/useEdition'
+import { useEditionLink, useRecordEdition } from '../../editions/useEdition'
 import { useOne } from './hooks'
 import { SubclassHive } from './SubclassHive'
 
@@ -164,6 +164,9 @@ const SUBCLASS_GROUP_LABEL: Record<string, string> = {
   Чародей: 'Происхождения чародея',
 }
 
+/** подкласс в адресе — подкласс версии класса этой редакции; у другой версии его нет */
+const CLASS_EDITION_DROP = ['subclass'] as const
+
 /**
  * Деталь класса: id из оболочки/роута, onBack — reverse-VT в каталог (если задан).
  * `embedded` — показ внутри конструктора персонажа: без «назад» и мультикласса,
@@ -182,6 +185,7 @@ export function ClassDetailView({
   const { data: c, error } = useOne<GameClass>('classes', id)
   // подклассы — в той редакции, которую показывает класс
   const edition = useRecordEdition('classes', c)
+  const editionLink = useEditionLink('subclasses')
   const listKey = `${id}:${edition}`
   // из кэша — чтобы при возврате с подкласса соты были на месте сразу (для морфа)
   const [subclasses, setSubclasses] = useState<Subclass[]>(() => subclassListCache.get(listKey) || [])
@@ -293,7 +297,7 @@ export function ClassDetailView({
     <OpenLinksInNewTab.Provider value={embedded}>
       <section className="book-page class-detail-page">
         {embedded ? null : (
-          <DetailTopline edition={<ElementEditionToggle resource="classes" id={c.id} record={c} />}>
+          <DetailTopline edition={<ElementEditionToggle resource="classes" id={c.id} record={c} dropParams={CLASS_EDITION_DROP} />}>
             {onBack ? (
               <button type="button" className="back-link back-link--btn" onClick={onBack}>
                 <ArrowLeft aria-hidden="true" /> к классам
@@ -333,7 +337,7 @@ export function ClassDetailView({
               <div className="class-detail-subhex">
                 <div className="class-detail-subhex-art">
                   <Link
-                    to={`/subclasses/${selectedSub.id}`}
+                    to={editionLink(`/subclasses/${selectedSub.id}`, selectedSub)}
                     className="detail-hex detail-hex--sm"
                     title={selectedSub.subclass_name}
                     target={embedded ? '_blank' : undefined}

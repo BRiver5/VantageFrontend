@@ -44,7 +44,7 @@ import type {
 import { Divider } from '../ornaments'
 import { useEquipmentDrawer } from '../equipmentDrawer'
 import { type VTDocument } from './catalog/transitions'
-import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, pageFromSearch, toggleIn } from './catalog/config'
+import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, catalogSearch, pageFromSearch, toggleIn } from './catalog/config'
 import { backgroundFilters, creatureFilters, equipmentFilters, featFilters, itemFilters, spellFilters } from './catalog/filters'
 import { creatureSorts, equipmentSorts, itemSorts, spellSorts } from './catalog/sorts'
 import { CardLink } from './catalog/shared'
@@ -251,24 +251,24 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   }, [items, cfg.inlineDetail, cfg.inlineUrl, selected])
 
   // выбранный предмет ⇄ адрес (?open=id); лист ⇄ ?page=N — оба переживают перезагрузку
+  // Адрес трогаем, только если он и правда меняется: setSearchParams — это всегда
+  // navigate(replace) относительно ТЕКУЩЕГО (по рендеру) пути. Открытие класса «на месте»
+  // ставит selected синхронно, а переход на /classes/:id роутер применяет позже (transition) —
+  // холостой вызов отсюда заменял бы только что открытый /classes/:id обратно на /classes,
+  // и переключатель редакции записи не находил бы id в адресе.
+  const selectedId = selected?.id ?? null
+  // последние параметры адреса — без них в зависимостях (Back по ?page= не должен
+  // возвращать прежний лист обратно)
+  const searchRef = useRef(searchParams)
+  searchRef.current = searchParams
   useEffect(() => {
-    if (cfg.inlineDetail && cfg.inlineUrl !== 'path' && initialOpenRef.current && !selected) return
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev)
-        if (cfg.inlineDetail && cfg.inlineUrl !== 'path') {
-          if (selected) next.set('open', selected.id)
-          else next.delete('open')
-        }
-        if (!cfg.noPaging) {
-          if (page > 0) next.set('page', String(page + 1))
-          else next.delete('page')
-        }
-        return next.toString() === prev.toString() ? prev : next
-      },
-      { replace: true },
-    )
-  }, [selected, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams])
+    if (cfg.inlineDetail && cfg.inlineUrl !== 'path' && initialOpenRef.current && !selectedId) return
+    const next = catalogSearch(searchRef.current, {
+      open: cfg.inlineDetail && cfg.inlineUrl !== 'path' ? selectedId : undefined,
+      page: cfg.noPaging ? undefined : page,
+    })
+    if (next) setSearchParams(next, { replace: true })
+  }, [selectedId, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {

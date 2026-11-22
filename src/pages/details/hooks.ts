@@ -34,11 +34,17 @@ export function useOne<T>(resource: string, id: string | undefined) {
       setError(null)
       return
     }
+    let alive = true
     setData(getCachedEntity<T>(resource, id))
     setError(null)
+    // ответ по прежнему id (переключили редакцию, пока он грузился) не должен
+    // перезаписать новую запись
     getOne<T>(resource, id)
-      .then(setData)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .then((d) => alive && setData(d))
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)))
+    return () => {
+      alive = false
+    }
   }, [resource, id])
   return { data, error }
 }
