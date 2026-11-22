@@ -74,7 +74,7 @@ function Stepper({
   onJump: (index: number) => void
 }) {
   return (
-    <nav className="cw-rail" aria-label="Шаги создания">
+    <nav className="cw-rail" aria-label="Шаги создания" data-tour="create-steps">
       {steps.map((step, i) => {
         const state = i === current ? 'is-current' : i < current ? 'is-done' : ''
         const reachable = i <= maxVisited
@@ -281,7 +281,7 @@ export default function CreateCharacterWizard() {
         <h1 className="section-title gold-text cw-title">
           <ScrollText aria-hidden="true" /> Создание героя
         </h1>
-        <div className="cw-hero-ed">
+        <div className="cw-hero-ed" data-tour="create-edition">
           <span className="cw-hero-ed-label">Правила героя</span>
           <EditionToggle
             size="compact"
@@ -297,7 +297,7 @@ export default function CreateCharacterWizard() {
 
       <Divider />
 
-      <div className="cw-stage">
+      <div className="cw-stage" data-tour="create-stage">
         {step.id === 'race' && <RaceStep draft={draft} update={update} />}
         {step.id === 'subrace' && (
           <SubraceStep draft={draft} update={update} subraces={subraces} allowBase={subraceOptional} />
@@ -335,7 +335,7 @@ export default function CreateCharacterWizard() {
       {/* панель шагов — в body и fixed: всегда внизу экрана и поверх содержимого,
           её не сдвигают ни прокрутка, ни transform анимаций страницы */}
       {createPortal(
-        <footer className="cw-foot">
+        <footer className="cw-foot" data-tour="create-foot">
           <div className="cw-foot-inner">
             <button
               type="button"

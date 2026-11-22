@@ -300,7 +300,7 @@ function SearchPalette({ initial, commands, onClose }: { initial: string; comman
             <div className="gs-empty">
               <p>Ищите по всему кодексу: классы, расы, заклинания, бестиарий, предметы, книги и миры.</p>
               <p className="gs-tip">
-                Можно с опечатками и в английской раскладке. <kbd>Ctrl</kbd> <kbd>K</kbd> или <kbd>/</kbd> — открыть с любой страницы.
+                <kbd>Ctrl</kbd> <kbd>K</kbd> или <kbd>/</kbd> — открыть с любой страницы.
               </p>
             </div>
             )

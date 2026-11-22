@@ -18,6 +18,8 @@ import { useAppShell } from '../../shell'
 import { Chip, DetailSection, DetailShell, HexBadge, Rich } from './shared'
 import { useBookRef, useContextualBack, useOne } from './hooks'
 import { ElementEditionToggle } from '../../editions/EditionControls'
+import { SpellArea } from './SpellArea'
+import { showSpellArea } from './spellAreaGeometry'
 
 export function SpellDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -72,6 +74,11 @@ export function SpellDetailPage() {
       )}
       {s.material_components && (
         <p className="detail-note">Материальные компоненты: {s.material_components}</p>
+      )}
+      {showSpellArea(s) && (
+        <DetailSection title="Область">
+          <SpellArea spell={s} />
+        </DetailSection>
       )}
       <DetailSection title="Описание">
         <Rich text={s.description} />

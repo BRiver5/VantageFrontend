@@ -96,7 +96,7 @@ export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: bo
       <Divider />
 
       {!f.description && (f.abilities?.length ?? 0) > 0 && (
-        <DetailSection title="Способности и механика">
+        <DetailSection title="Особенности">
           <AbilityList refs={f.abilities} />
         </DetailSection>
       )}
