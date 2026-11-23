@@ -10,8 +10,8 @@ a.brand, a.cat-btn, a.sidebar-brand, a.sidebar-link { text-decoration: none; col
    области контента (viewport минус сайдбар). Запас шире 34px — иначе 100vw +
    портреты/карточки чуть вылезают и появляется горизонтальный скролл. */
 .catalog--wide {
-  width: min(calc(100vw - var(--sidebar-w) - 72px), 1700px);
-  margin-left: calc((100% - min(calc(100vw - var(--sidebar-w) - 72px), 1700px)) / 2);
+  width: min(calc(100vw - var(--sidebar-w) - 72px), 1600px);
+  margin-left: calc((100% - min(calc(100vw - var(--sidebar-w) - 72px), 1600px)) / 2);
 }
 
 /* поиск по архиву */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Award, Backpack, BookMarked, DoorOpen, Gem, Landmark, PlusCircle, ScrollText, Skull, Sparkles, Swords, VenetianMask } from 'lucide-react'
+import { Award, Backpack, BookMarked, DoorOpen, Gem, Landmark, ScrollText, Skull, Sparkles, Swords, VenetianMask } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { getBooks, getSettings } from '../../api'
@@ -11,13 +11,6 @@ import { ContinueRoom } from '../../rooms/ContinueRoom'
 import { LootBar } from './LootChips'
 import { BookHive } from './BookHive'
 import { BASIC_ID, CORE_RULES_ART, type Realm, SettingsCarousel } from './SettingsCarousel'
-
-/** Игра под поиском на главной (кроме «Играть» — она зависит от входа) */
-const HOME_GAME: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/rooms', label: 'Комнаты', icon: DoorOpen },
-  { to: '/characters', label: 'Персонажи', icon: ScrollText },
-  { to: '/characters/new', label: 'Новый герой', icon: PlusCircle },
-]
 
 /** Справочник под поиском на главной */
 const HOME_SECTIONS: { to: string; label: string; icon: LucideIcon }[] = [
@@ -79,7 +72,7 @@ export function HomePage() {
       <section className="home-top">
         <h1 className="home-title gold-text">Vantage</h1>
         <SearchBar />
-        {/* разделы сайта: справочник плитками на общей подложке; справа — зона «Играть» */}
+        {/* разделы сайта плитками на общей подложке; последняя — «Играть» с выбором внутри */}
         <nav className="home-tiles" aria-label="Разделы">
           <div className="home-tiles-board">
             {HOME_SECTIONS.map(({ to, label, icon: Icon }) => (
@@ -90,24 +83,7 @@ export function HomePage() {
                 <span className="home-tile-label">{label}</span>
               </Link>
             ))}
-          </div>
-          <div className="home-play-card">
-            <Link to={user ? '/rooms' : '/login'} className="home-play-main">
-              <span className="home-play-kicker">за стол</span>
-              <span className="home-play-title gold-text">
-                <DieImage type={20} size={28} className="die-play-icon" /> Играть
-              </span>
-            </Link>
-            <div className="home-play-links">
-              {HOME_GAME.map(({ to, label, icon: Icon }) => (
-                <Link key={to} to={to} className="home-tile home-tile--play">
-                  <span className="home-tile-ico" aria-hidden="true">
-                    <Icon />
-                  </span>
-                  <span className="home-tile-label">{label}</span>
-                </Link>
-              ))}
-            </div>
+            <PlayTile signedIn={!!user} />
           </div>
         </nav>
         <ContinueRoom />
@@ -128,5 +104,31 @@ export function HomePage() {
         {!error && <BookHive books={realm.books} loading={loading} />}
       </section>
     </>
+  )
+}
+
+/**
+ * Плитка «Играть»: сверху кубик и надпись, под ними — выбор, куда идти: герои или комнаты.
+ * На наведении надпись уходит вверх, а половинки выбора разъезжаются шире.
+ */
+function PlayTile({ signedIn }: { signedIn: boolean }) {
+  const to = (path: string) => (signedIn ? path : '/login')
+  return (
+    <div className="home-tile home-tile--play" role="group" aria-label="Играть">
+      <span className="home-play-head">
+        <DieImage type={20} size={26} className="die-play-icon" />
+        <span className="gold-text">Играть</span>
+      </span>
+      <span className="home-play-choice">
+        <Link to={to('/characters')} className="home-play-opt">
+          <ScrollText aria-hidden="true" />
+          <span>Персонажи</span>
+        </Link>
+        <Link to={to('/rooms')} className="home-play-opt">
+          <DoorOpen aria-hidden="true" />
+          <span>Комнаты</span>
+        </Link>
+      </span>
+    </div>
   )
 }
