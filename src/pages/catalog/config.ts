@@ -140,9 +140,33 @@ export function pageFromSearch(params: URLSearchParams): number {
  */
 export function catalogSearch(
   current: URLSearchParams,
-  want: { open?: string | null; page?: number },
+  want: {
+    open?: string | null
+    page?: number
+    /** фильтры: ключи групп раздела и выбранное (?class=колдун,бард&level=3) */
+    filters?: { keys: string[]; sel: Record<string, string[]> }
+    /** сортировка: 'none' — по умолчанию, в адрес не пишется */
+    sort?: string
+    /** строка поиска */
+    q?: string
+  },
 ): URLSearchParams | null {
   const next = new URLSearchParams(current)
+  if (want.filters) {
+    for (const key of want.filters.keys) {
+      const vals = want.filters.sel[key] ?? []
+      if (vals.length) next.set(key, vals.join(','))
+      else next.delete(key)
+    }
+  }
+  if (want.sort !== undefined) {
+    if (want.sort && want.sort !== 'none') next.set('sort', want.sort)
+    else next.delete('sort')
+  }
+  if (want.q !== undefined) {
+    if (want.q) next.set('q', want.q)
+    else next.delete('q')
+  }
   if (want.open !== undefined) {
     if (want.open) next.set('open', want.open)
     else next.delete('open')
@@ -152,4 +176,14 @@ export function catalogSearch(
     else next.delete('page')
   }
   return next.toString() === current.toString() ? null : next
+}
+
+/** Выбранные фильтры из адреса: ?class=колдун,бард → { class: ['колдун', 'бард'] } */
+export function filtersFromSearch(search: URLSearchParams, keys: string[]): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const key of keys) {
+    const vals = search.getAll(key).flatMap((v) => v.split(',')).filter(Boolean)
+    if (vals.length) out[key] = vals
+  }
+  return out
 }

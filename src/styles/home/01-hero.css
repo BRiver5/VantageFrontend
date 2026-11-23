@@ -96,3 +96,109 @@
   opacity: 0.85;
 }
 
+
+/* ---------- разделы под поиском: плитки на общей подложке + карточка «Играть» ---------- */
+/* шире колонки страницы: на десктопе блок выходит за неё симметрично, как широкие разделы каталога */
+.home-tiles {
+  --tiles-w: min(calc(100vw - var(--sidebar-w) - 72px), 1600px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+  width: var(--tiles-w);
+  /* шире родителя: равные отрицательные поля с обеих сторон держат блок по центру
+     (margin: auto у переполненного элемента прижимает его влево — правый край обрезался) */
+  align-self: center;
+  margin: clamp(22px, 3vw, 34px) calc((100% - var(--tiles-w)) / 2) 0;
+  text-align: left;
+}
+.home-tiles-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: stretch;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.2);
+  background: linear-gradient(180deg, rgb(var(--bg-0-rgb) / 0.75), rgb(var(--bg-0-rgb) / 0.9));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.home-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 14px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.1);
+  background: linear-gradient(180deg, rgb(var(--bg-2-rgb) / 0.95), rgb(var(--bg-1-rgb) / 0.95));
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.home-tile-ico {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.35);
+  background: rgb(var(--bg-0-rgb) / 0.6);
+  color: var(--gold-3);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.home-tile-ico svg { width: 18px; height: 18px; stroke-width: 1.7; }
+.home-tile-label { min-width: 0; font-family: var(--font-display); font-size: 1rem; font-weight: 600; letter-spacing: 0.03em; line-height: 1.2; }
+.home-tile:hover,
+.home-tile:focus-visible {
+  border-color: rgb(var(--gold-2-rgb) / 0.5);
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.12), rgb(var(--bg-1-rgb) / 0.95));
+  color: var(--gold-4);
+  outline: none;
+}
+.home-tile:hover .home-tile-ico { border-color: var(--gold-3); background: rgb(var(--gold-2-rgb) / 0.15); }
+
+.home-play-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.5);
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(154, 110, 34, 0.32), transparent 60%),
+    linear-gradient(180deg, rgb(var(--bg-0-rgb) / 0.75), rgb(var(--bg-0-rgb) / 0.9));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.home-play-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.55);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(154, 110, 34, 0.45), transparent 60%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.home-play-main:hover,
+.home-play-main:focus-visible { border-color: var(--gold-3); box-shadow: 0 0 22px rgb(var(--gold-3-rgb) / 0.22); outline: none; }
+.home-play-kicker { font-family: var(--font-display); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold-2); }
+.home-play-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.home-play-title .die-play-icon { width: 28px; height: 28px; }
+.home-play-links { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.home-tile--play { min-height: 46px; padding: 6px 12px; }
+.home-tile--play .home-tile-ico { width: 30px; height: 30px; }
+
+@media (max-width: 1280px) {
+  .home-tiles { grid-template-columns: minmax(0, 1fr) 260px; }
+  .home-tiles-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .home-tiles { --tiles-w: 100%; grid-template-columns: minmax(0, 1fr); }
+  .home-play-card { order: -1; }
+  .home-play-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .home-tiles-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-tile { min-height: 48px; padding: 8px 10px; gap: 10px; }
+  .home-tile-ico { width: 30px; height: 30px; }
+}

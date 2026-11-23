@@ -1,3 +1,4 @@
+import { dndSuTarget } from './dndsuLinks'
 import { type TermIndex } from './terms/terms'
 import { cutProficiencySection } from './classProficiencies'
 import { APP_SHELL_QUERY } from './shell'
@@ -358,6 +359,10 @@ export function transformClassHtml(html: string, options: TransformOptions = {})
       // подставим при рендере по названию (см. ClassArticle + useSpellIndex)
       span.className = 'ca-ref ca-spell'
       span.setAttribute('data-spell', (a.textContent ?? '').split('[')[0].trim())
+    } else if (dndSuTarget(href, a.textContent ?? '')) {
+      // черта, список заклинаний класса, термин, снаряжение, существо — куда вести, решает клик
+      span.className = 'ca-ref ca-go'
+      span.setAttribute('data-href', href)
     } else {
       span.className = 'ca-ref'
     }

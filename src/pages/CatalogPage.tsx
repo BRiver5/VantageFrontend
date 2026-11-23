@@ -44,7 +44,7 @@ import type {
 import { Divider } from '../ornaments'
 import { useEquipmentDrawer } from '../equipmentDrawer'
 import { type VTDocument } from './catalog/transitions'
-import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, catalogSearch, pageFromSearch, toggleIn } from './catalog/config'
+import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, catalogSearch, filtersFromSearch, pageFromSearch, toggleIn } from './catalog/config'
 import { backgroundFilters, creatureFilters, equipmentFilters, featFilters, itemFilters, spellFilters } from './catalog/filters'
 import { creatureSorts, equipmentSorts, itemSorts, spellSorts } from './catalog/sorts'
 import { CardLink } from './catalog/shared'
@@ -75,10 +75,13 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const [total, setTotal] = useState(0)
   // лист каталога в адресе (?page=2) — переживает перезагрузку
   const [page, setPage] = useState(() => (cfg.noPaging ? 0 : pageFromSearch(searchParams)))
-  const [q, setQ] = useState('')
-  const [query, setQuery] = useState('')
-  const [sortKey, setSortKey] = useState(() =>
-    cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none',
+  // поиск, сортировка и фильтры живут и в адресе: «назад» со страницы записи возвращает их как были
+  const [q, setQ] = useState(() => searchParams.get('q') ?? '')
+  const [query, setQuery] = useState(() => (searchParams.get('q') ?? '').trim())
+  const [sortKey, setSortKey] = useState(
+    () =>
+      searchParams.get('sort') ??
+      (cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none'),
   )
   const { app } = useAppShell()
   // редакция раздела: своя или общая; смена — перезапрос с первого листа
@@ -90,7 +93,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     setPage(0)
   }, [edition])
   // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
-  const [filterSel, setFilterSel] = useState<Record<string, string[]>>({})
+  const filterKeys = useMemo(() => (cfg.filters ?? []).map((g) => g.key), [cfg.filters])
+  const [filterSel, setFilterSel] = useState<Record<string, string[]>>(() => filtersFromSearch(searchParams, filterKeys))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [bookMap, setBookMap] = useState<BookMap>({})
@@ -111,22 +115,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   const skipSortPageResetRef = useRef(true)
   const skipFilterPageResetRef = useRef(true)
 
-  // предзаполнение фильтров из адреса (переход со страницы класса/подкласса):
-  // /spells?class=колдун или ?subclass=…&level=1 — применяем один раз при входе
-  const filtersFromUrl = useRef(false)
-  useEffect(() => {
-    if (filtersFromUrl.current || !cfg.filters) return
-    filtersFromUrl.current = true
-    const next: Record<string, string[]> = {}
-    for (const g of cfg.filters) {
-      const vals = searchParams.getAll(g.key).flatMap((v) => v.split(',')).filter(Boolean)
-      if (vals.length) next[g.key] = vals
-    }
-    if (Object.keys(next).length) {
-      skipFilterPageResetRef.current = true
-      setFilterSel(next)
-    }
-  }, [cfg.filters, searchParams])
+  // фильтры из адреса (переход со страницы класса — /spells?class=колдун&level=9 — или «назад»
+  // со страницы записи) берутся сразу при входе: см. useState(filtersFromSearch) выше
 
   const withVT = (fn: () => void) => {
     const doc = document as VTDocument
@@ -266,9 +256,12 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const next = catalogSearch(searchRef.current, {
       open: cfg.inlineDetail && cfg.inlineUrl !== 'path' ? selectedId : undefined,
       page: cfg.noPaging ? undefined : page,
+      filters: { keys: filterKeys, sel: filterSel },
+      sort: sortKey,
+      q: query,
     })
     if (next) setSearchParams(next, { replace: true })
-  }, [selectedId, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams])
+  }, [selectedId, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams, filterKeys, filterSel, sortKey, query])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {
