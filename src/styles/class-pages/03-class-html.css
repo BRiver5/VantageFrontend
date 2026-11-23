@@ -184,7 +184,8 @@
 /* Ссылки dnd.su (обезврежены) и всплывающие термины */
 .class-article .ca-ref { color: var(--gold-3); }
 /* Ссылка на конкретное заклинание — ведёт на страницу заклинания */
-.class-article .ca-spell {
+.class-article .ca-spell,
+.class-article .ca-go {
   cursor: pointer;
   text-decoration: underline;
   text-decoration-color: rgb(var(--gold-2-rgb) / 0.4);
@@ -192,7 +193,8 @@
   text-underline-offset: 2px;
   transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
-.class-article .ca-spell:hover {
+.class-article .ca-spell:hover,
+.class-article .ca-go:hover {
   color: var(--gold-4);
   text-decoration-color: var(--gold-3);
 }

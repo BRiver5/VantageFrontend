@@ -14,6 +14,8 @@ import { useTermIndex } from './terms/terms'
 import { createContext, useContext, useMemo, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { normSpellName, useSpellIndex } from './spellIndex'
+import { ENTITY_PATH, dndSuTarget } from './dndsuLinks'
+import { searchCatalog } from './api'
 import { type SubclassFeature, transformClassHtml, withTermTips } from './classArticleHtml'
 
 /**
@@ -80,6 +82,21 @@ export function ClassArticle({
       }
       return
     }
+    // ссылка dnd.su: термин, список заклинаний класса — сразу; черта, снаряжение, существо — по названию
+    const ext = (e.target as HTMLElement).closest<HTMLElement>('.ca-go')
+    if (ext?.dataset.href) {
+      e.preventDefault()
+      const target = dndSuTarget(ext.dataset.href, ext.textContent ?? '', backLabel)
+      if (!target) return
+      const go = (to: string) =>
+        newTab ? window.open(to, '_blank', 'noopener') : navigate(to, { state: { from: location.pathname + location.search, fromLabel: backLabel } })
+      if ('route' in target) {
+        go(target.route)
+        return
+      }
+      void findEntity(target.find, target.q, target.alt).then((id) => go(id ? `${ENTITY_PATH[target.find]}/${id}` : target.fallback))
+      return
+    }
     const link = (e.target as HTMLElement).closest<HTMLElement>('.ca-link')
     const targetId = link?.dataset.target
     if (!targetId) return
@@ -97,3 +114,21 @@ export function ClassArticle({
   )
 }
 
+
+const norm = (s: string) => s.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim()
+
+/** id записи раздела по названию: точное совпадение, иначе первое найденное; потом — английское имя */
+async function findEntity(entity: string, q: string, alt?: string): Promise<string | null> {
+  for (const query of [q, alt].filter((x): x is string => !!x)) {
+    try {
+      const res = await searchCatalog(query, { entities: [entity], limit: 5, otherEditions: true })
+      const hits = res.items.filter((h) => h.entity === entity)
+      const exact = hits.find((h) => norm(h.title) === norm(query) || norm(h.alias ?? '') === norm(query))
+      const hit = exact ?? hits[0]
+      if (hit) return hit.id
+    } catch {
+      // поиск недоступен — уйдём в каталог раздела
+    }
+  }
+  return null
+}
