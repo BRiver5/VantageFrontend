@@ -264,8 +264,8 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 .page {
   flex: 1;
   min-width: 0;
-  /* панель слева узкая (76px) — колонка контента шире */
-  max-width: 1440px;
+  /* панель слева узкая (76px): колонка до 1600px контента + поля (как блок разделов на главной) */
+  max-width: 1680px;
   width: 100%;
   margin: 0 auto;
   padding: 0 clamp(16px, 3vw, 40px) 90px;
@@ -277,8 +277,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
    пиксели от вычитания vw гасит `overflow-x: clip` на html. */
 .page:has(.world-hero:not(.world-hero--plain)),
 .page:has(.beast-world),
-.page:has(.catalog--wide),
-.page:has(.home-tiles) { overflow-x: visible; }
+.page:has(.catalog--wide) { overflow-x: visible; }
 
 .page-routes.is-pending {
   visibility: hidden;
