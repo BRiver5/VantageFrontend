@@ -219,3 +219,52 @@
 }
 .race-langs-label svg { width: 16px; height: 16px; }
 
+
+/* ---------- вид 2024 из плоского текста: параметры, особенности карточками, варианты ---------- */
+.race-text { display: flex; flex-direction: column; gap: 12px; }
+.race-text .rich p { margin: 0 0 6px; }
+.race-text .rich p:last-child { margin-bottom: 0; }
+.race-text-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 0 0 4px;
+}
+.race-text-params > div {
+  padding: 10px 14px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.18);
+  background: linear-gradient(180deg, rgb(var(--bg-2-rgb) / 0.7), rgb(var(--bg-1-rgb) / 0.7));
+}
+.race-text-params dt { margin-bottom: 4px; font-family: var(--font-display); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-2); }
+.race-text-params dd { margin: 0; color: var(--parchment); }
+.race-trait {
+  padding: 12px 16px 14px;
+  border: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+  border-left: 2px solid rgb(var(--gold-2-rgb) / 0.65);
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.07), transparent 60%), rgb(var(--bg-1-rgb) / 0.55);
+}
+.race-trait-name { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold-3); }
+.race-trait-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-top: 10px; }
+.race-trait-option {
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--gold-2-rgb) / 0.3);
+  background: rgb(var(--bg-0-rgb) / 0.5);
+}
+.race-trait-option > b { display: block; margin-bottom: 4px; font-family: var(--font-display); color: var(--parchment); letter-spacing: 0.03em; }
+.race-text-variants { margin: 0; color: var(--text-dim); }
+.race-text-variants b { color: var(--gold-3); }
+/* рассказ о виде: подзаголовки (наследия тифлинга, линии эльфов) — ссылки на подрасы */
+.race-lore .rich p { margin: 0 0 10px; }
+.race-lore-h {
+  margin: 18px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.25);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--gold-3);
+}
+.race-lore-h:first-child { margin-top: 0; }
+.race-lore-h a { color: inherit; text-decoration: underline; text-decoration-color: rgb(var(--gold-2-rgb) / 0.45); text-underline-offset: 4px; }
+.race-lore-h a:hover { color: var(--gold-4); text-decoration-color: var(--gold-3); }

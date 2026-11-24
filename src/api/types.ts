@@ -421,6 +421,8 @@ export interface Background extends EditionFields {
   /** 2024: три характеристики предыстории ('str', 'dex', 'cha') и схемы повышения ([[2, 1], [1, 1, 1]]) */
   ability_score_options?: string[] | null
   ability_score_patterns?: number[][] | null
+  /** 2024: черта происхождения (название, ссылка на next.dnd.su, уточнение «Волшебник») */
+  origin_feats?: { name: string; feat_slug?: string | null; source_url?: string | null; note?: string | null }[] | null
 }
 
 export interface Paged<T> {

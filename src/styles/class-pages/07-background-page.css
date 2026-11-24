@@ -242,6 +242,24 @@
   background: linear-gradient(180deg, rgb(var(--silver-2-rgb) / 0.12), rgb(var(--silver-2-rgb) / 0.04));
   box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.22);
 }
+/* плашка-ссылка: навык → термин, черта → её карточка */
+.bg-fact-value.is-link {
+  border: none;
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--gold-3);
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+  transition: color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.bg-fact-value.is-link:hover,
+.bg-fact-value.is-link:focus-visible {
+  color: var(--gold-4);
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.22), rgb(var(--gold-2-rgb) / 0.06));
+  box-shadow: inset 0 0 0 1px var(--gold-3);
+  outline: none;
+}
 
 @media (max-width: 860px) {
   .bg-hero {

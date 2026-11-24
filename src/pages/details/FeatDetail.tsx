@@ -20,6 +20,7 @@ import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { bgUrl } from '../../media'
 import { DetailSection, Rich, DetailTopline } from './shared'
+import { formatFeatText } from './featText'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 import { HeroHexArt } from './BackgroundDetail'
@@ -109,7 +110,10 @@ export function FeatDetailBody({ f, embedded = false }: { f: Feat; embedded?: bo
       ) : (
         f.description && (
           <DetailSection title="Описание">
-            <Rich text={f.description} />
+            {/* 2024: плоский текст «Название. Текст» → пункты с жирными названиями */}
+            <div className="feat-text">
+              <Rich text={formatFeatText(f.description)} />
+            </div>
           </DetailSection>
         )
       )}

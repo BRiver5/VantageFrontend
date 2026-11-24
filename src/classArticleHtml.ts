@@ -369,9 +369,21 @@ export function transformClassHtml(html: string, options: TransformOptions = {})
     a.replaceWith(span)
   })
 
-  // 5. Всплывающие термины dnd.su → просто помечаем, стилизуем пунктиром.
+  // 5. Всплывающие термины dnd.su (`tooltip-for="skill.performance"`) → ссылка на наш термин;
+  //    без пары — просто пунктир. Термин сверяет с индексом withTermTips.
   root.querySelectorAll('[tooltip-for]').forEach((el) => {
+    const slug = tooltipTerm(el.getAttribute('tooltip-for') ?? '')
     el.removeAttribute('tooltip-for')
+    el.removeAttribute('title')
+    if (slug && !el.querySelector('[data-term]')) {
+      const span = doc.createElement('span')
+      span.className = 'term-link'
+      span.setAttribute('data-term', slug)
+      span.setAttribute('data-first', '1')
+      span.innerHTML = el.innerHTML
+      el.replaceWith(span)
+      return
+    }
     el.classList.add('ca-term')
   })
 
@@ -627,11 +639,37 @@ export function parseFeatureEntries(sectionHtml: string): FeatureEntry[] {
  * слова оставляем ссылкой только при первом упоминании, остальным добавляем
  * карточку-подсказку и доступность с клавиатуры.
  */
+/** Подсказка dnd.su → slug термина Vantage: «skill.performance» → «performance», «light.dim» → «dim-light» */
+const TOOLTIP_TERMS: Record<string, string> = {
+  'skill.animal': 'animal-handling',
+  'skill.sleight': 'sleight-of-hand',
+  'light.dim': 'dim-light',
+  'light.bright': 'bright-light',
+  'light.darkness': 'darkness',
+  'action.use': 'utilize',
+  'terrain.difficult': 'difficult-terrain',
+  'obscured.lightly': 'lightly-obscured',
+  'tools.thief': 'thieves-tools',
+  'death.instant': 'dead',
+}
+const TOOLTIP_GROUPS: Record<string, string> = { cover: 'cover', size: 'creature-size', weapon: 'weapon-properties' }
+
+export function tooltipTerm(key: string): string | null {
+  if (TOOLTIP_TERMS[key]) return TOOLTIP_TERMS[key]
+  const [group, name] = key.split('.')
+  if (!name) return null
+  if (TOOLTIP_GROUPS[group]) return TOOLTIP_GROUPS[group]
+  if (['skill', 'condition', 'vision', 'action'].includes(group)) return name.replace(/_/g, '-')
+  return null
+}
+
 export function withTermTips(html: string, index: TermIndex): string {
   if (!html.includes('data-term=')) return html
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
   return html.replace(/<span class="term-link" data-term="([^"]+)" data-first="([01])">([\s\S]*?)<\/span>/g, (_, slug: string, first: string, text: string) => {
     const t = index.bySlug.get(slug)
+    // термина нет (подсказка dnd.su без пары у нас) — пунктир без ссылки
+    if (!t && index.bySlug.size) return `<span class="ca-term">${text}</span>`
     if (t?.link === 'first' && first === '0') return text
     const tip = t ? `<span class="term-tip" role="tooltip"><b>${esc(t.title)}</b>${esc(t.short)}</span>` : ''
     return `<span class="term-link is-html" data-term="${slug}" role="link" tabindex="0">${text}${tip}</span>`

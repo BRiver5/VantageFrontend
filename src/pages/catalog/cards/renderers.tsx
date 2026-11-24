@@ -17,6 +17,7 @@ import type {
 } from '../../../api'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../../../dice/diceAssets'
 import { Img } from '../../../media'
+import { darkvisionLabel, useRaceSubraces } from '../../../raceDarkvision'
 import { ClassCardPortrait, ClassCardStat } from './ClassParts'
 import {
   ArrowRight,
@@ -109,6 +110,12 @@ export function classCard(c: GameClass) {
   )
 }
 
+/** Тёмное зрение вида на карточке: с учётом подрас (эльф — «60–120 фт.») */
+function RaceDarkvisionCell({ r }: { r: Race }) {
+  const subraces = useRaceSubraces(r.id)
+  return <RaceRailCell icon={Eye} value={darkvisionLabel(r.darkvision, subraces)} label="тьма" />
+}
+
 export function raceCard(r: Race) {
   return (
     <article className="card card--portrait card--race">
@@ -122,7 +129,7 @@ export function raceCard(r: Race) {
           <div className="race-rail">
             <RaceRailCell icon={Ruler} value={sizeRu(r.size)} label="размер" />
             <RaceRailCell icon={Footprints} value={`${r.speed} фт.`} label="скорость" />
-            <RaceRailCell icon={Eye} value={r.darkvision > 0 ? `${r.darkvision} фт.` : null} label="тьма" />
+            <RaceDarkvisionCell r={r} />
           </div>
           <span className="bg-card-go race-card-go">
             перейти <ArrowRight aria-hidden="true" />

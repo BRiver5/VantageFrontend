@@ -56,6 +56,10 @@ import { otherEditionOf, preferredEditionFirst, withRecordEdition } from '../edi
 import { useEdition } from '../editions/useEdition'
 import { classCard, raceCard, featCard, backgroundCard, spellCard, creatureCard, equipmentCard, terminCard, itemCard } from './catalog/cards/renderers'
 
+/** ширина карточки и зазор сетки каталога (.card-grid: minmax(290px, 1fr), gap 18px) */
+const CARD_MIN = 290
+const CARD_GAP = 18
+
 /* ---------- Фильтры предысторий ---------- */
 
 /**
@@ -92,6 +96,20 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     prevEditionRef.current = edition
     setPage(0)
   }, [edition])
+  // размер листа — целое число рядов: при 5 колонках 25 карточек, при 2/3/4/6 — 24
+  // (иначе в последнем ряду широкого экрана не хватает одной карточки)
+  const sectionRef = useRef<HTMLElement>(null)
+  const [pageSize, setPageSize] = useState(PAGE_SIZE)
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || cfg.noPaging) return
+    const ro = new ResizeObserver(() => {
+      const cols = Math.max(1, Math.floor((el.clientWidth + CARD_GAP) / (CARD_MIN + CARD_GAP)))
+      setPageSize(cols * Math.ceil(PAGE_SIZE / cols))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [cfg.noPaging])
   // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
   const filterKeys = useMemo(() => (cfg.filters ?? []).map((g) => g.key), [cfg.filters])
   const [filterSel, setFilterSel] = useState<Record<string, string[]>>(() => filtersFromSearch(searchParams, filterKeys))
@@ -303,8 +321,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   }, [filterSel])
 
   const activeFilterCount = Object.values(filterSel).reduce((n, v) => n + v.length, 0)
-  const toggleFilter = (groupKey: string, optKey: string) =>
-    setFilterSel((cur) => toggleIn(cur, groupKey, optKey))
+  const toggleFilter = (groupKey: string, optKey: string) => setFilterSel((cur) => toggleIn(cur, groupKey, optKey))
 
   useEffect(() => {
     let stale = false
@@ -315,7 +332,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 
     if (!cfg.noPaging && !activeSort && activeGroups.length === 0) {
       // поиск находит и записи другой редакции — после записей выбранной, с подписью
-      fetchPage<T>(cfg.resource, { skip: page * PAGE_SIZE, limit: PAGE_SIZE, q: query || undefined, edition, otherEditions: true })
+      fetchPage<T>(cfg.resource, { skip: page * pageSize, limit: pageSize, q: query || undefined, edition, otherEditions: true })
         .then((res) => {
           if (stale) return
           setItems(res.items)
@@ -341,7 +358,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
           // сортировка не смешивает редакции: записи другой (поиск) — всё равно после своих
           list = preferredEditionFirst(list)
           setTotal(list.length)
-          setItems(cfg.noPaging ? list : list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE))
+          setItems(cfg.noPaging ? list : list.slice(page * pageSize, page * pageSize + pageSize))
           setError(null)
         })
         .catch((e: unknown) => !stale && setError(e instanceof Error ? e.message : String(e)))
@@ -350,14 +367,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     return () => {
       stale = true
     }
-  }, [cfg.resource, cfg.sorts, cfg.filters, cfg.noPaging, page, query, sortKey, filterSel, edition])
+  }, [cfg.resource, cfg.sorts, cfg.filters, cfg.noPaging, page, query, sortKey, filterSel, edition, pageSize])
 
   // кладём загруженные записи в кэш — деталь откроется мгновенно (нужно морфу)
   useEffect(() => {
     items.forEach((it) => cacheEntity(cfg.resource, it.id, it))
   }, [items, cfg.resource])
 
-  const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / pageSize))
   const EmptyIcon = cfg.emptyIcon
   const sorting = sortKey !== 'none'
 
@@ -378,8 +395,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       if (list) list.push(item)
       else byBook.set(id, [item])
     }
-    // «Книга игрока» — всегда первой группой, остальные по коду книги
-    const phbRank = (book: Book | undefined) => (book?.book_code === 'PHB' ? 0 : 1)
+    // «Книга игрока» (2014 и 2024) — всегда первой группой, остальные по коду книги
+    const phbRank = (book: Book | undefined) => (book?.book_code === 'PHB' || book?.book_code === 'PHB24' ? 0 : 1)
     return [...byBook.entries()]
       .map(([id, list]) => ({ id, book: id ? bookMap[id] : undefined, items: list }))
       .sort(
@@ -433,7 +450,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   }
 
   return (
-    <section className={`catalog${cfg.wide ? ' catalog--wide' : ''}`}>
+    <section ref={sectionRef} className={`catalog${cfg.wide ? ' catalog--wide' : ''}`}>
       {/* шапка раздела уезжает под масthead при раскрытии предмета (см. CSS) */}
       <div className="section-head">
         <h1 className="section-title gold-text">{cfg.title}</h1>

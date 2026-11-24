@@ -1,3 +1,5 @@
+import { darkvisionLabel } from '../../raceDarkvision'
+import { isRaceText2024, parseRaceText } from './raceText'
 import { useEffect, useMemo, useState } from 'react'
 import { ReviewsPanel } from '../../reviews/Reviews'
 import type { CSSProperties } from 'react'
@@ -152,7 +154,7 @@ export function RaceDetailBody({
       <div className="race-facts">
         <RaceFact icon={Ruler} label="Размер" value={sizeRu(r.size)} />
         <RaceFact icon={Footprints} label="Скорость" value={`${r.speed} фт.`} />
-        <RaceFact icon={Eye} label="Тёмное зрение" value={r.darkvision > 0 ? `${r.darkvision} фт.` : 'нет'} />
+        <RaceFact icon={Eye} label="Тёмное зрение" value={darkvisionLabel(r.darkvision, subraces) ?? 'нет'} />
         <RaceFact icon={Feather} label="Полёт" value={r.flight_speed > 0 ? `${r.flight_speed} фт.` : null} />
         <RaceFact icon={Waves} label="Плавание" value={r.swimming_speed > 0 ? `${r.swimming_speed} фт.` : null} />
         <RaceFact icon={Mountain} label="Лазание" value={r.climbing_speed > 0 ? `${r.climbing_speed} фт.` : null} />
@@ -176,6 +178,16 @@ export function RaceDetailBody({
         <section className="detail-section">
           <ClassArticle html={article} cutSubclasses={false} backLabel={r.race_name} />
         </section>
+      ) : isRaceText2024(r.description) ? (
+        // вид 2024 плоским текстом: параметры, особенности карточками, варианты внутри, рассказ
+        <RaceText2024
+          text={r.description!}
+          // уже в плитках под названием — в тексте не повторяем
+          hideParams={r.speed > 0 ? ['Скорость'] : []}
+          hideTraits={darkvisionLabel(r.darkvision, subraces) ? ['Тёмное зрение'] : []}
+          subraces={subraces}
+          subraceHref={(sr) => editionLink(`/subraces/${sr.id}`, sr)}
+        />
       ) : (
         <DetailSection title="Описание">
           <Rich text={r.description} />
@@ -334,5 +346,106 @@ export function SubraceDetailPage() {
         </DetailSection>
       )}
     </DetailShell>
+  )
+}
+
+const words = (s: string) =>
+  s
+    .toLocaleLowerCase('ru')
+    .replace(/ё/g, 'е')
+    .split(/[^\p{L}]+/u)
+    .filter((w) => w.length >= 3)
+
+/** «Высшие эльфы» ≈ «Высший эльф», «Инфернальное наследие» = «Инфернальное наследие» */
+function sameName(a: string, b: string): boolean {
+  const wa = words(a)
+  const wb = words(b)
+  if (!wa.length || !wb.length) return false
+  const near = (x: string, y: string) => x.slice(0, Math.max(3, Math.min(x.length, y.length) - 2)) === y.slice(0, Math.max(3, Math.min(x.length, y.length) - 2))
+  return wa.every((x) => wb.some((y) => near(x, y))) && wb.every((y) => wa.some((x) => near(x, y)))
+}
+
+/** Короткая строка без точки в конце — подзаголовок рассказа («Инфернальное наследие», «Дроу») */
+const isHeading = (line: string) => line.length <= 60 && !/[.!?:;…,]$/.test(line) && line.split(/\s+/).length <= 6
+
+/** Описание вида 2024: параметры, особенности карточками (варианты — внутри), рассказ */
+function RaceText2024({
+  text,
+  hideParams = [],
+  hideTraits = [],
+  subraces = [],
+  subraceHref,
+}: {
+  text: string
+  hideParams?: string[]
+  hideTraits?: string[]
+  subraces?: Subrace[]
+  subraceHref?: (sr: Subrace) => string
+}) {
+  const r = useMemo(() => parseRaceText(text), [text])
+  const params = r.params.filter(([k]) => !hideParams.includes(k))
+  const traits = r.traits.filter((t) => !hideTraits.includes(t.name) || t.options.length > 0 || t.body.length > 1)
+  const lore = r.lore.split('\n').map((l) => l.trim()).filter(Boolean)
+  return (
+    <>
+      <DetailSection title="Особенности вида">
+        <div className="race-text">
+          {params.length > 0 && (
+            <dl className="race-text-params">
+              {params.map(([k, v]) => (
+                <div key={k}>
+                  <dt>{k}</dt>
+                  <dd>
+                    <Rich text={v} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {traits.map((t) => (
+            <section key={t.name} className="race-trait">
+              <h4 className="race-trait-name">{t.name}</h4>
+              <Rich text={t.body.join('\n')} />
+              {t.options.length > 0 && (
+                <div className="race-trait-options">
+                  {t.options.map((o) => (
+                    <div key={o.name} className="race-trait-option">
+                      <b>{o.name}</b>
+                      <Rich text={o.body} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+          {r.variants && (
+            <p className="race-text-variants">
+              <b>Варианты:</b> {r.variants} — подробности на карточках ниже.
+            </p>
+          )}
+        </div>
+      </DetailSection>
+      {lore.length > 0 && (
+        <DetailSection title="О виде">
+          <div className="race-lore">
+            {lore.map((line, i) => {
+              if (!isHeading(line)) return <Rich key={i} text={line} />
+              const sr = subraces.find((s) => sameName(s.subrace_name, line))
+              return (
+                <h4 key={i} className="race-lore-h">
+                  {sr && subraceHref ? (
+                    <Link to={subraceHref(sr)} title="Подробнее о подрасе">
+                      {line}
+                    </Link>
+                  ) : (
+                    line
+                  )}
+                </h4>
+              )
+            })}
+          </div>
+        </DetailSection>
+      )}
+    </>
   )
 }

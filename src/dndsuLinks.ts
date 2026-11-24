@@ -5,6 +5,7 @@
  * черта, снаряжение, предмет, существо или класс — по названию: id у нас свой, его ищет
  * поиск по каталогу в момент клика. «Черту» без конкретики ведём в каталог черт.
  */
+import { searchCatalog } from './api'
 
 export type DndSuTarget =
   /** готовый адрес Vantage */
@@ -81,7 +82,11 @@ export function dndSuTarget(href: string, text: string, pageClass?: string | nul
   const parts = url.pathname.split('/').filter(Boolean)
   const [section, tail] = parts
 
-  if (section === 'glossary' && tail) return { route: `/terms/${TERM_ALIAS[tail] ?? tail}` }
+  if (section === 'glossary' && tail) {
+    // навыки в текстах 2024: /glossary/skill.perception → термин «perception»
+    const slug = tail.replace(/^skill\./, '')
+    return { route: `/terms/${TERM_ALIAS[slug] ?? slug}` }
+  }
 
   if (section === 'spells' && !tail) {
     const q: string[] = []
@@ -116,4 +121,22 @@ export const ENTITY_PATH: Record<string, string> = {
   items: '/items',
   creatures: '/bestiary',
   classes: '/classes',
+}
+
+const normName = (s: string) => s.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim()
+
+/** id записи раздела по названию: точное совпадение, иначе первое найденное; потом — запасной запрос */
+export async function findEntity(entity: string, q: string, alt?: string): Promise<string | null> {
+  for (const query of [q, alt].filter((x): x is string => !!x)) {
+    try {
+      const res = await searchCatalog(query, { entities: [entity], limit: 5, otherEditions: true })
+      const hits = res.items.filter((h) => h.entity === entity)
+      const exact = hits.find((h) => normName(h.title) === normName(query) || normName(h.alias ?? '') === normName(query))
+      const hit = exact ?? hits[0]
+      if (hit) return hit.id
+    } catch {
+      // поиск недоступен — вызывающий уйдёт в каталог раздела
+    }
+  }
+  return null
 }
