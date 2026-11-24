@@ -1,15 +1,13 @@
 import { useMemo } from 'react'
-import { Globe2, Loader2, Search, X } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 import type { BookMap } from '../../api'
 import { plural } from '../../lib/plural'
-import { useOpenSearch } from '../../search/GlobalSearch'
 import { type FilterGroup, type SortOption } from './config'
 import { FilterMenu } from './FilterMenu'
 import { SortMenu } from './SortMenu'
 
 /**
  * Шапка списка: поиск по разделу, фильтры, сортировка и выбранные фильтры чипами.
- * Поиск — тот же нечёткий серверный, что и общий; «Везде» передаёт запрос в общий.
  */
 export function CatalogToolbar<T>({
   q,
@@ -41,8 +39,6 @@ export function CatalogToolbar<T>({
   sortKey: string
   onSort: (key: string) => void
 }) {
-  const openSearch = useOpenSearch()
-
   // выбранные варианты с подписями — для чипов под панелью
   const active = useMemo(() => {
     const out: { group: string; groupLabel: string; key: string; label: string }[] = []
@@ -85,15 +81,6 @@ export function CatalogToolbar<T>({
               <X aria-hidden="true" />
             </button>
           )}
-          <button
-            type="button"
-            className="ct-global"
-            onClick={() => openSearch(q.trim())}
-            title="Искать по всему кодексу (Ctrl K)"
-          >
-            <Globe2 aria-hidden="true" />
-            <span>Везде</span>
-          </button>
         </label>
 
         {filters && filters.length > 0 && (

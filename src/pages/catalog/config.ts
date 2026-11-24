@@ -24,6 +24,10 @@ export interface SortOption<T> {
   label: string
   icon: LucideIcon
   cmp: (a: T, b: T, bookMap: BookMap) => number
+  /** подпись в обратном порядке, если она другая («Я — А») */
+  reverseLabel?: string
+  /** сортировать не по чему (нет оценок, цены, книги) — такие записи в конце при любом порядке */
+  missing?: (item: T, bookMap: BookMap) => boolean
 }
 
 export interface FilterOption {
@@ -133,6 +137,33 @@ export const byRating = (a: unknown, b: unknown) => {
 export function numCmp(a: number | null, b: number | null): number {
   return (a ?? Infinity) - (b ?? Infinity)
 }
+
+/* ---------- Порядок сортировки ---------- */
+
+/** Выбранная сортировка: ключ, с «-» впереди — обратный порядок (?sort=-name) */
+export function parseSort(value: string): { key: string; reverse: boolean } {
+  return value.startsWith('-') ? { key: value.slice(1), reverse: true } : { key: value, reverse: false }
+}
+
+/** Та же сортировка в другую сторону */
+export function flipSort(value: string): string {
+  const { key, reverse } = parseSort(value)
+  return reverse ? key : `-${key}`
+}
+
+/** Отсортированная копия. Равные записи сохраняют исходный порядок, записи без значения — всегда в конце. */
+export function applySort<T>(items: readonly T[], sort: SortOption<T>, reverse: boolean, bookMap: BookMap): T[] {
+  return [...items].sort((a, b) => {
+    const gap = Number(sort.missing?.(a, bookMap) ?? false) - Number(sort.missing?.(b, bookMap) ?? false)
+    return gap || (reverse ? sort.cmp(b, a, bookMap) : sort.cmp(a, b, bookMap))
+  })
+}
+
+/** Записи без оценок */
+export const noRating = (it: unknown) => !(it as { rating?: ShortRating }).rating?.count
+
+/** Источник не указан или книга не найдена */
+export const noBook = (id: string | null | undefined, bookMap: BookMap) => !(id && bookMap[id]?.book_code)
 
 /* ---------- Сама страница ---------- */
 

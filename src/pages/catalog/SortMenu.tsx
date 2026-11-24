@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUpDown, Check, ChevronDown, X } from 'lucide-react'
-import { type SortOption } from './config'
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, X } from 'lucide-react'
+import { type SortOption, flipSort, parseSort } from './config'
 import { useKeybinding } from '../../input/useKeybinding'
 
-/** Кнопка с текущей сортировкой: на компьютере — выпадающий список, на телефоне — нижняя шторка */
+/** Кнопка с текущей сортировкой: на компьютере — выпадающий список, на телефоне — нижняя шторка. Рядом — обратный порядок. */
 export function SortMenu<T>({
   sorts,
   value,
@@ -14,7 +14,9 @@ export function SortMenu<T>({
   onChange: (key: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const current = sorts.find((s) => s.key === value)
+  const { key: selected, reverse } = parseSort(value)
+  const current = sorts.find((s) => s.key === selected)
+  const currentLabel = (reverse && current?.reverseLabel) || current?.label
 
   const ref = useRef<HTMLDivElement>(null)
 
@@ -31,7 +33,8 @@ export function SortMenu<T>({
   }, [open])
 
   const choose = (key: string) => {
-    onChange(key)
+    // повторный выбор той же сортировки порядок не сбрасывает
+    if (key !== selected) onChange(key)
     setOpen(false)
   }
   const options = [{ key: 'none', label: 'Без сортировки', icon: X }, ...sorts]
@@ -46,9 +49,21 @@ export function SortMenu<T>({
         onClick={() => setOpen((v) => !v)}
       >
         <ArrowUpDown aria-hidden="true" />
-        <span className="sort-menu-label">{current?.label ?? 'Сортировка'}</span>
+        <span className="sort-menu-label">{currentLabel ?? 'Сортировка'}</span>
         <ChevronDown className="ct-btn-caret" aria-hidden="true" />
       </button>
+      {current && (
+        <button
+          type="button"
+          className={`ct-btn sort-dir-btn${reverse ? ' has-active' : ''}`}
+          aria-label="Обратный порядок"
+          aria-pressed={reverse}
+          title={reverse ? 'Вернуть прямой порядок' : 'Обратный порядок'}
+          onClick={() => onChange(flipSort(value))}
+        >
+          {reverse ? <ArrowUp aria-hidden="true" /> : <ArrowDown aria-hidden="true" />}
+        </button>
+      )}
       {open && (
         <>
           <button type="button" className="sort-sheet-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
@@ -58,13 +73,13 @@ export function SortMenu<T>({
               <button
                 type="button"
                 key={key}
-                className={`sort-sheet-row${value === key ? ' is-on' : ''}`}
-                aria-pressed={value === key}
+                className={`sort-sheet-row${selected === key ? ' is-on' : ''}`}
+                aria-pressed={selected === key}
                 onClick={() => choose(key)}
               >
                 <Icon aria-hidden="true" />
                 <span>{label}</span>
-                {value === key && <Check aria-hidden="true" className="sort-sheet-check" />}
+                {selected === key && <Check aria-hidden="true" className="sort-sheet-check" />}
               </button>
             ))}
           </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byRating, catalogSearch, filtersFromSearch, pageFromSearch } from './config'
+import { applySort, byRating, catalogSearch, filtersFromSearch, flipSort, noRating, numCmp, pageFromSearch, parseSort, type SortOption } from './config'
 
 describe('catalogSearch', () => {
   it('адрес не меняется — навигации нет (иначе холостой replace затирает открытый /classes/:id)', () => {
@@ -45,5 +45,36 @@ describe('byRating', () => {
     expect(list.map((x) => x.rating.count)).toEqual([3, 1, 1, 0, 0])
     expect(list[0].rating.average).toBe(5)
     expect(list[2].rating.average).toBe(2)
+  })
+})
+
+describe('обратная сортировка', () => {
+  it('направление живёт в ключе и в адресе', () => {
+    expect(parseSort('name')).toEqual({ key: 'name', reverse: false })
+    expect(parseSort('-name')).toEqual({ key: 'name', reverse: true })
+    expect(flipSort('name')).toBe('-name')
+    expect(flipSort('-name')).toBe('name')
+    expect(catalogSearch(new URLSearchParams(), { sort: '-name' })?.get('sort')).toBe('-name')
+  })
+
+  it('переворачивает порядок: без значения — в конце, равные не меняются местами', () => {
+    type Row = { id: string; cost: number | null }
+    const sort = { key: 'cost', label: 'Цена', cmp: (a: Row, b: Row) => numCmp(a.cost, b.cost), missing: (r: Row) => r.cost == null } as unknown as SortOption<Row>
+    const rows: Row[] = [
+      { id: 'нет', cost: null },
+      { id: 'a', cost: 2 },
+      { id: 'b', cost: 1 },
+      { id: 'c', cost: 2 },
+      { id: 'нет2', cost: null },
+    ]
+    expect(applySort(rows, sort, false, {}).map((r) => r.id)).toEqual(['b', 'a', 'c', 'нет', 'нет2'])
+    expect(applySort(rows, sort, true, {}).map((r) => r.id)).toEqual(['a', 'c', 'b', 'нет', 'нет2'])
+    expect(rows[0].id).toBe('нет')
+  })
+
+  it('рейтинг: худшие оценки первыми, без оценок всё равно в конце', () => {
+    const r = (average: number | null, count: number) => ({ rating: { average, count } })
+    const sort = { key: 'rating', label: 'Рейтинг', cmp: byRating, missing: noRating } as unknown as SortOption<ReturnType<typeof r>>
+    expect(applySort([r(null, 0), r(5, 3), r(2, 1)], sort, true, {}).map((x) => x.rating.average)).toEqual([2, 5, null])
   })
 })

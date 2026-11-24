@@ -26,7 +26,7 @@
   align-items: center;
   gap: 12px;
   height: 52px;
-  padding: 0 8px 0 18px;
+  padding: 0 18px;
   border: 1px solid transparent;
   background:
     linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
@@ -71,6 +71,7 @@
 
 .ct-clear {
   flex: none;
+  margin-right: -10px;
   display: grid;
   place-items: center;
   width: 32px;
@@ -85,26 +86,6 @@
 .ct-clear:hover { background: rgb(var(--silver-2-rgb) / 0.12); color: var(--text); }
 .ct-clear svg { width: 16px; height: 16px; }
 
-/* «Везде» — тот же запрос в общем поиске */
-.ct-global {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 8px;
-  background: rgb(var(--silver-2-rgb) / 0.08);
-  color: var(--text-dim);
-  font: inherit;
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
-}
-.ct-global svg { width: 15px; height: 15px; }
-.ct-global:hover { background: rgb(var(--gold-2-rgb) / 0.16); color: var(--gold-4); }
-
 /* ---------- кнопки «Фильтры» и «Сортировка» ---------- */
 
 .ct .quest-filter,
@@ -112,6 +93,14 @@
   position: relative;
   z-index: 40;
   display: flex;
+}
+/* обратный порядок — квадратная кнопка вплотную к сортировке */
+.ct .sort-menu { gap: 6px; }
+.ct .sort-dir-btn {
+  flex: none;
+  justify-content: center;
+  width: 52px;
+  padding: 0;
 }
 
 .ct-btn {
@@ -370,13 +359,11 @@
   .ct-search {
     grid-column: 1 / -1;
     height: 46px;
-    padding-left: 14px;
+    padding: 0 14px;
     gap: 10px;
   }
   .ct-search input { font-size: 0.95rem; }
   .ct-count { font-size: 0.76rem; }
-  .ct-global { width: 34px; padding: 0; justify-content: center; }
-  .ct-global span { display: none; }
   /* одна кнопка — на всю ширину */
   .ct-row > :nth-child(2):last-child { grid-column: 1 / -1; }
   .ct-btn {
@@ -386,6 +373,8 @@
     font-size: 0.9rem;
     box-shadow: none;
   }
+  .ct .sort-menu-btn { flex: 1; min-width: 0; padding: 0 12px; }
+  .ct .sort-dir-btn { width: 42px; }
   .ct-btn .sort-menu-label { overflow: hidden; text-overflow: ellipsis; }
 
   /* фильтры и сортировка — нижние шторки */

@@ -43,7 +43,7 @@ import type {
 import { Divider } from '../ornaments'
 import { useEquipmentDrawer } from '../equipmentDrawer'
 import { type VTDocument } from './catalog/transitions'
-import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, catalogSearch, filtersFromSearch, pageFromSearch, toggleIn } from './catalog/config'
+import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, applySort, bookCmp, catalogSearch, filtersFromSearch, pageFromSearch, parseSort, toggleIn } from './catalog/config'
 import { backgroundFilters, creatureFilters, equipmentFilters, featFilters, itemFilters, spellFilters } from './catalog/filters'
 import { creatureSorts, equipmentSorts, itemSorts, spellSorts } from './catalog/sorts'
 import { CardLink } from './catalog/shared'
@@ -350,7 +350,8 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   useEffect(() => {
     let stale = false
     setLoading(true)
-    const activeSort = cfg.sorts?.find((s) => s.key === sortKey)
+    const { key: sortName, reverse } = parseSort(sortKey)
+    const activeSort = cfg.sorts?.find((s) => s.key === sortName)
     const groups = cfg.filters ?? []
     const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
@@ -390,7 +391,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
           let list = activeGroups.length
             ? all.filter((it) => activeGroups.every((g) => g.match(it, filterSel[g.key], bm)))
             : all
-          if (activeSort) list = [...list].sort((a, b) => activeSort.cmp(a, b, bm))
+          if (activeSort) list = applySort(list, activeSort, reverse, bm)
           // сортировка не смешивает редакции: записи другой (поиск) — всё равно после своих
           list = preferredEditionFirst(list)
           setTotal(list.length)
