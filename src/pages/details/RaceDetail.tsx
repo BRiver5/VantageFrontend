@@ -43,7 +43,7 @@ import { WorldBackdrop } from '../../creature/CreatureStage'
 import { useBookWorld, type BookWorld } from '../../worldArt'
 import { splitRaceArticle } from '../../raceArticle'
 import { Img } from '../../media'
-import { Chip, DetailSection, DetailShell, Rich, DetailTopline } from './shared'
+import { Chip, DetailSection, DetailShell, Rich, DetailTopline, ListBackLink } from './shared'
 import { useBookRef, useOne } from './hooks'
 import { countLabel, plural } from '../../lib/plural'
 import { ElementEditionToggle } from '../../editions/EditionControls'
@@ -246,9 +246,9 @@ export function RaceDetailPage() {
     <section className={`book-page race-detail-page${world ? ' has-world' : ''}`}>
       {world && <WorldBackdrop art={world.art} />}
       <DetailTopline edition={<ElementEditionToggle resource="races" id={r.id} record={r} />}>
-        <Link to="/races" className="back-link">
+        <ListBackLink base="/races">
           <ArrowLeft aria-hidden="true" /> к расам
-        </Link>
+        </ListBackLink>
       </DetailTopline>
       <RaceDetailBody race={r} world={world} />
       <ReviewsPanel entity="races" id={r.id} />

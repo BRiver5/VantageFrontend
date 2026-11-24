@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ReviewsPanel } from '../../reviews/Reviews'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Gem,
@@ -18,7 +18,7 @@ import { Divider } from '../../ornaments'
 import { SourceBadge } from '../catalog/shared'
 import { PriceMark } from '../../coins'
 import { Img } from '../../media'
-import { Chip, DetailSection, Rich, DetailTopline } from './shared'
+import { Chip, DetailSection, Rich, DetailTopline, ListBackLink } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { rarityKeyOf, useBookRef, useOne } from './hooks'
 
@@ -56,9 +56,9 @@ export function ItemDetailPage() {
   return (
     <section className="book-page item-page">
       <DetailTopline edition={<ElementEditionToggle resource="items" id={it.id} record={it} />}>
-        <Link to="/items" className="back-link">
+        <ListBackLink base="/items">
           <ArrowLeft aria-hidden="true" /> к сокровищнице
-        </Link>
+        </ListBackLink>
       </DetailTopline>
 
       {/* центрированный герой: крупный арт со свечением редкости сзади и снизу */}

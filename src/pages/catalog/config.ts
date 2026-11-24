@@ -58,7 +58,6 @@ export interface CatalogConfig<T> {
   /** базовый маршрут детальной страницы записи */
   base: string
   title: string
-  sub: string
   emptyIcon: LucideIcon
   /** `role` = 'incoming' у карточки, которую сейчас раскрывают/закрывают */
   card: (item: T, bookMap: BookMap, role?: RecRole) => ReactNode
@@ -189,6 +188,8 @@ export function catalogSearch(
     filters?: { keys: string[]; sel: Record<string, string[]> }
     /** сортировка: 'none' — по умолчанию, в адрес не пишется */
     sort?: string
+    /** раздел открывается уже отсортированным (телефон) — тогда и выбранное «Без сортировки» нужно в адресе */
+    keepNone?: boolean
     /** строка поиска */
     q?: string
   },
@@ -202,7 +203,7 @@ export function catalogSearch(
     }
   }
   if (want.sort !== undefined) {
-    if (want.sort && want.sort !== 'none') next.set('sort', want.sort)
+    if (want.sort && (want.sort !== 'none' || want.keepNone)) next.set('sort', want.sort)
     else next.delete('sort')
   }
   if (want.q !== undefined) {

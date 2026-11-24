@@ -1,7 +1,7 @@
 /* ============================================================
    ШАПКА СПИСКА: поиск по разделу, фильтры, сортировка
    Вид — как у общего поиска (search.css): поле в золотой рамке,
-   всплывающие окна со скруглением и мягкой тенью, варианты — Inter.
+   всплывающие окна с мягкой тенью, варианты — Inter. Меню фильтров и чипы — со скошенными углами.
    Слой components сильнее legacy, поэтому мобильные правки — здесь же, внизу.
    ============================================================ */
 
@@ -155,6 +155,39 @@
   box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.38), 0 26px 70px rgba(0, 0, 0, 0.7);
 }
 
+/* Меню фильтров и чипы выбранного — скошенные углы. Прямые грани рисует inset-тень, диагональные —
+   градиенты от углов (--qf-edges): clip-path обводку на срезе не оставляет. */
+.qf-panel,
+.qf-opt,
+.qf-reset,
+.qf-head em,
+.qf-label em,
+.ct-chip,
+.ct-reset {
+  --qf-cut: 4px;
+  --qf-edge: transparent;
+  --qf-line: calc(var(--qf-cut) * 0.7071 + 1px);
+  --qf-edges:
+    linear-gradient(135deg, var(--qf-edge) var(--qf-line), transparent 0),
+    linear-gradient(225deg, var(--qf-edge) var(--qf-line), transparent 0),
+    linear-gradient(315deg, var(--qf-edge) var(--qf-line), transparent 0),
+    linear-gradient(45deg, var(--qf-edge) var(--qf-line), transparent 0);
+  border-radius: 0;
+  clip-path: polygon(
+    var(--qf-cut) 0, calc(100% - var(--qf-cut)) 0,
+    100% var(--qf-cut), 100% calc(100% - var(--qf-cut)),
+    calc(100% - var(--qf-cut)) 100%, var(--qf-cut) 100%,
+    0 calc(100% - var(--qf-cut)), 0 var(--qf-cut)
+  );
+}
+.qf-panel {
+  --qf-cut: 14px;
+  --qf-edge: rgb(var(--gold-2-rgb) / 0.38);
+  background: var(--qf-edges), linear-gradient(180deg, #1c1e24, #131418);
+}
+/* clip-path срезает и внешнюю тень окна — её отбрасывает обёртка */
+.quest-filter:has(> .qf-panel) { filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.6)); }
+
 @keyframes ct-drop {
   from { opacity: 0; transform: translateY(-8px); }
 }
@@ -186,7 +219,6 @@
 .qf-label em {
   margin-left: 8px;
   padding: 1px 7px;
-  border-radius: 99px;
   background: rgb(var(--gold-2-rgb) / 0.22);
   color: var(--gold-4);
   font-family: var(--font-body);
@@ -199,7 +231,6 @@
 .qf-reset {
   padding: 4px 8px;
   border: none;
-  border-radius: 6px;
   background: none;
   color: var(--gold-3);
   font-family: var(--font-body);
@@ -237,21 +268,27 @@
   min-height: 32px;
   padding: 0 13px;
   border: none;
-  border-radius: 99px;
-  background: rgb(var(--silver-2-rgb) / 0.08);
-  box-shadow: inset 0 0 0 1px rgb(var(--silver-2-rgb) / 0.14);
+  --qf-cut: 7px;
+  --qf-edge: rgb(var(--silver-2-rgb) / 0.14);
+  background: var(--qf-edges) rgb(var(--silver-2-rgb) / 0.08);
+  box-shadow: inset 0 0 0 1px var(--qf-edge);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
-.qf-opt:hover { background: rgb(var(--silver-2-rgb) / 0.15); color: var(--parchment); }
+.qf-opt:hover { background-color: rgb(var(--silver-2-rgb) / 0.15); color: var(--parchment); }
 .qf-opt.is-on {
-  background: rgb(var(--gold-2-rgb) / 0.22);
-  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.6);
+  --qf-edge: rgb(var(--gold-2-rgb) / 0.6);
+  background-color: rgb(var(--gold-2-rgb) / 0.22);
   color: var(--gold-4);
 }
+/* внешнюю рамку фокуса срезал бы clip-path — рисуем внутри */
+.qf-opt:focus-visible,
+.qf-reset:focus-visible,
+.ct-chip:focus-visible,
+.ct-reset:focus-visible { outline: 2px solid var(--gold-3); outline-offset: -3px; }
 .qf-opt svg { flex: none; width: 14px; height: 14px; margin-left: -3px; }
 .qf-dot {
   flex: none;
@@ -321,24 +358,24 @@
   height: 30px;
   padding: 0 8px 0 12px;
   border: none;
-  border-radius: 99px;
-  background: rgb(var(--gold-2-rgb) / 0.14);
-  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4);
+  --qf-cut: 7px;
+  --qf-edge: rgb(var(--gold-2-rgb) / 0.4);
+  background: var(--qf-edges) rgb(var(--gold-2-rgb) / 0.14);
+  box-shadow: inset 0 0 0 1px var(--qf-edge);
   color: var(--gold-4);
   font: inherit;
   font-size: 0.86rem;
   cursor: pointer;
-  transition: background 0.16s ease;
+  transition: background-color 0.16s ease;
 }
 .ct-chip i { color: var(--text-dim); font-style: normal; }
 .ct-chip i::after { content: ':'; }
 .ct-chip svg { width: 13px; height: 13px; opacity: 0.6; }
-.ct-chip:hover { background: rgb(var(--gold-2-rgb) / 0.26); }
+.ct-chip:hover { background-color: rgb(var(--gold-2-rgb) / 0.26); }
 .ct-chip:hover svg { opacity: 1; }
 .ct-reset {
   padding: 4px 8px;
   border: none;
-  border-radius: 6px;
   background: none;
   color: var(--text-dim);
   font: inherit;
@@ -393,6 +430,22 @@
     border-radius: 14px 14px 0 0;
     box-shadow: inset 0 1px 0 rgb(var(--gold-2-rgb) / 0.45), 0 0 0 100vmax rgba(0, 0, 0, 0.55);
     animation: mobile-sheet-up 0.2s ease;
+  }
+  /* шторке фильтров clip-path срезал бы затемнение страницы (это её тень): углы прямые,
+     а где есть corner-shape — скошенные. filter у обёртки сломал бы position: fixed */
+  .quest-filter:has(> .qf-panel) { filter: none; }
+  .qf-panel,
+  .ct .quest-filter-panel {
+    border-radius: 0;
+    background: linear-gradient(180deg, #1c1e24, #131418);
+    clip-path: none;
+  }
+  @supports (corner-shape: bevel) {
+    .qf-panel,
+    .ct .quest-filter-panel {
+      border-radius: 14px 14px 0 0;
+      corner-shape: bevel;
+    }
   }
   html:has(.cw-foot) .qf-panel { bottom: 0; }
   .ct .sort-sheet {

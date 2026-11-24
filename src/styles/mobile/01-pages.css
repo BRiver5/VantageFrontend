@@ -38,7 +38,6 @@
 
   .catalog { padding-top: 16px; }
   .catalog .section-head { margin-bottom: 8px; }
-  .catalog .section-sub { margin-top: 2px; font-size: 0.8rem; }
 
   /* фильтры — нижняя шторка вместо выпадающего блока */
   .quest-filter-panel,

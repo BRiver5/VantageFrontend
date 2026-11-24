@@ -30,6 +30,10 @@ describe('фильтры, сортировка и поиск в адресе', (
     expect(catalogSearch(new URLSearchParams('sort=name&q=x'), { sort: 'none', q: '' })?.toString()).toBe('')
   })
 
+  it('«без сортировки» пишется, если раздел открывается отсортированным', () => {
+    expect(catalogSearch(new URLSearchParams('sort=level'), { sort: 'none', keepNone: true })?.get('sort')).toBe('none')
+  })
+
   it('читаются обратно', () => {
     expect(filtersFromSearch(new URLSearchParams('class=колдун,бард&level=9&x=1'), ['class', 'level'])).toEqual({
       class: ['колдун', 'бард'],

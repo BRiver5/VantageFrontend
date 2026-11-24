@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { ArrowLeft, ArrowUpRight, Layers, Package, Scale, Tag, X } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -13,6 +13,7 @@ import { useEquipmentIndex } from './equipmentIndex'
 import { Corners } from './ornaments'
 import { RichText } from './terms/terms'
 import { Img } from './media'
+import { listSearch } from './lib/listSearch'
 
 /* ============================================================
    Панель предмета: выезжает справа, гасит страницу вуалью
@@ -251,6 +252,9 @@ function DrawerArt({ eq, index }: { eq: Equipment; index: EquipmentIndex | null 
 function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose: () => void }) {
   const eq = useEquipmentByKey(entryKey)
   const index = useEquipmentIndex()
+  // из каталога снаряжения страница предмета уносит его фильтры и сортировку
+  const { pathname, search } = useLocation()
+  const listQuery = pathname.split('/')[1] === 'equipment' ? listSearch(search) : ''
 
   if (!eq) return <p className="status-line">Разбираем походный тюк…</p>
 
@@ -344,7 +348,7 @@ function EquipmentDrawerBody({ entryKey, onClose }: { entryKey: string; onClose:
         </DrawerSection>
       )}
 
-      <Link to={`/equipment/${eq.id}`} className="eq-drawer-full" onClick={onClose}>
+      <Link to={`/equipment/${eq.id}${listQuery}`} className="eq-drawer-full" onClick={onClose}>
         открыть полную страницу <ArrowUpRight aria-hidden="true" />
       </Link>
     </div>

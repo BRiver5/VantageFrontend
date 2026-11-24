@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { listSearch } from '../../lib/listSearch'
 import {
   getCachedEntity,
   getOne,
@@ -49,6 +50,11 @@ export function useOne<T>(resource: string, id: string | undefined) {
   return { data, error }
 }
 
+/** Адрес раздела с поиском, фильтрами и сортировкой, с которыми из него ушли */
+export function useListHref(base: string): string {
+  return `${base}${listSearch(useLocation().search)}`
+}
+
 /**
  * Кнопка «назад»: если на страницу пришли по ссылке из статьи (в location.state
  * лежит `from`/`fromLabel`) — ведём обратно именно туда, а не в общий каталог.
@@ -58,11 +64,12 @@ export function useContextualBack(
   defaultLabel: string,
 ): { backTo: string; backLabel: string } {
   const location = useLocation()
+  const listHref = useListHref(defaultTo)
   const st = location.state as { from?: string; fromLabel?: string } | null
   if (st?.from) {
     return { backTo: st.from, backLabel: st.fromLabel ? `к «${st.fromLabel}»` : 'назад' }
   }
-  return { backTo: defaultTo, backLabel: defaultLabel }
+  return { backTo: listHref, backLabel: defaultLabel }
 }
 
 /** Общая «обложка» детальной страницы */

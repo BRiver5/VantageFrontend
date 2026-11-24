@@ -239,7 +239,7 @@
   font-size: 0.85rem;
 }
 
-/* шапка раздела каталога: под подзаголовком, по центру */
+/* шапка раздела каталога: под заголовком, по центру */
 .section-edition {
   display: flex;
   align-items: center;
@@ -247,6 +247,15 @@
   gap: var(--space-2);
   margin-top: var(--space-2);
   min-height: 26px;
+}
+/* здесь переключатель чуть крупнее обычного compact, подписи — заметно */
+.section-edition .ed-toggle {
+  --s: 8px;
+  --g: 2.5px;
+  gap: 9px;
+}
+.section-edition .ed-toggle-year {
+  font-size: 1.05rem;
 }
 
 /* «как везде» — вернуть раздел к общей редакции */

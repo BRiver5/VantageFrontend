@@ -17,6 +17,7 @@ import {
   Swords,
   VenetianMask,
 } from 'lucide-react'
+import { listSearch } from '../lib/listSearch'
 import { APP_SHELL_QUERY } from '../shell'
 import {
   cacheEntity,
@@ -108,11 +109,11 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   // поиск, сортировка и фильтры живут и в адресе: «назад» со страницы записи возвращает их как были
   const [q, setQ] = useState(() => searchParams.get('q') ?? '')
   const [query, setQuery] = useState(() => (searchParams.get('q') ?? '').trim())
-  const [sortKey, setSortKey] = useState(
-    () =>
-      searchParams.get('sort') ??
-      (cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none'),
+  // телефон открывает раздел уже отсортированным
+  const [defaultSort] = useState(() =>
+    cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none',
   )
+  const [sortKey, setSortKey] = useState(() => searchParams.get('sort') ?? defaultSort)
   // редакция раздела: своя или общая; смена — перезапрос с первого листа
   const { edition } = useEdition(cfg.resource)
   const prevEditionRef = useRef(edition)
@@ -222,7 +223,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         () => {
           skipUrlSyncRef.current = true
           setSelected(item)
-          navigate(withRecordEdition(`${cfg.base}/${item.id}`, item))
+          navigate(withRecordEdition(`${cfg.base}/${item.id}${listQuery}`, item))
           queueMicrotask(() => {
             skipUrlSyncRef.current = false
           })
@@ -261,7 +262,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       runShellTransition(() => {
         skipUrlSyncRef.current = true
         setSelected(null)
-        navigate(cfg.base)
+        navigate(`${cfg.base}${listQuery}`)
         queueMicrotask(() => {
           skipUrlSyncRef.current = false
         })
@@ -301,10 +302,11 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       page: cfg.noPaging ? undefined : page,
       filters: { keys: filterKeys, sel: filterSel },
       sort: sortKey,
+      keepNone: defaultSort !== 'none',
       q: query,
     })
     if (next) setSearchParams(next, { replace: true })
-  }, [selectedId, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams, filterKeys, filterSel, sortKey, query])
+  }, [selectedId, page, cfg.inlineDetail, cfg.inlineUrl, cfg.noPaging, setSearchParams, filterKeys, filterSel, sortKey, defaultSort, query])
 
   // книги нужны и для бейджей источника, и для сортировки «по книге»
   useEffect(() => {
@@ -344,6 +346,18 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     }
     setPage(0)
   }, [filterSel])
+
+  // список как есть — в адрес записи: ссылка «назад» с неё вернёт поиск, фильтры, сортировку и лист.
+  // Из состояния, а не из адреса: клик по разделу в меню очищает адрес, не сбрасывая выбор.
+  const listQuery = listSearch(
+    catalogSearch(searchParams, {
+      page: cfg.noPaging ? undefined : page,
+      filters: { keys: filterKeys, sel: filterSel },
+      sort: sortKey,
+      keepNone: defaultSort !== 'none',
+      q: query,
+    }) ?? searchParams,
+  )
 
   const toggleFilter = (groupKey: string, optKey: string) => setFilterSel((cur) => toggleIn(cur, groupKey, optKey))
 
@@ -446,7 +460,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     return (
     <CardLink
       key={item.id}
-      to={withRecordEdition(`${cfg.base}/${item.id}`, item)}
+      to={withRecordEdition(`${cfg.base}/${item.id}${listQuery}`, item)}
       className={otherEd ? 'card-slot--other-edition' : undefined}
       // у предметов рамка безымянная у incoming; path-portrait летит через class-hero-*
       vtName={
@@ -490,7 +504,6 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       {/* шапка раздела уезжает под масthead при раскрытии предмета (см. CSS) */}
       <div className="section-head">
         <h1 className="section-title gold-text">{cfg.title}</h1>
-        <p className="section-sub">{cfg.sub}</p>
         <SectionEditionToggle section={cfg.resource} />
       </div>
 
@@ -606,7 +619,6 @@ export function ClassesCatalog({
         resource: 'classes',
         base: '/classes',
         title: 'Классы',
-        sub: 'Пути воинов, магов и плутов — выбери своё призвание',
         emptyIcon: Swords,
         card: classCard,
         inlineUrl: 'path',
@@ -622,7 +634,6 @@ export const RacesPage = () => (
       resource: 'races',
       base: '/races',
       title: 'Расы и Виды',
-      sub: 'Народы и существа, населяющие миры мультивселенной',
       emptyIcon: VenetianMask,
       card: raceCard,
       heroNav: true,
@@ -637,7 +648,6 @@ export const FeatsPage = () => (
       resource: 'feats',
       base: '/feats',
       title: 'Черты',
-      sub: 'Особые таланты и способности, доступные при развитии персонажа',
       emptyIcon: Award,
       card: featCard,
       filters: featFilters,
@@ -653,7 +663,6 @@ export const BackgroundsPage = () => (
       resource: 'backgrounds',
       base: '/backgrounds',
       title: 'Предыстории',
-      sub: 'Прошлое героя — навыки, инструменты и особая черта',
       emptyIcon: Landmark,
       card: backgroundCard,
       filters: backgroundFilters,
@@ -669,7 +678,6 @@ export const SpellsPage = () => (
       resource: 'spells',
       base: '/spells',
       title: 'Заклинания',
-      sub: 'Гримуар чар — от заговоров до девятого круга',
       emptyIcon: Sparkles,
       card: spellCard,
       sorts: spellSorts,
@@ -685,7 +693,6 @@ export const BestiaryPage = () => (
       resource: 'creatures',
       base: '/bestiary',
       title: 'Бестиарий',
-      sub: 'Существа и чудовища — от безобидных до легендарных',
       emptyIcon: Skull,
       card: creatureCard,
       sorts: creatureSorts,
@@ -701,7 +708,6 @@ export const TerminsPage = () => (
       resource: 'termins',
       base: '/termins',
       title: 'Термины',
-      sub: 'Ключевые понятия правил — действия, броски, освещение и другое',
       emptyIcon: BookOpen,
       card: terminCard,
     }}
@@ -735,7 +741,6 @@ export function EquipmentPage() {
         resource: 'equipment',
         base: '/equipment',
         title: 'Снаряжение',
-        sub: 'Оружие, доспехи и походный скарб — от стрел до вьючных мулов',
         emptyIcon: Backpack,
         card: equipmentCard,
         sorts: equipmentSorts,
@@ -752,7 +757,6 @@ export const ItemsPage = () => (
       resource: 'items',
       base: '/items',
       title: 'Магические Предметы',
-      sub: 'Реликвии, артефакты и сокровища подземелий',
       emptyIcon: Gem,
       card: itemCard,
       filters: itemFilters,

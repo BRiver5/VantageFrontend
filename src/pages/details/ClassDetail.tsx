@@ -33,7 +33,7 @@ import { isHtmlDescription, resolveSubclassSectionHtml, parseSubclassFeatures } 
 import { MulticlassButton } from '../../multiclass'
 import { hasClassProficiencies, parseClassProficiencies } from '../../classProficiencies'
 import { Img } from '../../media'
-import { Chip, DetailSection, DetailTopline, MobileFold, Rich, StatRow } from './shared'
+import { Chip, DetailSection, DetailTopline, MobileFold, Rich, StatRow, ListBackLink } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useEditionLink, useRecordEdition } from '../../editions/useEdition'
 import { useOne } from './hooks'
@@ -334,9 +334,9 @@ export function ClassDetailView({
                 <ArrowLeft aria-hidden="true" /> к классам
               </button>
             ) : (
-              <Link to="/classes" className="back-link">
+              <ListBackLink base="/classes">
                 <ArrowLeft aria-hidden="true" /> к классам
-              </Link>
+              </ListBackLink>
             )}
           </DetailTopline>
         )}

@@ -33,7 +33,7 @@ import { abilitiesFromSkills, skillKeysFromNames } from '../../skills'
 import { findEntity } from '../../dndsuLinks'
 import { splitBackgroundText } from './backgroundText'
 import { Img, bgUrl } from '../../media'
-import { DetailSection, MobileFold, Rich, DetailTopline } from './shared'
+import { DetailSection, MobileFold, Rich, DetailTopline, ListBackLink } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 
@@ -125,9 +125,9 @@ export function BackgroundDetailPage() {
   return (
     <section className="book-page bg-detail-page">
       <DetailTopline edition={<ElementEditionToggle resource="backgrounds" id={bg.id} record={bg} />}>
-        <Link to="/backgrounds" className="back-link">
+        <ListBackLink base="/backgrounds">
           <ArrowLeft aria-hidden="true" /> к предысториям
-        </Link>
+        </ListBackLink>
       </DetailTopline>
       <BackgroundDetailBody bg={bg} />
       <ReviewsPanel entity="backgrounds" id={bg.id} />

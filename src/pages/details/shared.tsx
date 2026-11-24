@@ -14,6 +14,7 @@ import { Corners, Divider } from '../../ornaments'
 import { RichText, highlightTerms, useTermIndex } from '../../terms/terms'
 import { useAppShell } from '../../shell'
 import { Img } from '../../media'
+import { useListHref } from './hooks'
 
 /** Лёгкая разметка описаний: абзацы + **жирный** / ***жирный*** + ссылки на термины */
 export function Rich({ text }: { text: string | null | undefined }) {
@@ -30,6 +31,15 @@ export function Chip({ icon, children }: { icon: LucideIcon | ReactNode; childre
       {isValidElement(icon) ? icon : <Icon aria-hidden="true" />}
       {children}
     </span>
+  )
+}
+
+/** «Назад» в раздел — с теми же фильтрами и сортировкой */
+export function ListBackLink({ base, children }: { base: string; children: ReactNode }) {
+  return (
+    <Link to={useListHref(base)} className="back-link">
+      {children}
+    </Link>
   )
 }
 

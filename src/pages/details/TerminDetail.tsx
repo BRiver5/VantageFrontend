@@ -10,19 +10,20 @@ import type {
 } from '../../api'
 import { SourceBadge } from '../catalog/shared'
 import { DetailSection, DetailShell, Rich } from './shared'
-import { useBookRef, useOne } from './hooks'
+import { useBookRef, useListHref, useOne } from './hooks'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 
 export function TerminDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: t, error } = useOne<Termin>('termins', id)
   const book = useBookRef(t?.book_source_id)
+  const backTo = useListHref('/termins')
   if (error) return <p className="status-line is-error">Термин не найден: {error}</p>
   if (!t) return <p className="status-line">Ищем в глоссарии…</p>
 
   return (
     <DetailShell
-      backTo="/termins"
+      backTo={backTo}
       edition={<ElementEditionToggle resource="termins" id={t.id} record={t} />}
       backLabel="к терминам"
       kicker="термин"

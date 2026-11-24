@@ -22,7 +22,7 @@ import { SourceBadge } from '../catalog/shared'
 import { DieChipIcon } from '../../dice/diceAssets'
 import { CreatureBoard } from '../../creature/CreatureBoard'
 import { CreatureStage, WorldBackdrop } from '../../creature/CreatureStage'
-import { Chip, DetailSection, Rich, Traits, DetailTopline } from './shared'
+import { Chip, DetailSection, Rich, Traits, DetailTopline, ListBackLink } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
 
@@ -52,9 +52,9 @@ export function CreatureDetailPage() {
     <section className={`book-page beast-page${world ? ' has-world' : ''}`}>
       {world && <WorldBackdrop art={world.art} />}
       <DetailTopline edition={<ElementEditionToggle resource="creatures" id={c.id} record={c} />}>
-        <Link to="/bestiary" className="back-link">
+        <ListBackLink base="/bestiary">
           <ArrowLeft aria-hidden="true" /> к бестиарию
-        </Link>
+        </ListBackLink>
       </DetailTopline>
       <CreatureStage
         c={c}

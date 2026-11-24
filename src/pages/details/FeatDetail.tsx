@@ -1,5 +1,5 @@
 import { ReviewsPanel } from '../../reviews/Reviews'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Award,
@@ -19,7 +19,7 @@ import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
 import { isHtmlDescription } from '../../classArticleHtml'
 import { ABILITY_LABELS } from '../../types/character'
 import { bgUrl } from '../../media'
-import { DetailSection, Rich, DetailTopline } from './shared'
+import { DetailSection, Rich, DetailTopline, ListBackLink } from './shared'
 import { formatFeatText } from './featText'
 import { ElementEditionToggle } from '../../editions/EditionControls'
 import { useBookRef, useOne } from './hooks'
@@ -34,9 +34,9 @@ export function FeatDetailPage() {
   return (
     <section className="book-page bg-detail-page">
       <DetailTopline edition={<ElementEditionToggle resource="feats" id={f.id} record={f} />}>
-        <Link to="/feats" className="back-link">
+        <ListBackLink base="/feats">
           <ArrowLeft aria-hidden="true" /> к чертам
-        </Link>
+        </ListBackLink>
       </DetailTopline>
       <FeatDetailBody f={f} />
       <ReviewsPanel entity="feats" id={f.id} />
