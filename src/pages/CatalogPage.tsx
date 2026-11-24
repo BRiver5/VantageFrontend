@@ -12,14 +12,12 @@ import {
   ChevronRight,
   Gem,
   Landmark,
-  Search,
   Skull,
   Sparkles,
   Swords,
   VenetianMask,
-  X,
 } from 'lucide-react'
-import { APP_SHELL_QUERY, useAppShell } from '../shell'
+import { APP_SHELL_QUERY } from '../shell'
 import {
   cacheEntity,
   fetchAll,
@@ -49,8 +47,7 @@ import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, bookCmp, catalogSearch
 import { backgroundFilters, creatureFilters, equipmentFilters, featFilters, itemFilters, spellFilters } from './catalog/filters'
 import { creatureSorts, equipmentSorts, itemSorts, spellSorts } from './catalog/sorts'
 import { CardLink } from './catalog/shared'
-import { FilterMenu } from './catalog/FilterMenu'
-import { SortMenu } from './catalog/SortMenu'
+import { CatalogToolbar } from './catalog/CatalogToolbar'
 import { ItemSplitView } from './catalog/ItemSplitView'
 import { OtherEditionNote, SectionEditionToggle } from '../editions/EditionControls'
 import { otherEditionOf, preferredEditionFirst, withRecordEdition } from '../editions/edition'
@@ -116,7 +113,6 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       searchParams.get('sort') ??
       (cfg.mobileDefaultSort && window.matchMedia(APP_SHELL_QUERY).matches ? cfg.mobileDefaultSort : 'none'),
   )
-  const { app } = useAppShell()
   // редакция раздела: своя или общая; смена — перезапрос с первого листа
   const { edition } = useEdition(cfg.resource)
   const prevEditionRef = useRef(edition)
@@ -349,7 +345,6 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     setPage(0)
   }, [filterSel])
 
-  const activeFilterCount = Object.values(filterSel).reduce((n, v) => n + v.length, 0)
   const toggleFilter = (groupKey: string, optKey: string) => setFilterSel((cur) => toggleIn(cur, groupKey, optKey))
 
   useEffect(() => {
@@ -417,7 +412,6 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 
   const pages = cfg.noPaging ? 1 : Math.max(1, Math.ceil(total / pageSize))
   const EmptyIcon = cfg.emptyIcon
-  const sorting = sortKey !== 'none'
 
   // если после фильтра/поиска листов стало меньше — подтянуть номер из адреса
   useEffect(() => {
@@ -499,64 +493,21 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
         <SectionEditionToggle section={cfg.resource} />
       </div>
 
-      <div className="quest-bar">
-        <label className="quest-input">
-          <Search aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Искать в архивах…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          {q && (
-            <button type="button" className="quest-clear" onClick={() => setQ('')} aria-label="Очистить поиск">
-              <X aria-hidden="true" />
-            </button>
-          )}
-        </label>
-
-        {cfg.filters && cfg.filters.length > 0 && (
-          <FilterMenu
-            groups={cfg.filters}
-            sel={filterSel}
-            onToggle={toggleFilter}
-            onReset={() => setFilterSel({})}
-            bookMap={bookMap}
-            items={allItems}
-          />
-        )}
-
-        {app && cfg.sorts && cfg.sorts.length > 0 && (
-          <SortMenu sorts={cfg.sorts} value={sortKey} onChange={setSortKey} />
-        )}
-
-        <span className="quest-total">
-          {loading
-            ? activeFilterCount > 0
-              ? 'просеиваем архив…'
-              : sorting
-                ? 'сортируем архив…'
-                : 'листаем страницы…'
-            : `найдено записей: ${total.toLocaleString('ru')}`}
-        </span>
-      </div>
-
-      {!app && cfg.sorts && cfg.sorts.length > 0 && (
-        <div className="sort-bar" role="group" aria-label="Сортировка">
-          <span className="sort-label">Сортировать:</span>
-          {cfg.sorts.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              type="button"
-              className={`sort-btn${sortKey === key ? ' is-active' : ''}`}
-              onClick={() => setSortKey((cur) => (cur === key ? 'none' : key))}
-            >
-              <Icon aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      <CatalogToolbar
+        q={q}
+        onQ={setQ}
+        busy={loading || q.trim() !== query}
+        total={total}
+        filters={cfg.filters}
+        filterSel={filterSel}
+        onToggleFilter={toggleFilter}
+        onResetFilters={() => setFilterSel({})}
+        bookMap={bookMap}
+        allItems={allItems}
+        sorts={cfg.sorts}
+        sortKey={sortKey}
+        onSort={setSortKey}
+      />
 
       {error && <p className="status-line is-error">Архив недоступен: {error}</p>}
 

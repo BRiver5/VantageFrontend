@@ -40,51 +40,6 @@
   .catalog .section-head { margin-bottom: 8px; }
   .catalog .section-sub { margin-top: 2px; font-size: 0.8rem; }
 
-  .catalog .quest-bar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 8px;
-    align-items: center;
-    margin-top: 8px;
-  }
-  .catalog .quest-input {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    margin: 0;
-  }
-  .catalog .quest-input input {
-    min-width: 0;
-    text-overflow: ellipsis;
-    font-size: 0.92rem;
-  }
-  .catalog .quest-bar:not(:has(.quest-filter)) .quest-input { grid-column: 1 / -1; }
-  .catalog .quest-total {
-    grid-column: 1 / -1;
-    justify-self: center;
-    font-size: 0.78rem;
-  }
-
-  /* сортировка — одна прокручиваемая строка */
-  .catalog .sort-bar {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 6px;
-    margin: 6px -12px 0;
-    padding: 2px 12px 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .catalog .sort-bar::-webkit-scrollbar { display: none; }
-  .catalog .sort-label,
-  .catalog .sort-btn {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  .catalog .sort-label { font-size: 0.72rem; }
-  .catalog .sort-btn { min-height: 38px; }
-
   /* фильтры — нижняя шторка вместо выпадающего блока */
   .quest-filter-panel,
   .rec-tools .quest-filter-panel {

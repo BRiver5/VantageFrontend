@@ -1,13 +1,9 @@
-import { useState } from 'react'
-import {
-  ArrowUpDown,
-  Check,
-  X,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowUpDown, Check, ChevronDown, X } from 'lucide-react'
 import { type SortOption } from './config'
 import { useKeybinding } from '../../input/useKeybinding'
 
-/** Телефон: кнопка с текущей сортировкой и нижняя шторка выбора */
+/** Кнопка с текущей сортировкой: на компьютере — выпадающий список, на телефоне — нижняя шторка */
 export function SortMenu<T>({
   sorts,
   value,
@@ -20,7 +16,19 @@ export function SortMenu<T>({
   const [open, setOpen] = useState(false)
   const current = sorts.find((s) => s.key === value)
 
+  const ref = useRef<HTMLDivElement>(null)
+
   useKeybinding('dialog.close', () => setOpen(false), open)
+
+  // на компьютере меню выпадающее — закрывается кликом мимо (на телефоне есть затемнение)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
 
   const choose = (key: string) => {
     onChange(key)
@@ -29,16 +37,17 @@ export function SortMenu<T>({
   const options = [{ key: 'none', label: 'Без сортировки', icon: X }, ...sorts]
 
   return (
-    <div className="sort-menu">
+    <div className="sort-menu" ref={ref}>
       <button
         type="button"
-        className={`sort-btn sort-menu-btn${current ? ' is-active' : ''}`}
+        className={`ct-btn sort-menu-btn${current ? ' has-active' : ''}${open ? ' is-open' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((v) => !v)}
       >
         <ArrowUpDown aria-hidden="true" />
-        {current?.label ?? 'Сортировка'}
+        <span className="sort-menu-label">{current?.label ?? 'Сортировка'}</span>
+        <ChevronDown className="ct-btn-caret" aria-hidden="true" />
       </button>
       {open && (
         <>

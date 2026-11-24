@@ -24,7 +24,7 @@
    обзоре — над лентой справа), но никогда одновременно: раскрытый предмет
    заменяет сетку. Поэтому одно имя на оба — браузер сам несёт их на новое место
    и трансформирует по дороге. */
-.quest-input,
+.ct-search,
 .rec-search { view-transition-name: search-field; }
 .quest-filter { view-transition-name: search-filter; }
 
@@ -60,11 +60,6 @@
 ::view-transition-new(section-head) {
   animation: section-head-down 0.9s cubic-bezier(0.33, 1, 0.35, 1) both;
 }
-
-/* сортировка никуда не летит — просто исчезает и появляется */
-.sort-bar { view-transition-name: sort-bar; }
-::view-transition-old(sort-bar) { animation: none; opacity: 0; }
-::view-transition-new(sort-bar) { animation: none; opacity: 1; }
 
 /* ---------- Переключение предмета в ленте ----------
    Роли расставляет JS (см. `selectItem`), а имена тут фиксированные:

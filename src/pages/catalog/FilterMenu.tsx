@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import {
-  SlidersHorizontal,
-} from 'lucide-react'
+import { Check, SlidersHorizontal } from 'lucide-react'
 import type {
   BookMap,
 } from '../../api'
@@ -16,6 +14,7 @@ export function FilterMenu<T>({
   onReset,
   bookMap,
   items,
+  buttonClassName = 'rec-filter-btn quest-filter-btn',
 }: {
   groups: FilterGroup<T>[]
   sel: Record<string, string[]>
@@ -24,6 +23,8 @@ export function FilterMenu<T>({
   bookMap: BookMap
   /** полный список раздела — из него берутся варианты вроде «только эти книги» */
   items: T[]
+  /** вид кнопки: гекс-плашка по умолчанию, в шапке каталога — своя */
+  buttonClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -51,7 +52,7 @@ export function FilterMenu<T>({
     <div className="quest-filter" ref={ref}>
       <button
         type="button"
-        className={`rec-filter-btn quest-filter-btn${open ? ' is-open' : ''}${count ? ' has-active' : ''}`}
+        className={`${buttonClassName}${open ? ' is-open' : ''}${count ? ' has-active' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -61,11 +62,11 @@ export function FilterMenu<T>({
       </button>
 
       {open && (
-        <div className="quest-filter-panel">
-          <div className="rec-filter-panel-head">
-            <span>Фильтры</span>
+        <div className="quest-filter-panel qf-panel">
+          <div className="qf-head">
+            <span>Фильтры{count > 0 && <em>{count}</em>}</span>
             {count > 0 && (
-              <button type="button" className="rec-filter-reset" onClick={onReset}>
+              <button type="button" className="qf-reset" onClick={onReset}>
                 Сбросить всё
               </button>
             )}
@@ -75,24 +76,29 @@ export function FilterMenu<T>({
             if (opts.length === 0) return null
             const s = sel[g.key] ?? []
             return (
-              <div className="quest-filter-group" key={g.key}>
-                <span className="quest-filter-group-label">{g.label}</span>
-                <div className="rec-filters" role="group" aria-label={g.label}>
-                  {opts.map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      className={`rec-filter${o.color ? '' : ' rec-filter--plain'}${
-                        s.includes(o.key) ? ' is-active' : ''
-                      }`}
-                      style={o.color ? ({ '--rarity-dot': o.color } as CSSProperties) : undefined}
-                      title={o.hint}
-                      aria-pressed={s.includes(o.key)}
-                      onClick={() => onToggle(g.key, o.key)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
+              <div className="qf-group" key={g.key}>
+                <span className="qf-label">
+                  {g.label}
+                  {s.length > 0 && <em>{s.length}</em>}
+                </span>
+                <div className="qf-opts" role="group" aria-label={g.label}>
+                  {opts.map((o) => {
+                    const on = s.includes(o.key)
+                    return (
+                      <button
+                        key={o.key}
+                        type="button"
+                        className={`qf-opt${on ? ' is-on' : ''}`}
+                        style={o.color ? ({ '--rarity-dot': o.color } as CSSProperties) : undefined}
+                        title={o.hint}
+                        aria-pressed={on}
+                        onClick={() => onToggle(g.key, o.key)}
+                      >
+                        {on ? <Check aria-hidden="true" /> : o.color ? <i className="qf-dot" aria-hidden="true" /> : null}
+                        {o.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )
