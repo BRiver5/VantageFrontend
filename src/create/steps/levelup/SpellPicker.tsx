@@ -1,3 +1,4 @@
+import { applySmartSearch, useSmartRanks } from '../../../search/sectionSearch'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -48,13 +49,12 @@ function SpellSelect({
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
 
+  // умный поиск, как на главной: опечатки, неверная раскладка, английские названия
+  const ranks = useSmartRanks('spells', query)
   const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е')
-    const list = q
-      ? options.filter((s) => s.spell_name.toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(q))
-      : options
-    return [...list].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
-  }, [options, query])
+    if (query.trim()) return applySmartSearch(options, query, ranks, (s) => s.id, (s) => s.spell_name)
+    return [...options].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
+  }, [options, query, ranks])
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return

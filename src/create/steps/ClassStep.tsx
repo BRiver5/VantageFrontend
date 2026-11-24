@@ -155,7 +155,7 @@ export default function ClassStep({ draft, update }: StepProps) {
     ]
   }, [items, books])
 
-  const picker = usePicker(items, className, groups)
+  const picker = usePicker(items, className, groups, 'classes')
   const close = useCallback(() => setOpen(null), [])
 
   const choose = (cls: GameClass) => {

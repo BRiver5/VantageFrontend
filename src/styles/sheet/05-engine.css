@@ -757,3 +757,7 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 }
 .ed-badge--2024 { border-color: rgb(var(--gold-3-rgb) / 0.6); color: var(--gold-3); }
 .cw-live-top > .ed-badge { margin-right: auto; }
+/* у плитки с действиями справа два значка — текст не должен под них заходить */
+.cw-ftile:has(.cw-ftile-acts) { padding-right: 66px; }
+.cw-tab em.is-alert { display: inline-flex; align-items: center; gap: 3px; }
+.cw-tab em.is-alert svg { width: 12px; height: 12px; }

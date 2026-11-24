@@ -3,6 +3,7 @@
  * предыстории, выбор конкретных предметов для «любое воинское оружие». Сверху —
  * живая сводка: КД с надетым доспехом, атаки и кошель.
  */
+import { applySmartSearch, useSmartRanks } from '../../search/sectionSearch'
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Backpack, Check, ChevronDown, Search, Shield, Swords } from 'lucide-react'
@@ -128,10 +129,12 @@ function GearSelect({
   const current = value ? index?.bySlug.get(value) : undefined
   const label = entryChoiceLabel(entry)
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru')
-    return q ? candidates.filter((eq) => eq.equipment_name.toLocaleLowerCase('ru').includes(q)) : candidates
-  }, [candidates, query])
+  // умный поиск, как на главной: опечатки, неверная раскладка, английские названия
+  const ranks = useSmartRanks('equipment', query)
+  const visible = useMemo(
+    () => (query.trim() ? applySmartSearch(candidates, query, ranks, (eq) => eq.id, (eq) => eq.equipment_name) : candidates),
+    [candidates, query, ranks],
+  )
 
   // меню под кнопкой; если внизу не хватает места — над ней
   useLayoutEffect(() => {

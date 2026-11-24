@@ -196,7 +196,19 @@ function SettingsPanel({ room }: { room?: ReactNode }) {
             <b>Редакция правил</b>
             <i>{editionHint}</i>
           </span>
-          <EditionToggle value={prefs.edition} onChange={(edition) => setUserSettings({ edition })} />
+          <span className="st-row-actions">
+            <EditionToggle value={prefs.edition} onChange={(edition) => setUserSettings({ edition })} />
+            {overrides > 0 && (
+              <button
+                type="button"
+                className="st-btn st-btn--small"
+                onClick={() => setUserSettings({ editionSections: {} })}
+                title="Убрать редакции, выбранные у отдельных разделов"
+              >
+                все разделы — как везде
+              </button>
+            )}
+          </span>
         </div>
       ),
     },
@@ -210,9 +222,9 @@ function SettingsPanel({ room }: { room?: ReactNode }) {
     {
       key: 'photo',
       label: 'Фоточувствительность',
-      hint: 'Без вспышек и мигания: пинги — медленный круг, свет на карте не мерцает',
+      hint: 'Без вспышек и мигания на результате броска, в листе героя и на карте',
       keywords: 'вспышки мигание эпилепсия щадящий режим пинги свет',
-      node: <Toggle label="Фоточувствительность" hint="Без вспышек и мигания: пинги — медленный круг, свет на карте не мерцает" checked={prefs.photosensitive} onChange={(v) => setUserSettings({ photosensitive: v })} />,
+      node: <Toggle label="Фоточувствительность" hint="Без вспышек и мигания: на результате броска нет вспышек и искр, хиты и ресурсы не пульсируют; на карте пинги — медленный круг, свет не мерцает" checked={prefs.photosensitive} onChange={(v) => setUserSettings({ photosensitive: v })} />,
     },
     ...(user
       ? [

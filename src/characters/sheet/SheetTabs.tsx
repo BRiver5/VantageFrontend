@@ -1,4 +1,6 @@
+import { BellRing } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { countLabel } from '../../lib/plural'
 import type { SheetTab } from '../CharacterSheet'
 
 export type TabRow = { id: SheetTab; label: string; icon: LucideIcon; badge?: number; alert?: number }
@@ -19,8 +21,10 @@ export function SheetTabs({ rows, current, onTab }: { rows: TabRow[]; current: S
           <Icon aria-hidden="true" /> {label}
           {badge ? <em>{badge}</em> : null}
           {alert ? (
-            <em className="is-alert" title="Нерешённые выборы">
-              !{alert}
+            // выборы из плашки «Требует решения» (навыки, заклинания черт, ASI…)
+            <em className="is-alert" title={`${countLabel(alert, ['выбор ждёт', 'выбора ждут', 'выборов ждут'])} решения — плашка «Требует решения» над листом`}>
+              <BellRing aria-hidden="true" />
+              {alert}
             </em>
           ) : null}
         </button>

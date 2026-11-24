@@ -10,10 +10,11 @@
  * Черновик (CharacterDraft) хранит и выбранные объекты каталога, и решения по
  * уровням; в лист персонажа его превращает buildCharacter.
  */
+import { clearWizard, loadWizard, saveWizard } from './draftStore'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ScrollText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw, ScrollText } from 'lucide-react'
 import { ApiError, createCharacter, isLegacySchemaError, levelUp } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Divider } from '../ornaments'
@@ -101,12 +102,22 @@ export default function CreateCharacterWizard() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // редакция героя — из «Новый герой» (?ed=2014); по умолчанию 2024
-  const [draft, setDraft] = useState<CharacterDraft>(() =>
-    initialDraft(user?.preferences?.default_character_visibility ?? 'private', editionFromSearch(location.search)),
-  )
-  const [stepIdx, setStepIdx] = useState(0)
-  const [maxVisited, setMaxVisited] = useState(0)
+  // черновик переживает перезагрузку (draftStore); иначе — новый, редакция из «Новый герой» (?ed=2014)
+  const [saved] = useState(loadWizard)
+  const fresh = () => initialDraft(user?.preferences?.default_character_visibility ?? 'private', editionFromSearch(location.search))
+  const [draft, setDraft] = useState<CharacterDraft>(() => saved?.draft ?? fresh())
+  const [stepIdx, setStepIdx] = useState(saved?.stepIdx ?? 0)
+  const [maxVisited, setMaxVisited] = useState(saved?.maxVisited ?? 0)
+  useEffect(() => {
+    saveWizard({ draft, stepIdx, maxVisited })
+  }, [draft, stepIdx, maxVisited])
+  const restart = () => {
+    if (!confirm('Начать создание героя заново? Выбранное пропадёт.')) return
+    clearWizard()
+    setDraft(fresh())
+    setStepIdx(0)
+    setMaxVisited(0)
+  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -255,6 +266,7 @@ export default function CreateCharacterWizard() {
       } catch {
         // герой уже создан — остальные уровни и выборы можно добрать на листе
       }
+      clearWizard()
       navigate(`/characters/${created.id}`, { replace: true })
     } catch (err) {
       setError(
@@ -281,6 +293,9 @@ export default function CreateCharacterWizard() {
         <h1 className="section-title gold-text cw-title">
           <ScrollText aria-hidden="true" /> Создание героя
         </h1>
+        <button type="button" className="cs-btn cs-btn--ghost cw-restart" onClick={restart} title="Стереть черновик и начать с первого шага">
+          <RotateCcw aria-hidden="true" /> Начать заново
+        </button>
         <div className="cw-hero-ed" data-tour="create-edition">
           <span className="cw-hero-ed-label">Правила героя</span>
           <EditionToggle

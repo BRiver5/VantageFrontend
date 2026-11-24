@@ -223,7 +223,7 @@ export default function SpellsStep({
     ]
   }, [pool])
 
-  const picker = usePicker(pool, spellName, groups)
+  const picker = usePicker(pool, spellName, groups, 'spells')
   const visible = [...picker.visible].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
   const full = prepared.length >= prepMax
 

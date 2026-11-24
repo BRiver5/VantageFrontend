@@ -1,4 +1,5 @@
 /** Общие кирпичики шагов визарда: заголовок, карточка выбора с попапом, плитка факта. */
+import { applySmartSearch, useSmartRanks } from '../../search/sectionSearch'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Image as ImageIcon, Search, SlidersHorizontal, X } from 'lucide-react'
@@ -172,26 +173,34 @@ export function bookFilterGroup<T>(
   }
 }
 
-/** Поиск по имени + фильтры: внутри группы «или», между группами «и» */
+/** id записи каталога (у всех записей шагов он есть) */
+const idOfItem = (item: unknown): string => String((item as { id?: string }).id ?? '')
+
+/**
+ * Поиск + фильтры: внутри группы «или», между группами «и». `entity` — сущность умного поиска
+ * (как на главной: опечатки, неверная раскладка, части слов): с ним найденное идёт по
+ * релевантности, без него — локальное совпадение по названию (тоже в обеих раскладках).
+ */
 export function usePicker<T>(
   items: T[],
   nameOf: (item: T) => string,
   groups: PickFilterGroup<T>[],
+  entity?: string,
 ): Picker<T> {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Record<string, string[]>>({})
+  const ranks = useSmartRanks(entity, query)
 
   const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('ru')
-    const list = items.filter((item) => {
-      if (q && !nameOf(item).toLocaleLowerCase('ru').includes(q)) return false
-      return groups.every((g) => {
+    const filtered = items.filter((item) =>
+      groups.every((g) => {
         const sel = selected[g.key]
         return !sel?.length || g.match(item, sel)
-      })
-    })
-    return list.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'ru'))
-  }, [items, nameOf, groups, query, selected])
+      }),
+    )
+    if (query.trim()) return applySmartSearch(filtered, query, ranks, idOfItem, nameOf)
+    return filtered.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'ru'))
+  }, [items, nameOf, groups, query, selected, ranks])
 
   const toggle = useCallback((group: string, key: string) => {
     setSelected((prev) => {

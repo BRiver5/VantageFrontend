@@ -1,3 +1,4 @@
+import { applySmartSearch, useSmartRanks } from '../../search/sectionSearch'
 import { useEffect, useState } from 'react'
 import { ReviewsPanel } from '../../reviews/Reviews'
 import type { CSSProperties } from 'react'
@@ -114,6 +115,7 @@ export function ItemSplitView({
       .catch(() => {})
   }
   const [recQ, setRecQ] = useState('')
+  const recRanks = useSmartRanks('items', recQ)
   // те же фильтры, что и в каталоге: ключ группы → выбранные варианты
   const [recSel, setRecSel] = useState<Record<string, string[]>>({})
   // при смене предмета сбрасываем статус картинки
@@ -124,16 +126,15 @@ export function ItemSplitView({
   // выбранный предмет ушёл в «плеер» слева — в ленте справа его нет,
   // остальные поднимаются, занимая место (FLIP через view-transition)
   const rest = items.filter((it) => it.id !== selected.id)
-  const query = recQ.trim().toLowerCase()
-  const shown = rest
-    .filter((it) => {
-      if (query && !it.item_name.toLowerCase().includes(query)) return false
-      // группы по И, варианты внутри группы по ИЛИ — как в каталоге
-      return itemFilters.every((g) => {
-        const s = recSel[g.key]
-        return !s || s.length === 0 || g.match(it, s, bookMap)
-      })
-    })
+  const filtered = rest.filter((it) =>
+    // группы по И, варианты внутри группы по ИЛИ — как в каталоге
+    itemFilters.every((g) => {
+      const s = recSel[g.key]
+      return !s || s.length === 0 || g.match(it, s, bookMap)
+    }),
+  )
+  // поиск в ленте — умный, как на главной (опечатки, раскладка, части слов)
+  const shown = applySmartSearch(filtered, recQ, recRanks, (it) => it.id, (it) => it.item_name)
     // лента показывает не больше 10 предметов
     .slice(0, 10)
   const rarity = rarityKeyOf(selected.rarity)

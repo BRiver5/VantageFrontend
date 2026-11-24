@@ -157,7 +157,7 @@ export function InventoryManager({
       },
     ]
   }, [catalog])
-  const picker = usePicker(catalog, eqName, groups)
+  const picker = usePicker(catalog, eqName, groups, 'equipment')
   const magicGroups = useMemo<PickFilterGroup<Item>[]>(() => {
     const rarities = [...new Set(magicCatalog.map((i) => i.rarity).filter((r): r is string => !!r))].sort((a, b) =>
       a.localeCompare(b, 'ru'),
@@ -189,7 +189,7 @@ export function InventoryManager({
       },
     ]
   }, [magicCatalog])
-  const magicPicker = usePicker(magicCatalog, magicName, magicGroups)
+  const magicPicker = usePicker(magicCatalog, magicName, magicGroups, 'items')
   const shownGear = picker.visible.slice(0, 80)
   const shownMagic = magicPicker.visible.slice(0, 80)
 

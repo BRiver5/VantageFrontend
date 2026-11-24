@@ -247,3 +247,7 @@
 .cw-step-ed.is-mixed .cw-step-ed-label { color: var(--gold-3); }
 .cw-step-eds { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 28px; }
 .cw-step-eds .cw-step-ed { margin-inline: 0; }
+
+/* «Начать заново» — стереть черновик конструктора */
+.cw-restart { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.cw-restart svg { width: 15px; height: 15px; }

@@ -157,7 +157,7 @@ function FeatCatalog({
     ],
     [feats, books],
   )
-  const picker = usePicker(feats, featName, groups)
+  const picker = usePicker(feats, featName, groups, 'feats')
   // доступные — сверху, недоступные по требованиям — отдельным разделом внизу
   const { open, locked } = useMemo(() => {
     const open: Feat[] = []

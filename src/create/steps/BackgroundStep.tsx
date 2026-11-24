@@ -156,7 +156,7 @@ export default function BackgroundStep({ draft, update }: StepProps) {
     ]
   }, [items, books])
 
-  const picker = usePicker(items, bgName, groups)
+  const picker = usePicker(items, bgName, groups, 'backgrounds')
   const close = useCallback(() => setOpen(null), [])
 
   return (

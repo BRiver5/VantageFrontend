@@ -619,29 +619,9 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
 }
 .rail-edition-year.is-on { color: var(--gold-3); }
 .rail-edition-year:hover { color: var(--gold-4); }
-.rail-edition-track {
-  position: relative;
-  width: 22px;
-  height: 48px;
-  padding: 0;
-  border: 1px solid rgb(var(--gold-2-rgb) / 0.55);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgb(var(--bg-3-rgb, 34 37 44) / 1), var(--bg-1));
-  cursor: pointer;
-}
-.rail-edition-knob {
-  position: absolute;
-  left: 3px;
-  bottom: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--silver-grad, var(--silver-2));
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-.rail-edition-track.is-2024 .rail-edition-knob { transform: translateY(-26px); background: var(--gold-grad); box-shadow: 0 0 8px rgb(var(--gold-3-rgb) / 0.5); }
-.rail-edition-track:focus-visible { outline: 1px solid var(--gold-3); outline-offset: 2px; }
+/* ползунок — общий EditionToggle (шестигранный камень), повёрнутый: 2024 сверху */
+.rail-edition-switch { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; }
+.rail-edition .rail-edition-toggle { flex: none; transform: rotate(-90deg); padding: 0; }
 
 /* ---------- большое меню «Все разделы» ---------- */
 

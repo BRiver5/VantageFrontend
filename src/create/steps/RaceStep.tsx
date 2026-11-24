@@ -186,7 +186,7 @@ export default function RaceStep({ draft, update }: StepProps) {
     ]
   }, [races, withSubraces, books])
 
-  const picker = usePicker(races, raceName, groups)
+  const picker = usePicker(races, raceName, groups, 'races')
   const close = useCallback(() => setOpen(null), [])
 
   const isSelected = (race: Race) => draft.race?.id === race.id

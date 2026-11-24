@@ -1,3 +1,4 @@
+import { applySmartSearch, smartSearchRanks } from '../search/sectionSearch'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -55,6 +56,34 @@ import { OtherEditionNote, SectionEditionToggle } from '../editions/EditionContr
 import { otherEditionOf, preferredEditionFirst, withRecordEdition } from '../editions/edition'
 import { useEdition } from '../editions/useEdition'
 import { classCard, raceCard, featCard, backgroundCard, spellCard, creatureCard, equipmentCard, terminCard, itemCard } from './catalog/cards/renderers'
+
+/** Поле названия записи раздела — для локального совпадения умного поиска */
+const NAME_FIELD: Record<string, string> = {
+  classes: 'class_name',
+  races: 'race_name',
+  feats: 'feat_name',
+  backgrounds: 'background_name',
+  spells: 'spell_name',
+  creatures: 'name',
+  termins: 'name',
+  equipment: 'equipment_name',
+  items: 'item_name',
+}
+
+/** Полный список раздела в редакции — один запрос на время сессии (поиск по нему идёт часто) */
+const allCache = new Map<string, Promise<unknown[]>>()
+function allOfEdition<T>(resource: string, edition: string): Promise<T[]> {
+  const key = `${resource}:${edition}`
+  let p = allCache.get(key)
+  if (!p) {
+    p = fetchAll<T>(resource, { edition: edition as '2014' | '2024' }).catch((e: unknown) => {
+      allCache.delete(key)
+      throw e
+    })
+    allCache.set(key, p)
+  }
+  return p as Promise<T[]>
+}
 
 /** ширина карточки и зазор сетки каталога (.card-grid: minmax(290px, 1fr), gap 18px) */
 const CARD_MIN = 290
@@ -330,7 +359,7 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     const groups = cfg.filters ?? []
     const activeGroups = groups.filter((g) => (filterSel[g.key]?.length ?? 0) > 0)
 
-    if (!cfg.noPaging && !activeSort && activeGroups.length === 0) {
+    if (!cfg.noPaging && !activeSort && activeGroups.length === 0 && !query) {
       // поиск находит и записи другой редакции — после записей выбранной, с подписью
       fetchPage<T>(cfg.resource, { skip: page * pageSize, limit: pageSize, q: query || undefined, edition, otherEditions: true })
         .then((res) => {
@@ -345,9 +374,21 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
     } else {
       // ни сортировка, ни фильтры не поддерживаются сервером — тянем весь список
       // и обрабатываем на клиенте, иначе фильтр видел бы только текущую страницу
-      fetchAll<T>(cfg.resource, { q: query || undefined, edition, otherEditions: true })
-        .then((all) => {
+      // поиск — умный, как на главной (опечатки, неверная раскладка, части слов), но по разделу:
+      // сервер даёт порядок релевантности, записи берутся из полного списка редакции;
+      // записи другой редакции (по подстроке) — после своих, с подписью
+      const nameOf = (it: T) => String((it as Record<string, unknown>)[NAME_FIELD[cfg.resource] ?? 'name'] ?? '')
+      const idOf = (it: T) => String((it as { id?: string }).id ?? '')
+      Promise.all([
+        allOfEdition<T>(cfg.resource, edition),
+        query ? smartSearchRanks(cfg.resource, query) : Promise.resolve(null),
+        query ? fetchAll<T>(cfg.resource, { q: query, edition, otherEditions: true }).catch(() => [] as T[]) : Promise.resolve([] as T[]),
+      ])
+        .then(([base, ranks, byText]) => {
           if (stale) return
+          const own = new Set(base.map(idOf))
+          const others = byText.filter((it) => otherEditionOf(it) && !own.has(idOf(it)))
+          const all = query ? [...applySmartSearch(base, query, ranks, idOf, nameOf), ...others] : base
           setAllItems(all)
           const bm = bookMapRef.current
           // группы складываются по И, варианты внутри группы — по ИЛИ

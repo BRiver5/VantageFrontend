@@ -33,6 +33,7 @@ import { ABILITY_LABELS } from '../types/character'
 import type { AbilityName } from '../types/character'
 import { useReducedMotion } from '../settings/motion'
 import { countLabel } from '../lib/plural'
+import { matches } from '../input/keybindings'
 
 export type CelebrationScene =
   | { kind: 'level'; level: number; className: string }
@@ -257,9 +258,13 @@ export default function CelebrationOverlay({
 
   // Esc пропускает всю очередь, фон не прокручивается
   useEffect(() => {
+    // сочетания — из настроек «Управление» (по умолчанию Esc, Enter и Пробел)
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') skipAll()
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (matches(e, 'celebration.skip')) {
+        skipAll()
+        return
+      }
+      if (matches(e, 'celebration.next')) {
         e.preventDefault()
         next()
       }

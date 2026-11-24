@@ -173,9 +173,7 @@ a.home-tile:hover .home-tile-ico { border-color: var(--gold-3); background: rgb(
   text-transform: uppercase;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.home-play-head .die-play-icon { width: 26px; height: 26px; transition: transform 0.4s ease; }
-.home-tile--play:hover .home-play-head .die-play-icon,
-.home-tile--play:focus-within .home-play-head .die-play-icon { transform: rotate(72deg); }
+.home-play-head .die-play-icon { width: 26px; height: 26px; }
 .home-play-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .home-play-opt {
   display: flex;

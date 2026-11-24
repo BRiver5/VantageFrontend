@@ -38,6 +38,7 @@ import { useOpenSearch } from '../search/GlobalSearch'
 import { openSettings } from '../settings/open'
 import { openToursPanel } from '../tours/store'
 import { useGlobalEdition } from '../editions/useEdition'
+import { EditionToggle } from '../ui/EditionToggle'
 
 type MenuItem = { label: string; icon: LucideIcon } & ({ to: string; end?: boolean } | { onClick: () => void })
 
@@ -86,7 +87,10 @@ export function Sidebar() {
   )
 }
 
-/** Редакция правил вертикально: 2024 сверху, ползунок, 2014 снизу */
+/**
+ * Редакция правил вертикально: 2024 сверху, ползунок, 2014 снизу. Ползунок — тот же
+ * EditionToggle с шестигранным камнем, что в разделах, повёрнутый на 90°.
+ */
 function RailEdition() {
   const [edition, setEdition] = useGlobalEdition()
   const is2024 = edition === '2024'
@@ -95,17 +99,15 @@ function RailEdition() {
       <button type="button" className={`rail-edition-year${is2024 ? ' is-on' : ''}`} onClick={() => setEdition('2024')} aria-pressed={is2024}>
         2024
       </button>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={is2024}
-        className={`rail-edition-track${is2024 ? ' is-2024' : ''}`}
-        onClick={() => setEdition(is2024 ? '2014' : '2024')}
-        title={`Редакция правил: ${edition} — для всего сайта`}
-        aria-label={`Редакция правил: ${edition}`}
-      >
-        <span className="rail-edition-knob" />
-      </button>
+      <span className="rail-edition-switch">
+        <EditionToggle
+          value={edition}
+          onChange={setEdition}
+          labels="none"
+          className="rail-edition-toggle"
+          title={`Редакция правил: ${edition} — для всего сайта`}
+        />
+      </span>
       <button type="button" className={`rail-edition-year${!is2024 ? ' is-on' : ''}`} onClick={() => setEdition('2014')} aria-pressed={!is2024}>
         2014
       </button>

@@ -8,6 +8,19 @@ body {
   font-size: calc(18px * var(--ui-font-scale, 1));
 }
 
+/* ---------- фоточувствительность: без вспышек и мигания на всём сайте ---------- */
+:root[data-photosensitive] .dice-reveal-flash,
+:root[data-photosensitive] .dice-reveal-burst,
+:root[data-photosensitive] .dice-spark,
+:root[data-photosensitive] .dice-clash-impact { display: none !important; }
+:root[data-photosensitive] .cw-hphex.is-low::before,
+:root[data-photosensitive] .cw-hphex.is-down::before,
+:root[data-photosensitive] .rb-card.is-active::after,
+:root[data-photosensitive] .ghud-round-ring,
+:root[data-photosensitive] .cr-fight,
+:root[data-photosensitive] .ca-flash,
+:root[data-photosensitive] .ca-subfeat-flash { animation: none !important; }
+
 /* ---------- «меньше движения» из профиля: как prefers-reduced-motion ---------- */
 :root[data-reduce-motion] {
   --dur-fast: 0s;
@@ -434,3 +447,7 @@ body {
     animation: none;
   }
 }
+
+/* строка «Редакция правил»: переключатель и сброс редакций разделов */
+.st-row-actions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.st-btn--small { padding: 4px 10px; font-size: 0.78rem; }
