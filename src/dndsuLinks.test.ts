@@ -5,6 +5,7 @@ describe('dndSuTarget', () => {
   it('глоссарий → термин, с поправкой расходящихся slug', () => {
     expect(dndSuTarget('/glossary/long-rest', 'Долгий отдых')).toEqual({ route: '/terms/long-rest' })
     expect(dndSuTarget('https://next.dnd.su/glossary/opportunity-attacks', 'атаки')).toEqual({ route: '/terms/opportunity-attack' })
+    expect(dndSuTarget('/glossary/skill.perception', 'Восприятие')).toEqual({ route: '/terms/perception' })
   })
 
   it('список заклинаний класса по кругу', () => {

@@ -115,8 +115,19 @@ export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /* ---------- Наборы сортировок ---------- */
 
-/** По оценкам игроков: байесовское среднее, лучшие сверху (как ?sort=rating на сервере) */
-export const byRating = (a: unknown, b: unknown) => bayes((b as { rating?: ShortRating }).rating) - bayes((a as { rating?: ShortRating }).rating)
+/**
+ * По оценкам игроков: сначала записи с оценками (байесовское среднее, лучшие сверху; при равенстве —
+ * где оценок больше), потом без оценок. Иначе запись с одной низкой оценкой уходила ниже
+ * неоценённых: у них «нейтральные» 3 из 5.
+ */
+export const byRating = (a: unknown, b: unknown) => {
+  const ra = (a as { rating?: ShortRating }).rating
+  const rb = (b as { rating?: ShortRating }).rating
+  const na = ra?.count ?? 0
+  const nb = rb?.count ?? 0
+  if (!na || !nb) return (nb ? 1 : 0) - (na ? 1 : 0)
+  return bayes(rb) - bayes(ra) || nb - na
+}
 
 /** Записи без цены/веса уходят в конец, а не выдают себя за самые дешёвые. */
 export function numCmp(a: number | null, b: number | null): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { catalogSearch, filtersFromSearch, pageFromSearch } from './config'
+import { byRating, catalogSearch, filtersFromSearch, pageFromSearch } from './config'
 
 describe('catalogSearch', () => {
   it('адрес не меняется — навигации нет (иначе холостой replace затирает открытый /classes/:id)', () => {
@@ -35,5 +35,15 @@ describe('фильтры, сортировка и поиск в адресе', (
       class: ['колдун', 'бард'],
       level: ['9'],
     })
+  })
+})
+
+describe('byRating', () => {
+  it('сначала оценённые (лучшие сверху), потом без оценок', () => {
+    const r = (average: number | null, count: number) => ({ rating: { average, count } })
+    const list = [r(null, 0), r(2, 1), r(5, 3), r(null, 0), r(4, 1)].sort(byRating)
+    expect(list.map((x) => x.rating.count)).toEqual([3, 1, 1, 0, 0])
+    expect(list[0].rating.average).toBe(5)
+    expect(list[2].rating.average).toBe(2)
   })
 })

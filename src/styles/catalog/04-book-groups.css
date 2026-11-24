@@ -14,7 +14,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 26px 0 6px;
+  /* отступ от плашки книги до карточек */
+  margin: 26px 0 18px;
 }
 .catalog-group:first-child .catalog-group-head { margin-top: 6px; }
 

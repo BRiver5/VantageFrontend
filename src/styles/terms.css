@@ -27,7 +27,30 @@
   transition: opacity 0.16s ease 0.25s, translate 0.16s ease 0.25s;
 }
 .term-tip b { display: block; margin-bottom: 2px; color: var(--gold-3); font: 600 0.86rem var(--font-body); }
-.term-link:hover > .term-tip, .term-link:focus-visible > .term-tip { opacity: 1; translate: -50% 0; }
+/* содержимое подсказки живёт в ссылке, а показывает его плавающая подсказка в body
+   (terms/TermTipHost.tsx) — её не обрезают панели и окна с прокруткой */
+.term-tip { display: none; }
+
+.term-tip-float {
+  position: fixed;
+  z-index: 1000;
+  display: block;
+  width: max-content;
+  max-width: 300px;
+  padding: 9px 12px 10px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #23262d, #16181d);
+  box-shadow: inset 0 0 0 1px rgb(var(--gold-2-rgb) / 0.4), 0 12px 30px rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  font: 400 0.82rem/1.45 var(--font-body);
+  text-align: left;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: term-tip-in 0.14s ease;
+}
+.term-tip-float.is-below { transform: translate(-50%, 0); }
+.term-tip-float b { display: block; margin-bottom: 2px; color: var(--gold-3); font: 600 0.86rem var(--font-body); }
+@keyframes term-tip-in { from { opacity: 0; } }
 /* в карточках списков подсказку не показываем: там клик по всей карточке */
 .term-link--plain > .term-tip { display: none; }
 @media (hover: none) { .term-tip { display: none; } }
@@ -90,3 +113,18 @@
 /* термины внутри HTML-статей (классы, расы, предыстории): span, переход — по клику */
 .term-link.is-html { color: var(--gold-2); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--gold-2) 45%, transparent); text-underline-offset: 0.15em; cursor: pointer; transition: color 0.15s, text-decoration-color 0.15s; }
 .term-link.is-html:hover, .term-link.is-html:focus-visible { color: var(--gold-3); text-decoration-color: var(--gold-3); outline: none; }
+
+/* таблицы в тексте: строки «ячейка | ячейка» (черты, предметы, снаряжение 2024) */
+.rich-table-wrap { margin: 8px 0 14px; overflow-x: auto; }
+.rich-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+.rich-table th,
+.rich-table td { padding: 7px 12px; border: 1px solid rgb(var(--silver-2-rgb) / 0.18); text-align: left; vertical-align: top; }
+.rich-table thead th {
+  background: linear-gradient(180deg, rgb(var(--gold-2-rgb) / 0.18), rgb(var(--gold-2-rgb) / 0.06));
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.rich-table tbody tr:nth-child(even) td { background: rgb(var(--silver-2-rgb) / 0.04); }
+.rich-table tbody td:first-child { color: var(--parchment); }

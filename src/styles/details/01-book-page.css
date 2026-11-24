@@ -156,3 +156,12 @@
 .spell-area-legend i.is-point { width: 8px; height: 8px; border-radius: 50%; background: var(--parchment); border-color: var(--bg-0); }
 .spell-area-legend em { font-style: normal; opacity: 0.8; }
 .spell-area-big { margin: 0; color: var(--text-dim); }
+
+/* ---------- описание черты 2024: пункты с жирными названиями ---------- */
+.feat-text .rich p { margin: 0 0 10px; }
+.feat-text .rich p:has(> b:first-child) {
+  padding: 8px 12px 8px 14px;
+  border-left: 2px solid rgb(var(--gold-2-rgb) / 0.6);
+  background: linear-gradient(90deg, rgb(var(--gold-2-rgb) / 0.08), transparent 70%);
+}
+.feat-text .rich p > b:first-child { color: var(--gold-3); font-family: var(--font-display); letter-spacing: 0.02em; }

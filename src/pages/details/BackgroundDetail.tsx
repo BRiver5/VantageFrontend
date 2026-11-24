@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { ReviewsPanel } from '../../reviews/Reviews'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  Award,
+  Dumbbell,
   Landmark,
   Shield,
   Sparkles,
@@ -25,8 +27,11 @@ import {
 import { AbilityList } from '../../abilities/AbilityList'
 import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
 import { isHtmlDescription } from '../../classArticleHtml'
-import { ABILITY_LABELS } from '../../types/character'
-import { abilitiesFromSkills } from '../../skills'
+import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT } from '../../types/character'
+import type { AbilityName } from '../../types/character'
+import { abilitiesFromSkills, skillKeysFromNames } from '../../skills'
+import { findEntity } from '../../dndsuLinks'
+import { splitBackgroundText } from './backgroundText'
 import { Img, bgUrl } from '../../media'
 import { DetailSection, MobileFold, Rich, DetailTopline } from './shared'
 import { ElementEditionToggle } from '../../editions/EditionControls'
@@ -47,6 +52,9 @@ function unshout(text: string): string {
   return text.toLocaleLowerCase('ru').replace(/\p{L}/u, (c) => c.toLocaleUpperCase('ru'))
 }
 
+/** Значение плитки: просто текст, ссылка (навык → термин) или действие (черта → её карточка) */
+type FactValue = string | { label: string; to?: string; onClick?: () => void; hint?: string }
+
 /** Плитка «навыки / инструменты / языки» со списком плашек внутри */
 function BackgroundFact({
   icon: Icon,
@@ -55,7 +63,7 @@ function BackgroundFact({
 }: {
   icon: LucideIcon
   label: string
-  values: string[] | null | undefined
+  values: FactValue[] | null | undefined
 }) {
   if (!values || values.length === 0) return null
   return (
@@ -65,9 +73,20 @@ function BackgroundFact({
         {label}
       </span>
       <div className="bg-fact-values">
-        {values.map((v) => (
-          <span className="bg-fact-value" key={v}>{v}</span>
-        ))}
+        {values.map((v) => {
+          if (typeof v === 'string') return <span className="bg-fact-value" key={v}>{v}</span>
+          if (v.to)
+            return (
+              <Link className="bg-fact-value is-link" key={v.label} to={v.to} title={v.hint}>
+                {v.label}
+              </Link>
+            )
+          return (
+            <button type="button" className="bg-fact-value is-link" key={v.label} onClick={v.onClick} title={v.hint}>
+              {v.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -123,7 +142,38 @@ export function BackgroundDetailPage() {
  */
 export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background; embedded?: boolean }) {
   const book = useBookRef(bg.book_source_id)
-  const abilities = useMemo(() => abilitiesFromSkills(bg.skill_proficiencies), [bg.skill_proficiencies])
+  const navigate = useNavigate()
+  const newTab = useContext(OpenLinksInNewTab) || embedded
+  // 2024: три характеристики предыстории; 2014 — те, к которым тянутся навыки
+  const abilities = useMemo<AbilityName[]>(() => {
+    const own = (bg.ability_score_options ?? [])
+      .map((k) => ABILITY_KEYS.find((a) => ABILITY_SHORT[a] === k))
+      .filter((a): a is AbilityName => !!a)
+    return own.length ? own : abilitiesFromSkills(bg.skill_proficiencies)
+  }, [bg.ability_score_options, bg.skill_proficiencies])
+  // описание 2024: строки-параметры сверху уходят в плитки, в тексте — только рассказ
+  const text = useMemo(() => splitBackgroundText(isHtmlDescription(bg.description) ? null : bg.description), [bg.description])
+  const go = (to: string) => (newTab ? window.open(to, '_blank', 'noopener') : navigate(to))
+  const skillValues: FactValue[] = (bg.skill_proficiencies ?? []).map((name) => {
+    const key = skillKeysFromNames([name])[0]
+    return key ? { label: name, to: `/terms/${key.replace(/_/g, '-')}`, hint: 'Что даёт навык' } : name
+  })
+  const feats = bg.origin_feats?.length
+    ? bg.origin_feats.map((f) => ({ name: f.name, note: f.note ?? null }))
+    : text.header['Черта']
+      ? [{ name: text.header['Черта'].replace(/\s*\(.*\)\s*$/, ''), note: /\(([^)]+)\)/.exec(text.header['Черта'])?.[1] ?? null }]
+      : []
+  const featValues: FactValue[] = feats.map((f) => ({
+    label: f.note ? `${f.name} (${f.note})` : f.name,
+    hint: 'Открыть черту',
+    onClick: () => void findEntity('feats', f.name).then((id) => go(id ? `/feats/${id}` : '/feats')),
+  }))
+  const abilityValues: FactValue[] = (bg.ability_score_options?.length ? abilities : []).map((a) => ({
+    label: ABILITY_LABELS[a].label,
+    to: `/terms/${a}`,
+    hint: 'Характеристика',
+  }))
+  const patterns = (bg.ability_score_patterns ?? []).map((p) => p.map((n) => `+${n}`).join(' / ')).join(' или ')
 
   const featureHtml = isHtmlDescription(bg.feature_description) ? bg.feature_description! : null
   const descHtml = isHtmlDescription(bg.description) ? bg.description! : null
@@ -171,7 +221,9 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
       </header>
 
       <div className="bg-facts">
-        <BackgroundFact icon={Star} label="Навыки" values={bg.skill_proficiencies} />
+        <BackgroundFact icon={Dumbbell} label={patterns ? `Характеристики · ${patterns}` : 'Характеристики'} values={abilityValues} />
+        <BackgroundFact icon={Award} label="Черта" values={featValues} />
+        <BackgroundFact icon={Star} label="Навыки" values={skillValues} />
         <BackgroundFact icon={Shield} label="Инструменты" values={bg.tool_proficiencies} />
         <BackgroundFact icon={Users} label="Языки" values={bg.languages} />
       </div>
@@ -211,9 +263,9 @@ export function BackgroundDetailBody({ bg, embedded = false }: { bg: Background;
           <ClassArticle html={descHtml} cutSubclasses={false} backLabel={bg.background_name} />
         </section>
       ) : (
-        bg.description && (
+        text.lore && (
           <MobileFold title="Описание">
-            <Rich text={bg.description} />
+            <Rich text={text.lore} />
           </MobileFold>
         )
       )}

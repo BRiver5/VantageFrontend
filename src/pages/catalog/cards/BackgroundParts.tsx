@@ -1,3 +1,4 @@
+import { splitBackgroundText } from '../../details/backgroundText'
 import { useLayoutEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
@@ -78,7 +79,8 @@ export function SoftTitle({ text, className = 'card-name' }: { text: string; cla
 export function BackgroundCard({ bg, book }: { bg: Background; book: Book | undefined }) {
   const [broken, setBroken] = useState(false)
   const src = realImage(bg.image_gallery)
-  const preview = descriptionPreview(bg.description, 180)
+  // у 2024 сверху строки-параметры («Характеристики: …») — в анонс идёт только рассказ
+  const preview = descriptionPreview(splitBackgroundText(bg.description).lore || bg.description, 180)
   const abilities = abilitiesFromSkills(bg.skill_proficiencies)
 
   return (

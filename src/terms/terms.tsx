@@ -189,18 +189,66 @@ export function RichText({ text, links }: { text: string | null | undefined; lin
   const marked = !!server?.length
   const clean = cleanDescription(marked ? markLinks(text, server!, index) : text)
   if (!clean) return null
+  const inline = (para: string, key: string) =>
+    para.split(/\*{2,3}([^*]+)\*{2,3}/g).map((part, j) => {
+      const nodes = linked(part, marked, index, `${key}-${j}-`)
+      return j % 2 ? <b key={j}>{nodes}</b> : nodes
+    })
   return (
     <div className="rich">
-      {clean.split(/\n+/).map((para, i) => (
-        <p key={i}>
-          {para.split(/\*{2,3}([^*]+)\*{2,3}/g).map((part, j) => {
-            const nodes = linked(part, marked, index, `${i}-${j}-`)
-            return j % 2 ? <b key={j}>{nodes}</b> : nodes
-          })}
-        </p>
-      ))}
+      {richBlocks(clean.split(/\n+/)).map((block, i) =>
+        block.kind === 'table' ? (
+          // строки «ячейка | ячейка» подряд — таблица, первая строка — заголовок
+          <div key={i} className="rich-table-wrap">
+            <table className="rich-table">
+              <thead>
+                <tr>
+                  {block.rows[0].map((cell, c) => (
+                    <th key={c}>{inline(cell, `${i}-h${c}`)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {block.rows.slice(1).map((row, r) => (
+                  <tr key={r}>
+                    {row.map((cell, c) => (
+                      <td key={c}>{inline(cell, `${i}-${r}-${c}`)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p key={i}>{inline(block.text, String(i))}</p>
+        ),
+      )}
     </div>
   )
+}
+
+/** Строка таблицы из текста: «Инструменты гончара | Кувшин, Лампа» */
+const TABLE_ROW = /^[^|]+(?: \| [^|]*)+$/
+
+export type RichBlock = { kind: 'p'; text: string } | { kind: 'table'; rows: string[][] }
+
+/** Абзацы и таблицы: две и больше строк «a | b» подряд с одинаковым числом ячеек — таблица */
+export function richBlocks(lines: string[]): RichBlock[] {
+  const out: RichBlock[] = []
+  let i = 0
+  while (i < lines.length) {
+    const cols = TABLE_ROW.test(lines[i].trim()) ? lines[i].split(' | ').length : 0
+    let j = i
+    while (cols && j < lines.length && TABLE_ROW.test(lines[j].trim()) && lines[j].split(' | ').length === cols) j++
+    if (cols && j - i >= 2) {
+      out.push({ kind: 'table', rows: lines.slice(i, j).map((l) => l.split(' | ').map((c) => c.trim())) })
+      i = j
+      continue
+    }
+    out.push({ kind: 'p', text: lines[i] })
+    i++
+  }
+  return out
 }
 
 /** Краткое описание в карточках каталога: без вложенных ссылок */

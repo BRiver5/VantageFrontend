@@ -38,6 +38,7 @@ import { useAppShell } from './shell'
 import { SearchProvider } from './search/GlobalSearch'
 import { TermDetailPage, TermsIndexPage } from './terms/TermPages'
 import { Sidebar } from './shell/Sidebar'
+import { TermTipHost } from './terms/TermTipHost'
 import { HomePage } from './pages/home/HomePage'
 import { AppTabBar } from './shell/AppTabBar'
 import { ScrollToTop } from './shell/ScrollToTop'
@@ -53,6 +54,7 @@ export default function App() {
     <div className="app-shell">
       <ScrollToTop />
       <Sidebar />
+      <TermTipHost />
       <main className="page">
         <RouteReadyGate>
           <Routes>

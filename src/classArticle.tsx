@@ -14,8 +14,7 @@ import { useTermIndex } from './terms/terms'
 import { createContext, useContext, useMemo, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { normSpellName, useSpellIndex } from './spellIndex'
-import { ENTITY_PATH, dndSuTarget } from './dndsuLinks'
-import { searchCatalog } from './api'
+import { ENTITY_PATH, dndSuTarget, findEntity } from './dndsuLinks'
 import { type SubclassFeature, transformClassHtml, withTermTips } from './classArticleHtml'
 
 /**
@@ -115,20 +114,3 @@ export function ClassArticle({
 }
 
 
-const norm = (s: string) => s.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim()
-
-/** id записи раздела по названию: точное совпадение, иначе первое найденное; потом — английское имя */
-async function findEntity(entity: string, q: string, alt?: string): Promise<string | null> {
-  for (const query of [q, alt].filter((x): x is string => !!x)) {
-    try {
-      const res = await searchCatalog(query, { entities: [entity], limit: 5, otherEditions: true })
-      const hits = res.items.filter((h) => h.entity === entity)
-      const exact = hits.find((h) => norm(h.title) === norm(query) || norm(h.alias ?? '') === norm(query))
-      const hit = exact ?? hits[0]
-      if (hit) return hit.id
-    } catch {
-      // поиск недоступен — уйдём в каталог раздела
-    }
-  }
-  return null
-}
