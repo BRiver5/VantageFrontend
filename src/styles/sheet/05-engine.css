@@ -761,3 +761,15 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 .cw-ftile:has(.cw-ftile-acts) { padding-right: 66px; }
 .cw-tab em.is-alert { display: inline-flex; align-items: center; gap: 3px; }
 .cw-tab em.is-alert svg { width: 12px; height: 12px; }
+
+/* выборы черты в конструкторе */
+.cw-featch { margin-top: 14px; padding: 12px 14px; border: 1px solid rgb(var(--gold-2-rgb) / 0.25); background: rgb(var(--gold-2-rgb) / 0.04); }
+.cw-featch-title { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 0.9rem; color: var(--parchment); }
+.cw-featch-title svg { width: 16px; height: 16px; color: var(--gold-3); }
+.cw-featch-title b { margin-left: auto; font-size: 0.78rem; color: var(--text-dim); }
+.cw-featch-title b.is-done { color: #8fd19e; }
+.cw-featch-item { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgb(var(--silver-2-rgb) / 0.15); }
+.cw-featch-name { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.86rem; color: var(--gold-4); }
+.cw-featch-item.is-done .cw-featch-name::after { content: ' ✓'; color: #8fd19e; }
+.cw-featch-load { display: flex; align-items: center; gap: 6px; }
+.cw-featch-load svg { width: 14px; height: 14px; }

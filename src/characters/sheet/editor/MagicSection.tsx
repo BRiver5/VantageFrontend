@@ -55,8 +55,14 @@ export function MagicSection({ c, spellCatalog, knownSpellNames, spellsByCircle,
         <h5>Список заклинаний</h5>
       <CatalogSearch
         items={spellCatalog}
+        entity="spells"
+        idOf={(s) => s.id}
         label={(s) => s.spell_name}
-        sub={(s) => [s.spell_level === 0 ? 'заговор' : `${s.spell_level} круг`, s.school].filter(Boolean).join(' · ')}
+        sub={(s) => {
+          const eds = s.editions?.length ? s.editions : ['2014']
+          const other = !eds.includes(c.edition ?? '2014') ? `редакция ${eds.join('/')}` : null
+          return [s.spell_level === 0 ? 'заговор' : `${s.spell_level} круг`, s.school, other].filter(Boolean).join(' · ')
+        }}
         exclude={knownSpellNames}
         placeholder="Найти заклинание в каталоге и добавить…"
         onPick={(s) =>

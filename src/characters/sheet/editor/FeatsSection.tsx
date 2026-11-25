@@ -32,6 +32,8 @@ export function FeatsSection({ c, set, featCatalog, featNames }: Props) {
       </div>
       <CatalogSearch
         items={featCatalog}
+        entity="feats"
+        idOf={(f) => f.id}
         label={(f) => f.feat_name}
         sub={(f) => (f.prerequisite ? `требование: ${f.prerequisite}` : '')}
         exclude={featNames}

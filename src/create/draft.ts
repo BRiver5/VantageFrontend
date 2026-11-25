@@ -68,6 +68,11 @@ export interface CharacterDraft {
   background: Background | null
   /** повышение характеристик предыстории 2024: { strength: 2, dexterity: 1 } */
   backgroundAsi: Partial<Record<AbilityName, number>>
+  /**
+   * Ответы на выборы черт (заклинания «Тронутого тенью», класс «Посвящённого в магию»…):
+   * id черты → ключ выбора → ответ поп-апа. После создания уходят в отложенные решения листа.
+   */
+  featChoices?: Record<string, Record<string, Record<string, unknown>>>
 
   targetLevel: number
 

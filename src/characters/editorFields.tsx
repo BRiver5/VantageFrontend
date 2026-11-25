@@ -3,6 +3,7 @@
  * правила. Число со степпером, «авто / вручную» для производных значений,
  * сегменты, переключатели, списки-чипы и поиск по каталогу.
  */
+import { applySmartSearch, useSmartRanks } from '../search/sectionSearch'
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Minus, Plus, Search, Wand2, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -331,6 +332,9 @@ export function CatalogSearch<T>({
   onPick,
   placeholder,
   exclude,
+  entity,
+  idOf,
+  limit = 12,
 }: {
   items: T[]
   label: (x: T) => string
@@ -339,20 +343,21 @@ export function CatalogSearch<T>({
   placeholder: string
   /** уже добавленные — по названию */
   exclude?: Set<string>
+  /** сущность умного поиска (как на главной: опечатки, раскладка, части слов) и id записи */
+  entity?: string
+  idOf?: (x: T) => string
+  /** сколько вариантов показывать */
+  limit?: number
 }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const listId = useId()
+  const ranks = useSmartRanks(entity, q)
   const found = useMemo(() => {
-    const needle = q.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е')
-    if (!needle) return []
-    return items
-      .filter((x) => {
-        const name = label(x).toLocaleLowerCase('ru').replace(/ё/g, 'е')
-        return name.includes(needle) && !exclude?.has(label(x))
-      })
-      .slice(0, 10)
-  }, [q, items, label, exclude])
+    if (!q.trim()) return []
+    const pool = exclude ? items.filter((x) => !exclude.has(label(x))) : items
+    return applySmartSearch(pool, q, ranks, idOf ?? ((x) => label(x)), label).slice(0, limit)
+  }, [q, items, label, exclude, ranks, idOf, limit])
 
   return (
     <div className="ed-search">
@@ -383,7 +388,7 @@ export function CatalogSearch<T>({
       {open && found.length > 0 && (
         <ul className="ed-search-list" id={listId} role="listbox">
           {found.map((x) => (
-            <li key={label(x)}>
+            <li key={idOf ? idOf(x) : label(x)}>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}

@@ -625,3 +625,31 @@
 .cw-spsel-tags em { padding: 0 6px; border-radius: 999px; background: rgba(183, 156, 240, 0.16); color: #d9cbff; font-style: normal; font-size: 0.66rem; }
 .cw-spsel-pop .cw-gsel-list { max-height: 360px; }
 
+
+/* ---------- навыки, умения, все значения ---------- */
+.ed-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 2px 18px; }
+.ed-skill { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px dashed rgb(var(--silver-2-rgb) / 0.12); font-size: 0.86rem; }
+.ed-skill-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ed-skill-name i { font-size: 0.72rem; color: var(--text-dim); }
+.ed-grant-group { margin-top: 10px; }
+.ed-grant-group h6 { margin: 0 0 2px; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold-3); }
+.ed-grant-note { font-size: 0.74rem; color: var(--text-dim); }
+.ed-grant-plus { display: inline; width: 13px; height: 13px; vertical-align: -2px; color: var(--gold-3); }
+.ed-values-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
+.ed-values-bar .ed-input { flex: 1 1 240px; }
+.ed-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); cursor: pointer; }
+.ed-values { display: flex; flex-direction: column; margin-bottom: 8px; }
+.ed-value { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr) minmax(90px, 0.7fr) auto; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed rgb(var(--silver-2-rgb) / 0.1); font-size: 0.8rem; }
+.ed-value-name { display: flex; flex-direction: column; min-width: 0; }
+.ed-value-name code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.76rem; color: var(--parchment); }
+.ed-value-name i { font-size: 0.72rem; color: var(--text-dim); }
+.ed-value-auto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-family: ui-monospace, monospace; font-size: 0.76rem; }
+.ed-value.is-manual .ed-value-name code { color: var(--gold-4); }
+.ed-value.is-manual .ed-value-auto { text-decoration: line-through; }
+.ed-value .ed-input { height: 28px; padding: 2px 8px; font-size: 0.8rem; }
+.ed-input.is-bad { border-color: #e07070; }
+@media (max-width: 560px) {
+  .ed-value { grid-template-columns: minmax(0, 1fr) auto; }
+  .ed-value-auto { grid-column: 1; }
+  .ed-value .ed-input { grid-column: 1; }
+}

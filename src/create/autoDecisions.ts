@@ -22,7 +22,11 @@ interface Queue {
   skills: string[] | null
   /** ответ на повышение характеристик предыстории: { mode: '2,1', a: 'str', b: 'dex' } */
   bgAsi: Record<string, string> | null
+  /** ответы на выборы черт из конструктора: id черты → ключ выбора → ответ */
+  feats: Record<string, Record<string, Record<string, unknown>>>
 }
+
+const featLeft = (q: Queue) => Object.values(q.feats).some((m) => Object.keys(m).length > 0)
 
 const values = (inp: PromptInput) => new Set((inp.options ?? []).map((o) => String(o.value)))
 
@@ -99,8 +103,9 @@ export async function autoResolveDecisions(characterId: string, draft: Character
       .map((l) => ({ level: l.level, asi: l.asi, feat: !!l.featId || l.featName !== null })),
     skills: draft.levels[0]?.skills.length ? [...draft.levels[0].skills] : null,
     bgAsi: bgAsiAnswer(draft.background, draft.backgroundAsi),
+    feats: Object.fromEntries(Object.entries(draft.featChoices ?? {}).map(([id, m]) => [id, { ...m }])),
   }
-  const idle = () => !q.asi.length && !q.skills && !q.bgAsi
+  const idle = () => !q.asi.length && !q.skills && !q.bgAsi && !featLeft(q)
   if (idle()) return
 
   // два прохода: ответ на один выбор может выдать следующий (черта → её выборы),
@@ -117,9 +122,14 @@ export async function autoResolveDecisions(characterId: string, draft: Character
       try {
         const first = await resolvePending(characterId, d.id, {})
         if (first.status !== 'needs_input' || !first.prompt) continue
-        const bg = bgAsiPromptAnswer(first.prompt, q.bgAsi)
+        // выбор черты, сделанный в конструкторе: по черте гранта и ключу выбора
+        const grant = sheet.abilities.find((a) => a.grant_id === d.grant_id)
+        const featAnswers = grant?.source_kind === 'feat' && grant.source_id ? q.feats[grant.source_id] : undefined
+        const featAnswer = d.choice_key && featAnswers ? featAnswers[d.choice_key] : undefined
+        if (featAnswer && d.choice_key) delete featAnswers![d.choice_key]
+        const bg = featAnswer ? null : bgAsiPromptAnswer(first.prompt, q.bgAsi)
         if (bg) q.bgAsi = null
-        const answer = bg ?? asiAnswer(first.prompt, q, d.choice_key) ?? skillsAnswer(first.prompt, q)
+        const answer = featAnswer ?? bg ?? asiAnswer(first.prompt, q, d.choice_key) ?? skillsAnswer(first.prompt, q)
         if (!answer) {
           tried.add(`${d.grant_id}|${d.choice_key}`)
           continue

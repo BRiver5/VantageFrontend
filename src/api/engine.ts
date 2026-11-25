@@ -1,5 +1,6 @@
 import type {
   CharacterEvent,
+  Prompt,
   LevelUpResult,
   RunInputs,
   RunResult,
@@ -204,4 +205,18 @@ export function getEngineDictionaries(): Promise<EngineDictionaries | null> {
       })
   }
   return dictionariesPromise
+}
+
+/** slug способности по id записи (поиск отдаёт id, а добавление на лист — по slug) */
+export async function abilitySlugById(abilityId: string): Promise<string> {
+  const doc = await request<{ slug: string }>(`/abilities/${encodeURIComponent(abilityId)}`, { auth: 'optional' })
+  return doc.slug
+}
+
+export type FeatChoiceItem = { key: string; title: string; prompt?: Prompt; error?: string }
+export type FeatChoices = { feat_id: string; abilities: { slug: string; name: string; choices: FeatChoiceItem[] }[] }
+
+/** Выборы черты с готовыми вариантами (заклинания по фильтру) — для конструктора, без персонажа */
+export function getFeatChoices(featId: string, edition: string, answers: Record<string, unknown> = {}): Promise<FeatChoices> {
+  return request<FeatChoices>('/engine/feat-choices', { method: 'POST', body: { feat_id: featId, edition, answers }, auth: 'optional' })
 }

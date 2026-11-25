@@ -305,7 +305,7 @@ export type CustomModifier = {
   label: string
   /** путь движка: char.ac, char.abilities.str.score, char.skills.stealth.bonus… */
   target: string
-  op: 'add' | 'max' | 'union'
+  op: 'add' | 'max' | 'union' | 'set'
   value: number | string | string[]
   enabled: boolean
 }
@@ -364,6 +364,8 @@ export type Character = {
   custom_rules?: string[]
   /** скрытые особые правила и величины: ключи char.flags.* / var.* без префикса */
   hidden_rules?: string[]
+  /** свои формулировки особых правил и величин: ключ без префикса → текст */
+  rule_labels?: Record<string, string>
 
   inventory: CharacterInventory
   attacks: AttackEntry[]

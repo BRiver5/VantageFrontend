@@ -16,6 +16,8 @@ import {
   applyVitals,
   spendResource,
   dismissPending,
+  attachAbility,
+  detachAbility,
   getCharacter,
   getSheet,
   patchStore,
@@ -392,6 +394,17 @@ export function useCharacterEngine(id: string | undefined) {
     [cid, simple, applySheet],
   )
 
+  /** Умение из базы вручную (правка листа): любое — класса, подкласса, расы, черты */
+  const attach = useCallback(
+    (slug: string) => simple(() => attachAbility(cid, slug), (r) => applySheet(r.sheet)),
+    [cid, simple, applySheet],
+  )
+  /** Убрать добавленное вручную умение (выданное источником — только отключить) */
+  const detach = useCallback(
+    (grantId: string) => simple(() => detachAbility(cid, grantId), applySheet),
+    [cid, simple, applySheet],
+  )
+
   const undo = useCallback(
     (eventId: string) =>
       simple(
@@ -460,6 +473,8 @@ export function useCharacterEngine(id: string | undefined) {
     turn,
     dismiss,
     toggle,
+    attach,
+    detach,
     undo,
     master,
     override,

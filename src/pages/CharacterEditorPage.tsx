@@ -660,6 +660,9 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
         <SheetEditor
           character={character}
           view={view}
+          sheet={sheet}
+          labels={labels}
+          abilityActions={{ toggle: eng.toggle, attach: eng.attach, detach: eng.detach }}
           onSave={(patch, overrides) => {
             if (Object.keys(patch).length) patchDoc(() => patch)
             if (overrides && Object.keys(overrides).length) {

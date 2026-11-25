@@ -342,7 +342,12 @@ export default function LevelUpStep({
         {req.needsSubclass && <SubclassBlock draft={draft} update={update} bundle={bundle} setSubDetails={setSubDetails} />}
 
         {/* ---------- усиление характеристик или черта ---------- */}
-        {req.isAsi && <AsiBlock choice={choice} asiSpent={asiSpent} scoresBefore={scoresBefore} allFeats={allFeats} prereqContext={prereqContext} patchLevel={patchLevel} />}
+        {req.isAsi && <AsiBlock choice={choice} asiSpent={asiSpent} scoresBefore={scoresBefore} allFeats={allFeats} prereqContext={prereqContext} patchLevel={patchLevel}
+            featEdition={stepEdition(draft, 'feats')}
+            featChoices={draft.featChoices ?? {}}
+            setFeatChoices={(id, a) => update({ featChoices: { ...(draft.featChoices ?? {}), [id]: a } })}
+          />
+        }
 
         {/* ---------- заклинания ---------- */}
         {kind !== 'none' && (req.newSlots.length > 0 || req.cantripsNeeded > 0 || req.spellsNeeded > 0) && (

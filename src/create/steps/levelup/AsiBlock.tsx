@@ -5,6 +5,7 @@ import { ABILITY_KEYS, ABILITY_LABELS } from '../../../types/character'
 import type { AbilityName } from '../../../types/character'
 import type { LevelChoice } from '../../draft'
 import { checkPrereq, type PrereqContext } from '../../prereq'
+import { FeatChoicesPanel } from '../FeatChoicesPanel'
 import { FeatPicker } from '../FeatPicker'
 
 type Props = {
@@ -14,9 +15,14 @@ type Props = {
   allFeats: Feat[]
   prereqContext: PrereqContext
   patchLevel: (patch: Partial<LevelChoice>) => void
+  /** редакция каталога черт — по ней сервер считает выборы */
+  featEdition: string
+  /** ответы на выборы черт черновика: id черты → ключ выбора → ответ */
+  featChoices: Record<string, Record<string, Record<string, unknown>>>
+  setFeatChoices: (featId: string, answers: Record<string, Record<string, unknown>>) => void
 }
 
-export function AsiBlock({ choice, asiSpent, scoresBefore, allFeats, prereqContext, patchLevel }: Props) {
+export function AsiBlock({ choice, asiSpent, scoresBefore, allFeats, prereqContext, patchLevel, featEdition, featChoices, setFeatChoices }: Props) {
   return (
     <section className="cw-block">
       <h4 className="cw-block-title">
@@ -91,6 +97,14 @@ export function AsiBlock({ choice, asiSpent, scoresBefore, allFeats, prereqConte
             patchLevel({ featName: name, featId: allFeats.find((f) => f.feat_name === name)?.id ?? null })
           }
           check={(f) => checkPrereq(f.prerequisite, prereqContext)}
+        />
+      )}
+      {choice.featName !== null && choice.featId && (
+        <FeatChoicesPanel
+          featId={choice.featId}
+          edition={featEdition}
+          answers={featChoices[choice.featId] ?? {}}
+          onChange={(a) => setFeatChoices(choice.featId!, a)}
         />
       )}
     </section>

@@ -300,6 +300,8 @@ export function buildSheetView(
     )
 
   const hidden = new Set(character.hidden_rules ?? [])
+  /** свои подписи правил игрока (карандаш в «Правке листа») */
+  const ruleLabels = character.rule_labels ?? {}
   const abilityNames = new Map(sheet.abilities.map((a) => [a.slug, a.name]))
   /** название способности, выставившей флаг: подпись, если в словаре его нет */
   const flagSource = (path: string) => {
@@ -326,10 +328,10 @@ export function buildSheetView(
     unarmedDie: num('char.attacks.unarmed_die', 1),
     maneuvers: list('char.maneuvers'),
     flags: [
-      ...allFlags.filter((f) => !hidden.has(f.key)),
+      ...allFlags.filter((f) => !hidden.has(f.key)).map((f) => ({ ...f, label: ruleLabels[f.key] || f.label })),
       ...(character.custom_rules ?? []).filter((t) => t.trim()).map((t, i) => ({ key: `custom:${i}`, label: t.trim() })),
     ],
-    vars: allVars.filter((v) => !hidden.has(v.key)),
+    vars: allVars.filter((v) => !hidden.has(v.key)).map((v) => ({ ...v, label: ruleLabels[v.key] || v.label })),
     allRules: [...allVars.map((v) => ({ ...v, kind: 'var' as const })), ...allFlags.map((f) => ({ ...f, kind: 'flag' as const }))],
     adv: { check: list('char.adv.check'), save: list('char.adv.save'), attack: list('char.adv.attack') },
     disadv: { check: list('char.disadv.check'), save: list('char.disadv.save'), attack: list('char.disadv.attack') },

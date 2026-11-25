@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom'
 import { Check, X } from 'lucide-react'
 import { getSubList, type Background, type Feat, type GameClass, type Race, type Spell, type Subclass } from '../api'
 import { useCatalogList, useSubraces } from '../create/useCatalog'
-import type { AttackEntry, Character, CharacterInput, ClassLevel, CustomModifier, SheetView, SpellKnown } from '../types/character'
+import type { AttackEntry, Character, CharacterInput, ClassLevel, CustomModifier, Sheet, SheetView, SpellKnown } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
 import { useBothEditions } from './useNames'
 import { DEFAULT_FACE, formatPortrait, parsePortrait, type FaceCrop } from './portrait'
@@ -31,21 +31,36 @@ import { OriginSection } from './sheet/editor/OriginSection'
 import { PersonaSection } from './sheet/editor/PersonaSection'
 import { PurseSection } from './sheet/editor/PurseSection'
 import { RulesSection } from './sheet/editor/RulesSection'
+import { SkillsSection } from './sheet/editor/SkillsSection'
+import { GrantsSection, type AbilityActions } from './sheet/editor/GrantsSection'
+import { ValuesSection } from './sheet/editor/ValuesSection'
 
 export function SheetEditor({
   character,
   view,
+  sheet,
+  labels = {},
+  abilityActions,
   onSave,
   onClose,
 }: {
   character: Character
   /** текущий лист — показать итоговые значения рядом с базовыми */
   view: SheetView
+  /** вычисленный лист сервера: все значения и умения — для «Всех значений» и «Умений» */
+  sheet?: Sheet | null
+  /** подписи значений движка: char.ac → «Класс доспеха» */
+  labels?: Record<string, string>
+  /** умения меняются сразу (не по «Применить»): добавить из базы, убрать, вкл/выкл */
+  abilityActions?: AbilityActions
   /** изменённые поля документа и оверрайды листа (null снимает) */
   onSave: (patch: CharacterInput, overrides?: Record<string, unknown>) => void
   onClose: () => void
 }) {
   const [c, setC] = useState(character)
+  // ручные значения листа (навыки, спасброски, любые величины): путь → значение, null — снять
+  const [manual, setManual] = useState<Record<string, unknown>>({})
+  const setManualValue = useCallback((path: string, value: unknown) => setManual((m) => ({ ...m, [path]: value })), [])
   const combatInit = useMemo(
     () => ({
       ac: combatField(character, view, COMBAT_PATHS.ac, view.combat.armor_class),
@@ -70,7 +85,8 @@ export function SheetEditor({
   const classCatalog = useBothEditions<GameClass>('classes')
   const raceCatalog = useBothEditions<Race>('races')
   const bgCatalog = useBothEditions<Background>('backgrounds')
-  const { items: spellCatalog } = useCatalogList<Spell>('spells')
+  // заклинания обеих редакций: другую редакцию можно взять, она подписана годом
+  const spellCatalog = useBothEditions<Spell>('spells')
   const { items: featCatalog } = useCatalogList<Feat>('feats')
   const { items: subraces } = useSubraces(c.race_id)
   const [subclasses, setSubclasses] = useState<Record<string, Subclass[]>>({})
@@ -116,8 +132,12 @@ export function SheetEditor({
     put(COMBAT_PATHS.hp, combat.hp, combatInit.hp)
     put(COMBAT_PATHS.pb, combat.pb, combatInit.pb)
     for (const p of SLOT_PATHS) put(p, slots[p], slotsInit[p])
+    for (const [path, value] of Object.entries(manual)) {
+      const was = character.manual_overrides?.[path]
+      if (value === null ? was !== undefined : JSON.stringify(value) !== JSON.stringify(was)) out[path] = value
+    }
     return out
-  }, [combat, combatInit, slots, slotsInit])
+  }, [combat, combatInit, slots, slotsInit, manual, character.manual_overrides])
   const dirty = Object.keys(patch).length > 0 || Object.keys(overrides).length > 0
 
   const requestClose = useCallback(() => {
@@ -254,6 +274,15 @@ export function SheetEditor({
 
           {/* ---------- особые правила ---------- */}
           <RulesSection c={c} set={set} view={view} />
+
+          {/* ---------- навыки и спасброски ---------- */}
+          <SkillsSection view={view} overrides={character.manual_overrides ?? {}} manual={manual} setManual={setManualValue} />
+
+          {/* ---------- умения: вкл/выкл, добавить из базы, убрать ---------- */}
+          {sheet && abilityActions && <GrantsSection character={character} sheet={sheet} actions={abilityActions} />}
+
+          {/* ---------- все значения листа вручную ---------- */}
+          {sheet && <ValuesSection sheet={sheet} labels={labels} overrides={character.manual_overrides ?? {}} manual={manual} setManual={setManualValue} />}
 
           {/* ---------- черты ---------- */}
           <FeatsSection c={c} set={set} featCatalog={featCatalog} featNames={featNames} />

@@ -1,8 +1,9 @@
 /**
  * Раздел «Особые правила»: что выдают способности (величины и «помнить за столом»)
- * можно скрыть из листа, а свои напоминания — дописать.
+ * можно скрыть из листа, переписать карандашом, а свои напоминания — дописать.
  */
-import { Eye, EyeOff, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Eye, EyeOff, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import type { Character, SheetView } from '../../../types/character'
 import { EdSection } from '../../editorFields'
 
@@ -19,6 +20,13 @@ export function RulesSection({ c, set, view }: Props) {
   const toggle = (key: string) =>
     set({ hidden_rules: hidden.has(key) ? [...hidden].filter((k) => k !== key) : [...hidden, key] })
   const setCustom = (list: string[]) => set({ custom_rules: list })
+  const names = c.rule_labels ?? {}
+  const [editing, setEditing] = useState<string | null>(null)
+  /** своя подпись правила; пустая — вернуть подпись умения */
+  const rename = (key: string, text: string) => {
+    const { [key]: _, ...rest } = names
+    set({ rule_labels: text.trim() ? { ...rest, [key]: text } : rest })
+  }
 
   return (
     <EdSection
@@ -38,12 +46,41 @@ export function RulesSection({ c, set, view }: Props) {
           <div className="ed-rules">
             {rules.map((r) => {
               const off = hidden.has(r.key)
+              const own = names[r.key]
               return (
                 <div key={`${r.kind}:${r.key}`} className={`ed-rule${off ? ' is-hidden' : ''}`}>
-                  <span>
-                    {r.label}
-                    {r.value ? <b> · {r.value}</b> : null}
-                  </span>
+                  {editing === r.key ? (
+                    <input
+                      className="ed-input"
+                      autoFocus
+                      value={own ?? r.label}
+                      maxLength={300}
+                      onChange={(e) => rename(r.key, e.target.value)}
+                      onBlur={() => setEditing(null)}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === 'Escape') && setEditing(null)}
+                      aria-label="Подпись правила"
+                    />
+                  ) : (
+                    <span>
+                      {own ?? r.label}
+                      {r.value ? <b> · {r.value}</b> : null}
+                      {own && <i className="ed-grant-note"> · изменено</i>}
+                    </span>
+                  )}
+                  {editing === r.key ? (
+                    <button type="button" className="ed-btn ed-btn--icon is-on" onClick={() => setEditing(null)} title="Готово" aria-label="Готово">
+                      <Check aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button type="button" className="ed-btn ed-btn--icon" onClick={() => setEditing(r.key)} title="Переписать" aria-label={`Переписать «${own ?? r.label}»`}>
+                      <Pencil aria-hidden="true" />
+                    </button>
+                  )}
+                  {own && editing !== r.key && (
+                    <button type="button" className="ed-btn ed-btn--icon" onClick={() => rename(r.key, '')} title="Вернуть исходную подпись" aria-label="Вернуть исходную подпись">
+                      <RotateCcw aria-hidden="true" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`ed-btn ed-btn--icon${off ? '' : ' is-on'}`}

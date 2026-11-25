@@ -24,7 +24,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /** Ответ — массив: multi_choice или список с count (два воззвания, три заклинания) */
 const isMulti = (inp: PromptInput) => inp.type === 'multi_choice' || !!inp.multiple
 
-function initialValue(inp: PromptInput): unknown {
+export function initialValue(inp: PromptInput): unknown {
   if (inp.default !== undefined && inp.default !== null) return isMulti(inp) && !Array.isArray(inp.default) ? [inp.default] : inp.default
   if (inp.type === 'bool') return false
   if (isMulti(inp)) return []
@@ -100,7 +100,7 @@ function Options({
   )
 }
 
-function Field({
+export function Field({
   inp,
   value,
   error,
@@ -173,7 +173,7 @@ const visibleInputs = (inputs: PromptInput[], values: Record<string, unknown>) =
   inputs.filter((inp) => evalVisibleIf(inp.visible_if, values))
 
 /** Ответ без скрытых полей и без незаполненных необязательных */
-function answerOf(inputs: PromptInput[], values: Record<string, unknown>): Record<string, unknown> {
+export function answerOf(inputs: PromptInput[], values: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const inp of visibleInputs(inputs, values)) {
     const v = values[inp.key]
@@ -184,7 +184,7 @@ function answerOf(inputs: PromptInput[], values: Record<string, unknown>): Recor
 }
 
 /** Можно ли отправить: обязательные видимые заполнены, у списков с count — ровно count */
-function ready(inputs: PromptInput[], values: Record<string, unknown>): boolean {
+export function ready(inputs: PromptInput[], values: Record<string, unknown>): boolean {
   return visibleInputs(inputs, values).every((inp) => {
     const v = values[inp.key]
     if (isMulti(inp)) {
