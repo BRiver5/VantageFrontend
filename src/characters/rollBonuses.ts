@@ -45,6 +45,8 @@ function featureCards(view: SheetView, path: string): RollBonusCard[] {
 }
 
 const sourceName = (source: string) => {
+  // «item:Кольцо защиты» и старое «item:Кольцо защиты:+1 КД» — подпись по названию предмета
+  if (source.startsWith('item:')) return source.split(':')[1] || 'Предмет'
   const name = source.includes(':') ? source.split(':').slice(1).join(':') : source.split('.').pop() ?? source
   const t = name.replace(/_/g, ' ').trim()
   return t.charAt(0).toUpperCase() + t.slice(1)
@@ -73,7 +75,11 @@ export function d20Cards(view: SheetView, ctx: RollContext | undefined, total: n
     case 'save': {
       const cards: RollBonusCard[] = [{ label: abLabel, value: mod, kind: 'ability' }]
       if (ab?.saving_throw_proficient) cards.push({ label: 'Мастерство', value: pb, kind: 'prof' })
-      return balance([...cards, ...featureCards(view, `char.abilities.${short(ctx.ability)}.save`)], total)
+      // общий бонус ко всем спасброскам (Кольцо защиты) входит в каждый спасбросок
+      return balance(
+        [...cards, ...featureCards(view, `char.abilities.${short(ctx.ability)}.save`), ...featureCards(view, 'char.save_bonus')],
+        total,
+      )
     }
     case 'skill': {
       const entry = ctx.skill ? view.skills[ctx.skill] : null
@@ -82,7 +88,7 @@ export function d20Cards(view: SheetView, ctx: RollContext | undefined, total: n
       const cards: RollBonusCard[] = ability ? [{ label: ABILITY_LABELS[ability].label, value: m, kind: 'ability' }] : []
       if (entry?.expertise) cards.push({ label: 'Компетентность', value: pb * 2, kind: 'prof' })
       else if (entry?.proficient) cards.push({ label: 'Мастерство', value: pb, kind: 'prof' })
-      return balance([...cards, ...featureCards(view, `char.skills.${ctx.skill}.bonus`)], total)
+      return balance([...cards, ...featureCards(view, `char.skills.${ctx.skill}.bonus`), ...featureCards(view, 'char.check_bonus')], total)
     }
     case 'init':
       return balance([{ label: 'Ловкость', value: view.ability_scores.dexterity.modifier ?? 0, kind: 'ability' }, ...featureCards(view, 'char.init')], total)

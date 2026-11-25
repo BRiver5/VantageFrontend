@@ -44,6 +44,19 @@ export function AttunementSlots({
   const patch = (id: string, change: Partial<InventoryItemInstance>) =>
     onChange?.(items.map((i) => (i.instance_id === id ? { ...i, ...change } : i)))
 
+  // настроенный до появления готовых бонусов (Амулет здоровья без бонусов) — подставить их один раз
+  const filled = useRef(new Set<string>())
+  useEffect(() => {
+    if (!onChange) return
+    const missing = items.filter(
+      (i) => i.is_attuned && !(i.bonuses?.length) && !filled.current.has(i.instance_id) && itemPreset(nameOf(i)).length > 0,
+    )
+    if (!missing.length) return
+    missing.forEach((i) => filled.current.add(i.instance_id))
+    const ids = new Set(missing.map((i) => i.instance_id))
+    onChange(items.map((i) => (ids.has(i.instance_id) ? { ...i, bonuses: itemPreset(nameOf(i)) } : i)))
+  }, [items, onChange])
+
   const attune = (it: InventoryItemInstance) => {
     const bonuses = it.bonuses?.length ? it.bonuses : itemPreset(nameOf(it))
     patch(it.instance_id, { is_attuned: true, equipped: true, bonuses })
