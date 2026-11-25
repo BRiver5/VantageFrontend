@@ -3,6 +3,8 @@
  * поиском, фильтрами (книга, характеристики, требования — как в разделе черт)
  * и карточками с картинками. Клик по карточке выбирает черту.
  */
+import type { Edition } from '../../editions/edition'
+import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, BookOpen, Check, Lock, Repeat, Shield, Sparkles, X } from 'lucide-react'
@@ -76,7 +78,9 @@ function FeatCard({
     <>
       <FeatArt feat={feat} />
       <span className="cw-feat-body">
-        <b className="cw-feat-name">{feat.feat_name}</b>
+        <b className="cw-feat-name">
+          {feat.feat_name} <OtherEditionTag item={feat} />
+        </b>
         {feat.prerequisite && (
           <span className={`cw-feat-req${locked ? '' : ' is-met'}`}>
             <Shield aria-hidden="true" /> {feat.prerequisite}
@@ -124,14 +128,17 @@ function FeatCatalog({
   onPick,
   onClose,
   initialDetail = null,
+  edition,
 }: {
   feats: Feat[]
   value: string
   check: (f: Feat) => PrereqResult
-  onPick: (name: string) => void
+  onPick: (feat: Feat) => void
   onClose: () => void
   /** открыть сразу подробности этой черты */
   initialDetail?: Feat | null
+  /** редакция списка: при поиске найдутся и черты другой редакции (с пометкой) */
+  edition?: Edition | null
 }) {
   // черта, открытая подробно; null — список
   const [detail, setDetail] = useState<Feat | null>(initialDetail)
@@ -157,7 +164,7 @@ function FeatCatalog({
     ],
     [feats, books],
   )
-  const picker = usePicker(feats, featName, groups, 'feats')
+  const picker = usePicker(feats, featName, groups, 'feats', { edition })
   // доступные — сверху, недоступные по требованиям — отдельным разделом внизу
   const { open, locked } = useMemo(() => {
     const open: Feat[] = []
@@ -204,7 +211,7 @@ function FeatCatalog({
             </div>
             <footer className="cw-modal-foot cw-feat-detail-foot">
               {detailCheck.ok ? (
-                <button type="button" className="cs-btn cw-next" onClick={() => onPick(detail.feat_name)}>
+                <button type="button" className="cs-btn cw-next" onClick={() => onPick(detail)}>
                   <Check aria-hidden="true" /> {detail.feat_name === value ? 'Выбрана' : 'Выбрать эту черту'}
                 </button>
               ) : (
@@ -229,7 +236,7 @@ function FeatCatalog({
                 key={f.id}
                 feat={f}
                 selected={f.feat_name === value}
-                onClick={() => onPick(f.feat_name)}
+                onClick={() => onPick(f)}
                 onDetails={() => setDetail(f)}
               />
             ))}
@@ -259,16 +266,20 @@ export function FeatPicker({
   value,
   onChange,
   check,
+  edition,
 }: {
   feats: Feat[]
   value: string
-  onChange: (name: string) => void
+  onChange: (name: string, feat: Feat) => void
   /** проверка требований черты для этого героя и уровня */
   check: (f: Feat) => PrereqResult
+  edition?: Edition | null
 }) {
   const [open, setOpen] = useState(false)
   const [reading, setReading] = useState(false)
-  const current = feats.find((f) => f.feat_name === value) ?? null
+  // черта другой редакции (найдена поиском) — её нет в feats
+  const [picked, setPicked] = useState<Feat | null>(null)
+  const current = feats.find((f) => f.feat_name === value) ?? (picked?.feat_name === value ? picked : null)
 
   return (
     <div className="cw-feat-picker">
@@ -298,8 +309,10 @@ export function FeatPicker({
           feats={feats}
           value={value}
           check={check}
-          onPick={(name) => {
-            onChange(name)
+          edition={edition}
+          onPick={(feat) => {
+            setPicked(feat)
+            onChange(feat.feat_name, feat)
             setOpen(false)
           }}
           onClose={() => setOpen(false)}

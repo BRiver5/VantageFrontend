@@ -1,5 +1,7 @@
 /** Общие кирпичики шагов визарда: заголовок, карточка выбора с попапом, плитка факта. */
-import { applySmartSearch, useSmartRanks } from '../../search/sectionSearch'
+import { useSmartRanks } from '../../search/sectionSearch'
+import { searchBothEditions, useOtherEdition } from '../../search/otherEdition'
+import type { Edition } from '../../editions/edition'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Image as ImageIcon, Search, SlidersHorizontal, X } from 'lucide-react'
@@ -186,21 +188,29 @@ export function usePicker<T>(
   nameOf: (item: T) => string,
   groups: PickFilterGroup<T>[],
   entity?: string,
+  /** редакция списка: при поиске следом идут найденные записи другой редакции (accept — те же
+   *  условия, что отобрали items: список класса, круг…) */
+  opts?: { edition?: Edition | null; accept?: (item: T) => boolean },
 ): Picker<T> {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const ranks = useSmartRanks(entity, query)
+  const others = useOtherEdition<T>(entity ?? '', opts?.edition, !!entity && !!query.trim())
+  const accept = opts?.accept
 
   const visible = useMemo(() => {
-    const filtered = items.filter((item) =>
+    const pass = (item: T) =>
       groups.every((g) => {
         const sel = selected[g.key]
         return !sel?.length || g.match(item, sel)
-      }),
-    )
-    if (query.trim()) return applySmartSearch(filtered, query, ranks, idOfItem, nameOf)
+      })
+    const filtered = items.filter(pass)
+    if (query.trim()) {
+      const extra = others.filter((o) => pass(o) && (!accept || accept(o)))
+      return searchBothEditions(filtered, extra, query, ranks, idOfItem, nameOf)
+    }
     return filtered.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'ru'))
-  }, [items, nameOf, groups, query, selected, ranks])
+  }, [items, nameOf, groups, query, selected, ranks, others, accept])
 
   const toggle = useCallback((group: string, key: string) => {
     setSelected((prev) => {

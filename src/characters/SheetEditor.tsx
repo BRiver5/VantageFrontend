@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, X } from 'lucide-react'
 import { getSubList, type Background, type Feat, type GameClass, type Race, type Spell, type Subclass } from '../api'
-import { useCatalogList, useSubraces } from '../create/useCatalog'
+import { useSubraces } from '../create/useCatalog'
 import type { AttackEntry, Character, CharacterInput, ClassLevel, CustomModifier, Sheet, SheetView, SpellKnown } from '../types/character'
 import { FaceAvatar } from './FacePortrait'
 import { useBothEditions } from './useNames'
@@ -87,7 +87,8 @@ export function SheetEditor({
   const bgCatalog = useBothEditions<Background>('backgrounds')
   // заклинания обеих редакций: другую редакцию можно взять, она подписана годом
   const spellCatalog = useBothEditions<Spell>('spells')
-  const { items: featCatalog } = useCatalogList<Feat>('feats')
+  // черты обеих редакций: поиск находит и черту другой редакции (с пометкой)
+  const featCatalog = useBothEditions<Feat>('feats')
   const { items: subraces } = useSubraces(c.race_id)
   const [subclasses, setSubclasses] = useState<Record<string, Subclass[]>>({})
 

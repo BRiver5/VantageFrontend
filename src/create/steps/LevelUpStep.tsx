@@ -358,6 +358,7 @@ export default function LevelUpStep({
             prepared={prepared}
             cantripOptions={cantripOptions}
             classSpells={classSpells}
+            edition={stepEdition(draft, 'spells')}
             takenSpellIds={takenSpellIds}
             spellsLoading={spellsLoading}
             patchLevel={patchLevel}

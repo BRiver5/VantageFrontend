@@ -3,6 +3,8 @@
  * клетками, выбор предмета (количество, удалить, открыть в панели) и добавление
  * новых из каталога снаряжения или магических предметов — с поиском и фильтрами.
  */
+import { OtherEditionTag } from '../../search/OtherEditionTag'
+import { useEdition } from '../../editions/useEdition'
 import { useMemo, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, Gem, Minus, Plus, Shield, Sparkles, Trash2, X } from 'lucide-react'
@@ -72,6 +74,7 @@ export function InventoryManager({
   const index = useEquipmentIndex()
   const drawer = useEquipmentDrawer()
   const { items: magicCatalog, loading: magicLoading, error: magicError } = useCatalogList<Item>('items')
+  const magicEdition = useEdition('items').edition
 
   useKeybinding('dialog.close', () => {
     if (!document.querySelector('.eq-drawer-layer')) onClose()
@@ -189,7 +192,7 @@ export function InventoryManager({
       },
     ]
   }, [magicCatalog])
-  const magicPicker = usePicker(magicCatalog, magicName, magicGroups, 'items')
+  const magicPicker = usePicker(magicCatalog, magicName, magicGroups, 'items', { edition: magicEdition })
   const shownGear = picker.visible.slice(0, 80)
   const shownMagic = magicPicker.visible.slice(0, 80)
 
@@ -355,7 +358,9 @@ export function InventoryManager({
                       <ItemFace magic={it} />
                     </span>
                     <span className="cw-inv-row-body">
-                      <b>{it.item_name}</b>
+                      <b>
+                        {it.item_name} <OtherEditionTag item={it} />
+                      </b>
                       <i>{[it.rarity, it.item_type, it.attunement_required ? 'настройка' : null].filter(Boolean).join(' · ')}</i>
                     </span>
                     <PriceMark costCopper={it.cost_copper} className="cw-gsel-price" />

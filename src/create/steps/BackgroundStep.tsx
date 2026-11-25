@@ -2,6 +2,7 @@
  * Шаг 7 — предыстория: даёт владения навыками, инструментами, языки и умение.
  * Шаг можно пропустить, тогда этих владений у героя просто не будет.
  */
+import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Landmark, Star } from 'lucide-react'
 import { realImage } from '../../api'
@@ -73,6 +74,7 @@ function BackgroundCard({
         <span className="bg-card-body">
           <span className="bg-card-head">
             <span className="card-name">{bg.background_name}</span>
+            <OtherEditionTag item={bg} />
           </span>
           {skills.length > 0 && (
             <span className="card-chips bg-card-skills">
@@ -156,7 +158,7 @@ export default function BackgroundStep({ draft, update }: StepProps) {
     ]
   }, [items, books])
 
-  const picker = usePicker(items, bgName, groups, 'backgrounds')
+  const picker = usePicker(items, bgName, groups, 'backgrounds', { edition: stepEdition(draft, 'backgrounds') })
   const close = useCallback(() => setOpen(null), [])
 
   return (

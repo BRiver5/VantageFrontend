@@ -3,6 +3,7 @@
  * Подрасы, в том числе самостоятельные (`replaces_race`), выбираются
  * следующим шагом.
  */
+import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Eye, Footprints, GitFork, Ruler, VenetianMask } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -85,6 +86,7 @@ export function RaceCard({
       >
         <span className="class-card-visual">
           <RacePortrait src={realImage(race.image_gallery)} />
+          <OtherEditionTag item={race} className="other-ed-tag--corner" />
           {hasSubraces && (
             <span className="cw-race-branch" title="Есть подрасы">
               <span>
@@ -186,7 +188,7 @@ export default function RaceStep({ draft, update }: StepProps) {
     ]
   }, [races, withSubraces, books])
 
-  const picker = usePicker(races, raceName, groups, 'races')
+  const picker = usePicker(races, raceName, groups, 'races', { edition })
   const close = useCallback(() => setOpen(null), [])
 
   const isSelected = (race: Race) => draft.race?.id === race.id

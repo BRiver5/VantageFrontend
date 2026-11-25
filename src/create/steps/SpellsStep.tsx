@@ -6,6 +6,7 @@
  * выбирают подготовленные из всего списка класса, волшебник — из своей книги.
  * У каждого заклинания можно открыть подробности.
  */
+import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useCallback, useMemo, useState } from 'react'
 import { BookOpen, Check, Eye, Hourglass, Lock, Sparkles, Star, Target, X } from 'lucide-react'
 import type { Spell } from '../../api'
@@ -69,7 +70,9 @@ export function SpellCard({
         <SchoolIcon school={spell.school} />
       </span>
       <span className="cw-sp-body">
-        <b>{spell.spell_name}</b>
+        <b>
+          {spell.spell_name} <OtherEditionTag item={spell} />
+        </b>
         <i>{[spell.casting_time, spell.range].filter(Boolean).join(' · ')}</i>
       </span>
       <span className="cw-sp-tags">
@@ -223,7 +226,17 @@ export default function SpellsStep({
     ]
   }, [pool])
 
-  const picker = usePicker(pool, spellName, groups, 'spells')
+  // при поиске — и заклинания другой редакции из того же списка класса и кругов (не для книги волшебника)
+  const acceptOther = useCallback(
+    (s: Spell) =>
+      prepares &&
+      !isWizard &&
+      s.spell_level >= 1 &&
+      s.spell_level <= maxCircle &&
+      !!s.available_classes?.some((c) => c.toLocaleLowerCase('ru').trim() === className.toLocaleLowerCase('ru')),
+    [prepares, isWizard, maxCircle, className],
+  )
+  const picker = usePicker(pool, spellName, groups, 'spells', { edition: stepEdition(draft, 'spells'), accept: acceptOther })
   const visible = [...picker.visible].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
   const full = prepared.length >= prepMax
 

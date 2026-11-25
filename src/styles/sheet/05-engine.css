@@ -773,3 +773,11 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
 .cw-featch-item.is-done .cw-featch-name::after { content: ' ✓'; color: #8fd19e; }
 .cw-featch-load { display: flex; align-items: center; gap: 6px; }
 .cw-featch-load svg { width: 14px; height: 14px; }
+
+/* запись другой редакции в списках выбора: «2014» */
+.other-ed-tag {
+  display: inline-flex; align-items: center; margin-left: 4px; padding: 0 6px; height: 16px; border-radius: 999px;
+  vertical-align: 1px; font: 600 0.62rem/1 var(--font-ui, inherit); letter-spacing: 0.04em; font-style: normal;
+  color: #f0c98a; background: rgba(240, 160, 60, 0.14); border: 1px solid rgba(240, 160, 60, 0.45); white-space: nowrap;
+}
+.other-ed-tag--corner { position: absolute; top: 8px; left: 8px; margin: 0; z-index: 3; height: 18px; font-size: 0.68rem; }

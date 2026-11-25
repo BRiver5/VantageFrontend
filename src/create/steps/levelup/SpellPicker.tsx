@@ -1,4 +1,7 @@
-import { applySmartSearch, useSmartRanks } from '../../../search/sectionSearch'
+import { useSmartRanks } from '../../../search/sectionSearch'
+import { searchBothEditions, useOtherEdition } from '../../../search/otherEdition'
+import { OtherEditionTag } from '../../../search/OtherEditionTag'
+import type { Edition } from '../../../editions/edition'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -34,10 +37,15 @@ function SpellSelect({
   onClear,
   onDetails,
   loading = false,
+  edition,
+  acceptOther,
 }: {
   value: Spell | null
   options: Spell[]
   loading?: boolean
+  /** редакция списка: при поиске следом идут заклинания другой редакции, подходящие под acceptOther */
+  edition?: Edition | null
+  acceptOther?: (s: Spell) => boolean
   placeholder: string
   onChange: (s: Spell) => void
   onClear: () => void
@@ -51,10 +59,12 @@ function SpellSelect({
 
   // умный поиск, как на главной: опечатки, неверная раскладка, английские названия
   const ranks = useSmartRanks('spells', query)
+  const others = useOtherEdition<Spell>('spells', acceptOther ? edition : null, open && !!query.trim())
   const visible = useMemo(() => {
-    if (query.trim()) return applySmartSearch(options, query, ranks, (s) => s.id, (s) => s.spell_name)
+    if (query.trim())
+      return searchBothEditions(options, acceptOther ? others.filter(acceptOther) : [], query, ranks, (s) => s.id, (s) => s.spell_name)
     return [...options].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
-  }, [options, query, ranks])
+  }, [options, query, ranks, others, acceptOther])
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return
@@ -104,7 +114,9 @@ function SpellSelect({
       >
         <span className="cw-gsel-face cw-spsel-face">{value ? <SchoolFace school={value.school} /> : <b>?</b>}</span>
         <span className="cw-gsel-text">
-          <b>{value?.spell_name ?? placeholder}</b>
+          <b>
+            {value?.spell_name ?? placeholder} {value && <OtherEditionTag item={value} />}
+          </b>
           <i>{value ? spellMeta(value) : loading ? 'загружаем список…' : `доступно: ${options.length}`}</i>
         </span>
         <ChevronDown className="cw-gsel-chevron" aria-hidden="true" />
@@ -155,7 +167,9 @@ function SpellSelect({
                       <SchoolFace school={s.school} />
                     </span>
                     <span className="cw-gsel-text">
-                      <b>{s.spell_name}</b>
+                      <b>
+                        {s.spell_name} <OtherEditionTag item={s} />
+                      </b>
                       <i>{spellMeta(s)}</i>
                     </span>
                     <span className="cw-spsel-tags">
@@ -188,6 +202,8 @@ export function SpellPicker({
   options,
   onChange,
   loading = false,
+  edition,
+  acceptOther,
 }: {
   title: string
   count: number
@@ -195,6 +211,8 @@ export function SpellPicker({
   options: Spell[]
   onChange: (next: Spell[]) => void
   loading?: boolean
+  edition?: Edition | null
+  acceptOther?: (s: Spell) => boolean
 }) {
   const [details, setDetails] = useState<Spell | null>(null)
   const closeDetails = useCallback(() => setDetails(null), [])
@@ -224,6 +242,8 @@ export function SpellPicker({
               key={n}
               value={value}
               options={options.filter((s) => !taken.has(s.id))}
+              edition={edition}
+              acceptOther={acceptOther ? (s) => acceptOther(s) && !taken.has(s.id) : undefined}
               placeholder={`${label}…`}
               loading={loading}
               onChange={(s) => setSlot(n, s)}

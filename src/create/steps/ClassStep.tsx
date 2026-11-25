@@ -1,4 +1,5 @@
 /** Шаг 3 — класс: карточки как в каталоге классов, подробности и снаряжение — в попапе. */
+import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Swords } from 'lucide-react'
 import { realImage } from '../../api'
@@ -82,6 +83,7 @@ function ClassCard({
             draggable={false}
           />
           <ClassPortrait src={realImage(cls.image_gallery)} alt={cls.class_name} />
+          <OtherEditionTag item={cls} className="other-ed-tag--corner" />
           {selected && (
             <span className="cw-card-check" aria-hidden="true">
               <Check />
@@ -155,7 +157,7 @@ export default function ClassStep({ draft, update }: StepProps) {
     ]
   }, [items, books])
 
-  const picker = usePicker(items, className, groups, 'classes')
+  const picker = usePicker(items, className, groups, 'classes', { edition: stepEdition(draft, 'classes') })
   const close = useCallback(() => setOpen(null), [])
 
   const choose = (cls: GameClass) => {

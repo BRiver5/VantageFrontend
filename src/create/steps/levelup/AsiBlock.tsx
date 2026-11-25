@@ -1,6 +1,7 @@
 /** Усиление характеристик или черта */
 import { TrendingUp } from 'lucide-react'
 import type { Feat } from '../../../api'
+import type { Edition } from '../../../editions/edition'
 import { ABILITY_KEYS, ABILITY_LABELS } from '../../../types/character'
 import type { AbilityName } from '../../../types/character'
 import type { LevelChoice } from '../../draft'
@@ -93,9 +94,8 @@ export function AsiBlock({ choice, asiSpent, scoresBefore, allFeats, prereqConte
         <FeatPicker
           feats={allFeats}
           value={choice.featName}
-          onChange={(name) =>
-            patchLevel({ featName: name, featId: allFeats.find((f) => f.feat_name === name)?.id ?? null })
-          }
+          edition={featEdition as Edition}
+          onChange={(name, feat) => patchLevel({ featName: name, featId: feat?.id ?? allFeats.find((f) => f.feat_name === name)?.id ?? null })}
           check={(f) => checkPrereq(f.prerequisite, prereqContext)}
         />
       )}

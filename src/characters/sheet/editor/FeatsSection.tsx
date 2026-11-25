@@ -35,7 +35,11 @@ export function FeatsSection({ c, set, featCatalog, featNames }: Props) {
         entity="feats"
         idOf={(f) => f.id}
         label={(f) => f.feat_name}
-        sub={(f) => (f.prerequisite ? `требование: ${f.prerequisite}` : '')}
+        sub={(f) => {
+          const eds = (f as Feat & { editions?: string[] }).editions ?? []
+          const other = eds.length && !eds.includes(c.edition ?? '2014') ? `редакция ${eds.join('/')}` : null
+          return [other, f.prerequisite ? `требование: ${f.prerequisite}` : null].filter(Boolean).join(' · ')
+        }}
         exclude={featNames}
         placeholder="Найти черту в каталоге и добавить…"
         onPick={(f) => set({ feat_ids: [...c.feat_ids, f.id] })}
