@@ -2,6 +2,7 @@ import {
   realImage,
   sizeRu,
   formatCR,
+  splitTitle,
 } from '../../../api'
 import type {
   GameClass,
@@ -32,12 +33,9 @@ import {
   Crown,
   Heart,
   Shield,
-  Backpack,
-  Layers,
-  Package,
   Scale,
-  Tag,
   Sparkles,
+  BookMarked,
 } from 'lucide-react'
 import { RaceBoosts, boostInfo } from '../../../raceBoosts'
 import { RaceRailCell } from './RaceParts'
@@ -51,7 +49,8 @@ import { Chip, HexBadge, SourceBadge } from '../shared'
 import type { CSSProperties } from 'react'
 import { MOVE_MODES, creatureBaseType, dangerTier } from '../creatures'
 import { CreaturePortrait } from './CreatureParts'
-import { categoryIcon, containerKindRu, formatDice, formatWeight } from '../../../equipment'
+import { categoryIcon, formatWeight } from '../../../equipment'
+import { equipmentFact, equipmentKicker, equipmentNotes, equipmentTone, showsDescription } from '../../../equipmentFacts'
 import { PriceMark } from '../../../coins'
 import { EquipmentCardArt } from './EquipmentParts'
 import { rarityAdjective } from '../../../itemRarity'
@@ -253,38 +252,41 @@ export function creatureCard(c: Creature, bookMap: BookMap) {
 }
 
 export function equipmentCard(eq: Equipment, bookMap: BookMap) {
-  const Icon = categoryIcon(eq.category)
   const weight = formatWeight(eq.weight)
-  const w = eq.weapon
-  const d = eq.defense
-  const ac = d?.armor_class != null ? `КД ${d.armor_class}${d.add_dex_modifier ? ' + ЛОВ' : ''}` : d?.armor_class_formula
+  const fact = equipmentFact(eq)
+  const notes = equipmentNotes(eq)
+  const book = eq.book_source_id ? bookMap[eq.book_source_id] : undefined
   return (
-    <article className="card card--equipment">
-      <PriceMark cost={eq.cost} costCopper={eq.cost_copper} />
-      <EquipmentCardArt src={realImage(eq.equipment_image_gallery)} alt={eq.equipment_name} fallback={Icon} />
+    <article className="card card--equipment" data-tone={equipmentTone(eq.category)}>
+      <EquipmentCardArt
+        src={realImage(eq.equipment_image_gallery)}
+        alt={eq.equipment_name}
+        fallback={categoryIcon(eq.category)}
+      />
       <div className="eq-card-info">
+        <span className="card-kicker">{equipmentKicker(eq)}</span>
         <h3 className="card-name">{eq.equipment_name}</h3>
-        <span className="card-kicker">{eq.subcategory ?? eq.category}</span>
+        {fact && (
+          <p className="eq-card-fact">
+            <b>{fact.value}</b> {fact.label}
+          </p>
+        )}
+        {notes.length > 0 && <p className="eq-card-notes">{notes.map((n) => n.replace(/ /g, '\u00a0')).join(' · ')}</p>}
+        {showsDescription(eq) && <TermDesc text={eq.description} className="card-desc eq-card-desc" />}
+      </div>
+      <div className="eq-card-foot">
+        <PriceMark cost={eq.cost} costCopper={eq.cost_copper} />
+        {weight && (
+          <span className="eq-card-weight">
+            <Scale aria-hidden="true" /> {weight}
+          </span>
+        )}
         <RatingMark rating={(eq as { rating?: ShortRating }).rating} />
-        <div className="card-chips">
-          <SourceBadge book={eq.book_source_id ? bookMap[eq.book_source_id] : undefined} />
-          {weight && <Chip icon={Scale}>{weight}</Chip>}
-          {w?.damage_dice && (
-            <Chip icon={Swords}>
-              {formatDice(w.damage_dice)}
-              {w.damage_type ? ` ${w.damage_type.toLowerCase()}` : ''}
-            </Chip>
-          )}
-          {ac && <Chip icon={Shield}>{ac}</Chip>}
-          {eq.container && <Chip icon={Backpack}>{containerKindRu(eq.container.container_kind)}</Chip>}
-          {eq.stackable && <Chip icon={Layers}>стак {eq.stack_size}</Chip>}
-          {eq.bundle_size != null && eq.bundle_size > 1 && <Chip icon={Package}>пачка {eq.bundle_size}</Chip>}
-          {eq.tags.slice(0, 2).map((t) => (
-            <Chip key={t} icon={Tag}>
-              {t}
-            </Chip>
-          ))}
-        </div>
+        {book?.book_code && (
+          <span className="eq-card-source" title={splitTitle(book.title).ru}>
+            <BookMarked aria-hidden="true" /> {book.book_code}
+          </span>
+        )}
       </div>
     </article>
   )

@@ -2,38 +2,137 @@
    СНАРЯЖЕНИЕ: карточки каталога и стартовые наборы класса/предыстории
    ============================================================ */
 
-/* Карточка снаряжения в сетке: картинка (или иконка категории, если арта нет). */
-.card--equipment { gap: 8px; }
+/* Карточка снаряжения в сетке: слева рисунок на гекс-медальоне (или иконка
+   категории), справа название, показатель и свойства, внизу цена, вес и книга.
+   360px — она же cardMin раздела в CatalogPage: по ней считается размер листа. */
+.card-grid:has(.card--equipment) {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+}
 
-.eq-card-info { display: flex; flex-direction: column; gap: 8px; }
+.card--equipment {
+  --eq-tone: var(--silver-2-rgb);
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 12px 18px;
+  padding: 16px 18px 12px 16px;
+}
+.card--equipment[data-tone='ember'] { --eq-tone: 206 104 72; }
+.card--equipment[data-tone='steel'] { --eq-tone: 112 152 204; }
+.card--equipment[data-tone='amber'] { --eq-tone: var(--gold-2-rgb); }
+.card--equipment[data-tone='venom'] { --eq-tone: 104 176 110; }
+.card--equipment[data-tone='earth'] { --eq-tone: 172 140 100; }
 
 .eq-card-art {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 96px;
-  margin: 2px 0 6px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 112px;
+  aspect-ratio: 100 / 115.47;
 }
-
+/* медальон: кант и заливка с оттенком категории */
+.eq-card-art::before,
+.eq-card-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.eq-card-art::before {
+  background: linear-gradient(160deg, rgb(var(--eq-tone) / 0.6), rgb(var(--silver-1-rgb) / 0.22) 50%, rgb(var(--eq-tone) / 0.45));
+}
+.eq-card-art::after {
+  inset: 1.5px;
+  background:
+    radial-gradient(70% 62% at 50% 46%, rgb(var(--eq-tone) / 0.26), transparent 78%),
+    linear-gradient(180deg, var(--bg-3), var(--bg-1));
+}
+/* рисунок чуть выходит за медальон — так он не выглядит вставленным в рамку */
 .eq-card-art img {
-  position: relative;
+  position: absolute;
   z-index: 1;
-  max-width: 78%;
-  max-height: 78%;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
   object-fit: contain;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
+  transition: transform 0.25s ease;
 }
+.card--equipment:hover .eq-card-art img { transform: scale(1.07); }
 .eq-card-fallback {
   position: relative;
   z-index: 1;
-  width: 30%;
-  height: 30%;
-  color: var(--silver-2);
-  stroke-width: 0.9;
+  width: 40%;
+  height: 40%;
+  color: rgb(var(--eq-tone) / 0.85);
+  stroke-width: 1.1;
 }
 
-.card--equipment .card-chips { margin-top: 2px; }
+.eq-card-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+.eq-card-info .card-kicker {
+  overflow: hidden;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eq-card-info .card-name { font-size: 1.16rem; }
+
+.eq-card-fact { color: var(--text); font-size: 0.92rem; }
+.eq-card-fact b {
+  margin-right: 2px;
+  color: var(--gold-3);
+  font-family: var(--font-display);
+  font-size: 1.16rem;
+  font-weight: 700;
+}
+.eq-card-notes,
+.eq-card-info .eq-card-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+/* свойства важнее описания — не обрезаем на приёме */
+.eq-card-notes { -webkit-line-clamp: 3; }
+/* без показателя описанию достаётся его строка */
+.eq-card-info:not(:has(.eq-card-fact)) .eq-card-desc { -webkit-line-clamp: 3; }
+
+.eq-card-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 30px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--silver-2-rgb) / 0.14);
+  color: var(--text-dim);
+  font-size: 0.84rem;
+}
+.eq-card-weight,
+.eq-card-source { display: inline-flex; align-items: center; gap: 5px; }
+.eq-card-foot svg { flex: none; width: 13px; height: 13px; }
+.eq-card-source { margin-left: auto; font-weight: 600; letter-spacing: 0.06em; }
+
+@media (max-width: 900px), (orientation: landscape) and (max-height: 520px) {
+  .card--equipment {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px 14px;
+    padding: 12px 14px 10px 12px;
+  }
+  .eq-card-art { width: 88px; }
+  .eq-card-info .card-name { font-size: 1.06rem; }
+}
 
 /* ---------- Стартовое снаряжение ---------- */
 

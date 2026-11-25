@@ -189,8 +189,7 @@
   .card-grid:has(.card--portrait) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .card-grid:has(.card--item),
-  .card-grid:has(.card--equipment) {
+  .card-grid:has(.card--item) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -199,8 +198,7 @@
   .card-grid:has(.card--portrait) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .card-grid:has(.card--item),
-  .card-grid:has(.card--equipment) {
+  .card-grid:has(.card--item) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -209,8 +207,7 @@
   .card-grid:has(.card--portrait) {
     grid-template-columns: 1fr;
   }
-  .card-grid:has(.card--item),
-  .card-grid:has(.card--equipment) {
+  .card-grid:has(.card--item) {
     grid-template-columns: 1fr;
   }
 }

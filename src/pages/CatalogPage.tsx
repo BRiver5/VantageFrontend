@@ -83,7 +83,7 @@ function allOfEdition<T>(resource: string, edition: string): Promise<T[]> {
   return p as Promise<T[]>
 }
 
-/** ширина карточки и зазор сетки каталога (.card-grid: minmax(290px, 1fr), gap 18px) */
+/** ширина карточки и зазор сетки каталога (.card-grid: minmax(290px, 1fr), gap 18px); своя ширина — cfg.cardMin */
 const CARD_MIN = 290
 const CARD_GAP = 18
 
@@ -129,13 +129,14 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
   useEffect(() => {
     const el = sectionRef.current
     if (!el || cfg.noPaging) return
+    const cardMin = cfg.cardMin ?? CARD_MIN
     const ro = new ResizeObserver(() => {
-      const cols = Math.max(1, Math.floor((el.clientWidth + CARD_GAP) / (CARD_MIN + CARD_GAP)))
+      const cols = Math.max(1, Math.floor((el.clientWidth + CARD_GAP) / (cardMin + CARD_GAP)))
       setPageSize(cols * Math.ceil(PAGE_SIZE / cols))
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [cfg.noPaging])
+  }, [cfg.noPaging, cfg.cardMin])
   // выбранные фильтры: ключ группы → выбранные варианты (можно несколько)
   const filterKeys = useMemo(() => (cfg.filters ?? []).map((g) => g.key), [cfg.filters])
   const [filterSel, setFilterSel] = useState<Record<string, string[]>>(() => filtersFromSearch(searchParams, filterKeys))
@@ -743,6 +744,7 @@ export function EquipmentPage() {
         title: 'Снаряжение',
         emptyIcon: Backpack,
         card: equipmentCard,
+        cardMin: 360,
         sorts: equipmentSorts,
         filters,
         wide: true,
