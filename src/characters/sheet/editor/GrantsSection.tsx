@@ -43,6 +43,9 @@ export function GrantsSection({ sheet, actions }: Props) {
     return [...out.entries()].sort(([a], [b]) => Number(a === 'Добавлено вручную') - Number(b === 'Добавлено вручную'))
   }, [sheet.abilities, filter])
 
+  // названия умений героя — найденное в базе помечается «уже есть»
+  const have = useMemo(() => new Set(sheet.abilities.map((a) => a.name.trim().toLocaleLowerCase('ru'))), [sheet.abilities])
+
   return (
     <EdSection
       id="grants"
@@ -52,7 +55,7 @@ export function GrantsSection({ sheet, actions }: Props) {
     >
       <div className="ed-sub">
         <h5>Добавить из базы</h5>
-        <AbilitySearch onPick={actions.attach} />
+        <AbilitySearch onPick={actions.attach} have={have} />
       </div>
       <div className="ed-sub">
         <h5>У героя · {sheet.abilities.length}</h5>
@@ -110,7 +113,7 @@ export function GrantsSection({ sheet, actions }: Props) {
 }
 
 /** Поиск по всем умениям базы — тот же умный поиск, что на главной */
-function AbilitySearch({ onPick }: { onPick: (slug: string) => void }) {
+function AbilitySearch({ onPick, have }: { onPick: (slug: string) => void; have: Set<string> }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
   const [open, setOpen] = useState(false)
@@ -168,9 +171,15 @@ function AbilitySearch({ onPick }: { onPick: (slug: string) => void }) {
         <ul className="ed-search-list" id={listId} role="listbox">
           {shown.map((h) => (
             <li key={h.id}>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pick(h)}>
+              <button
+                type="button"
+                className={have.has(h.title.trim().toLocaleLowerCase('ru')) ? 'is-owned' : undefined}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void pick(h)}
+              >
                 <b>
                   <Plus aria-hidden="true" className="ed-grant-plus" /> {h.title}
+                  {have.has(h.title.trim().toLocaleLowerCase('ru')) && <span className="owned-tag">уже есть</span>}
                 </b>
                 <i>
                   {[h.editions?.length ? `редакция ${h.editions.join('/')}` : null, h.snippet && h.snippet.slice(0, 90)]

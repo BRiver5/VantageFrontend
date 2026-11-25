@@ -1,4 +1,5 @@
 /** Магия уровня: новые ячейки, заговоры и заклинания */
+import { normSpellName } from '../../../spellIndex'
 import type { Edition } from '../../../editions/edition'
 import { Sparkles } from 'lucide-react'
 import type { Spell } from '../../../api'
@@ -14,14 +15,18 @@ type Props = {
   prepared: boolean
   cantripOptions: Spell[]
   classSpells: Spell[]
+  /** уже есть у героя или выбрано на других уровнях — по id и по названию (normSpellName) */
   takenSpellIds: Set<string>
+  takenSpellNames?: Set<string>
   spellsLoading: boolean
   patchLevel: (patch: Partial<LevelChoice>) => void
   /** редакция заклинаний шага: при поиске найдутся и заклинания другой редакции */
   edition?: Edition | null
 }
 
-export function MagicBlock({ req, choice, className, prepared, cantripOptions, classSpells, takenSpellIds, spellsLoading, patchLevel, edition }: Props) {
+export function MagicBlock({ req, choice, className, prepared, cantripOptions, classSpells, takenSpellIds, takenSpellNames, spellsLoading, patchLevel, edition }: Props) {
+  const owned = (s: Spell) =>
+    takenSpellIds.has(s.id) || !!takenSpellNames?.has(normSpellName(s.spell_name)) ? 'уже есть' : null
   const ofClass = (s: Spell) => !!s.available_classes?.some((c) => c.toLocaleLowerCase('ru').trim() === className.toLocaleLowerCase('ru'))
   return (
     <section className="cw-block">
@@ -55,11 +60,12 @@ export function MagicBlock({ req, choice, className, prepared, cantripOptions, c
           title={`Заговоры — выберите ${req.cantripsNeeded}`}
           count={req.cantripsNeeded}
           picked={choice.cantrips}
-          options={cantripOptions.filter((s) => !takenSpellIds.has(s.id))}
+          options={cantripOptions}
+          ownedReason={owned}
           loading={spellsLoading}
           onChange={(cantrips) => patchLevel({ cantrips })}
           edition={edition}
-          acceptOther={(s) => s.spell_level === 0 && ofClass(s) && !takenSpellIds.has(s.id)}
+          acceptOther={(s) => s.spell_level === 0 && ofClass(s)}
         />
       )}
 
@@ -71,13 +77,13 @@ export function MagicBlock({ req, choice, className, prepared, cantripOptions, c
           options={classSpells.filter(
             (s) =>
               s.spell_level >= 1 &&
-              s.spell_level <= req.maxCircle &&
-              !takenSpellIds.has(s.id),
+              s.spell_level <= req.maxCircle,
           )}
           onChange={(spells) => patchLevel({ spells })}
           loading={spellsLoading}
           edition={edition}
-          acceptOther={(s) => s.spell_level >= 1 && s.spell_level <= req.maxCircle && ofClass(s) && !takenSpellIds.has(s.id)}
+          acceptOther={(s) => s.spell_level >= 1 && s.spell_level <= req.maxCircle && ofClass(s)}
+          ownedReason={owned}
         />
       )}
     </section>

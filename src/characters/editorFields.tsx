@@ -341,7 +341,7 @@ export function CatalogSearch<T>({
   sub?: (x: T) => string
   onPick: (x: T) => void
   placeholder: string
-  /** уже добавленные — по названию */
+  /** уже есть у героя — по названию: в поиске видны с пометкой «уже есть», выбрать нельзя */
   exclude?: Set<string>
   /** сущность умного поиска (как на главной: опечатки, раскладка, части слов) и id записи */
   entity?: string
@@ -355,9 +355,9 @@ export function CatalogSearch<T>({
   const ranks = useSmartRanks(entity, q)
   const found = useMemo(() => {
     if (!q.trim()) return []
-    const pool = exclude ? items.filter((x) => !exclude.has(label(x))) : items
-    return applySmartSearch(pool, q, ranks, idOf ?? ((x) => label(x)), label).slice(0, limit)
-  }, [q, items, label, exclude, ranks, idOf, limit])
+    return applySmartSearch(items, q, ranks, idOf ?? ((x) => label(x)), label).slice(0, limit)
+  }, [q, items, label, ranks, idOf, limit])
+  const owned = (x: T) => !!exclude?.has(label(x))
 
   return (
     <div className="ed-search">
@@ -377,9 +377,10 @@ export function CatalogSearch<T>({
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && found[0]) {
+            const first = found.find((x) => !owned(x))
+            if (e.key === 'Enter' && first) {
               e.preventDefault()
-              onPick(found[0])
+              onPick(first)
               setQ('')
             }
           }}
@@ -391,13 +392,18 @@ export function CatalogSearch<T>({
             <li key={idOf ? idOf(x) : label(x)}>
               <button
                 type="button"
+                className={owned(x) ? 'is-owned' : undefined}
+                disabled={owned(x)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onPick(x)
                   setQ('')
                 }}
               >
-                <b>{label(x)}</b>
+                <b>
+                  {label(x)}
+                  {owned(x) && <span className="owned-tag">уже есть</span>}
+                </b>
                 {sub && <i>{sub(x)}</i>}
               </button>
             </li>

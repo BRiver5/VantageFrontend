@@ -781,3 +781,12 @@ button.is-why { font: inherit; color: inherit; background: none; border: none; p
   color: #f0c98a; background: rgba(240, 160, 60, 0.14); border: 1px solid rgba(240, 160, 60, 0.45); white-space: nowrap;
 }
 .other-ed-tag--corner { position: absolute; top: 8px; left: 8px; margin: 0; z-index: 3; height: 18px; font-size: 0.68rem; }
+
+/* в поиске: это у героя уже есть */
+.owned-tag {
+  display: inline-flex; align-items: center; margin-left: 6px; padding: 0 6px; height: 16px; border-radius: 999px;
+  vertical-align: 1px; font: 600 0.62rem/1 var(--font-ui, inherit); font-style: normal; white-space: nowrap;
+  color: #9fd6a8; background: rgba(110, 190, 125, 0.14); border: 1px solid rgba(110, 190, 125, 0.45);
+}
+.is-owned { opacity: 0.72; }
+button.is-owned:disabled { cursor: default; }

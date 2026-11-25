@@ -162,16 +162,22 @@ export default function LevelUpStep({
   /** Уже выбранные на других уровнях заклинания — чтобы не дублировать */
   const takenSpellIds = useMemo(() => {
     const set = new Set<string>()
-    for (const l of draft.levels) {
+    draft.levels.forEach((l, i) => {
+      if (i === active) return // выбранное на этом уровне ведёт сам выбор (соседние меню)
       for (const s of l.spells) set.add(s.id)
       for (const s of l.cantrips) set.add(s.id)
-    }
-    // уже известные сохранённому герою — по названию
-    if (opts.knownSpells?.size) {
-      for (const s of allSpells) if (opts.knownSpells.has(normSpellName(s.spell_name))) set.add(s.id)
-    }
+    })
     return set
-  }, [draft.levels, opts.knownSpells, allSpells])
+  }, [draft.levels, active])
+  /** то же по названию — совпадёт и запись другой редакции; плюс известные сохранённому герою */
+  const takenSpellNames = useMemo(() => {
+    const set = new Set<string>(opts.knownSpells ?? [])
+    draft.levels.forEach((l, i) => {
+      if (i === active) return
+      for (const s of [...l.spells, ...l.cantrips]) set.add(normSpellName(s.spell_name))
+    })
+    return set
+  }, [draft.levels, active, opts.knownSpells])
 
   const classSpells = useMemo(() => {
     const name = className.toLocaleLowerCase('ru')
@@ -360,6 +366,7 @@ export default function LevelUpStep({
             classSpells={classSpells}
             edition={stepEdition(draft, 'spells')}
             takenSpellIds={takenSpellIds}
+            takenSpellNames={takenSpellNames}
             spellsLoading={spellsLoading}
             patchLevel={patchLevel}
           />

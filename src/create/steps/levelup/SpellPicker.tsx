@@ -1,4 +1,5 @@
 import { useSmartRanks } from '../../../search/sectionSearch'
+import { normSpellName } from '../../../spellIndex'
 import { searchBothEditions, useOtherEdition } from '../../../search/otherEdition'
 import { OtherEditionTag } from '../../../search/OtherEditionTag'
 import type { Edition } from '../../../editions/edition'
@@ -39,6 +40,7 @@ function SpellSelect({
   loading = false,
   edition,
   acceptOther,
+  ownedReason,
 }: {
   value: Spell | null
   options: Spell[]
@@ -46,6 +48,8 @@ function SpellSelect({
   /** редакция списка: при поиске следом идут заклинания другой редакции, подходящие под acceptOther */
   edition?: Edition | null
   acceptOther?: (s: Spell) => boolean
+  /** почему заклинание нельзя выбрать («уже есть»): в списке видно с пометкой, но неактивно */
+  ownedReason?: (s: Spell) => string | null
   placeholder: string
   onChange: (s: Spell) => void
   onClear: () => void
@@ -60,11 +64,18 @@ function SpellSelect({
   // умный поиск, как на главной: опечатки, неверная раскладка, английские названия
   const ranks = useSmartRanks('spells', query)
   const others = useOtherEdition<Spell>('spells', acceptOther ? edition : null, open && !!query.trim())
+  const reasonOf = useCallback((s: Spell) => (s.id === value?.id ? null : (ownedReason?.(s) ?? null)), [value, ownedReason])
   const visible = useMemo(() => {
     if (query.trim())
       return searchBothEditions(options, acceptOther ? others.filter(acceptOther) : [], query, ranks, (s) => s.id, (s) => s.spell_name)
-    return [...options].sort((a, b) => a.spell_level - b.spell_level || a.spell_name.localeCompare(b.spell_name, 'ru'))
-  }, [options, query, ranks, others, acceptOther])
+    // без поиска: доступные сверху, уже имеющиеся — в конце
+    return [...options].sort(
+      (a, b) =>
+        Number(!!reasonOf(a)) - Number(!!reasonOf(b)) ||
+        a.spell_level - b.spell_level ||
+        a.spell_name.localeCompare(b.spell_name, 'ru'),
+    )
+  }, [options, query, ranks, others, acceptOther, reasonOf])
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return
@@ -151,13 +162,17 @@ function SpellSelect({
             <div className="cw-gsel-list" role="listbox" aria-label={placeholder}>
               {visible.map((s) => {
                 const on = s.id === value?.id
+                const reason = reasonOf(s)
                 return (
                   <button
                     key={s.id}
                     type="button"
                     role="option"
                     aria-selected={on}
-                    className={`cw-gsel-opt${on ? ' is-on' : ''}`}
+                    aria-disabled={!!reason}
+                    disabled={!!reason}
+                    title={reason ?? undefined}
+                    className={`cw-gsel-opt${on ? ' is-on' : ''}${reason ? ' is-owned' : ''}`}
                     onClick={() => {
                       onChange(s)
                       setOpen(false)
@@ -169,6 +184,7 @@ function SpellSelect({
                     <span className="cw-gsel-text">
                       <b>
                         {s.spell_name} <OtherEditionTag item={s} />
+                        {reason && <span className="owned-tag">{reason}</span>}
                       </b>
                       <i>{spellMeta(s)}</i>
                     </span>
@@ -204,6 +220,7 @@ export function SpellPicker({
   loading = false,
   edition,
   acceptOther,
+  ownedReason,
 }: {
   title: string
   count: number
@@ -213,6 +230,7 @@ export function SpellPicker({
   loading?: boolean
   edition?: Edition | null
   acceptOther?: (s: Spell) => boolean
+  ownedReason?: (s: Spell) => string | null
 }) {
   const [details, setDetails] = useState<Spell | null>(null)
   const closeDetails = useCallback(() => setDetails(null), [])
@@ -237,13 +255,17 @@ export function SpellPicker({
           const value = picked[n] ?? null
           // нельзя выбрать то же, что в соседнем меню
           const taken = new Set(picked.filter((_, i) => i !== n).map((s) => s.id))
+          const takenNames = new Set(picked.filter((_, i) => i !== n).map((s) => normSpellName(s.spell_name)))
           return (
             <SpellSelect
               key={n}
               value={value}
-              options={options.filter((s) => !taken.has(s.id))}
+              options={options}
               edition={edition}
-              acceptOther={acceptOther ? (s) => acceptOther(s) && !taken.has(s.id) : undefined}
+              acceptOther={acceptOther}
+              ownedReason={(s) =>
+                taken.has(s.id) || takenNames.has(normSpellName(s.spell_name)) ? 'выбрано рядом' : (ownedReason?.(s) ?? null)
+              }
               placeholder={`${label}…`}
               loading={loading}
               onChange={(s) => setSlot(n, s)}
