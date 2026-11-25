@@ -13,6 +13,7 @@
  * кошелёк и записи. Всё, что бросается, бросается кликом — общими 3D-костями,
  * с историей бросков в углу экрана; туда же попадают броски сервера.
  */
+import { AttunementSlots } from './sheet/AttunementSlots'
 import { useLayoutEffect, useState, type ReactNode } from 'react'
 import {
   Backpack,
@@ -208,6 +209,13 @@ export default function CharacterSheet({
     </CombatCard>
   )
 
+  // слоты настройки: 3, у артефактора — по его умениям (var.attunement_slots / attunement_slots_24)
+  const attuneMax = Number(
+    sheet.extras?.allRules?.find((r) => r.key === 'attunement_slots_24' || r.key === 'attunement_slots')?.value ?? 3,
+  ) || 3
+  const attunement = (
+    <AttunementSlots items={sheet.inventory.items} max={attuneMax} onChange={(items) => onInventory(items)} />
+  )
   const invCard = (
     <InventoryCard sheet={sheet} onInventory={onInventory} onPatch={onPatch} live={live} lockedPurse={lockedPurse} roomMode={roomMode} />
   )
@@ -355,6 +363,7 @@ export default function CharacterSheet({
             onPortraitClick={onPortraitClick}
             roller={roller}
             stage={stage}
+            below={attunement}
           />
           {resources}
           <SheetTabs rows={deskTabs} current={current} onTab={setTab} />

@@ -183,6 +183,7 @@ export function HeroStage({
   onPortraitClick,
   roller,
   stage,
+  below,
 }: {
   sheet: SheetView
   portrait: string | null
@@ -191,6 +192,8 @@ export function HeroStage({
   onPortraitClick?: () => void
   roller: SheetRoller
   stage?: StageEngine
+  /** под именем героя: слоты настройки на магические предметы */
+  below?: ReactNode
 }) {
   const [amount, setAmount] = useState('')
   const [dmgType, setDmgType] = useState('')
@@ -390,6 +393,7 @@ export function HeroStage({
           </span>
         )}
         <h1 className="cw-plate-name gold-text">{info.name}</h1>
+        {below}
       </div>
 
       {/* ---------- справа: ход, движение, мастерство, вдохновение ---------- */}

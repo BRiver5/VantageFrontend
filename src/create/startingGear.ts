@@ -8,6 +8,7 @@
  * входит id класса/предыстории — после смены класса старые решения просто
  * перестают совпадать, сбрасывать их отдельно не нужно.
  */
+import { itemPreset } from '../characters/itemPresets'
 import type { Currency, Equipment, EquipmentGrant, EquipmentIndex, GrantEntry, Item } from '../api'
 import { matchesGrantEntry } from '../equipment'
 import type { AbilityName, AttackEntry, InventoryItemInstance } from '../types/character'
@@ -267,5 +268,7 @@ export function magicInventoryItem(it: Item): InventoryItemInstance {
     equipped: false,
     equip_slot: null,
     is_attuned: false,
+    // известные предметы (Кольцо защиты, Пояс силы великана…) — сразу со своими бонусами
+    bonuses: itemPreset(it.item_name),
   }
 }

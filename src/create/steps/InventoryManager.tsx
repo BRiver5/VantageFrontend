@@ -3,11 +3,13 @@
  * клетками, выбор предмета (количество, удалить, открыть в панели) и добавление
  * новых из каталога снаряжения или магических предметов — с поиском и фильтрами.
  */
+import { ItemBonuses } from '../../characters/sheet/AttunementSlots'
+import { itemPreset } from '../../characters/itemPresets'
 import { OtherEditionTag } from '../../search/OtherEditionTag'
 import { useEdition } from '../../editions/useEdition'
 import { useMemo, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { BookOpen, Gem, Minus, Plus, Shield, Sparkles, Trash2, X } from 'lucide-react'
+import { BookOpen, Gem, Minus, Pencil, Plus, Shield, Sparkles, Trash2, X } from 'lucide-react'
 import { realImage } from '../../api'
 import type { Equipment, Item } from '../../api'
 import { PriceMark } from '../../coins'
@@ -18,6 +20,7 @@ import type { InventoryItemInstance } from '../../types/character'
 import { useCatalogList } from '../useCatalog'
 import { inventoryItem, magicInventoryItem } from '../startingGear'
 import { PickToolbar, usePicker, type PickFilterGroup } from './ui'
+import { CustomItemEditor, applyValues, customInventoryItem, valuesOf, type CustomItemValues } from './CustomItemEditor'
 import { Img } from '../../media'
 import { useKeybinding } from '../../input/useKeybinding'
 
@@ -70,7 +73,10 @@ export function InventoryManager({
   const [selected, setSelected] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCell, setOverCell] = useState<string | null>(null)
-  const [tab, setTab] = useState<'gear' | 'magic'>('gear')
+  const [tab, setTab] = useState<'gear' | 'magic' | 'custom'>('gear')
+  // свой предмет: черновик названия (из поиска «не нашлось») и правка выбранного предмета
+  const [customName, setCustomName] = useState('')
+  const [editing, setEditing] = useState(false)
   const index = useEquipmentIndex()
   const drawer = useEquipmentDrawer()
   const { items: magicCatalog, loading: magicLoading, error: magicError } = useCatalogList<Item>('items')
@@ -128,6 +134,14 @@ export function InventoryManager({
       const item = inventoryItem(eq, 1, 0, { equipped: false, slot: null })
       return [...prev, { ...item, position: pos }]
     })
+  }
+
+  const addCustom = (v: CustomItemValues) => {
+    const item = customInventoryItem(v, firstFree(items))
+    setItems((prev) => [...prev, { ...item, position: firstFree(prev) }])
+    setSelected(item.instance_id)
+    setCustomName('')
+    setTab('gear')
   }
 
   const addMagic = (it: Item) => {
@@ -241,7 +255,10 @@ export function InventoryManager({
                         }}
                         onDragEnd={() => setDragId(null)}
                         className={`cw-inv-cell${it.equipped ? ' is-equipped' : ''}${selected === it.instance_id ? ' is-selected' : ''}${dragId === it.instance_id ? ' is-dragging' : ''}`}
-                        onClick={() => setSelected(selected === it.instance_id ? null : it.instance_id)}
+                        onClick={() => {
+                          setEditing(false)
+                          setSelected(selected === it.instance_id ? null : it.instance_id)
+                        }}
                         title={instanceName(it)}
                       >
                         <ItemFace it={it} />
@@ -306,14 +323,46 @@ export function InventoryManager({
                   <button
                     type="button"
                     className={`cw-mini-btn${current.is_attuned ? ' is-on' : ''}`}
-                    onClick={() => patch(current.instance_id, { is_attuned: !current.is_attuned })}
+                    onClick={() =>
+                      patch(current.instance_id, {
+                        is_attuned: !current.is_attuned,
+                        equipped: !current.is_attuned ? true : current.equipped,
+                        bonuses: current.bonuses?.length ? current.bonuses : itemPreset(instanceName(current)),
+                      })
+                    }
                   >
                     <Sparkles aria-hidden="true" /> {current.is_attuned ? 'настроено' : 'настроить'}
                   </button>
                 )}
+                <button type="button" className={`cw-mini-btn${editing ? ' is-on' : ''}`} onClick={() => setEditing((e) => !e)}>
+                  <Pencil aria-hidden="true" /> изменить
+                </button>
                 <button type="button" className="cw-mini-btn cw-mini-btn--danger" onClick={() => remove(current.instance_id)}>
                   <Trash2 aria-hidden="true" /> удалить
                 </button>
+              </div>
+            )}
+            {current && editing && (
+              <CustomItemEditor
+                key={current.instance_id}
+                initial={valuesOf(current)}
+                title="Свой вид предмета: название, картинка, описание"
+                submitLabel="Применить"
+                showCategory={!current.magic_item}
+                onSubmit={(v) => {
+                  patch(current.instance_id, applyValues(current, v))
+                  setEditing(false)
+                }}
+                onCancel={() => setEditing(false)}
+              />
+            )}
+            {current && editing && (
+              <div className="cw-inv-bonuses">
+                <h5 className="cw-custom-title">Бонусы предмета</h5>
+                <p className="cw-field-note">
+                  Действуют, пока предмет надет{current.magic_item?.attunement_required ? ' и вы на него настроены' : ''}.
+                </p>
+                <ItemBonuses bonuses={current.bonuses ?? []} onChange={(bonuses) => patch(current.instance_id, { bonuses })} />
               </div>
             )}
           </div>
@@ -328,13 +377,24 @@ export function InventoryManager({
               <button type="button" role="tab" aria-selected={tab === 'magic'} className={`cw-seg-btn${tab === 'magic' ? ' is-on' : ''}`} onClick={() => setTab('magic')}>
                 Магия
               </button>
+              <button type="button" role="tab" aria-selected={tab === 'custom'} className={`cw-seg-btn${tab === 'custom' ? ' is-on' : ''}`} onClick={() => setTab('custom')}>
+                Своё
+              </button>
             </div>
-            {tab === 'gear' ? (
+            {tab === 'custom' ? (
+              <CustomItemEditor
+                key={customName}
+                initial={{ name: customName, category: 'Прочее', weight: null, description: '', image: null }}
+                title="Свой предмет — то, чего нет в каталоге"
+                submitLabel="Добавить в инвентарь"
+                onSubmit={addCustom}
+              />
+            ) : tab === 'gear' ? (
               <PickToolbar picker={picker} groups={groups} placeholder="Искать снаряжение…" />
             ) : (
               <PickToolbar picker={magicPicker} groups={magicGroups} placeholder="Искать магические предметы…" />
             )}
-            <div className="cw-inv-catalog">
+            <div className="cw-inv-catalog" hidden={tab === 'custom'}>
               {tab === 'gear' &&
                 shownGear.map((e) => (
                   <div key={e.id} className="cw-inv-row">
@@ -379,6 +439,18 @@ export function InventoryManager({
               )}
               {tab === 'magic' && !magicLoading && magicPicker.visible.length === 0 && (
                 <p className="cw-field-note">Ничего не нашлось — ослабьте фильтры или уточните название.</p>
+              )}
+              {tab !== 'custom' && (tab === 'gear' ? picker.query : magicPicker.query).trim() && (
+                <button
+                  type="button"
+                  className="cw-inv-make-custom"
+                  onClick={() => {
+                    setCustomName((tab === 'gear' ? picker.query : magicPicker.query).trim())
+                    setTab('custom')
+                  }}
+                >
+                  <Plus aria-hidden="true" /> Нет нужного? Создать «{(tab === 'gear' ? picker.query : magicPicker.query).trim()}» как свой предмет
+                </button>
               )}
             </div>
           </div>

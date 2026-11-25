@@ -149,6 +149,8 @@ export type InventoryItemInstance = {
   equipped: boolean
   equip_slot?: string | null
   is_attuned: boolean
+  /** свои бонусы предмета: действуют, пока надет (и настроен, если требует настройки) */
+  bonuses?: CustomModifier[]
 }
 
 export type CharacterInventory = {
