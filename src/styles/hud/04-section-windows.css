@@ -515,6 +515,8 @@
 }
 .hud-win--hero .cw-story-art {
   position: relative;
+  /* общий стиль листа — sticky с top: 64px; у relative этот top сдвигал колонку за низ окна */
+  top: auto;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -548,7 +550,8 @@
   gap: calc(var(--u) * 2) calc(var(--u) * 6);
   max-height: 46%;
   margin-top: calc(var(--u) * 4);
-  padding: calc(var(--u) * 4) 0 0;
+  /* снизу — место под угловой орнамент окна, иначе он ложится на последнюю строку */
+  padding: calc(var(--u) * 4) 0 calc(var(--u) * 14);
   overflow-y: auto;
   border-top: 1px solid rgb(var(--gold-2-rgb) / 0.24);
   background: none;
