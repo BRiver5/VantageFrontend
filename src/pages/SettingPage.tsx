@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Landmark } from 'lucide-react'
+import { ArrowLeft, BookOpen, Hourglass, Landmark, MapPin } from 'lucide-react'
 import {
   enrichBooksBackgrounds,
   getBookContents,
@@ -17,6 +17,7 @@ import { LootChips } from './home/LootChips'
 import { scrollToTomeSection } from '../contentSections'
 import { bgUrl } from '../media'
 import { countLabel } from '../lib/plural'
+import { useAtlasWorld, WorldTabs } from '../atlas/WorldTabs'
 
 export default function SettingPage() {
   const { id } = useParams<{ id: string }>()
@@ -57,6 +58,7 @@ export default function SettingPage() {
   }, [id])
 
   const totals = useMemo<ContentTotals>(() => totalsOf(books), [books])
+  const atlas = useAtlasWorld(setting ? splitTitle(setting.settings_title).en : null)
 
   if (error) return <p className="status-line is-error">Мир не найден: {error}</p>
   if (!setting) return <p className="status-line">Открываем портал…</p>
@@ -82,42 +84,52 @@ export default function SettingPage() {
           <div className="card-chips" style={{ marginTop: 14 }}>
             <span className="chip"><BookOpen aria-hidden="true" />{countLabel(books.length, ['книга', 'книги', 'книг'])}</span>
             <span className="chip"><Landmark aria-hidden="true" />мир мультивселенной</span>
+            {atlas && <span className="chip"><MapPin aria-hidden="true" />{countLabel(atlas.counts.markers, ['место', 'места', 'мест'])} на карте</span>}
+            {atlas && <span className="chip"><Hourglass aria-hidden="true" />{countLabel(atlas.counts.events, ['событие', 'события', 'событий'])} в летописи</span>}
           </div>
         </div>
       </div>
 
-      <Divider />
+      <WorldTabs
+        world={atlas}
+        worldName={ru}
+        overview={
+          <>
+            <Divider />
 
-      <h2 className="section-title gold-text">Тома мира</h2>
-      <p className="section-sub">Летописи и приключения, изданные для этого сеттинга</p>
-      <div className="carousel tome-carousel">
-        {books.map((b) => {
-          const t = splitTitle(b.title)
-          return (
-            <Link key={b.id} to={`/books/${b.id}`} className="tome-card">
-              <span className="tome-card-cover">
-                <CoverImage src={b.book_cover_url} alt={b.title} />
-              </span>
-              <span className="hex-code">{b.book_code}</span>
-              <span className="tome-card-name">{t.ru}</span>
-            </Link>
-          )
-        })}
-      </div>
+            <h2 className="section-title gold-text">Тома мира</h2>
+            <p className="section-sub">Летописи и приключения, изданные для этого сеттинга</p>
+            <div className="carousel tome-carousel">
+              {books.map((b) => {
+                const t = splitTitle(b.title)
+                return (
+                  <Link key={b.id} to={`/books/${b.id}`} className="tome-card">
+                    <span className="tome-card-cover">
+                      <CoverImage src={b.book_cover_url} alt={b.title} />
+                    </span>
+                    <span className="hex-code">{b.book_code}</span>
+                    <span className="tome-card-name">{t.ru}</span>
+                  </Link>
+                )
+              })}
+            </div>
 
-      <Divider />
+            <Divider />
 
-      <div className="loot-bar">
-        <Corners size={38} />
-        <div className="loot-title">Нововведения мира — {ru}</div>
-        <LootChips totals={totals} onSelect={(key) => scrollToTomeSection(key)} />
-      </div>
+            <div className="loot-bar">
+              <Corners size={38} />
+              <div className="loot-title">Нововведения мира — {ru}</div>
+              <LootChips totals={totals} onSelect={(key) => scrollToTomeSection(key)} />
+            </div>
 
-      {contents ? (
-        <TomeSections contents={contents} />
-      ) : (
-        <p className="status-line">Сводим летописи всех томов…</p>
-      )}
+            {contents ? (
+              <TomeSections contents={contents} />
+            ) : (
+              <p className="status-line">Сводим летописи всех томов…</p>
+            )}
+          </>
+        }
+      />
     </section>
   )
 }

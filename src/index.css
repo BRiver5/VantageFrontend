@@ -129,3 +129,5 @@
 @import './styles/components/directory.css' layer(components);
 @import './styles/components/edition-toggle.css' layer(components);
 @import './styles/components/catalog-toolbar.css' layer(components);
+/* атлас — без слоя: стили Leaflet (leaflet.css из JS) тоже без слоя и иначе перебили бы любой слой */
+@import './styles/details/08-atlas.css';

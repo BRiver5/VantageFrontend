@@ -42,6 +42,8 @@ interface Ctx {
   depth: number
   /** есть — смотрит мастер; нет — игрок (тайны пришли уже раскрытыми) */
   secrets?: SecretControl
+  /** подсказка ссылки [[…]]; нет — «Создать «…»» для несуществующей страницы */
+  linkHint?: (page: string, exists: boolean) => string
 }
 
 const CALLOUT: Record<string, { icon: LucideIcon; label: string }> = {
@@ -97,7 +99,7 @@ function inline(nodes: Inline[], ctx: Ctx, key = ''): ReactNode[] {
         if (n.embed) return <Embed key={k} title={n.page} ctx={ctx} />
         const exists = ctx.pages.has(n.page)
         return (
-          <button key={k} type="button" className={`kb-wiki${exists ? '' : ' is-missing'}`} onClick={() => ctx.onOpen(n.page)} title={exists ? n.page : `Создать «${n.page}»`}>
+          <button key={k} type="button" className={`kb-wiki${exists ? '' : ' is-missing'}`} onClick={() => ctx.onOpen(n.page)} title={ctx.linkHint ? ctx.linkHint(n.page, exists) : exists ? n.page : `Создать «${n.page}»`}>
             {n.label}
           </button>
         )
@@ -302,8 +304,8 @@ function blocks(list: Block[], ctx: Ctx, key = ''): ReactNode[] {
 }
 
 /** Тело страницы без шапки */
-export function MarkdownBody({ src, pages, onOpen, onTag, onChange, depth = 0, secrets }: { src: string; pages: PageLookup; onOpen: (title: string) => void; onTag?: (t: string) => void; onChange?: (next: string) => void; depth?: number; secrets?: SecretControl }) {
+export function MarkdownBody({ src, pages, onOpen, onTag, onChange, depth = 0, secrets, linkHint }: { src: string; pages: PageLookup; onOpen: (title: string) => void; onTag?: (t: string) => void; onChange?: (next: string) => void; depth?: number; secrets?: SecretControl; linkHint?: (page: string, exists: boolean) => string }) {
   const { body, offset } = parsePage(src)
-  const ctx: Ctx = { pages, onOpen, onTag, onChange, src, depth, secrets }
+  const ctx: Ctx = { pages, onOpen, onTag, onChange, src, depth, secrets, linkHint }
   return <>{blocks(parseBlocks(body, offset), ctx)}</>
 }
