@@ -131,7 +131,7 @@ export default function LevelUpStep({
   )
 
   const req = useMemo<LevelRequirements>(() => {
-    const classSkills = classSkillChoice(className)
+    const classSkills = classSkillChoice(className, draft.cls?.skill_choices)
     const slotsNow = spellSlotsAt(kind, level)
     const slotsBefore = spellSlotsAt(kind, level - 1)
     const slots = Object.entries(slotsNow)
@@ -157,7 +157,7 @@ export default function LevelUpStep({
       classFeatures: (bundle?.features ?? []).filter((f) => f.level === level),
       subFeatures: subclassFeatures.filter((f) => f.level === level),
     }
-  }, [className, kind, level, prepared, subclassLevel, bundle, subclassFeatures, backgroundSkills, opts.multiclassEntry, opts.ownSkills])
+  }, [className, draft.cls?.skill_choices, kind, level, prepared, subclassLevel, bundle, subclassFeatures, backgroundSkills, opts.multiclassEntry, opts.ownSkills])
 
   /** Уже выбранные на других уровнях заклинания — чтобы не дублировать */
   const takenSpellIds = useMemo(() => {

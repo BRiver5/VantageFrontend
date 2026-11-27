@@ -68,6 +68,8 @@ export interface GameClass extends EditionFields {
   slug?: string | null
   /** уровень, на котором выбирается подкласс */
   subclass_level?: number | null
+  /** навыки класса на выбор (ключи навыков); есть у классов 2024 и у классов из книг ttg.club */
+  skill_choices?: { count: number; options: string[] } | null
   /** способности, которые источник выдаёт персонажу (slug и уровень) */
   abilities?: AbilityRef[] | null
 }
