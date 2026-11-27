@@ -6,7 +6,7 @@ import { realImage } from '../../api'
 import type { GameClass } from '../../api'
 import { DIE_NUM_IMAGE_URLS, hitDieType } from '../../dice/diceAssets'
 import { ClassDetailView } from '../../pages/details/ClassDetail'
-import { CLASS_PRIMARY_ABILITY, casterKind } from '../dnd5e'
+import { CLASS_PRIMARY_ABILITY, OTHER_CLASSES_LABEL, casterKind, isCoreClass } from '../dnd5e'
 import { emptyLevelChoice, type StepProps } from '../draft'
 import {
   ChoiceModal,
@@ -173,6 +173,18 @@ export default function ClassStep({ draft, update }: StepProps) {
     setOpen(null)
   }
 
+  const coreClasses = picker.visible.filter((c) => isCoreClass(c.class_name))
+  const otherClasses = picker.visible.filter((c) => !isCoreClass(c.class_name))
+  const card = (cls: GameClass) => (
+    <ClassCard
+      key={cls.id}
+      cls={cls}
+      selected={draft.cls?.id === cls.id}
+      onSelect={() => choose(cls)}
+      onDetails={() => setOpen(cls)}
+    />
+  )
+
   return (
     <div className="cw-step cw-step--picker">
       <StepHeader title="Чьё ремесло ты избрал?" />
@@ -188,17 +200,21 @@ export default function ClassStep({ draft, update }: StepProps) {
       <StepStatus loading={loading} error={error} />
       <PickEmpty show={!loading && items.length > 0 && picker.visible.length === 0} />
 
-      <div className="cw-catalog-grid">
-        {picker.visible.map((cls) => (
-          <ClassCard
-            key={cls.id}
-            cls={cls}
-            selected={draft.cls?.id === cls.id}
-            onSelect={() => choose(cls)}
-            onDetails={() => setOpen(cls)}
-          />
-        ))}
-      </div>
+      <div className="cw-catalog-grid">{coreClasses.map(card)}</div>
+
+      {otherClasses.length > 0 && (
+        <>
+          <header className="catalog-group-head">
+            <span className="catalog-group-rule" aria-hidden="true" />
+            <span className="catalog-group-plate">
+              {OTHER_CLASSES_LABEL}
+              <b>{otherClasses.length}</b>
+            </span>
+            <span className="catalog-group-rule" aria-hidden="true" />
+          </header>
+          <div className="cw-catalog-grid">{otherClasses.map(card)}</div>
+        </>
+      )}
 
       {open && (
         <ClassModal
