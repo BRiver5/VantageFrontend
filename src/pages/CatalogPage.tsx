@@ -42,6 +42,7 @@ import type {
   Termin,
 } from '../api'
 import { Divider } from '../ornaments'
+import { OTHER_CLASSES_LABEL, isCoreClass } from '../create/dnd5e'
 import { useEquipmentDrawer } from '../equipmentDrawer'
 import { type VTDocument } from './catalog/transitions'
 import { type CatalogConfig, PAGE_SIZE, type SwitchRoles, applySort, bookCmp, catalogSearch, filtersFromSearch, pageFromSearch, parseSort, toggleIn } from './catalog/config'
@@ -456,6 +457,16 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
       )
   }, [groupByBook, items, bookMap])
 
+  // «хвостовая» группа (прочие классы): основные записи — сеткой, остальные — под перегородкой
+  const trailingGroup = cfg.trailingGroup
+  const trailing = useMemo(() => {
+    if (!trailingGroup) return null
+    const main: T[] = []
+    const rest: T[] = []
+    for (const item of items) (trailingGroup.match(item) ? rest : main).push(item)
+    return rest.length ? { main, rest } : null
+  }, [trailingGroup, items])
+
   const renderCard = (item: T) => {
     const otherEd = otherEditionOf(item)
     return (
@@ -526,9 +537,28 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 
       {error && <p className="status-line is-error">Архив недоступен: {error}</p>}
 
-      {!error && !bookGroups && (
+      {!error && !bookGroups && !trailing && (
         <div className="card-grid" data-loading={loading || undefined}>
           {items.map(renderCard)}
+        </div>
+      )}
+
+      {!error && !bookGroups && trailing && (
+        <div className="catalog-groups" data-loading={loading || undefined}>
+          {trailing.main.length > 0 && <div className="card-grid">{trailing.main.map(renderCard)}</div>}
+          {trailing.rest.length > 0 && (
+            <section className="catalog-group">
+              <header className="catalog-group-head">
+                <span className="catalog-group-rule" aria-hidden="true" />
+                <span className="catalog-group-plate">
+                  {cfg.trailingGroup!.label}
+                  <b>{trailing.rest.length}</b>
+                </span>
+                <span className="catalog-group-rule" aria-hidden="true" />
+              </header>
+              <div className="card-grid">{trailing.rest.map(renderCard)}</div>
+            </section>
+          )}
         </div>
       )}
 
@@ -609,6 +639,11 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
 /* ---------- Готовые страницы разделов ---------- */
 
 /** Оболочка каталога классов; `inlineDetail` задаётся снаружи (ClassDetailView). */
+const CLASS_TRAILING_GROUP = {
+  label: OTHER_CLASSES_LABEL,
+  match: (c: GameClass) => !isCoreClass(c.class_name),
+}
+
 export function ClassesCatalog({
   inlineDetail,
 }: {
@@ -622,6 +657,7 @@ export function ClassesCatalog({
         title: 'Классы',
         emptyIcon: Swords,
         card: classCard,
+        trailingGroup: CLASS_TRAILING_GROUP,
         inlineUrl: 'path',
         inlineDetail,
       }}
