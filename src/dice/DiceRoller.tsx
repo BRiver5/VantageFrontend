@@ -203,7 +203,7 @@ function DieRow({
   return (
     <li className={`dq-row${active ? ' is-active' : ''}`} style={{ '--i': index } as CSSProperties} onPointerEnter={touch ? undefined : () => onActive(true)}>
       <button type="button" className="dq-die" disabled={disabled} onClick={onRoll} title={`Бросить ${label}`} aria-label={`Бросить ${label}`}>
-        <DieImage type={type} size={30} />
+        <DieImage type={type} size={30} blank />
         <i className="dq-die-name">d{type}</i>
       </button>
       {(count > 1 || (type === 20 && mode)) && <em className={`dq-badge${mode && type === 20 ? ` is-${mode}` : ''}`}>{mode && type === 20 ? (mode === 'adv' ? 'П' : 'Пм') : `×${count}`}</em>}

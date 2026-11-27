@@ -7,7 +7,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { DIE_IMAGE_URLS, hitDieType } from '../../dice/diceAssets'
+import { DIE_NUM_IMAGE_URLS, hitDieType } from '../../dice/diceAssets'
 import { Corners } from '../../ornaments'
 import { RichText } from '../../terms/terms'
 import { AbilityText } from '../../abilities/AbilityText'
@@ -177,7 +177,7 @@ export function DieButton({
       title={title}
     >
       <span className="cw-die-shape" aria-hidden="true">
-        {sides > 0 ? <Img src={DIE_IMAGE_URLS[hitDieType(sides)]} alt="" draggable={false} /> : <i className="cw-die-flat" />}
+        {sides > 0 ? <Img src={DIE_NUM_IMAGE_URLS[hitDieType(sides)]} alt="" draggable={false} /> : <i className="cw-die-flat" />}
       </span>
       <b>{value}</b>
       <i>{label}</i>

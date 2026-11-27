@@ -11,6 +11,7 @@ import d8NumUrl from '../assets/dices/d8-num.svg'
 import d10NumUrl from '../assets/dices/d10-num.svg'
 import d12NumUrl from '../assets/dices/d12-num.svg'
 import d20NumUrl from '../assets/dices/d20-num.svg'
+import d100NumUrl from '../assets/dices/d100-num.svg'
 import type { DieType } from './DiceShapeIcons'
 import { DIE_TYPES } from './DiceShapeIcons'
 import { Img } from '../media'
@@ -25,7 +26,10 @@ export const DIE_IMAGE_URLS: Record<DieType, string> = {
   100: d100Url,
 }
 
-/** Кости с цифрами на гранях — для крупного декора (карточки классов и т.п.) */
+/**
+ * Кости БЕЗ цифры на грани («-num» = «минус число»): для мест, где поверх кости
+ * лежит своё число, и для крупного декора (карточки классов и т.п.)
+ */
 export const DIE_NUM_IMAGE_URLS: Record<DieType, string> = {
   4: d4NumUrl,
   6: d6NumUrl,
@@ -33,7 +37,7 @@ export const DIE_NUM_IMAGE_URLS: Record<DieType, string> = {
   10: d10NumUrl,
   12: d12NumUrl,
   20: d20NumUrl,
-  100: d100Url,
+  100: d100NumUrl,
 }
 
 export function hitDieType(n: number): DieType {
@@ -45,13 +49,15 @@ interface DieImageProps {
   size?: number
   className?: string
   title?: string
+  /** Без цифры на грани — когда поверх кости уже есть своё число */
+  blank?: boolean
 }
 
 /** Рендер кости из ассетов — вписывается в квадрат с сохранением пропорций */
-export function DieImage({ type, size = 26, className = '', title }: DieImageProps) {
+export function DieImage({ type, size = 26, className = '', title, blank = false }: DieImageProps) {
   return (
     <Img
-      src={DIE_IMAGE_URLS[type]}
+      src={(blank ? DIE_NUM_IMAGE_URLS : DIE_IMAGE_URLS)[type]}
       alt=""
       aria-hidden={title ? undefined : true}
       title={title}
