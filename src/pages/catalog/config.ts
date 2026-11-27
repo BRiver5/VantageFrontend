@@ -69,6 +69,8 @@ export interface CatalogConfig<T> {
   filters?: FilterGroup<T>[]
   /** если задано — список делится на группы по книге-источнику с перегородками */
   groupByBook?: (item: T) => string | null | undefined
+  /** внутри книги — подгруппы с подзаголовком (категория черты: «Черта пути лича»), если их больше одной */
+  subgroupBy?: (item: T) => string | null | undefined
   /** если задано — подходящие записи уходят в конец списка под перегородку с подписью */
   trailingGroup?: { label: string; match: (item: T) => boolean }
   /** наименьшая ширина карточки в сетке раздела, если она не обычная */

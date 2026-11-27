@@ -249,6 +249,9 @@ export interface Feat extends EditionFields {
   book_source_id: string | null
   /** способности, которые источник выдаёт персонажу (slug и уровень) */
   abilities?: AbilityRef[] | null
+  /** категория черты: origin, general, epic_boon… и пути из книг («Черта пути лича») */
+  category?: string | null
+  category_label?: string | null
 }
 
 export interface Item extends EditionFields {

@@ -69,6 +69,20 @@ const NAME_FIELD: Record<string, string> = {
   items: 'item_name',
 }
 
+/** Подгруппы внутри книги в порядке первого появления; null — делить не на что (одна подгруппа) */
+function subgroups<T>(items: readonly T[], by: (item: T) => string | null | undefined): { label: string; items: T[] }[] | null {
+  const map = new Map<string, T[]>()
+  for (const it of items) {
+    const key = (by(it) ?? '').trim()
+    const list = map.get(key)
+    if (list) list.push(it)
+    else map.set(key, [it])
+  }
+  if (map.size < 2) return null
+  // без категории — в конец
+  return [...map.entries()].sort(([a], [b]) => Number(!a) - Number(!b)).map(([label, list]) => ({ label, items: list }))
+}
+
 /** Полный список раздела в редакции — один запрос на время сессии (поиск по нему идёт часто) */
 const allCache = new Map<string, Promise<unknown[]>>()
 function allOfEdition<T>(resource: string, edition: string): Promise<T[]> {
@@ -591,7 +605,19 @@ function CatalogPage<T extends { id: string }>({ cfg }: { cfg: CatalogConfig<T> 
                   )}
                   <span className="catalog-group-rule" aria-hidden="true" />
                 </header>
-                <div className="card-grid">{group.items.map(renderCard)}</div>
+                {(() => {
+                  const subs = cfg.subgroupBy ? subgroups(group.items, cfg.subgroupBy) : null
+                  if (!subs) return <div className="card-grid">{group.items.map(renderCard)}</div>
+                  return subs.map((sg) => (
+                    <div className="catalog-subgroup" key={sg.label || 'none'}>
+                      <h3 className="catalog-subgroup-head">
+                        <span>{sg.label || 'Прочие'}</span>
+                        <b>{sg.items.length}</b>
+                      </h3>
+                      <div className="card-grid">{sg.items.map(renderCard)}</div>
+                    </div>
+                  ))
+                })()}
               </section>
             )
           })}
@@ -689,6 +715,7 @@ export const FeatsPage = () => (
       card: featCard,
       filters: featFilters,
       groupByBook: (f) => f.book_source_id,
+      subgroupBy: (f) => f.category_label,
       noPaging: true,
     }}
   />

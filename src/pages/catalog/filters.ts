@@ -112,6 +112,16 @@ export const featFilters: FilterGroup<Feat>[] = [
     match: (f, sel) => !!f.book_source_id && sel.includes(f.book_source_id),
   },
   {
+    key: 'category',
+    label: 'Категория',
+    // категории, которые есть в списке: «Черта происхождения», «Черта пути лича»…
+    options: (_bookMap, items) =>
+      [...new Set(items.map((f) => f.category_label).filter((x): x is string => !!x))]
+        .sort((a, b) => a.localeCompare(b, 'ru'))
+        .map((label) => ({ key: label, label })),
+    match: (f, sel) => !!f.category_label && sel.includes(f.category_label),
+  },
+  {
     key: 'ability',
     label: 'Характеристики',
     options: () =>

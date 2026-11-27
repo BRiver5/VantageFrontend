@@ -81,3 +81,13 @@
   filter: drop-shadow(0 0 12px rgb(var(--gold-2-rgb) / 0.22));
 }
 
+
+/* подгруппы внутри книги (категория черты: «Черта пути лича» / «Черта пути рыцаря смерти») */
+.catalog-subgroup + .catalog-subgroup { margin-top: 22px; }
+.catalog-subgroup-head {
+  display: flex; align-items: baseline; gap: 10px; margin: 6px 0 12px; padding-bottom: 6px;
+  font-family: var(--font-display, inherit); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.06em;
+  font-variant: small-caps; color: var(--gold-3);
+  border-bottom: 1px solid rgb(var(--gold-2-rgb) / 0.22);
+}
+.catalog-subgroup-head b { font-size: 0.74rem; font-weight: 600; font-variant: normal; color: var(--text-dim); }
