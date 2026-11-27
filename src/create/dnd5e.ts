@@ -399,11 +399,21 @@ const CLASS_SKILLS: Record<string, SkillChoice> = {
 }
 
 /**
- * Навыки на выбор от класса. Для незнакомого класса даём 2 из всех — иначе шаг
- * выбора навыков просто исчез бы и персонаж остался без владений.
+ * Навыки на выбор от класса. Сначала — таблица PHB, затем `skill_choices` из API (классы
+ * из других книг: Кровавый охотник, Алхимик…). Для незнакомого класса даём 2 из всех —
+ * иначе шаг выбора навыков просто исчез бы и персонаж остался без владений.
  */
-export function classSkillChoice(className: string): SkillChoice {
-  return CLASS_SKILLS[classKey(className)] ?? { count: 2, options: ALL_SKILL_KEYS }
+export function classSkillChoice(
+  className: string,
+  fromApi?: { count: number; options: string[] } | null,
+): SkillChoice {
+  const known = CLASS_SKILLS[classKey(className)]
+  if (known) return known
+  if (fromApi && fromApi.count > 0) {
+    const options = fromApi.options.filter((k) => ALL_SKILL_KEYS.includes(k))
+    return { count: fromApi.count, options: options.length ? options : ALL_SKILL_KEYS }
+  }
+  return { count: 2, options: ALL_SKILL_KEYS }
 }
 
 /**
