@@ -9,7 +9,7 @@ import { useAtlas, useWorldParams } from './AtlasContext'
 import { AtlasText, InfoboxCard, WikiSource } from './AtlasText'
 
 export default function AtlasLore() {
-  const { world, lore } = useAtlas()
+  const { world, lore, pick } = useAtlas()
   const { params, set } = useWorldParams()
   const sectionId = params.get('section') ?? lore?.[0]?.id ?? null
   const [section, setSection] = useState<LoreSection | null>(null)
@@ -68,8 +68,8 @@ export default function AtlasLore() {
             <h2 className="book-title gold-text">{section.name_ru}</h2>
             <div className="atlas-place-en">{section.title}</div>
             <div className="atlas-article">
-              {section.infobox && <InfoboxCard box={section.infobox} title={section.title} />}
-              <AtlasText src={section.body ?? ''} />
+              {section.infobox && <InfoboxCard box={pick(section.infobox_ru, section.infobox)} title={section.title} />}
+              <AtlasText src={pick(section.body_ru, section.body ?? '')} />
               <WikiSource url={section.url} title={section.title} />
             </div>
           </>

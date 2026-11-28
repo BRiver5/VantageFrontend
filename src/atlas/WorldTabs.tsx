@@ -93,9 +93,26 @@ export function WorldTabs({ world, worldName, overview }: { world: AtlasWorld | 
   }
   return (
     <AtlasProvider world={world}>
-      {bar}
+      <div className="atlas-tabs-row">
+        {bar}
+        <LangToggle />
+      </div>
       <AtlasBody tab={tab} />
     </AtlasProvider>
+  )
+}
+
+function LangToggle() {
+  const { lang, setLang } = useAtlas()
+  return (
+    <div className="atlas-lang" role="group" aria-label="Язык текстов">
+      <button type="button" className={lang === 'ru' ? 'is-on' : ''} onClick={() => setLang('ru')} title="Перевод на русский">
+        RU
+      </button>
+      <button type="button" className={lang === 'en' ? 'is-on' : ''} onClick={() => setLang('en')} title="Английский оригинал (Forgotten Realms Wiki)">
+        EN
+      </button>
+    </div>
   )
 }
 
@@ -117,7 +134,7 @@ function AtlasBody({ tab }: { tab: WorldTab }) {
             </a>
           </span>
         ))}
-        . Тексты статей — на английском, как в первоисточнике.
+        . Переключатель RU / EN над вкладками показывает перевод или английский оригинал; где перевода ещё нет — оригинал.
       </footer>
     </Suspense>
   )

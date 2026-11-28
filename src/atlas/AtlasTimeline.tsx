@@ -42,7 +42,7 @@ export default function AtlasTimeline() {
 }
 
 function TimelineView({ data }: { data: TimelineData }) {
-  const { world, map, links, go } = useAtlas()
+  const { world, map, links, go, pick } = useAtlas()
   const { params, set } = useWorldParams()
   const yearParam = params.get('year')
   const year = yearParam != null && yearParam !== '' ? Number(yearParam) : null
@@ -164,7 +164,7 @@ function TimelineView({ data }: { data: TimelineData }) {
       <div className="atlas-tl-tools">
         <label className="atlas-search">
           <Search aria-hidden="true" />
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Поиск по всей истории (англ.): Netheril, Elminster…" />
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Поиск по всей истории: Нетерил, Elminster…" />
           {draft && (
             <button type="button" onClick={() => { setDraft(''); set({ q: null }) }} aria-label="Очистить">
               <X aria-hidden="true" />
@@ -232,10 +232,10 @@ function TimelineView({ data }: { data: TimelineData }) {
             <section key={y} className={`atlas-year${y === year ? ' is-target' : ''}`} id={`year-${y}`}>
               <header>
                 <span className="atlas-year-num">{formatDR(y)}</span>
-                {info?.name && <span className="atlas-year-name">{info.name_ru ?? info.name}</span>}
+                {info?.name && <span className="atlas-year-name">{pick(info.name_ru, info.name)}</span>}
                 {info?.headline && (
                   <span className="atlas-year-headline">
-                    <AtlasText src={info.headline} inline />
+                    <AtlasText src={pick(info.headline_ru, info.headline)} inline />
                   </span>
                 )}
               </header>
@@ -245,7 +245,7 @@ function TimelineView({ data }: { data: TimelineData }) {
                     <span className="atlas-cat-dot" style={{ background: CAT_COLORS[ev.cat] }} title={data.categories[ev.cat]} />
                     <div>
                       {ev.approx && <span className="atlas-approx">около</span>}
-                      <AtlasText src={ev.text_ru ?? ev.text} />
+                      <AtlasText src={pick(ev.text_ru, ev.text)} />
                     </div>
                   </li>
                 ))}
@@ -273,7 +273,7 @@ function TimelineView({ data }: { data: TimelineData }) {
 }
 
 function EraIntro({ era }: { era: AtlasEra }) {
-  const { world } = useAtlas()
+  const { world, pick } = useAtlas()
   const [full, setFull] = useState<AtlasEra | null>(null)
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -290,11 +290,11 @@ function EraIntro({ era }: { era: AtlasEra }) {
       <p className="section-sub">
         {era.title} · {eraRange(era)} · {countLabel(era.years, ['год', 'года', 'лет'])} в летописи
       </p>
-      {!open && era.summary && <p className="atlas-era-summary">{era.summary}</p>}
+      {!open && era.summary && <p className="atlas-era-summary">{pick(era.summary_ru, era.summary)}</p>}
       {open ? (
         full ? (
           <div className="atlas-article">
-            <AtlasText src={full.body ?? ''} />
+            <AtlasText src={pick(full.body_ru, full.body ?? '')} />
             <WikiSource url={full.url} title={full.title} />
           </div>
         ) : (

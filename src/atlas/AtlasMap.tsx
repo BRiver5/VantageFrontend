@@ -225,7 +225,7 @@ function MapView({ data, placeId, onSelect }: { data: MapData; placeId: string |
 }
 
 function PlaceCard({ place, color, layerName, onClose, onFocus }: { place: AtlasMarker; color?: string; layerName: string; onClose: () => void; onFocus: () => void }) {
-  const { world, go } = useAtlas()
+  const { world, go, pick } = useAtlas()
   const { set } = useWorldParams()
   const [article, setArticle] = useState<AtlasArticle | null>(null)
   const [open, setOpen] = useState(false)
@@ -260,14 +260,14 @@ function PlaceCard({ place, color, layerName, onClose, onFocus }: { place: Atlas
         <h3 className="gold-text">{placeName(place)}</h3>
         {place.name_ru && <div className="atlas-place-en">{place.name}</div>}
         {!place.wiki && <p className="atlas-muted">О месте пока нет статьи в Forgotten Realms Wiki.</p>}
-        {place.summary && !open && <p className="atlas-place-summary">{place.summary}</p>}
+        {place.summary && !open && <p className="atlas-place-summary">{pick(place.summary_ru, place.summary)}</p>}
 
         {article && (
           <>
             {open ? (
               <div className="atlas-article">
-                {article.infobox && <InfoboxCard box={article.infobox} title={article.title} />}
-                <AtlasText src={article.body} />
+                {article.infobox && <InfoboxCard box={pick(article.infobox_ru, article.infobox)} title={article.title} />}
+                <AtlasText src={pick(article.body_ru, article.body)} />
                 <WikiSource url={article.url} title={article.title} />
               </div>
             ) : (
@@ -289,7 +289,7 @@ function PlaceCard({ place, color, layerName, onClose, onFocus }: { place: Atlas
                   <button type="button" className="atlas-year-link" onClick={() => go({ kind: 'year', year: ev.year })}>
                     {formatDR(ev.year)}
                   </button>
-                  <AtlasText src={ev.text} />
+                  <AtlasText src={pick(ev.text_ru, ev.text)} />
                 </li>
               ))}
             </ol>

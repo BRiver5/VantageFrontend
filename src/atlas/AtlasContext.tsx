@@ -11,6 +11,9 @@ import type { AtlasMap, AtlasTimeline, AtlasWorld, LoreSection } from '../api/at
 import { makeResolver, type LinkResolver, type LinkTarget } from './links'
 
 export type WorldTab = 'overview' | 'lore' | 'map' | 'timeline'
+export type AtlasLang = 'ru' | 'en'
+
+const LANG_KEY = 'atlas-lang'
 
 interface AtlasState {
   world: AtlasWorld
@@ -21,6 +24,11 @@ interface AtlasState {
   links: LinkResolver | null
   /** перейти по ссылке из текста */
   go: (target: LinkTarget) => void
+  /** язык текстов: перевод или английский оригинал */
+  lang: AtlasLang
+  setLang: (lang: AtlasLang) => void
+  /** перевод, если он есть и выбран русский; иначе оригинал */
+  pick: <T>(ru: T | null | undefined, en: T) => T
 }
 
 const Ctx = createContext<AtlasState | null>(null)
@@ -60,6 +68,12 @@ export function AtlasProvider({ world, children }: { world: AtlasWorld; children
   const [timeline, setTimeline] = useState<AtlasTimeline | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { set } = useWorldParams()
+  const [lang, setLangState] = useState<AtlasLang>(() => (localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ru'))
+  const setLang = useCallback((next: AtlasLang) => {
+    localStorage.setItem(LANG_KEY, next)
+    setLangState(next)
+  }, [])
+  const pick = useCallback(<T,>(ru: T | null | undefined, en: T): T => (lang === 'ru' && ru ? ru : en), [lang])
 
   useEffect(() => {
     let alive = true
@@ -115,6 +129,9 @@ export function AtlasProvider({ world, children }: { world: AtlasWorld; children
     [set],
   )
 
-  const value = useMemo(() => ({ world, map, lore, timeline, error, links, go }), [world, map, lore, timeline, error, links, go])
+  const value = useMemo(
+    () => ({ world, map, lore, timeline, error, links, go, lang, setLang, pick }),
+    [world, map, lore, timeline, error, links, go, lang, setLang, pick],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

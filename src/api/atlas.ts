@@ -33,6 +33,7 @@ export interface AtlasMarker {
   /** статья FR Wiki; null — статьи нет */
   wiki: string | null
   summary?: string
+  summary_ru?: string
   image?: string | null
 }
 
@@ -63,6 +64,10 @@ export interface AtlasArticle {
   body: string
   images: { src: string; caption: string | null }[]
   categories: string[]
+  /** перевод (scripts/atlas/translate.py); нет — показываем оригинал */
+  summary_ru?: string
+  body_ru?: string
+  infobox_ru?: Infobox
 }
 
 export interface LoreSection extends Partial<AtlasArticle> {
@@ -83,6 +88,8 @@ export interface AtlasEra {
   url: string
   summary: string
   body?: string
+  summary_ru?: string
+  body_ru?: string
   image: string | null
   years: number
   events: number
@@ -95,6 +102,7 @@ export interface AtlasYear {
   name: string | null
   name_ru?: string
   headline: string | null
+  headline_ru?: string
   count: number
   cats: string[]
 }
