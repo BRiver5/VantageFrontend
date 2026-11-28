@@ -149,6 +149,8 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
   // в комнате мастер действует как админ: за любого игрока и с правкой листа
   const admin = user?.role === 'admin' || !!room?.isDm
   const owner = !!character && !!user && (admin || character.player_id === user.id)
+  // герой действительно мой (не просто доступен админу) — от этого зависит «Скопировать себе»
+  const mine = !!character && !!user && character.player_id === user.id
   // копию в комнате игрок правит ограниченно: числа, уровень и состав способностей — мастер
   const canEditSheet = room ? room.isDm : owner
 
@@ -353,7 +355,8 @@ export function LiveCharacter({ characterRef, tab, onTab: setTab, room }: LiveCh
   const StatusIcon = status?.icon
   const flow = eng.flow
   const banner = eng.conflict ?? eng.notice
-  const canCopy = ready && !owner && !room
+  // админ может править чужой лист, но добавить его к себе ему тоже нужно
+  const canCopy = ready && !mine && !room
 
   /** Чужой лист целиком — новый персонаж текущего игрока */
   const copyToMe = async () => {
