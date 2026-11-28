@@ -92,6 +92,8 @@ export interface Subrace extends EditionFields {
   id: string
   subrace_name: string
   parent_race_id: string
+  /** арт подрасы; пусто — показываем арт родительской расы */
+  image_gallery?: string[] | null
   description: string | null
   traits: string | null
   increase_ability_scores: Record<string, number> | null

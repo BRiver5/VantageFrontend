@@ -6,10 +6,12 @@ import {
   createCharacter,
   deleteCharacter,
   listMyCharacters,
+  originImage,
   realImage,
   type Character,
   type GameClass,
   type Race,
+  type Subrace,
 } from '../api'
 import {
   hasLegacySheet,
@@ -87,12 +89,14 @@ function HeroBanner({
   c,
   classById,
   race,
+  subrace,
   onDelete,
   arrange,
 }: {
   c: Character
   classById: Map<string, GameClass>
   race: Race | null
+  subrace: Subrace | null
   onDelete: () => void
   /** режим «свой порядок»: стрелки и перетаскивание вместо перехода в лист */
   arrange?: { first: boolean; last: boolean; onMove: (d: -1 | 1) => void; onDragStart: () => void; onDrop: () => void; dragging: boolean }
@@ -103,7 +107,7 @@ function HeroBanner({
   // без своего портрета — арт расы, класс лишь запасной вариант
   const first = classById.get(c.classes?.[0]?.class_id ?? '')
   const art =
-    parsePortrait(c.avatar_url).src || realImage(race?.image_gallery) || realImage(first?.image_gallery)
+    parsePortrait(c.avatar_url).src || originImage(race, subrace) || realImage(first?.image_gallery)
   const classes = (c.classes ?? [])
     .map((cl) => `${classById.get(cl.class_id)?.class_name ?? 'Класс'} ${cl.level}`)
     .join(' / ')
@@ -184,10 +188,12 @@ export default function CharactersPage() {
   const [importing, setImporting] = useState(false)
   const { items: classes } = useCatalogList<GameClass>('classes')
   const { items: races } = useCatalogList<Race>('races')
+  const { items: subraces } = useCatalogList<Subrace>('subraces')
 
   // арт класса — портрет знамени, если у героя нет своего аватара
   const classById = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes])
   const raceById = useMemo(() => new Map(races.map((r) => [r.id, r])), [races])
+  const subraceById = useMemo(() => new Map(subraces.map((s) => [s.id, s])), [subraces])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -498,6 +504,7 @@ export default function CharactersPage() {
                   c={c}
                   classById={classById}
                   race={c.race_id ? (raceById.get(c.race_id) ?? null) : null}
+                  subrace={c.subrace_id ? (subraceById.get(c.subrace_id) ?? null) : null}
                   onDelete={() => void onDelete(c)}
                   arrange={
                     arranging

@@ -6,7 +6,7 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react'
 import { ChevronDown, Dices, Eye, Globe, ImagePlus, Lock, Trash2, UserRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { realImage } from '../../api'
+import { originImage } from '../../api'
 import type { CharacterVisibility } from '../../api'
 import type { StepProps } from '../draft'
 import {
@@ -136,7 +136,7 @@ function HeroPreview({ draft, update }: StepProps) {
         {ownArt ? (
           <Img src={ownArt} alt="" onError={() => setBroken(avatar)} />
         ) : (
-          <ChoicePortrait src={realImage(draft.race?.image_gallery)} icon={UserRound} />
+          <ChoicePortrait src={originImage(draft.race, draft.subrace)} icon={UserRound} />
         )}
         {abbr && (
           <span className="cw-hero-align" title={draft.alignment}>
