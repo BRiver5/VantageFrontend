@@ -25,6 +25,7 @@ import {
   ABILITY_RU,
   getSubraces,
   isFramedArt,
+  originImage,
   realImage,
   sizeRu,
   creatureTypeRu,
@@ -312,7 +313,7 @@ export function SubraceDetailPage() {
       backLabel={parent ? `к расе «${parent.race_name}»` : 'к расе'}
       kicker="подраса"
       title={sr.subrace_name}
-      image={null}
+      image={originImage(parent, sr)}
       imageIcon={Users}
       chips={
         <>

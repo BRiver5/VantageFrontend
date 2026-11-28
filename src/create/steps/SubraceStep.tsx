@@ -7,7 +7,7 @@
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Footprints, Languages, Users } from 'lucide-react'
-import { ABILITY_RU, realImage } from '../../api'
+import { ABILITY_RU, originImage, realImage } from '../../api'
 import type { Race, Subrace } from '../../api'
 import { AbilitiesMissingFrom } from '../../abilities/AbilityList'
 import { ClassArticle, OpenLinksInNewTab } from '../../classArticle'
@@ -56,6 +56,7 @@ function branchAsRace(sr: Subrace, parent: Race): Race {
     ...parent,
     id: sr.id,
     race_name: sr.subrace_name,
+    image_gallery: realImage(sr.image_gallery) ? sr.image_gallery! : parent.image_gallery,
     increase_ability_scores: branchBoosts(sr, parent),
     size: sr.size ?? parent.size,
     speed: (sr.speed ?? parent.speed) + (sr.speed_bonus ?? 0),
@@ -244,7 +245,7 @@ export default function SubraceStep({
 
       {open && (
         <ChoiceModal
-          art={realImage(race.image_gallery)}
+          art={originImage(race, open)}
           icon={Users}
           title={open.subrace_name}
           selected={draft.subrace?.id === open.id}

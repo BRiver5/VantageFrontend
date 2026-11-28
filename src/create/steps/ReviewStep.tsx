@@ -5,7 +5,7 @@
  * тратятся «на пробу» и живут только до ухода со страницы.
  */
 import { useMemo, useState } from 'react'
-import { realImage } from '../../api'
+import { originImage } from '../../api'
 import CharacterSheet from '../../characters/CharacterSheet'
 import { useEquipmentIndex } from '../../equipmentIndex'
 import type { FeatureEntry } from '../../classArticleHtml'
@@ -50,7 +50,7 @@ export default function ReviewStep({
         />
       }
       portrait={draft.avatarUrl.trim() || null}
-      fallbackPortrait={realImage(draft.race?.image_gallery)}
+      fallbackPortrait={originImage(draft.race, draft.subrace)}
       play={{ slotsUsed, setSlotsUsed, racialUsed, setRacialUsed }}
       onInventory={(next) => update({ inventory: next, inventoryKey: gearKey(draft) })}
     />

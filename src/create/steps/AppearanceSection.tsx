@@ -5,7 +5,7 @@
  */
 import { useState, type CSSProperties } from 'react'
 import { ChevronDown, UserRound } from 'lucide-react'
-import { realImage } from '../../api'
+import { originImage } from '../../api'
 import { HeightChart } from '../../creature/HeightChart'
 import { fmtM, raceAverageHeight, sizeHeightRange } from '../../creature/height'
 import type { StepProps } from '../draft'
@@ -140,7 +140,7 @@ export function AppearanceSection({ draft, update }: StepProps) {
             : 'на склоне лет'
 
   // для сравнения роста — всегда арт расы, а не загруженный портрет
-  const figure = realImage(race?.image_gallery)
+  const figure = originImage(race, draft.subrace)
 
   return (
     <div className="cw-look">

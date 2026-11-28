@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { createPortal } from 'react-dom'
 import { ImageOff, Skull } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { getCharacter, getOne, listMyCharacters, realImage, roomCharacterRef, type GameClass, type Race } from '../../api'
+import { getCharacter, getOne, listMyCharacters, originImage, realImage, roomCharacterRef, type GameClass, type Race, type Subrace } from '../../api'
 import { useRoom } from '../RoomProvider'
 import { patchRoomCharacter } from '../roomsApi'
 import { FaceImage } from '../../characters/FacePortrait'
@@ -103,8 +103,9 @@ function loadHeroArt(roomId: string, characterId: string, own: boolean): Promise
       if (c.avatar_url) return c.avatar_url
       const original = own ? await avatarFromOriginal(roomId, characterId, c.character_name, c.race_id) : null
       if (original) return original
-      const race = c.race_id ? await getOne<Race>('races', c.race_id).catch(() => null) : null
-      const fromRace = realImage(race?.image_gallery)
+      const subrace = c.subrace_id ? await getOne<Subrace>('subraces', c.subrace_id).catch(() => null) : null
+      const race = c.race_id && !realImage(subrace?.image_gallery) ? await getOne<Race>('races', c.race_id).catch(() => null) : null
+      const fromRace = originImage(race, subrace)
       if (fromRace) return fromRace
       const cls = c.classes[0]?.class_id ? await getOne<GameClass>('classes', c.classes[0].class_id).catch(() => null) : null
       return realImage(cls?.image_gallery)

@@ -10,7 +10,7 @@ import { DICE_MATERIALS, materialInfo, setDiceMaterial, useDiceMaterial, type Ma
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { Camera, Check, Crop, DoorOpen, Link2, Loader2, Lock, LogOut, ScrollText, Settings, Trash2, UserRound, Volume2, VolumeX, X } from 'lucide-react'
-import { listMyCharacters, realImage, uploadAvatar, type Character, type Race } from '../api'
+import { listMyCharacters, originImage, uploadAvatar, type Character, type Race, type Subrace } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { FaceCropper, FaceImage } from '../characters/FacePortrait'
 import { formatPortrait, parsePortrait, type FaceCrop } from '../characters/portrait'
@@ -88,6 +88,7 @@ function Avatar({ name }: { name: string }) {
   const { user, updateMe, refreshMe } = useAuth()
   const [characters, setCharacters] = useState<Character[]>([])
   const { items: races } = useCatalogList<Race>('races')
+  const { items: subraces } = useCatalogList<Subrace>('subraces')
   const [linkOpen, setLinkOpen] = useState(false)
   const [cropping, setCropping] = useState(false)
   const [url, setUrl] = useState('')
@@ -107,10 +108,13 @@ function Avatar({ name }: { name: string }) {
   }, [])
   useEffect(() => setBroken(false), [user?.avatar_url])
 
-  const raceArt = useMemo(() => new Map(races.map((r) => [r.id, realImage(r.image_gallery)])), [races])
+  const raceById = useMemo(() => new Map(races.map((r) => [r.id, r])), [races])
+  const subraceById = useMemo(() => new Map(subraces.map((s) => [s.id, s])), [subraces])
   const heroes = characters.map((c) => {
     const own = parsePortrait(c.avatar_url).src
-    return { c, own, art: own ?? (c.race_id ? (raceArt.get(c.race_id) ?? null) : null) }
+    const race = c.race_id ? raceById.get(c.race_id) : null
+    const subrace = c.subrace_id ? subraceById.get(c.subrace_id) : null
+    return { c, own, art: own ?? originImage(race, subrace) }
   })
 
   if (!user) return null

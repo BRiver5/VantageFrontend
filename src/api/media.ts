@@ -43,6 +43,14 @@ export function realImage(urls: string[] | null | undefined): string | null {
   return u ?? null
 }
 
+/** Арт происхождения: своя картинка подрасы, иначе картинка расы */
+export function originImage(
+  race: { image_gallery?: string[] | null } | null | undefined,
+  subrace?: { image_gallery?: string[] | null } | null,
+): string | null {
+  return realImage(subrace?.image_gallery) ?? realImage(race?.image_gallery)
+}
+
 /**
  * Наши вырезанные фигуры лежат в `/media/`. Всё остальное (галерея dnd.su) —
  * картинка с фоном: её нельзя ставить «в полный рост», только в рамку.
