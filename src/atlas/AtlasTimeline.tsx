@@ -4,7 +4,7 @@
  * ссылка на статью). Год из адреса (?year=1358) открывает его эпоху с этого года.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Hourglass, MapPin, Search, X } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, Hourglass, MapPin, Search, SlidersHorizontal, X } from 'lucide-react'
 import { formatDR, getEra, getEvents } from '../api/atlas'
 import type { AtlasEra, AtlasEvent, AtlasTimeline as TimelineData, AtlasYear } from '../api/atlas'
 import { useAtlas, useWorldParams } from './AtlasContext'
@@ -13,21 +13,22 @@ import { countLabel } from '../lib/plural'
 
 const PAGE = 250
 
+/** Цвет рубрики: приглушённые тона одной светлоты — метка, а не пятно */
 const CAT_COLORS: Record<string, string> = {
-  politics: '#c49a3c',
-  conflicts: '#d0563f',
-  deaths: '#8d8a99',
-  births: '#6fb38a',
-  misc: '#9a8f78',
-  magic: '#8f74d6',
-  people: '#d08a52',
-  environment: '#5ba7a0',
-  organizations: '#c76f9a',
-  migrations: '#7d9bd1',
-  deities: '#e3c46e',
-  realmspace: '#5f86c9',
-  wildlife: '#86a858',
-  abeir: '#b0765a',
+  politics: '#d2ad62',
+  conflicts: '#d97a68',
+  deaths: '#a3a1ae',
+  births: '#86bf9c',
+  misc: '#aea692',
+  magic: '#a593dc',
+  people: '#d9a277',
+  environment: '#79b8b1',
+  organizations: '#d290ae',
+  migrations: '#93acd9',
+  deities: '#e3cd85',
+  realmspace: '#8ea2d6',
+  wildlife: '#a0bd78',
+  abeir: '#c8977c',
 }
 
 function eraRange(e: AtlasEra): string {
@@ -142,129 +143,175 @@ function TimelineView({ data }: { data: TimelineData }) {
     if (target) set({ year: target.year, era: null, q: null, link: null })
   }
 
+  const [catsOpen, setCatsOpen] = useState(false)
+  const catsRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!catsOpen) return
+    const close = (e: MouseEvent) => {
+      if (catsRef.current && !catsRef.current.contains(e.target as Node)) setCatsOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [catsOpen])
+  const toggleCat = (key: string) =>
+    set({ cat: (cats.includes(key) ? cats.filter((c) => c !== key) : [...cats, key]).join(',') || null }, true)
+  const catOrder = Object.keys(data.categories)
+  const hasFilters = cats.length > 0 || Boolean(link) || Boolean(q)
+
   return (
-    <div className="atlas-timeline">
-      <nav className="atlas-eras" aria-label="Эпохи">
-        {data.eras.map((e) => (
-          <button
-            key={e.index}
-            type="button"
-            className={`atlas-era${!searching && e.index === era ? ' is-active' : ''}`}
-            onClick={() => set({ era: e.index, year: null, q: null, link: null })}
-            style={e.image ? { ['--era-art' as string]: `url("${e.image}")` } : undefined}
-          >
-            <span className="atlas-era-name">{e.name_ru}</span>
-            <span className="atlas-era-en">{e.title}</span>
-            <span className="atlas-era-range">{eraRange(e)}</span>
-            <span className="atlas-era-count">{countLabel(e.events, ['событие', 'события', 'событий'])}</span>
-          </button>
-        ))}
+    <div className="tl">
+      <nav className="tl-eras" aria-label="Эпохи">
+        <div className="tl-eras-track">
+          {data.eras.map((e) => (
+            <button
+              key={e.index}
+              type="button"
+              className={`tl-era-stop${!searching && e.index === era ? ' is-active' : ''}`}
+              onClick={() => set({ era: e.index, year: null, q: null, link: null })}
+              title={`${e.title} · ${countLabel(e.events, ['событие', 'события', 'событий'])}`}
+            >
+              <span className="tl-era-dot" aria-hidden="true" />
+              <span className="tl-era-name">{e.name_ru}</span>
+              <span className="tl-era-range">{eraRange(e)}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
-      <div className="atlas-tl-tools">
-        <label className="atlas-search">
+      {!searching && current && <EraIntro era={current} position={`${era + 1} из ${data.eras.length}`} />}
+
+      <div className="tl-bar">
+        <label className="tl-field tl-search">
           <Search aria-hidden="true" />
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Поиск по всей истории: Нетерил, Elminster…" />
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Поиск по всей истории — Нетерил, Эльминстер…" />
           {draft && (
-            <button type="button" onClick={() => { setDraft(''); set({ q: null }) }} aria-label="Очистить">
+            <button type="button" className="tl-clear" onClick={() => { setDraft(''); set({ q: null }) }} aria-label="Очистить">
               <X aria-hidden="true" />
             </button>
           )}
         </label>
-        <form className="atlas-jump" onSubmit={(e) => { e.preventDefault(); doJump() }}>
+        <form className="tl-field tl-jump" onSubmit={(e) => { e.preventDefault(); doJump() }}>
           <Hourglass aria-hidden="true" />
-          <input value={jump} onChange={(e) => setJump(e.target.value)} placeholder="К году: 1358, −339" inputMode="numeric" />
+          <input value={jump} onChange={(e) => setJump(e.target.value)} placeholder="К году: 1358" inputMode="numeric" aria-label="Перейти к году" />
         </form>
-      </div>
-
-      <div className="atlas-cats">
-        {Object.entries(data.categories).map(([key, label]) => {
-          const on = cats.includes(key)
-          return (
-            <button
-              key={key}
-              type="button"
-              className={`atlas-cat${on ? ' is-on' : ''}`}
-              style={{ ['--cat' as string]: CAT_COLORS[key] ?? '#9a8f78' }}
-              onClick={() => set({ cat: (on ? cats.filter((c) => c !== key) : [...cats, key]).join(',') || null }, true)}
-            >
-              {label}
-            </button>
-          )
-        })}
-        {cats.length > 0 && (
-          <button type="button" className="atlas-cat is-reset" onClick={() => set({ cat: null }, true)}>
-            все рубрики
+        <div className="tl-cats" ref={catsRef}>
+          <button type="button" className={`tl-field tl-cats-btn${catsOpen ? ' is-open' : ''}`} onClick={() => setCatsOpen((v) => !v)} aria-expanded={catsOpen}>
+            <SlidersHorizontal aria-hidden="true" />
+            Рубрики
+            {cats.length > 0 && <span className="tl-badge">{cats.length}</span>}
+            <ChevronDown className="tl-caret" aria-hidden="true" />
           </button>
-        )}
+          {catsOpen && (
+            <div className="tl-cats-pop" role="menu">
+              {catOrder.map((key) => {
+                const on = cats.includes(key)
+                return (
+                  <button key={key} type="button" role="menuitemcheckbox" aria-checked={on} className={`tl-cat-opt${on ? ' is-on' : ''}`} style={{ ['--cat' as string]: CAT_COLORS[key] }} onClick={() => toggleCat(key)}>
+                    <span className="tl-check" aria-hidden="true">{on && <Check />}</span>
+                    {data.categories[key]}
+                  </button>
+                )
+              })}
+              <div className="tl-cats-foot">
+                <button type="button" onClick={() => set({ cat: null }, true)} disabled={cats.length === 0}>Сбросить</button>
+                <button type="button" onClick={() => setCatsOpen(false)}>Готово</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {link && (
-        <div className="atlas-filter-chip">
-          <MapPin aria-hidden="true" /> Только события, где упомянуто: <strong>{linkLabel}</strong>
-          <button type="button" onClick={() => set({ link: null })} aria-label="Снять фильтр">
-            <X aria-hidden="true" />
+      {hasFilters && (
+        <div className="tl-chips">
+          {link && (
+            <span className="tl-chip">
+              <MapPin aria-hidden="true" /> {linkLabel}
+              <button type="button" onClick={() => set({ link: null })} aria-label="Снять фильтр"><X aria-hidden="true" /></button>
+            </span>
+          )}
+          {cats.map((key) => (
+            <span key={key} className="tl-chip" style={{ ['--cat' as string]: CAT_COLORS[key] }}>
+              <span className="tl-chip-dot" aria-hidden="true" /> {data.categories[key]}
+              <button type="button" onClick={() => toggleCat(key)} aria-label="Убрать рубрику"><X aria-hidden="true" /></button>
+            </span>
+          ))}
+          <button type="button" className="tl-reset" onClick={() => { setDraft(''); set({ cat: null, link: null, q: null }) }}>
+            сбросить всё
           </button>
         </div>
       )}
 
-      {!searching && current && <EraIntro era={current} />}
-
-      <div ref={listTop} className="atlas-tl-status">
+      <div ref={listTop} className="tl-status">
         {error ? (
           <span className="is-error">Не удалось загрузить события: {error}</span>
         ) : (
           <>
-            {searching ? 'Найдено' : year != null ? `С ${formatDR(year)} —` : 'В эпохе'} {countLabel(total, ['событие', 'события', 'событий'])}
+            <span>
+              {searching ? 'Найдено ' : ''}
+              {countLabel(total, ['событие', 'события', 'событий'])}
+              {!searching && year != null && ` · с ${formatDR(year)}`}
+            </span>
             {year != null && !searching && (
-              <button type="button" className="atlas-link-btn" onClick={() => set({ year: null, era })}>
-                показать с начала эпохи
+              <button type="button" className="tl-link" onClick={() => set({ year: null, era })}>
+                с начала эпохи
               </button>
             )}
           </>
         )}
       </div>
 
-      <div className="atlas-years">
+      <div className="tl-years">
         {groups.map(([y, evs]) => {
           const info = yearsByNum.get(y)
+          const byCat = new Map<string, AtlasEvent[]>()
+          for (const ev of evs) byCat.set(ev.cat, [...(byCat.get(ev.cat) ?? []), ev])
+          const ordered = catOrder.filter((c) => byCat.has(c))
           return (
-            <section key={y} className={`atlas-year${y === year ? ' is-target' : ''}`} id={`year-${y}`}>
-              <header>
-                <span className="atlas-year-num">{formatDR(y)}</span>
-                {info?.name && <span className="atlas-year-name">{pick(info.name_ru, info.name)}</span>}
-                {info?.headline && (
-                  <span className="atlas-year-headline">
-                    <AtlasText src={pick(info.headline_ru, info.headline)} inline />
+            <section key={y} className={`tl-year${y === year ? ' is-target' : ''}`} id={`year-${y}`}>
+              <header className="tl-year-head">
+                <div className="tl-year-sticky">
+                  <span className="tl-year-num">
+                    {Math.abs(y) >= 10000 ? Math.abs(y).toLocaleString('ru-RU') : Math.abs(y)}
+                    <small>{y < 0 ? 'до ЛД' : 'ЛД'}</small>
                   </span>
-                )}
+                  {info?.name && <span className="tl-year-name">{pick(info.name_ru, info.name)}</span>}
+                </div>
               </header>
-              <ul>
-                {evs.map((ev) => (
-                  <li key={ev.id} className={ev.sub ? 'is-sub' : ''}>
-                    <span className="atlas-cat-dot" style={{ background: CAT_COLORS[ev.cat] }} title={data.categories[ev.cat]} />
-                    <div>
-                      {ev.approx && <span className="atlas-approx">около</span>}
-                      <AtlasText src={pick(ev.text_ru, ev.text)} />
-                    </div>
-                  </li>
+              <div className="tl-year-body">
+                {info?.headline && (
+                  <div className="tl-headline">
+                    <AtlasText src={pick(info.headline_ru, info.headline)} inline />
+                  </div>
+                )}
+                {ordered.map((c) => (
+                  <div key={c} className="tl-group" style={{ ['--cat' as string]: CAT_COLORS[c] }}>
+                    <h4 className="tl-group-title">{data.categories[c]}</h4>
+                    <ul>
+                      {byCat.get(c)!.map((ev) => (
+                        <li key={ev.id} className={ev.sub ? 'is-sub' : ''}>
+                          {ev.approx && <span className="tl-approx">ок.</span>}
+                          <AtlasText src={pick(ev.text_ru, ev.text)} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           )
         })}
-        {!loading && items.length === 0 && !error && <p className="atlas-muted">Событий по этому фильтру нет.</p>}
+        {!loading && items.length === 0 && !error && <p className="tl-empty">Событий по этому фильтру нет.</p>}
         <div ref={sentinel} />
         {loading && <p className="status-line">Листаем летописи…</p>}
         {!loading && items.length < total && (
-          <button type="button" className="atlas-btn is-ghost" onClick={more}>
-            Ещё {Math.min(PAGE, total - items.length)} из {total - items.length}
+          <button type="button" className="tl-more" onClick={more}>
+            Показать ещё {Math.min(PAGE, total - items.length)} · осталось {total - items.length}
           </button>
         )}
       </div>
-      <p className="atlas-credits">
-        Летопись — годовые статьи Forgotten Realms Wiki (CC BY-SA). Ссылки на места открывают карту, на годы — хронологию.
-        <button type="button" className="atlas-link-btn" onClick={() => go({ kind: 'wiki', url: 'https://forgottenrealms.fandom.com/wiki/Category:Years' })}>
+      <p className="tl-credits">
+        Летопись — годовые статьи Forgotten Realms Wiki (CC BY-SA). Золотые ссылки ведут на карту, в лор и к другим годам.{' '}
+        <button type="button" className="tl-link" onClick={() => go({ kind: 'wiki', url: 'https://forgottenrealms.fandom.com/wiki/Category:Years' })}>
           Источник
         </button>
       </p>
@@ -272,7 +319,7 @@ function TimelineView({ data }: { data: TimelineData }) {
   )
 }
 
-function EraIntro({ era }: { era: AtlasEra }) {
+function EraIntro({ era, position }: { era: AtlasEra; position: string }) {
   const { world, pick } = useAtlas()
   const [full, setFull] = useState<AtlasEra | null>(null)
   const [open, setOpen] = useState(false)
@@ -280,30 +327,43 @@ function EraIntro({ era }: { era: AtlasEra }) {
     setFull(null)
     setOpen(false)
   }, [era.index])
-  const expand = () => {
-    setOpen(true)
+  const toggle = () => {
+    setOpen((v) => !v)
     if (!full) getEra(world.world, era.index).then(setFull).catch(() => undefined)
   }
   return (
-    <section className="atlas-era-intro">
-      <h2 className="section-title gold-text">{era.name_ru}</h2>
-      <p className="section-sub">
-        {era.title} · {eraRange(era)} · {countLabel(era.years, ['год', 'года', 'лет'])} в летописи
-      </p>
-      {!open && era.summary && <p className="atlas-era-summary">{pick(era.summary_ru, era.summary)}</p>}
-      {open ? (
-        full ? (
-          <div className="atlas-article">
-            <AtlasText src={pick(full.body_ru, full.body ?? '')} />
-            <WikiSource url={full.url} title={full.title} />
-          </div>
-        ) : (
-          <p className="status-line">Открываем…</p>
-        )
-      ) : (
-        <button type="button" className="atlas-btn is-ghost" onClick={expand}>
-          <BookOpen aria-hidden="true" /> Об эпохе подробнее
+    <section className={`tl-era${era.image ? ' has-art' : ''}`}>
+      <div className="tl-era-text">
+        <span className="tl-kicker">Эпоха {position}</span>
+        <h2 className="tl-era-title gold-text">{era.name_ru}</h2>
+        <p className="tl-era-meta">
+          <span>{era.title}</span>
+          <span>{eraRange(era)}</span>
+          <span>{countLabel(era.years, ['год', 'года', 'лет'])} в летописи</span>
+          <span>{countLabel(era.events, ['событие', 'события', 'событий'])}</span>
+        </p>
+        {era.summary && <p className="tl-era-summary">{pick(era.summary_ru, era.summary)}</p>}
+        <button type="button" className="tl-link tl-era-more" onClick={toggle} aria-expanded={open}>
+          <BookOpen aria-hidden="true" /> {open ? 'Свернуть' : 'Об эпохе подробнее'}
+          <ChevronDown className={open ? 'is-up' : ''} aria-hidden="true" />
         </button>
+      </div>
+      {era.image && (
+        <div className="tl-era-art" aria-hidden="true">
+          <img src={era.image} alt="" loading="lazy" />
+        </div>
+      )}
+      {open && (
+        <div className="tl-era-full">
+          {full ? (
+            <div className="atlas-article">
+              <AtlasText src={pick(full.body_ru, full.body ?? '')} />
+              <WikiSource url={full.url} title={full.title} />
+            </div>
+          ) : (
+            <p className="status-line">Открываем…</p>
+          )}
+        </div>
       )}
     </section>
   )
